@@ -24,9 +24,21 @@ import {
   type Gender
 } from "@/data/bloodPanelConfig";
 import type { BiomarkerDefinition, BiomarkerResult, BiomarkerCategory } from "@/types";
-import { Search, Filter, X, Loader2, FileText, Info, User, BookOpen } from "lucide-react";
+import { Search, Filter, X, Loader2, FileText, Info, User, BookOpen, TestTubes, Bean, Droplets, Heart, Activity, Sparkles, Flame } from "lucide-react";
 
 type FilterStatus = "all" | "optimal" | "normal" | "out_of_range" | "not_tested";
+
+// Organ-specific health test panels (mirrors the desktop nav dropdown), surfaced
+// on mobile where that dropdown is hidden.
+const healthTestPanels = [
+  { href: "/dashboard/blood-panel", label: "Full Blood", icon: TestTubes, color: "#1D9E75" },
+  { href: "/dashboard/liver-test", label: "Liver", icon: Bean, color: "#65a30d" },
+  { href: "/dashboard/kidney-test", label: "Kidney", icon: Droplets, color: "#0891b2" },
+  { href: "/dashboard/heart-test", label: "Heart", icon: Heart, color: "#ef4444" },
+  { href: "/dashboard/thyroid-test", label: "Thyroid", icon: Activity, color: "#2563eb" },
+  { href: "/dashboard/hormone-test", label: "Hormones", icon: Sparkles, color: "#a855f7" },
+  { href: "/dashboard/metabolic-panel", label: "Metabolic", icon: Flame, color: "#f97316" },
+];
 
 // Grayscale biomarker card for biomarkers without results
 function GrayscaleBiomarkerCard({
@@ -509,6 +521,30 @@ export default function BiomarkersPage() {
         Learn about Biomarkers
       </Link>
 
+      {/* Health Tests quick access — mobile only (desktop uses the nav dropdown) */}
+      <div className="md:hidden">
+        <h2 className="text-sm font-medium text-foreground mb-2">Health Tests</h2>
+        <div className="overflow-x-auto pb-1">
+          <div className="flex w-max gap-2">
+            {healthTestPanels.map((t) => (
+              <Link key={t.href} href={t.href} className="shrink-0">
+                <div className="flex flex-col items-center justify-center gap-1.5 w-20 rounded-xl border border-border bg-card p-3 hover:shadow-md transition-shadow">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: `${t.color}15` }}
+                  >
+                    <t.icon className="w-5 h-5" style={{ color: t.color }} />
+                  </div>
+                  <span className="text-[11px] text-center leading-tight text-muted-foreground">
+                    {t.label}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Summary Stats - Based on Your Test Results */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Card className="bg-primary/5 border-primary/20">
@@ -563,54 +599,62 @@ export default function BiomarkersPage() {
             </div>
 
             {/* Status Filter */}
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="space-y-2">
               <span className="text-sm text-muted-foreground">Status:</span>
               <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as FilterStatus)}>
-                <TabsList className="flex-wrap h-auto gap-1">
-                  <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
-                  <TabsTrigger value="optimal" className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-600">
-                    Optimal ({counts.optimal})
-                  </TabsTrigger>
-                  <TabsTrigger value="normal" className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-600">
-                    Normal ({counts.normal})
-                  </TabsTrigger>
-                  <TabsTrigger value="out_of_range" className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600">
-                    Attention ({counts.outOfRange})
-                  </TabsTrigger>
-                  <TabsTrigger value="not_tested" className="text-xs sm:text-sm data-[state=active]:bg-gray-500/20 data-[state=active]:text-gray-600">
-                    Not Tested ({counts.notTested})
-                  </TabsTrigger>
-                </TabsList>
+                <div className="overflow-x-auto pb-1 sm:overflow-visible sm:pb-0">
+                  <TabsList className="w-max sm:w-auto sm:flex-wrap sm:h-auto gap-1">
+                    <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
+                    <TabsTrigger value="optimal" className="text-xs sm:text-sm data-[state=active]:bg-green-500/20 data-[state=active]:text-green-600">
+                      Optimal ({counts.optimal})
+                    </TabsTrigger>
+                    <TabsTrigger value="normal" className="text-xs sm:text-sm data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-600">
+                      Normal ({counts.normal})
+                    </TabsTrigger>
+                    <TabsTrigger value="out_of_range" className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600">
+                      Attention ({counts.outOfRange})
+                    </TabsTrigger>
+                    <TabsTrigger value="not_tested" className="text-xs sm:text-sm data-[state=active]:bg-gray-500/20 data-[state=active]:text-gray-600">
+                      Not Tested ({counts.notTested})
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
               </Tabs>
             </div>
 
             {/* Category Pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-muted-foreground mr-2">Category:</span>
-              <Button
-                variant={selectedCategory === null ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedCategory(null)}
-              >
-                All
-              </Button>
-              {Object.entries(bloodPanelConfig).map(([key, config]) => {
-                const catKey = key as BloodPanelCategoryKey;
-                return (
+            <div className="space-y-2">
+              <span className="text-sm text-muted-foreground">Category:</span>
+              <div className="overflow-x-auto pb-1 sm:overflow-visible sm:pb-0">
+                <div className="flex w-max sm:w-auto sm:flex-wrap items-center gap-2">
                   <Button
-                    key={key}
-                    variant={selectedCategory === catKey ? "secondary" : "ghost"}
+                    variant={selectedCategory === null ? "secondary" : "ghost"}
                     size="sm"
-                    onClick={() => setSelectedCategory(catKey)}
-                    style={selectedCategory === catKey ? {
-                      backgroundColor: `${config.color}15`,
-                      color: config.color
-                    } : undefined}
+                    className="shrink-0"
+                    onClick={() => setSelectedCategory(null)}
                   >
-                    {config.name}
+                    All
                   </Button>
-                );
-              })}
+                  {Object.entries(bloodPanelConfig).map(([key, config]) => {
+                    const catKey = key as BloodPanelCategoryKey;
+                    return (
+                      <Button
+                        key={key}
+                        variant={selectedCategory === catKey ? "secondary" : "ghost"}
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => setSelectedCategory(catKey)}
+                        style={selectedCategory === catKey ? {
+                          backgroundColor: `${config.color}15`,
+                          color: config.color
+                        } : undefined}
+                      >
+                        {config.name}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Active Filters */}

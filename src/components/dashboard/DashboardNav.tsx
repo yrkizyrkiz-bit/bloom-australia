@@ -145,7 +145,7 @@ export function DashboardNav() {
                 )}
                 {biomarkerLinks.map((link) => {
                   const isActive = pathname === link.href;
-                  const href = biomarkersUnlocked ? link.href : "/dashboard/explore";
+                  const href = link.href;
                   return (
                     <DropdownMenuItem key={link.href} asChild>
                       <Link
@@ -183,7 +183,7 @@ export function DashboardNav() {
                 </DropdownMenuLabel>
                 {healthTests.map((test) => {
                   const isActive = pathname.startsWith(test.href);
-                  const href = biomarkersUnlocked ? test.href : "/dashboard/explore";
+                  const href = test.href;
                   return (
                     <DropdownMenuItem key={test.href} asChild>
                       <Link
