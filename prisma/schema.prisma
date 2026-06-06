@@ -1,0 +1,2341 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id                              String                  @id @default(cuid())
+  email                           String                  @unique
+  emailVerified                   DateTime?
+  passwordHash                    String?
+  password                        String?
+  firstName                       String
+  lastName                        String
+  dateOfBirth                     DateTime?
+  gender                          Gender                  @default(OTHER)
+  phone                           String?
+  address                         String?
+  addressLine1                    String?
+  addressLine2                    String?
+  suburb                          String?
+  state                           String?
+  postcode                        String?
+  // IANA timezone derived from residential state/postcode (e.g. Australia/Brisbane)
+  timezone                        String?                 @default("Australia/Sydney")
+  country                         String?                 @default("Australia")
+  mailingAddressSameAsResidential Boolean                 @default(true)
+  mailingAddress                  String?
+  mailingAddressLine1             String?
+  mailingAddressLine2             String?
+  mailingSuburb                   String?
+  mailingState                    String?
+  mailingPostcode                 String?
+  mailingCountry                  String?                 @default("Australia")
+  role                            UserRole                @default(MEMBER)
+  memberStatus                    PortalMemberStatus      @default(POTENTIAL_MEMBER)
+  subscriptionStatus              SubscriptionStatus      @default(INACTIVE)
+  subscriptionTier                String?
+  image                           String?
+  createdAt                       DateTime                @default(now())
+  updatedAt                       DateTime                @updatedAt
+  journeyStatus                   JourneyStatus           @default(LEAD)
+  leadSource                      String?
+  triageScore                     Int?
+  approvalStatus                  ApprovalStatus          @default(PENDING)
+  engagementScore                 Int?
+  churnRiskScore                  Int?
+  referralCode                    String?                 @unique
+  referredBy                      String?
+  ltv                             Float?                  @default(0)
+  renewalDate                     DateTime?
+  assignedCarePartnerId           String?
+  marketingOptIn                  Boolean                 @default(false)
+  unsubscribedAt                  DateTime?
+  aiAnalysisCache                 AIAnalysisCache[]
+  aiAnalysisHistory               AIAnalysisHistory[]
+  aiReports                       AIReport[]
+  accounts                        Account[]
+  activityLogs                    ActivityLog[]
+  appointments                    Appointment[]
+  automationLogs                  AutomationLog[]
+  biomarkerResults                BiomarkerResult[]
+  bookingChangeLogs               BookingChangeLog[]
+  bloodPressureReadings           BloodPressureReading[]
+  careCommunications              CareCommunication[]
+  consultationBookings            ConsultationBooking[]
+  exerciseLogs                    ExerciseLog[]
+  healthGoals                     HealthGoal[]
+  healthProfile                   HealthProfile?
+  healthScores                    HealthScore[]
+  internalNotes                   InternalNote[]
+  invoices                        Invoice[]
+  labReports                      LabReport[]
+  mealLogs                        MealLog[]
+  membershipSubscription          MembershipSubscription?
+  memberSubscriptions             MemberSubscription[]
+  notifications                   Notification[]
+  reminders                       Reminder[]
+  sessions                        Session[]
+  weeklyCheckIns                  WeeklyCheckIn[]
+  weightGoals                     WeightGoal[]
+  weightLogs                      WeightLog[]
+  prescriptions                   Prescription[]
+  weightManagementIntakes         WeightManagementIntake[]
+  memberProgram                   MemberProgram?
+  sideEffectReports               SideEffectReport[]
+
+  @@index([email])
+  @@index([role])
+  @@index([memberStatus])
+  @@index([journeyStatus])
+  @@index([subscriptionTier])
+}
+
+model HealthProfile {
+  id                String            @id @default(cuid())
+  userId            String            @unique
+  systolicBP        Int?
+  diastolicBP       Int?
+  onBPMedication    Boolean           @default(false)
+  bpMeasuredAt      DateTime?
+  smokingStatus     SmokingStatus     @default(NEVER)
+  race              Race              @default(OTHER)
+  familyHistoryCVD  Boolean           @default(false)
+  exerciseFrequency ExerciseFrequency @default(MODERATE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BloodPressureReading {
+  id              String          @id @default(cuid())
+  userId          String
+  systolicBP      Int
+  diastolicBP     Int
+  heartRate       Int?
+  measurementTime MeasurementTime @default(MORNING)
+  armUsed         Arm             @default(LEFT)
+  position        Position        @default(SITTING)
+  notes           String?
+  measuredAt      DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([measuredAt])
+}
+
+model BiomarkerDefinition {
+  id                  String            @id @default(cuid())
+  biomarkerId         String            @unique
+  name                String
+  shortName           String
+  category            BiomarkerCategory
+  description         String
+  whyItMatters        String
+  unit                String
+  maleRanges          Json
+  femaleRanges        Json
+  improvementTips     String[]          @default([])
+  relatedBiomarkerIds String[]          @default([])
+  isActive            Boolean           @default(true)
+  sortOrder           Int               @default(0)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  results             BiomarkerResult[]
+  goals               HealthGoal[]
+
+  @@index([category])
+  @@index([biomarkerId])
+}
+
+model BiomarkerResult {
+  id          String              @id @default(cuid())
+  userId      String
+  biomarkerId String
+  value       Float
+  status      BiomarkerStatus
+  testedAt    DateTime
+  uploadedAt  DateTime            @default(now())
+  uploadedBy  String?
+  labReportId String?
+  notes       String?
+  biomarker   BiomarkerDefinition @relation(fields: [biomarkerId], references: [biomarkerId])
+  labReport   LabReport?          @relation(fields: [labReportId], references: [id])
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([biomarkerId])
+  @@index([testedAt])
+  @@index([userId, biomarkerId])
+}
+
+model HealthScore {
+  id               String   @id @default(cuid())
+  userId           String
+  overall          Int
+  biologicalAge    Int?
+  chronologicalAge Int?
+  calculatedAt     DateTime @default(now())
+  categoryScores   Json
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([calculatedAt])
+}
+
+model LabReport {
+  id               String            @id @default(cuid())
+  userId           String
+  fileName         String
+  fileUrl          String?
+  fileSize         Int?
+  mimeType         String?
+  status           ReportStatus      @default(PENDING)
+  biomarkerCount   Int               @default(0)
+  uploadedAt       DateTime          @default(now())
+  processedAt      DateTime?
+  uploadedBy       String?
+  notes            String?
+  biomarkerResults BiomarkerResult[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model HealthGoal {
+  id           String              @id @default(cuid())
+  userId       String
+  biomarkerId  String
+  targetValue  Float
+  currentValue Float
+  startValue   Float
+  startDate    DateTime
+  targetDate   DateTime
+  status       GoalStatus          @default(IN_PROGRESS)
+  notes        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  completedAt  DateTime?
+  biomarker    BiomarkerDefinition @relation(fields: [biomarkerId], references: [biomarkerId])
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([biomarkerId])
+}
+
+model Reminder {
+  id          String            @id @default(cuid())
+  userId      String
+  type        ReminderType
+  title       String
+  description String?
+  dueDate     DateTime
+  frequency   ReminderFrequency @default(ONCE)
+  isCompleted Boolean           @default(false)
+  completedAt DateTime?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([dueDate])
+  @@index([isCompleted])
+}
+
+model Notification {
+  id        String               @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  category  NotificationCategory @default(SYSTEM)
+  actionUrl String?
+  isRead    Boolean              @default(false)
+  readAt    DateTime?
+  createdAt DateTime             @default(now())
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model AIReport {
+  id                    String   @id @default(cuid())
+  userId                String
+  generatedAt           DateTime @default(now())
+  summary               String
+  keyFindings           Json
+  correlations          Json
+  recommendations       Json
+  achievements          Json
+  projectedImprovements Json
+  nextSteps             String[] @default([])
+  riskFactors           Json
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([generatedAt])
+}
+
+model Appointment {
+  id                 String            @id @default(cuid())
+  userId             String
+  type               AppointmentType
+  title              String
+  description        String?
+  scheduledAt        DateTime
+  duration           Int               @default(30)
+  location           String?
+  status             AppointmentStatus @default(SCHEDULED)
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  videoLink          String?
+  carePartnerId      String?
+  doctorId           String?
+  isPaid             Boolean           @default(false)
+  paymentId          String?
+  stripePaymentId    String?           @unique
+  patientBriefSent   Boolean           @default(false)
+  cancellationReason String?
+  followUpRequired   Boolean           @default(false)
+  followUpDate       DateTime?
+  referralId         String?
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model EmailCampaign {
+  id             String         @id @default(cuid())
+  subject        String
+  body           String
+  templateId     String?
+  sentBy         String
+  recipientCount Int            @default(0)
+  sentCount      Int            @default(0)
+  deliveredCount Int            @default(0)
+  openedCount    Int            @default(0)
+  clickedCount   Int            @default(0)
+  bouncedCount   Int            @default(0)
+  status         CampaignStatus @default(DRAFT)
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  events         EmailEvent[]
+
+  @@index([status])
+  @@index([sentAt])
+  @@index([sentBy])
+}
+
+model EmailEvent {
+  id             String         @id @default(cuid())
+  campaignId     String?
+  recipientEmail String
+  recipientId    String?
+  messageId      String?
+  eventType      EmailEventType
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime       @default(now())
+  campaign       EmailCampaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([recipientEmail])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model EmailTemplate {
+  id          String                @id @default(cuid())
+  name        String
+  slug        String                @unique
+  category    EmailTemplateCategory
+  subject     String
+  body        String
+  variables   String[]              @default([])
+  description String?
+  isActive    Boolean               @default(true)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  createdBy   String?
+
+  @@index([category])
+  @@index([slug])
+}
+
+model SMSNotification {
+  id             String    @id @default(cuid())
+  recipientId    String
+  recipientPhone String
+  message        String
+  status         SMSStatus @default(PENDING)
+  provider       String?
+  externalId     String?
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  errorMessage   String?
+  createdAt      DateTime  @default(now())
+
+  @@index([recipientId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model AIAnalysisCache {
+  id            String   @id @default(cuid())
+  userId        String
+  analysisType  String
+  analysisData  Json
+  biomarkerHash String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, analysisType])
+  @@index([userId])
+  @@index([analysisType])
+  @@index([expiresAt])
+}
+
+model AIAnalysisHistory {
+  id             String   @id @default(cuid())
+  userId         String
+  analysisType   String
+  analysisData   Json
+  overallScore   Int
+  riskLevel      String
+  biomarkerCount Int
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([analysisType])
+  @@index([createdAt])
+}
+
+model WeightLog {
+  id                 String       @id @default(cuid())
+  userId             String
+  weight             Float
+  waistCircumference Float?
+  measuredAt         DateTime     @default(now())
+  loggedAt           DateTime     @default(now())
+  source             WeightSource @default(MANUAL)
+  notes              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([measuredAt])
+  @@index([loggedAt])
+}
+
+model WeightGoal {
+  id               String           @id @default(cuid())
+  userId           String
+  startWeight      Float
+  targetWeight     Float
+  currentWeight    Float
+  startDate        DateTime         @default(now())
+  targetDate       DateTime
+  status           WeightGoalStatus @default(IN_PROGRESS)
+  completedAt      DateTime?
+  weeklyTargetLoss Float            @default(0.5)
+  milestones       Json             @default("[]")
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model MealLog {
+  id          String   @id @default(cuid())
+  userId      String
+  mealType    MealType
+  name        String
+  description String?
+  calories    Int?
+  protein     Float?
+  carbs       Float?
+  fat         Float?
+  fiber       Float?
+  portionSize String?
+  imageUrl    String?
+  loggedAt    DateTime @default(now())
+  notes       String?
+  tags        String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([loggedAt])
+  @@index([mealType])
+}
+
+model ExerciseLog {
+  id              String            @id @default(cuid())
+  userId          String
+  activityType    ActivityType
+  name            String
+  description     String?
+  durationMinutes Int
+  intensity       ExerciseIntensity @default(MODERATE)
+  caloriesBurned  Int?
+  distance        Float?
+  steps           Int?
+  heartRateAvg    Int?
+  loggedAt        DateTime          @default(now())
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([loggedAt])
+  @@index([activityType])
+}
+
+model WeeklyCheckIn {
+  id             String   @id @default(cuid())
+  userId         String
+  weekNumber     Int
+  overallFeeling Int
+  energyLevel    Int
+  sleepQuality   Int
+  stressLevel    Int
+  focusAreas     String[] @default([])
+  achievements   String[] @default([])
+  challenges     String?
+  weeklyGoals    Json     @default("[]")
+  notes          String?
+  checkedInAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([weekNumber])
+  @@index([checkedInAt])
+}
+
+model EducationalContent {
+  id           String              @id @default(cuid())
+  title        String
+  description  String
+  category     ContentCategory
+  contentType  ContentType
+  thumbnailUrl String?
+  videoUrl     String?
+  duration     Int?
+  body         String?
+  author       String?
+  tags         String[]            @default([])
+  sortOrder    Int                 @default(0)
+  isPublished  Boolean             @default(true)
+  isFeatured   Boolean             @default(false)
+  viewCount    Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  completions  ContentCompletion[]
+
+  @@index([category])
+  @@index([contentType])
+  @@index([isPublished])
+}
+
+model ContentCompletion {
+  id          String             @id @default(cuid())
+  userId      String
+  contentId   String
+  completedAt DateTime           @default(now())
+  progress    Int                @default(100)
+  content     EducationalContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId])
+  @@index([userId])
+  @@index([contentId])
+}
+
+model CoachMessage {
+  id            String           @id @default(cuid())
+  userId        String
+  coachId       String?
+  message       String
+  messageType   CoachMessageType @default(TEXT)
+  isFromCoach   Boolean          @default(false)
+  isRead        Boolean          @default(false)
+  readAt        DateTime?
+  attachmentUrl String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([coachId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model ChatSession {
+  id            String            @id @default(cuid())
+  memberId      String
+  coachId       String?
+  status        ChatSessionStatus @default(WAITING)
+  isAiHandled   Boolean           @default(false)
+  startedAt     DateTime          @default(now())
+  endedAt       DateTime?
+  lastMessageAt DateTime          @default(now())
+  summary       String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  messages      ChatMessage[]
+
+  @@index([memberId])
+  @@index([coachId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id         String         @id @default(cuid())
+  sessionId  String
+  senderId   String
+  senderType ChatSenderType
+  message    String
+  isRead     Boolean        @default(false)
+  readAt     DateTime?
+  createdAt  DateTime       @default(now())
+  session    ChatSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model CoachAvailability {
+  id           String      @id @default(cuid())
+  coachId      String      @unique
+  status       CoachStatus @default(OFFLINE)
+  activeChats  Int         @default(0)
+  maxChats     Int         @default(3)
+  lastActiveAt DateTime    @default(now())
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([coachId])
+  @@index([status])
+}
+
+model MemberChatHistory {
+  id           String   @id @default(cuid())
+  memberId     String
+  sessionId    String
+  coachId      String?
+  coachName    String?
+  wasAiHandled Boolean  @default(false)
+  transcript   Json
+  summary      String?
+  startedAt    DateTime
+  endedAt      DateTime
+  messageCount Int
+  createdAt    DateTime @default(now())
+
+  @@index([memberId])
+  @@index([coachId])
+  @@index([createdAt])
+}
+
+model CallLog {
+  id               String     @id @default(cuid())
+  memberId         String
+  agentId          String?
+  agentName        String?
+  callType         CallType   @default(OUTBOUND)
+  callResult       CallResult @default(COMPLETED)
+  duration         Int?
+  subject          String
+  notes            String?
+  followUpRequired Boolean    @default(false)
+  followUpDate     DateTime?
+  calledAt         DateTime   @default(now())
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([memberId])
+  @@index([agentId])
+  @@index([calledAt])
+}
+
+model InternalNote {
+  id         String       @id @default(cuid())
+  memberId   String?
+  userId     String
+  authorId   String?
+  authorName String?
+  createdBy  String?
+  category   NoteCategory @default(GENERAL)
+  title      String
+  content    String
+  isPinned   Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([userId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model DailyStepGoal {
+  id           String    @id @default(cuid())
+  userId       String
+  targetSteps  Int       @default(10000)
+  currentSteps Int       @default(0)
+  date         DateTime  @db.Date
+  isAchieved   Boolean   @default(false)
+  achievedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model Treatment {
+  id             String           @id @default(cuid())
+  userId         String
+  prescriptionId String?
+  medicationName String
+  dosage         String
+  frequency      String
+  instructions   String?
+  doctorName     String?
+  pharmacyName   String?
+  pharmacyPhone  String?
+  startDate      DateTime
+  nextDoseDate   DateTime?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  doses          MedicationDose[]
+
+  @@index([userId])
+  @@index([prescriptionId])
+}
+
+model MedicationDose {
+  id          String    @id @default(cuid())
+  treatmentId String
+  scheduledAt DateTime
+  takenAt     DateTime?
+  skipped     Boolean   @default(false)
+  skipReason  String?
+  sideEffects String[]  @default([])
+  notes       String?
+  createdAt   DateTime  @default(now())
+  treatment   Treatment @relation(fields: [treatmentId], references: [id], onDelete: Cascade)
+
+  @@index([treatmentId])
+  @@index([scheduledAt])
+}
+
+model Recipe {
+  id           String           @id @default(cuid())
+  title        String
+  description  String
+  imageUrl     String?
+  mealType     MealCategory
+  dietaryTags  String[]         @default([])
+  prepTime     Int
+  cookTime     Int
+  servings     Int
+  difficulty   RecipeDifficulty @default(EASY)
+  calories     Int?
+  protein      Float?
+  carbs        Float?
+  fat          Float?
+  ingredients  Json
+  instructions Json
+  tips         String?
+  isPublished  Boolean          @default(true)
+  isFeatured   Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  savedBy      SavedItem[]
+
+  @@index([mealType])
+  @@index([isPublished])
+}
+
+model SavedItem {
+  id        String        @id @default(cuid())
+  userId    String
+  itemType  SavedItemType
+  itemId    String
+  recipeId  String?
+  createdAt DateTime      @default(now())
+  recipe    Recipe?       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemType, itemId])
+  @@index([userId])
+}
+
+model WeightManagementPreferences {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  hasCompletedOnboarding Boolean  @default(false)
+  onboardingStep         Int      @default(0)
+  weightUnit             String   @default("KG")
+  dietaryRequirements    String[] @default([])
+  allergies              String[] @default([])
+  dailyCalorieGoal       Int?
+  dailyWaterGoal         Float?
+  trackingReminders      Boolean  @default(true)
+  reminderTime           String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model SupportTicket {
+  id          String    @id @default(cuid())
+  userId      String
+  subject     String
+  category    String
+  message     String
+  status      String    @default("OPEN")
+  priority    String    @default("NORMAL")
+  response    String?
+  respondedBy String?
+  respondedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Prescription {
+  id                  String               @id @default(cuid())
+  patientId           String
+  medicationName      String
+  genericName         String?
+  strength            String
+  form                MedicationForm       @default(TABLET)
+  dosage              String
+  frequency           String
+  instructions        String?
+  route               String?
+  quantity            Int
+  quantityUnit        String               @default("tablets")
+  refillsTotal        Int                  @default(0)
+  refillsRemaining    Int                  @default(0)
+  daysSupply          Int?
+  prescribedAt        DateTime             @default(now())
+  startDate           DateTime             @default(now())
+  endDate             DateTime?
+  lastFilledAt        DateTime?
+  nextRefillDate      DateTime?
+  prescriberId        String?
+  prescriberName      String
+  prescriberLicense   String?
+  prescriberPhone     String?
+  pharmacyName        String?
+  pharmacyAddress     String?
+  pharmacyPhone       String?
+  status              PrescriptionStatus   @default(ACTIVE)
+  scriptStatus        ScriptStatus         @default(SCRIPT_DRAFT)
+  isPRN               Boolean              @default(false)
+  isControlled        Boolean              @default(false)
+  requiresAuth        Boolean              @default(false)
+  diagnosis           String?
+  category            PrescriptionCategory @default(OTHER)
+  notes               String?
+  patientNotes        String?
+  pharmacyNotes       String?
+  safetyCounsellingNotes String?
+  followUpDate        DateTime?
+  ePrescriptionId     String?              @unique
+  ePrescriptionSent   Boolean              @default(false)
+  ePrescriptionSentAt DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  refills             PrescriptionRefill[]
+  patient             User                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  memberProgram       MemberProgram?
+
+  @@index([patientId])
+  @@index([prescriberId])
+  @@index([status])
+  @@index([category])
+  @@index([nextRefillDate])
+}
+
+model MemberProgram {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  prescriptionId String?      @unique
+  playbookId     String       @default("wm_core_v1")
+  planTier       String       @default("CORE")
+  phase          ProgramPhase @default(INDUCTION)
+  currentWeek    Int          @default(0)
+  startedAt      DateTime     @default(now())
+  timezone       String       @default("Australia/Sydney")
+  isActive       Boolean      @default(true)
+  adherenceScore Float?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prescription   Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+  tasks          ProgramTask[]
+  sideEffects    SideEffectReport[]
+  weekSummaries  ProgramWeekSummary[]
+
+  @@index([userId])
+  @@index([isActive])
+  @@index([planTier])
+}
+
+model ProgramWeekSummary {
+  id              String        @id @default(cuid())
+  memberProgramId String
+  programWeek     Int
+  summary         String?
+  insights        Json
+  focusArea       String?
+  generatedAt     DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  memberProgram   MemberProgram @relation(fields: [memberProgramId], references: [id], onDelete: Cascade)
+
+  @@unique([memberProgramId, programWeek])
+  @@index([memberProgramId])
+}
+
+model ProgramTask {
+  id              String            @id @default(cuid())
+  memberProgramId String
+  taskType        ProgramTaskType
+  scheduledFor    DateTime
+  status          ProgramTaskStatus @default(PENDING)
+  completedAt     DateTime?
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  memberProgram   MemberProgram     @relation(fields: [memberProgramId], references: [id], onDelete: Cascade)
+
+  @@index([memberProgramId])
+  @@index([scheduledFor])
+  @@index([taskType])
+  @@index([status])
+}
+
+model SideEffectReport {
+  id               String                 @id @default(cuid())
+  userId           String
+  memberProgramId  String?
+  medicationDoseId String?
+  symptoms         String[]
+  severity         SideEffectSeverity
+  notes            String?
+  mitigationTips   Json?
+  escalated        Boolean                @default(false)
+  status           SideEffectReportStatus @default(REPORTED)
+  resolvedAt       DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberProgram    MemberProgram?         @relation(fields: [memberProgramId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([memberProgramId])
+  @@index([status])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+enum ProgramPhase {
+  INDUCTION
+  TITRATION
+  MAINTENANCE
+}
+
+enum ProgramTaskType {
+  DOSE
+  WEIGH_IN
+  MEAL_LOG
+  EXERCISE
+  CHECK_IN
+  SIDE_EFFECT_CHECK
+  BIOMARKER_REVIEW
+}
+
+enum ProgramTaskStatus {
+  PENDING
+  DONE
+  SKIPPED
+  OVERDUE
+}
+
+enum SideEffectSeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+enum SideEffectReportStatus {
+  REPORTED
+  MITIGATING
+  ESCALATED
+  RESOLVED
+}
+
+model WmMealPlanWeek {
+  id         String   @id @default(cuid())
+  userId     String
+  weekStart  DateTime
+  planData   Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+  @@index([userId])
+}
+
+model PrescriptionRefill {
+  id             String              @id @default(cuid())
+  prescriptionId String
+  requestedAt    DateTime            @default(now())
+  requestedBy    String
+  requestMethod  RefillRequestMethod @default(APP)
+  status         RefillStatus        @default(PENDING)
+  processedAt    DateTime?
+  processedBy    String?
+  quantityFilled Int?
+  pharmacyName   String?
+  filledAt       DateTime?
+  pickupDate     DateTime?
+  deliveryMethod DeliveryMethod?
+  trackingNumber String?
+  deliveredAt    DateTime?
+  notes          String?
+  denialReason   String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  prescription   Prescription        @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId])
+  @@index([status])
+  @@index([requestedAt])
+}
+
+model Invoice {
+  id            String    @id @default(cuid())
+  userId        String
+  amount        Float
+  currency      String    @default("AUD")
+  status        String    @default("PENDING")
+  issuedAt      DateTime  @default(now())
+  dueAt         DateTime?
+  paidAt        DateTime?
+  paymentMethod String?
+  paymentId     String?
+  stripeId      String?   @unique
+  description   String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([issuedAt])
+  @@index([stripeId])
+}
+
+model CareCommunication {
+  id          String    @id @default(cuid())
+  userId      String
+  type        String
+  priority    String?   @default("NORMAL")
+  subject     String?
+  message     String?
+  notes       String?
+  direction   String?
+  status      String    @default("PENDING")
+  dueDate     DateTime?
+  completedAt DateTime?
+  completedBy String?
+  assignedTo  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+}
+
+model AutomationLog {
+  id             String   @id @default(cuid())
+  userId         String
+  automationType String
+  triggerEvent   String
+  channel        String
+  status         String   @default("completed")
+  metadata       Json?
+  firedAt        DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([automationType])
+  @@index([firedAt])
+}
+
+model Referral {
+  id             String         @id @default(cuid())
+  referrerId     String
+  refereeId      String?
+  code           String         @unique
+  status         ReferralStatus @default(PENDING)
+  rewardIssued   Boolean        @default(false)
+  rewardAmount   Float?         @default(0)
+  rewardCurrency String?        @default("AUD")
+  referredAt     DateTime       @default(now())
+  acceptedAt     DateTime?
+  cancelledAt    DateTime?
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([referrerId])
+  @@index([refereeId])
+  @@index([status])
+  @@index([referredAt])
+}
+
+model BiomarkerCampaign {
+  id               String       @id @default(cuid())
+  key              String       @unique
+  name             String
+  headline         String
+  description      String
+  program          String
+  programPath      String
+  programPrice     String
+  crossSellEnabled Boolean      @default(false)
+  crossSell        String?
+  crossSellPath    String?
+  crossSellPrice   String?
+  thresholdHigh    Int          @default(60)
+  thresholdMedium  Int          @default(35)
+  thresholdLow     Int          @default(20)
+  quizTypes        String[]     @default([])
+  genderFilter     GenderFilter @default(ALL)
+  isEnabled        Boolean      @default(true)
+  sortOrder        Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  createdBy        String?
+
+  @@index([key])
+  @@index([isEnabled])
+  @@index([sortOrder])
+}
+
+model VerificationCode {
+  id        String   @id @default(cuid())
+  contact   String
+  type      String
+  code      String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([contact, type])
+  @@index([expiresAt])
+}
+
+model MembershipSubscription {
+  id                   String           @id @default(cuid())
+  userId               String           @unique
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  planName             String           @default("Sanative Membership")
+  amount               Float            @default(199)
+  currency             String           @default("AUD")
+  billingCycle         String           @default("yearly")
+  status               MembershipStatus @default(ACTIVE)
+  startDate            DateTime         @default(now())
+  currentPeriodEnd     DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@index([status])
+}
+
+model Product {
+  id                  String               @id @default(cuid())
+  slug                String               @unique
+  name                String
+  program             String
+  planTier            String?
+  stripeProductId     String?
+  isActive            Boolean              @default(true)
+  sortOrder           Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  billingPrices       BillingPrice[]
+  memberSubscriptions MemberSubscription[]
+
+  @@index([program])
+  @@index([planTier])
+}
+
+model BillingPrice {
+  id                    String                      @id @default(cuid())
+  productId             String
+  billingInterval       BillingInterval
+  amountCents           Int
+  currency              String                      @default("AUD")
+  stripePriceId         String?                     @unique
+  isDefault             Boolean                     @default(false)
+  isFirstMonth          Boolean                     @default(false)
+  isActive              Boolean                     @default(true)
+  label                 String?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  product               Product                     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  memberSubscriptions   MemberSubscription[]
+  historyFrom           MemberSubscriptionHistory[] @relation("FromBillingPrice")
+  historyTo             MemberSubscriptionHistory[] @relation("ToBillingPrice")
+
+  @@unique([productId, billingInterval, isFirstMonth])
+  @@index([productId])
+  @@index([billingInterval])
+}
+
+model MemberSubscription {
+  id                   String           @id @default(cuid())
+  userId               String
+  productId            String
+  billingPriceId       String?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  status               MembershipStatus @default(ACTIVE)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean          @default(false)
+  cancelledAt          DateTime?
+  activatedAt          DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product              Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  billingPrice         BillingPrice?    @relation(fields: [billingPriceId], references: [id], onDelete: SetNull)
+  history              MemberSubscriptionHistory[]
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([stripeSubscriptionId])
+  @@index([stripeCustomerId])
+  @@index([status])
+}
+
+model MemberSubscriptionHistory {
+  id                   String             @id @default(cuid())
+  memberSubscriptionId String
+  fromBillingPriceId   String?
+  toBillingPriceId     String?
+  fromPlanTier         String?
+  toPlanTier           String?
+  changeType           String
+  changedBy            String?
+  stripeEventId        String?
+  notes                String?
+  effectiveAt          DateTime           @default(now())
+  createdAt            DateTime           @default(now())
+  memberSubscription   MemberSubscription @relation(fields: [memberSubscriptionId], references: [id], onDelete: Cascade)
+  fromBillingPrice     BillingPrice?      @relation("FromBillingPrice", fields: [fromBillingPriceId], references: [id], onDelete: SetNull)
+  toBillingPrice       BillingPrice?      @relation("ToBillingPrice", fields: [toBillingPriceId], references: [id], onDelete: SetNull)
+
+  @@index([memberSubscriptionId])
+  @@index([effectiveAt])
+}
+
+model ConsultationBooking {
+  id              String        @id @default(cuid())
+  userId          String?       // GAP-012: Made nullable for pre-signup booking holds
+  bookingType     String        @default("initial_consultation")
+  scheduledAt     DateTime
+  duration        Int           @default(60)
+  status          BookingStatus @default(SLOT_HELD)
+  confirmedAt     DateTime?
+  cancelledAt     DateTime?
+  completedAt     DateTime?
+  notes           String?
+  holdExpiresAt   DateTime?
+  paymentIntentId String?
+  selectedPlan    String?
+  intakeId        String?
+  doctorId        String?
+  doctorName      String?
+  appointmentType String        @default("PHONE_CONSULT")
+  patientPhone    String?
+  patientBmi      Float?
+  riskFlags       String[]
+  doctorBriefUrl  String?
+  calendarEventId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User?         @relation(fields: [userId], references: [id], onDelete: Cascade) // GAP-012: Optional relation
+  changeLogs      BookingChangeLog[]
+
+  @@index([userId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([holdExpiresAt])
+}
+
+model BookingChangeLog {
+  id               String              @id @default(cuid())
+  bookingId        String
+  action           String
+  previousAt       DateTime?
+  newAt            DateTime?
+  previousDoctorId String?
+  newDoctorId      String?
+  previousStatus   String?
+  newStatus        String?
+  reason           String?
+  changedByUserId  String
+  changedByRole    String
+  metadata         Json?
+  createdAt        DateTime            @default(now())
+  booking          ConsultationBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  changedBy        User                @relation(fields: [changedByUserId], references: [id])
+
+  @@index([bookingId])
+  @@index([createdAt])
+}
+
+// GAP-026: Durable pre-triage task queue for care partners
+model PreTriageTask {
+  id              String              @id @default(cuid())
+  patientId       String
+  intakeId        String?
+  bookingId       String?
+  assignedOwnerId String?
+  dueDate         DateTime
+  status          PreTriageTaskStatus @default(PENDING)
+
+  // Checklist items
+  quizComplete         Boolean @default(false)
+  phoneConfirmed       Boolean @default(false)
+  appointmentConfirmed Boolean @default(false)
+  medicationsChecked   Boolean @default(false)
+  allergiesChecked     Boolean @default(false)
+  riskFlagsChecked     Boolean @default(false)
+  bmiChecked           Boolean @default(false)
+  briefAttached        Boolean @default(false)
+  readyForDoctor       Boolean @default(false)
+
+  notes           String?
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([assignedOwnerId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// GAP-009: Doctor availability/roster for real calendar-based booking
+model DoctorAvailability {
+  id              String                  @id @default(cuid())
+  doctorId        String
+  dayOfWeek       Int                     // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime       String                  // "09:00" format (24hr)
+  endTime         String                  // "17:00" format (24hr)
+  slotDuration    Int                     @default(30) // minutes per slot
+  isRecurring     Boolean                 @default(true)
+  specificDate    DateTime?               // For non-recurring availability
+  maxBookings     Int                     @default(1) // Per slot
+  status          DoctorAvailabilityStatus @default(AVAILABLE)
+  notes           String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([doctorId])
+  @@index([dayOfWeek])
+  @@index([status])
+  @@index([specificDate])
+}
+
+// GAP-009: Blocked dates for doctors (holidays, leave, etc)
+model DoctorBlockedDate {
+  id          String   @id @default(cuid())
+  doctorId    String
+  blockedDate DateTime @db.Date
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@unique([doctorId, blockedDate])
+  @@index([doctorId])
+  @@index([blockedDate])
+}
+
+// GAP-009+: Weight Management Intake record for durable tracking
+// Links patient, booking, payment, and program enrollment
+model WeightManagementIntake {
+  id                    String                @id @default(cuid())
+
+  // Patient link (required)
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Program enrollment link (optional - created after intake)
+  programMemberId       String?               @unique
+
+  // Booking link (optional - created when slot selected)
+  bookingId             String?               @unique
+
+  // Prescription link (optional - created after doctor approval)
+  prescriptionId        String?               @unique
+
+  // Selected plan
+  selectedPlan          WMPlanType            @default(CORE)
+
+  // Payment tracking
+  paymentStatus         WMPaymentStatus       @default(UNPAID)
+  paymentIntentId       String?
+  paymentAmount         Int?                  // cents
+  paidAt                DateTime?
+
+  // Booking status (denormalized for quick access)
+  bookingStatus         WMBookingStatus       @default(NOT_BOOKED)
+  scheduledAt           DateTime?
+
+  // Doctor review status
+  doctorReviewStatus    WMDoctorReviewStatus  @default(PENDING_TRIAGE)
+  doctorId              String?
+  doctorReviewedAt      DateTime?
+  doctorDecision        String?               // APPROVED, DECLINED, PENDING_TESTS, etc.
+  doctorNotes           String?
+
+  // Portal status
+  portalStatus          WMPortalStatus        @default(INTAKE_STARTED)
+  portalActivatedAt     DateTime?
+
+  // Quiz data (full intake form data)
+  quizData              Json?
+
+  // Metadata
+  source                String?               @default("quiz")
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  completedAt           DateTime?
+
+  @@index([userId])
+  @@index([paymentStatus])
+  @@index([bookingStatus])
+  @@index([doctorReviewStatus])
+  @@index([portalStatus])
+  @@index([createdAt])
+}
+
+enum WMPlanType {
+  CORE
+  PRECISION
+}
+
+enum WMPaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum WMBookingStatus {
+  NOT_BOOKED
+  SLOT_HELD
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum WMDoctorReviewStatus {
+  PENDING_TRIAGE
+  TRIAGE_COMPLETE
+  AWAITING_DOCTOR
+  DOCTOR_REVIEWING
+  APPROVED
+  APPROVED_PENDING_TESTS
+  DECLINED
+  REQUIRES_FOLLOWUP
+}
+
+enum WMPortalStatus {
+  INTAKE_STARTED
+  INTAKE_COMPLETED
+  PAYMENT_PENDING
+  PAYMENT_COMPLETED
+  BOOKING_PENDING
+  BOOKING_CONFIRMED
+  PRE_TRIAGE
+  AWAITING_CONSULT
+  CONSULT_COMPLETED
+  TREATMENT_PENDING
+  TREATMENT_ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum DoctorAvailabilityStatus {
+  AVAILABLE
+  LIMITED
+  UNAVAILABLE
+}
+
+enum PreTriageTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+
+model Clinic {
+  id              String           @id @default(cuid())
+  name            String
+  address         String
+  suburb          String
+  state           String
+  postcode        String
+  abn             String?
+  leadGpName      String
+  leadGpEmail     String           @unique
+  leadGpMobile    String
+  qrToken         String           @unique
+  programs        String[]         @default([])
+  status          ClinicStatus     @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  passwordHash    String?
+  gpNotifications GpNotification[]
+  gpReferrals     GpReferral[]
+  enrolledMembers ProgramMember[]
+  qrScanEvents    QrScanEvent[]
+
+  @@index([qrToken])
+  @@index([leadGpEmail])
+}
+
+model GpReferral {
+  id            String           @id @default(cuid())
+  clinicId      String
+  token         String           @unique
+  patientFname  String
+  patientEmail  String
+  patientMobile String
+  program       String
+  clinicalNote  String?
+  status        GpReferralStatus @default(PENDING)
+  expiresAt     DateTime
+  enrolledAt    DateTime?
+  createdAt     DateTime         @default(now())
+  clinic        Clinic           @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  member        ProgramMember?
+
+  @@index([clinicId])
+  @@index([token])
+  @@index([status])
+}
+
+model ProgramMember {
+  id                      String                   @id @default(cuid())
+  userId                  String?
+  firstName               String
+  lastName                String
+  email                   String                   @unique
+  mobile                  String
+  dob                     DateTime
+  clinicId                String?
+  referralId              String?                  @unique
+  program                 String
+  intakeData              Json?
+  stripeCustomerId        String?
+  membershipStatus        ProgramMembershipStatus  @default(ACTIVE)
+  membershipStart         DateTime                 @default(now())
+  membershipEnd           DateTime
+  carePartnerId           String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  memberMessages          MemberMessage[]
+  memberNotifications     MemberNotification[]
+  programBiomarkerResults ProgramBiomarkerResult[]
+  checkIns                ProgramCheckIn[]
+  carePartner             CarePartner?             @relation(fields: [carePartnerId], references: [id])
+  clinic                  Clinic?                  @relation(fields: [clinicId], references: [id])
+  referral                GpReferral?              @relation(fields: [referralId], references: [id])
+  qrScanEvent             QrScanEvent?
+
+  @@index([email])
+  @@index([clinicId])
+  @@index([carePartnerId])
+  @@index([membershipStatus])
+}
+
+model CarePartner {
+  id              String           @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String           @unique
+  programs        String[]         @default([])
+  maxPatients     Int              @default(50)
+  active          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  messages        MemberMessage[]
+  checkIns        ProgramCheckIn[]
+  assignedMembers ProgramMember[]
+
+  @@index([email])
+  @@index([active])
+}
+
+model ProgramBiomarkerResult {
+  id            String                 @id @default(cuid())
+  memberId      String
+  biomarkerName String
+  category      String
+  value         Float
+  unit          String
+  referenceLow  Float?
+  referenceHigh Float?
+  status        ProgramBiomarkerStatus
+  testedAt      DateTime
+  labName       String?
+  createdAt     DateTime               @default(now())
+  member        ProgramMember          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([category])
+  @@index([testedAt])
+}
+
+model ProgramCheckIn {
+  id                 String        @id @default(cuid())
+  memberId           String
+  carePartnerId      String?
+  type               CheckInType
+  notes              String?
+  gpVisitCoordinated Boolean       @default(false)
+  gpVisitDate        DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  carePartner        CarePartner?  @relation(fields: [carePartnerId], references: [id])
+  member             ProgramMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([carePartnerId])
+  @@index([type])
+}
+
+model MemberMessage {
+  id          String            @id @default(cuid())
+  memberId    String
+  senderType  MessageSenderType
+  senderId    String?           // Optional: allows SetNull when CarePartner is deleted
+  body        String
+  read        Boolean           @default(false)
+  readAt      DateTime?
+  createdAt   DateTime          @default(now())
+  member      ProgramMember     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  carePartner CarePartner?      @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([memberId])
+  @@index([senderType])
+  @@index([read])
+}
+
+model MemberNotification {
+  id        String                 @id @default(cuid())
+  memberId  String
+  type      MemberNotificationType
+  message   String
+  read      Boolean                @default(false)
+  readAt    DateTime?
+  createdAt DateTime               @default(now())
+  member    ProgramMember          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([type])
+  @@index([read])
+}
+
+model GpNotification {
+  id          String             @id @default(cuid())
+  clinicId    String
+  type        GpNotificationType
+  message     String
+  patientName String?
+  patientId   String?
+  read        Boolean            @default(false)
+  readAt      DateTime?
+  createdAt   DateTime           @default(now())
+  clinic      Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([type])
+  @@index([read])
+}
+
+model QrScanEvent {
+  id        String         @id @default(cuid())
+  clinicId  String
+  scannedAt DateTime       @default(now())
+  converted Boolean        @default(false)
+  memberId  String?        @unique
+  clinic    Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  member    ProgramMember? @relation(fields: [memberId], references: [id])
+
+  @@index([clinicId])
+  @@index([scannedAt])
+  @@index([converted])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum UserRole {
+  MEMBER
+  CARE_PARTNER
+  DOCTOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  TRIAL
+  CANCELLED
+  EXPIRED
+}
+
+enum PortalMemberStatus {
+  POTENTIAL_MEMBER
+  MEMBER
+  CANCELLED
+}
+
+enum JourneyStatus {
+  LEAD
+  CONSENTED
+  SURVEY_COMPLETED
+  CONSULTATION_BOOKING_STARTED
+  CONSULTATION_BOOKED
+  CONSULTATION_PAID
+  PRE_TRIAGE_PENDING
+  PRE_TRIAGE_COMPLETE
+  AWAITING_DOCTOR_CALL
+  CONSULT_COMPLETED
+  AWAITING_DOCTOR_DECISION
+  APPROVED
+  APPROVED_PENDING_TESTS
+  TESTS_ORDERED
+  AWAITING_TESTS
+  RESULTS_RECEIVED
+  FINAL_DOCTOR_REVIEW
+  DECLINED
+  REFUND_PENDING
+  REFUNDED
+  SCRIPT_WRITTEN
+  PHARMACY_PENDING
+  DISPENSING
+  SHIPPED
+  DELIVERED
+  ONBOARDING_PENDING
+  ONBOARDING_COMPLETE
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  APPROVED_WITH_TESTS
+  DECLINED
+  DEFERRED
+}
+
+enum ReferralStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum MeasurementTime {
+  MORNING
+  AFTERNOON
+  EVENING
+  NIGHT
+}
+
+enum Arm {
+  LEFT
+  RIGHT
+}
+
+enum Position {
+  SITTING
+  STANDING
+  LYING_DOWN
+}
+
+enum SmokingStatus {
+  NEVER
+  FORMER
+  CURRENT
+}
+
+enum Race {
+  WHITE
+  AFRICAN_AMERICAN
+  ASIAN
+  HISPANIC
+  OTHER
+}
+
+enum ExerciseFrequency {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum BiomarkerCategory {
+  HEART
+  METABOLIC
+  HORMONES
+  THYROID
+  LIVER
+  KIDNEY
+  BLOOD
+  VITAMINS
+  MINERALS
+  INFLAMMATION
+  IMMUNITY
+}
+
+enum BiomarkerStatus {
+  OPTIMAL
+  NORMAL
+  OUT_OF_RANGE
+  CRITICAL
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum GoalStatus {
+  IN_PROGRESS
+  ACHIEVED
+  MISSED
+  CANCELLED
+}
+
+enum ReminderType {
+  TEST
+  SUPPLEMENT
+  MEDICATION
+  APPOINTMENT
+  CUSTOM
+}
+
+enum ReminderFrequency {
+  ONCE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ALERT
+}
+
+enum NotificationCategory {
+  BIOMARKER
+  GOAL
+  REMINDER
+  SYSTEM
+  APPOINTMENT
+}
+
+enum AppointmentType {
+  BLOOD_TEST
+  CONSULTATION
+  FOLLOW_UP
+  GENERAL
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+}
+
+enum EmailEventType {
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  SPAM_REPORT
+  UNSUBSCRIBED
+}
+
+enum EmailTemplateCategory {
+  WELCOME
+  RESULTS
+  REMINDER
+  FOLLOWUP
+  APPOINTMENT
+  BILLING
+  CUSTOM
+}
+
+enum SMSStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum WeightSource {
+  MANUAL
+  BLUETOOTH_SCALE
+  SMART_SCALE
+}
+
+enum WeightGoalStatus {
+  IN_PROGRESS
+  ACHIEVED
+  PAUSED
+  CANCELLED
+}
+
+enum MealType {
+  BREAKFAST
+  MORNING_SNACK
+  LUNCH
+  AFTERNOON_SNACK
+  DINNER
+  EVENING_SNACK
+}
+
+enum ActivityType {
+  WALKING
+  RUNNING
+  CYCLING
+  SWIMMING
+  STRENGTH_TRAINING
+  YOGA
+  PILATES
+  HIIT
+  DANCE
+  SPORTS
+  STRETCHING
+  OTHER
+}
+
+enum ExerciseIntensity {
+  LIGHT
+  MODERATE
+  VIGOROUS
+  MAXIMUM
+}
+
+enum ContentCategory {
+  GETTING_STARTED
+  NUTRITION
+  EXERCISE
+  MEDICATION
+  MINDSET
+  RECIPES
+  SUCCESS_STORIES
+  EXPERT_TIPS
+}
+
+enum ContentType {
+  VIDEO
+  ARTICLE
+  QUIZ
+  INFOGRAPHIC
+}
+
+enum CoachMessageType {
+  TEXT
+  ENCOURAGEMENT
+  TIP
+  QUESTION
+  SYSTEM
+  AI_RESPONSE
+}
+
+enum ChatSessionStatus {
+  WAITING
+  ACTIVE
+  AI_HANDLING
+  ENDED
+  ARCHIVED
+}
+
+enum ChatSenderType {
+  MEMBER
+  COACH
+  AI
+  SYSTEM
+}
+
+enum CoachStatus {
+  ONLINE
+  BUSY
+  AWAY
+  OFFLINE
+}
+
+enum CallType {
+  INBOUND
+  OUTBOUND
+  MISSED
+  VOICEMAIL
+}
+
+enum CallResult {
+  COMPLETED
+  NO_ANSWER
+  BUSY
+  LEFT_MESSAGE
+  CALLBACK_REQUESTED
+  WRONG_NUMBER
+}
+
+enum NoteCategory {
+  GENERAL
+  MEDICAL
+  BILLING
+  SUPPORT
+  FOLLOWUP
+  COMMUNICATION
+}
+
+enum MealCategory {
+  BREAKFAST
+  LUNCH
+  DINNER
+  DESSERT
+  SNACK
+}
+
+enum RecipeDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SavedItemType {
+  RECIPE
+  ARTICLE
+  VIDEO
+}
+
+enum MedicationForm {
+  TABLET
+  CAPSULE
+  LIQUID
+  INJECTION
+  CREAM
+  GEL
+  PATCH
+  INHALER
+  DROPS
+  SPRAY
+  SUPPOSITORY
+  POWDER
+  OTHER
+}
+
+enum PrescriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  ON_HOLD
+  COMPLETED
+  TRANSFERRED
+}
+
+enum ScriptStatus {
+  SCRIPT_DRAFT
+  SCRIPT_WRITTEN
+  SCRIPT_SENT_TO_PHARMACY
+  PHARMACY_PENDING
+  DISPENSING
+  SHIPPED
+  DELIVERED
+}
+
+enum PrescriptionCategory {
+  WEIGHT_MANAGEMENT
+  HAIR_LOSS
+  SEXUAL_HEALTH
+  HORMONE_THERAPY
+  VITAMIN_SUPPLEMENT
+  PAIN_MANAGEMENT
+  MENTAL_HEALTH
+  CARDIOVASCULAR
+  DIABETES
+  THYROID
+  OTHER
+}
+
+enum RefillStatus {
+  PENDING
+  APPROVED
+  DENIED
+  PROCESSING
+  READY_FOR_PICKUP
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum RefillRequestMethod {
+  APP
+  PHONE
+  EMAIL
+  IN_PERSON
+  AUTO
+}
+
+enum DeliveryMethod {
+  PICKUP
+  STANDARD_SHIPPING
+  EXPRESS_SHIPPING
+  SAME_DAY
+}
+
+enum GenderFilter {
+  ALL
+  MALE_ONLY
+  FEMALE_ONLY
+}
+
+enum QuizType {
+  WEIGHT_MANAGEMENT
+  WOMENS_HEALTH
+  MENS_HEALTH
+  HAIR_LOSS
+  FATTY_LIVER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingInterval {
+  MONTHLY
+  QUARTERLY
+  BIANNUAL
+  YEARLY
+  ONE_TIME
+}
+
+enum BookingStatus {
+  SLOT_HELD
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_COMPLETED
+  BOOKING_NO_SHOW
+  BOOKING_RESCHEDULED
+}
+
+enum ClinicStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum GpReferralStatus {
+  PENDING
+  ENROLLED
+  EXPIRED
+  CANCELLED
+}
+
+enum ProgramMembershipStatus {
+  PENDING       // GAP-008: Initial state during intake, not yet activated
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum ProgramBiomarkerStatus {
+  NORMAL
+  BORDERLINE
+  ELEVATED
+  LOW
+}
+
+enum CheckInType {
+  WELCOME
+  SCHEDULED
+  AD_HOC
+  GP_COORDINATION
+}
+
+enum MessageSenderType {
+  PATIENT
+  CARE_PARTNER
+  SYSTEM
+}
+
+enum MemberNotificationType {
+  RESULT_READY
+  CHECKIN_DUE
+  GP_VISIT_REMINDER
+  BIOMARKER_ALERT
+  GENERAL
+}
+
+enum GpNotificationType {
+  ENROLMENT
+  BIOMARKER_ALERT
+  CHECKIN_DUE
+  GP_VISIT_REMINDER
+}

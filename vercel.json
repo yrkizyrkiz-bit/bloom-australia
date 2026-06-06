@@ -1,0 +1,28 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/churn-scoring",
+      "schedule": "0 10 * * 0"
+    },
+    {
+      "path": "/api/cron/program-daily",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/program-weekly-insights",
+      "schedule": "30 10 * * 0"
+    }
+  ],
+  "functions": {
+    "src/app/api/cron/churn-scoring/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/program-daily/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/cron/program-weekly-insights/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}

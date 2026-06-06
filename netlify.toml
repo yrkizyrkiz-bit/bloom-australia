@@ -1,0 +1,25 @@
+[images]
+  remote_images = ["https://source.unsplash.com/.*", "https://images.unsplash.com/.*", "https://ext.same-assets.com/.*", "https://ugc.same-assets.com/.*"]
+
+[build]
+  command = "bun install && bunx prisma generate && bun run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Increase Node.js memory limit for large builds
+  NODE_OPTIONS = "--max-old-space-size=8192"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Headers for security and privacy
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Prevent search engine indexing
+    X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet"
