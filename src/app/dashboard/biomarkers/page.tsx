@@ -523,7 +523,7 @@ export default function BiomarkersPage() {
 
       {/* Health Tests quick access — mobile only (desktop uses the nav dropdown) */}
       <div className="md:hidden">
-        <h2 className="text-sm font-medium text-foreground mb-2">Health Tests</h2>
+        <h2 className="text-sm font-medium text-foreground mb-2">Organ & Metabolic Health</h2>
         <div className="overflow-x-auto pb-1">
           <div className="flex w-max gap-2">
             {healthTestPanels.map((t) => (

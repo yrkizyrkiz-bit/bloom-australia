@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,9 +31,12 @@ import {
   Info,
   ArrowRight,
   Moon,
-  Sun
+  Sun,
+  History,
+  FileText
 } from "lucide-react";
 import type { BiomarkerResult } from "@/types";
+import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotice";
 
 interface HormoneAnalysis {
   overallRisk: "low" | "moderate" | "elevated" | "high";
@@ -52,6 +55,14 @@ interface HormoneAnalysis {
   };
   urgentActions: string[];
   analysisTimestamp: string;
+}
+
+interface HormoneHistoryItem extends HormoneAnalysis {
+  id: string;
+  overallScore: number;
+  riskLevel: string;
+  biomarkerCount: number;
+  createdAt: string;
 }
 
 interface HormonePredictiveHealthRiskProps {
@@ -88,21 +99,35 @@ const CYCLE_PHASES: Record<string, { day: string; color: string; icon: string }>
 
 export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historicalData = [] }: HormonePredictiveHealthRiskProps) {
   const [analysis, setAnalysis] = useState<HormoneAnalysis | null>(null);
+  const [history, setHistory] = useState<HormoneHistoryItem[]>([]);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<HormoneHistoryItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
+  const [dataDate, setDataDate] = useState<string | null>(null);
+  const [resultsStale, setResultsStale] = useState(false);
   const [activeTab, setActiveTab] = useState("analysis");
 
-  useEffect(() => { fetchAnalysis(); }, []);
+  const fetchHistory = useCallback(async () => {
+    try {
+      const response = await fetch("/api/hormone-analysis/history");
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data.history || []);
+      }
+    } catch (err) {
+      console.error("Error fetching hormone history:", err);
+    }
+  }, []);
 
-  const fetchAnalysis = async (refresh = false) => {
+  const fetchAnalysis = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/hormone-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh })
+        body: JSON.stringify({})
       });
       const data = await response.json();
       if (!response.ok) {
@@ -111,12 +136,17 @@ export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historic
       }
       setAnalysis(data.analysis);
       setIsCached(data.cached);
+      setDataDate(data.dataDate ?? null);
+      setResultsStale(data.resultsStale ?? false);
+      fetchHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load analysis");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchHistory]);
+
+  useEffect(() => { fetchAnalysis(); }, [fetchAnalysis]);
 
   const hormoneBalanceData = useMemo(() => {
     const ranges = HORMONE_RANGES[gender];
@@ -164,7 +194,7 @@ export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historic
         <CardContent className="py-12 text-center">
           <AlertCircle className="w-12 h-12 text-orange-500 mx-auto mb-4" />
           <p className="font-medium text-orange-700 mb-4">{error}</p>
-          <Button variant="outline" size="sm" onClick={() => fetchAnalysis(true)}><RefreshCw className="w-4 h-4 mr-2" />Retry</Button>
+          <Button variant="outline" size="sm" onClick={() => fetchAnalysis()}><RefreshCw className="w-4 h-4 mr-2" />Retry</Button>
         </CardContent>
       </Card>
     );
@@ -172,8 +202,23 @@ export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historic
 
   if (!analysis) return null;
 
+  const displayAnalysis = selectedHistoryItem || analysis;
+
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString("en-AU", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
   return (
     <div className="space-y-6">
+      {!selectedHistoryItem && (
+        <ReportDataDateNotice dataDate={dataDate} resultsStale={resultsStale} />
+      )}
+
       {/* Header */}
       <Card className="border-purple-200/50 bg-gradient-to-br from-purple-50/50 to-pink-50/50">
         <CardHeader className="pb-3">
@@ -185,39 +230,36 @@ export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historic
                 <CardDescription>Personalized {gender === "female" ? "cycle-aware " : ""}hormone assessment</CardDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {isCached && <Badge variant="outline" className="text-xs"><Clock className="w-3 h-3 mr-1" />Cached</Badge>}
-              <Button variant="outline" size="sm" onClick={() => fetchAnalysis(true)} disabled={isLoading}>{isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}</Button>
-            </div>
+            {isCached && <Badge variant="outline" className="text-xs"><Clock className="w-3 h-3 mr-1" />Saved report</Badge>}
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="flex items-center gap-4">
               <div className="relative w-20 h-20">
-                <svg className="w-full h-full transform -rotate-90"><circle cx="40" cy="40" r="32" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted/20" /><circle cx="40" cy="40" r="32" stroke="currentColor" strokeWidth="8" fill="none" strokeLinecap="round" className={analysis.riskScore <= 30 ? "text-green-500" : analysis.riskScore <= 50 ? "text-yellow-500" : "text-orange-500"} strokeDasharray={`${(100 - analysis.riskScore) * 2.01} 201`} /></svg>
-                <div className="absolute inset-0 flex items-center justify-center"><span className="text-2xl font-bold">{100 - analysis.riskScore}</span></div>
+                <svg className="w-full h-full transform -rotate-90"><circle cx="40" cy="40" r="32" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted/20" /><circle cx="40" cy="40" r="32" stroke="currentColor" strokeWidth="8" fill="none" strokeLinecap="round" className={displayAnalysis.riskScore <= 30 ? "text-green-500" : displayAnalysis.riskScore <= 50 ? "text-yellow-500" : "text-orange-500"} strokeDasharray={`${(100 - displayAnalysis.riskScore) * 2.01} 201`} /></svg>
+                <div className="absolute inset-0 flex items-center justify-center"><span className="text-2xl font-bold">{100 - displayAnalysis.riskScore}</span></div>
               </div>
-              <div><p className="text-sm text-muted-foreground">Health Score</p><Badge className={getRiskColor(analysis.overallRisk)}>{analysis.overallRisk} Risk</Badge></div>
+              <div><p className="text-sm text-muted-foreground">Health Score</p><Badge className={getRiskColor(displayAnalysis.overallRisk)}>{displayAnalysis.overallRisk} Risk</Badge></div>
             </div>
-            {gender === "female" && analysis.cyclePhaseAnalysis && (
+            {gender === "female" && displayAnalysis.cyclePhaseAnalysis && (
               <div className="p-4 rounded-lg border bg-white/50">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">{CYCLE_PHASES[analysis.cyclePhaseAnalysis.estimatedPhase]?.icon}</span>
-                  <div><p className="font-medium capitalize">{analysis.cyclePhaseAnalysis.estimatedPhase} Phase</p><p className="text-xs text-muted-foreground">Day {CYCLE_PHASES[analysis.cyclePhaseAnalysis.estimatedPhase]?.day}</p></div>
+                  <span className="text-2xl">{CYCLE_PHASES[displayAnalysis.cyclePhaseAnalysis.estimatedPhase]?.icon}</span>
+                  <div><p className="font-medium capitalize">{displayAnalysis.cyclePhaseAnalysis.estimatedPhase} Phase</p><p className="text-xs text-muted-foreground">Day {CYCLE_PHASES[displayAnalysis.cyclePhaseAnalysis.estimatedPhase]?.day}</p></div>
                 </div>
-                <div className="flex items-center gap-1"><Progress value={analysis.cyclePhaseAnalysis.confidence} className="h-1.5 flex-1" /><span className="text-xs text-muted-foreground">{analysis.cyclePhaseAnalysis.confidence}%</span></div>
+                <div className="flex items-center gap-1"><Progress value={displayAnalysis.cyclePhaseAnalysis.confidence} className="h-1.5 flex-1" /><span className="text-xs text-muted-foreground">{displayAnalysis.cyclePhaseAnalysis.confidence}%</span></div>
               </div>
             )}
             <div className={gender === "female" ? "" : "md:col-span-2"}>
-              <p className="text-sm text-muted-foreground leading-relaxed">{analysis.summary}</p>
-              <p className="text-xs text-muted-foreground mt-2">Last analyzed: {new Date(analysis.analysisTimestamp).toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{displayAnalysis.summary}</p>
+              <p className="text-xs text-muted-foreground mt-2">Last analyzed: {new Date(displayAnalysis.analysisTimestamp).toLocaleString()}</p>
             </div>
           </div>
-          {analysis.urgentActions.length > 0 && (
+          {displayAnalysis.urgentActions.length > 0 && (
             <div className="mt-4 p-4 rounded-lg bg-red-50 border border-red-200">
               <div className="flex items-center gap-2 text-red-700 mb-2"><AlertTriangle className="w-5 h-5" /><span className="font-semibold">Urgent Actions</span></div>
-              <ul className="space-y-1">{analysis.urgentActions.map((a, i) => <li key={i} className="text-sm text-red-600 flex items-start gap-2"><ChevronRight className="w-4 h-4 mt-0.5" />{a}</li>)}</ul>
+              <ul className="space-y-1">{displayAnalysis.urgentActions.map((a, i) => <li key={i} className="text-sm text-red-600 flex items-start gap-2"><ChevronRight className="w-4 h-4 mt-0.5" />{a}</li>)}</ul>
             </div>
           )}
         </CardContent>
@@ -225,22 +267,23 @@ export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historic
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className={`grid w-full ${gender === "female" ? "grid-cols-5" : "grid-cols-4"}`}>
           <TabsTrigger value="analysis" className="gap-1.5"><Brain className="w-4 h-4" /><span className="hidden sm:inline">Analysis</span></TabsTrigger>
           <TabsTrigger value="balance" className="gap-1.5"><Activity className="w-4 h-4" /><span className="hidden sm:inline">Balance</span></TabsTrigger>
           {gender === "female" && <TabsTrigger value="cycle" className="gap-1.5"><Calendar className="w-4 h-4" /><span className="hidden sm:inline">Cycle</span></TabsTrigger>}
           <TabsTrigger value="recommendations" className="gap-1.5"><Target className="w-4 h-4" /><span className="hidden sm:inline">Actions</span></TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5"><History className="w-4 h-4" /><span className="hidden sm:inline">History</span>{history.length > 0 && <Badge variant="secondary" className="ml-1 text-xs">{history.length}</Badge>}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="analysis" className="space-y-6 mt-6">
           <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-purple-500" />Hormone Balance Status</CardTitle></CardHeader>
-            <CardContent><div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{analysis.hormoneBalance.map((item, i) => (<div key={i} className={`p-4 rounded-lg border ${getStatusColor(item.status)}`}><div className="flex items-center justify-between mb-2"><span className="font-medium">{item.category}</span><Badge variant="outline" className="capitalize">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.description}</p></div>))}</div></CardContent>
+            <CardContent><div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{displayAnalysis.hormoneBalance.map((item, i) => (<div key={i} className={`p-4 rounded-lg border ${getStatusColor(item.status)}`}><div className="flex items-center justify-between mb-2"><span className="font-medium">{item.category}</span><Badge variant="outline" className="capitalize">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.description}</p></div>))}</div></CardContent>
           </Card>
           <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-orange-500" />Risk Factors</CardTitle></CardHeader>
-            <CardContent><div className="space-y-4">{analysis.riskFactors.length > 0 ? analysis.riskFactors.map((r, i) => (<div key={i} className="p-4 rounded-lg border"><div className="flex items-start justify-between mb-2"><span className="font-medium">{r.factor}</span><Badge className={r.severity === "high" ? "bg-red-500" : r.severity === "moderate" ? "bg-yellow-500" : "bg-green-500"}>{r.severity}</Badge></div><p className="text-sm text-muted-foreground">{r.explanation}</p></div>)) : <div className="text-center py-6 text-muted-foreground"><CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" /><p>No significant risk factors</p></div>}</div></CardContent>
+            <CardContent><div className="space-y-4">{displayAnalysis.riskFactors.length > 0 ? displayAnalysis.riskFactors.map((r, i) => (<div key={i} className="p-4 rounded-lg border"><div className="flex items-start justify-between mb-2"><span className="font-medium">{r.factor}</span><Badge className={r.severity === "high" ? "bg-red-500" : r.severity === "moderate" ? "bg-yellow-500" : "bg-green-500"}>{r.severity}</Badge></div><p className="text-sm text-muted-foreground">{r.explanation}</p></div>)) : <div className="text-center py-6 text-muted-foreground"><CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" /><p>No significant risk factors</p></div>}</div></CardContent>
           </Card>
           <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Sparkles className="w-5 h-5 text-purple-500" />Personalized Insights</CardTitle></CardHeader>
-            <CardContent><ul className="space-y-3">{analysis.insights.map((insight, i) => (<li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-purple-50"><Info className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" /><span className="text-sm">{insight}</span></li>))}</ul></CardContent>
+            <CardContent><ul className="space-y-3">{displayAnalysis.insights.map((insight, i) => (<li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-purple-50"><Info className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" /><span className="text-sm">{insight}</span></li>))}</ul></CardContent>
           </Card>
         </TabsContent>
 
@@ -266,16 +309,16 @@ export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historic
         {gender === "female" && (
           <TabsContent value="cycle" className="mt-6">
             <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Calendar className="w-5 h-5 text-pink-500" />Menstrual Cycle Phase Analysis</CardTitle></CardHeader>
-              <CardContent>{analysis.cyclePhaseAnalysis ? (
+              <CardContent>{displayAnalysis.cyclePhaseAnalysis ? (
                 <div className="space-y-6">
                   <div className="p-4 rounded-lg bg-pink-50 border border-pink-200">
-                    <h4 className="font-medium mb-2 flex items-center gap-2"><span className="text-xl">{CYCLE_PHASES[analysis.cyclePhaseAnalysis.estimatedPhase]?.icon}</span>{analysis.cyclePhaseAnalysis.estimatedPhase.charAt(0).toUpperCase() + analysis.cyclePhaseAnalysis.estimatedPhase.slice(1)} Phase</h4>
-                    <p className="text-sm text-muted-foreground">{analysis.cyclePhaseAnalysis.interpretation}</p>
+                    <h4 className="font-medium mb-2 flex items-center gap-2"><span className="text-xl">{CYCLE_PHASES[displayAnalysis.cyclePhaseAnalysis.estimatedPhase]?.icon}</span>{displayAnalysis.cyclePhaseAnalysis.estimatedPhase.charAt(0).toUpperCase() + displayAnalysis.cyclePhaseAnalysis.estimatedPhase.slice(1)} Phase</h4>
+                    <p className="text-sm text-muted-foreground">{displayAnalysis.cyclePhaseAnalysis.interpretation}</p>
                   </div>
-                  <div><h4 className="font-medium mb-3">Expected Ranges for This Phase</h4><div className="space-y-3">{analysis.cyclePhaseAnalysis.expectedRanges.map((r, i) => (<div key={i} className="flex items-center justify-between p-3 rounded-lg border"><div><span className="font-medium">{r.biomarker}</span><p className="text-xs text-muted-foreground">Expected: {r.expectedRange}</p></div><div className="flex items-center gap-2"><span className="font-mono">{r.actualValue}</span><Badge className={r.status === "within" ? "bg-green-500/10 text-green-600" : r.status === "above" ? "bg-orange-500/10 text-orange-600" : "bg-blue-500/10 text-blue-600"}>{r.status}</Badge></div></div>))}</div></div>
+                  <div><h4 className="font-medium mb-3">Expected Ranges for This Phase</h4><div className="space-y-3">{displayAnalysis.cyclePhaseAnalysis.expectedRanges.map((r, i) => (<div key={i} className="flex items-center justify-between p-3 rounded-lg border"><div><span className="font-medium">{r.biomarker}</span><p className="text-xs text-muted-foreground">Expected: {r.expectedRange}</p></div><div className="flex items-center gap-2"><span className="font-mono">{r.actualValue}</span><Badge className={r.status === "within" ? "bg-green-500/10 text-green-600" : r.status === "above" ? "bg-orange-500/10 text-orange-600" : "bg-blue-500/10 text-blue-600"}>{r.status}</Badge></div></div>))}</div></div>
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-lg border"><h5 className="font-medium mb-2 flex items-center gap-2"><Sun className="w-4 h-4 text-amber-500" />What to Expect</h5><ul className="text-sm text-muted-foreground space-y-1"><li>• {analysis.cyclePhaseAnalysis.estimatedPhase === "follicular" ? "Rising energy levels" : analysis.cyclePhaseAnalysis.estimatedPhase === "ovulatory" ? "Peak energy" : analysis.cyclePhaseAnalysis.estimatedPhase === "luteal" ? "Rising progesterone" : "Hormone levels lowest"}</li></ul></div>
-                    <div className="p-4 rounded-lg border"><h5 className="font-medium mb-2 flex items-center gap-2"><Moon className="w-4 h-4 text-purple-500" />Self-Care Tips</h5><ul className="text-sm text-muted-foreground space-y-1"><li>• {analysis.cyclePhaseAnalysis.estimatedPhase === "follicular" ? "Start new projects" : analysis.cyclePhaseAnalysis.estimatedPhase === "ovulatory" ? "Schedule important meetings" : analysis.cyclePhaseAnalysis.estimatedPhase === "luteal" ? "Focus on stress management" : "Prioritize rest"}</li></ul></div>
+                    <div className="p-4 rounded-lg border"><h5 className="font-medium mb-2 flex items-center gap-2"><Sun className="w-4 h-4 text-amber-500" />What to Expect</h5><ul className="text-sm text-muted-foreground space-y-1"><li>• {displayAnalysis.cyclePhaseAnalysis.estimatedPhase === "follicular" ? "Rising energy levels" : displayAnalysis.cyclePhaseAnalysis.estimatedPhase === "ovulatory" ? "Peak energy" : displayAnalysis.cyclePhaseAnalysis.estimatedPhase === "luteal" ? "Rising progesterone" : "Hormone levels lowest"}</li></ul></div>
+                    <div className="p-4 rounded-lg border"><h5 className="font-medium mb-2 flex items-center gap-2"><Moon className="w-4 h-4 text-purple-500" />Self-Care Tips</h5><ul className="text-sm text-muted-foreground space-y-1"><li>• {displayAnalysis.cyclePhaseAnalysis.estimatedPhase === "follicular" ? "Start new projects" : displayAnalysis.cyclePhaseAnalysis.estimatedPhase === "ovulatory" ? "Schedule important meetings" : displayAnalysis.cyclePhaseAnalysis.estimatedPhase === "luteal" ? "Focus on stress management" : "Prioritize rest"}</li></ul></div>
                   </div>
                 </div>
               ) : <div className="text-center py-12 text-muted-foreground"><Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" /><p>Cycle phase analysis requires FSH, LH, Estradiol, and Progesterone</p></div>}</CardContent>
@@ -287,7 +330,7 @@ export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historic
           <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Target className="w-5 h-5 text-green-500" />Personalized Action Plan</CardTitle></CardHeader>
             <CardContent><div className="space-y-6">
               {["high", "medium", "low"].map(priority => {
-                const items = analysis.recommendations.filter(r => r.priority === priority);
+                const items = displayAnalysis.recommendations.filter(r => r.priority === priority);
                 if (items.length === 0) return null;
                 return (
                   <div key={priority}>
@@ -309,6 +352,100 @@ export function HormonePredictiveHealthRisk({ biomarkerResults, gender, historic
               })}
             </div></CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-6">
+          {history.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="py-16 text-center">
+                <History className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-slate-600 mb-2">No Analysis History</h3>
+                <p className="text-slate-400 text-sm">
+                  Past hormone analyses will appear here when new blood test results generate an updated report.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-1 border-0 shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Analysis History</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {history.map((item) => {
+                    const isSelected = selectedHistoryItem?.id === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedHistoryItem(item)}
+                        className={`w-full p-3 rounded-lg border text-left transition-all ${
+                          isSelected
+                            ? "border-purple-300 bg-purple-50"
+                            : "border-slate-100 bg-white hover:border-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge className="bg-purple-500 text-white text-xs">
+                            Score: {item.overallScore}
+                          </Badge>
+                          <span className="text-xs text-slate-400">{item.biomarkerCount} markers</span>
+                        </div>
+                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {formatDate(item.createdAt)}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <div className="lg:col-span-2">
+                {selectedHistoryItem ? (
+                  <Card className="border-0 shadow-md">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg">
+                            Analysis from {formatDate(selectedHistoryItem.createdAt)}
+                          </CardTitle>
+                          <CardDescription>{selectedHistoryItem.biomarkerCount} biomarkers analyzed</CardDescription>
+                        </div>
+                        <Badge className="bg-purple-500 text-white capitalize">
+                          {selectedHistoryItem.riskLevel} risk
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="p-4 rounded-lg bg-slate-50">
+                        <h4 className="text-sm font-medium text-slate-700 mb-2">Summary</h4>
+                        <p className="text-sm text-slate-600">{selectedHistoryItem.summary}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          setSelectedHistoryItem(null);
+                          setActiveTab("analysis");
+                        }}
+                      >
+                        <ArrowRight className="w-4 h-4 mr-2" />
+                        View Current Analysis
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="border-dashed h-full">
+                    <CardContent className="py-16 text-center h-full flex flex-col items-center justify-center">
+                      <FileText className="w-12 h-12 text-slate-300 mb-4" />
+                      <h3 className="text-lg font-medium text-slate-600 mb-2">Select an Analysis</h3>
+                      <p className="text-slate-400 text-sm">Click on a past analysis to view details</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

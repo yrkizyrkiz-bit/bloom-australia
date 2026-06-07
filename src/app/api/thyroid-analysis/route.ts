@@ -4,10 +4,9 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import crypto from "crypto";
+import { getDataDate, isResultsStale } from "@/lib/ai-report-cache";
 
 const anthropic = new Anthropic();
-
-const CACHE_DURATION_HOURS = 24;
 
 interface BiomarkerData {
   id: string;
@@ -62,6 +61,8 @@ interface ThyroidAnalysisResult {
   analyzedAt: string;
   cached?: boolean;
   cacheExpiresAt?: string;
+  dataDate?: string | null;
+  resultsStale?: boolean;
 }
 
 // Thyroid-related biomarker IDs
@@ -82,21 +83,13 @@ function createBiomarkerHash(biomarkers: BiomarkerData[]): string {
   return crypto.createHash("md5").update(sortedData).digest("hex");
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     console.log("[Thyroid Analysis] API called");
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    let forceRefresh = false;
-    try {
-      const url = new URL(request.url);
-      forceRefresh = url.searchParams.get("refresh") === "true";
-    } catch {
-      // Use default
     }
 
     const results = await prisma.biomarkerResult.findMany({
@@ -164,9 +157,16 @@ export async function GET(request: Request) {
       }, { status: 404 });
     }
 
+    // Date of the underlying results (most recent test) + staleness flag
+    const dataDate = getDataDate(biomarkerData.map(b => b.testedAt));
+    const resultsStale = isResultsStale(dataDate);
+
     const biomarkerHash = createBiomarkerHash(biomarkerData);
 
-    if (!forceRefresh) {
+    // Return the saved analysis whenever the biomarker data is unchanged. A new
+    // analysis is only generated when the underlying results change (i.e. a new
+    // blood test is uploaded) — the report is never force-regenerated.
+    {
       try {
         const cachedAnalysis = await prisma.aIAnalysisCache.findUnique({
           where: {
@@ -177,15 +177,14 @@ export async function GET(request: Request) {
           }
         });
 
-        if (cachedAnalysis &&
-            cachedAnalysis.biomarkerHash === biomarkerHash &&
-            cachedAnalysis.expiresAt > new Date()) {
-          console.log("[Thyroid Analysis] Returning cached analysis");
+        if (cachedAnalysis && cachedAnalysis.biomarkerHash === biomarkerHash) {
+          console.log("[Thyroid Analysis] Returning saved analysis for unchanged data");
           const cachedData = cachedAnalysis.analysisData as unknown as ThyroidAnalysisResult;
           return NextResponse.json({
             ...cachedData,
             cached: true,
-            cacheExpiresAt: cachedAnalysis.expiresAt.toISOString()
+            dataDate,
+            resultsStale
           });
         }
       } catch (cacheError) {
@@ -202,8 +201,10 @@ export async function GET(request: Request) {
       firstName: user?.firstName || "User"
     });
 
+    // The saved analysis stays valid until the biomarker data changes, so use a
+    // far-future expiry; invalidation is driven by the biomarker hash instead.
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + CACHE_DURATION_HOURS);
+    expiresAt.setFullYear(expiresAt.getFullYear() + 100);
 
     try {
       await prisma.aIAnalysisCache.upsert({
@@ -249,7 +250,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ...analysis,
       cached: false,
-      cacheExpiresAt: expiresAt.toISOString()
+      dataDate,
+      resultsStale
     });
 
   } catch (error) {

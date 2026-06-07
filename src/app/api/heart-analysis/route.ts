@@ -4,10 +4,9 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import crypto from "crypto";
+import { getDataDate, isResultsStale } from "@/lib/ai-report-cache";
 
 const anthropic = new Anthropic();
-
-const CACHE_DURATION_HOURS = 24;
 
 interface BiomarkerData {
   id: string;
@@ -320,6 +319,8 @@ interface HeartAnalysisResult {
   analyzedAt: string;
   cached?: boolean;
   cacheExpiresAt?: string;
+  dataDate?: string | null;
+  resultsStale?: boolean;
 }
 
 // Heart-related biomarker IDs
@@ -340,21 +341,13 @@ function createBiomarkerHash(biomarkers: BiomarkerData[]): string {
   return crypto.createHash("md5").update(sortedData).digest("hex");
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     console.log("[Heart Analysis] API called - using ASCVD Pooled Cohort Equations");
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    let forceRefresh = false;
-    try {
-      const url = new URL(request.url);
-      forceRefresh = url.searchParams.get("refresh") === "true";
-    } catch {
-      // Use default
     }
 
     const results = await prisma.biomarkerResult.findMany({
@@ -422,9 +415,33 @@ export async function GET(request: Request) {
       }, { status: 404 });
     }
 
-    const biomarkerHash = createBiomarkerHash(biomarkerData);
+    // Date of the underlying results (most recent test) + staleness flag
+    const dataDate = getDataDate(biomarkerData.map(b => b.testedAt));
+    const resultsStale = isResultsStale(dataDate);
 
-    if (!forceRefresh) {
+    // Heart analysis also depends on the editable health profile (BP, smoking,
+    // race, etc.), so fold it into the cache key — changing the profile counts
+    // as changed data and produces an updated report.
+    const healthProfile = await prisma.healthProfile.findUnique({
+      where: { userId: session.user.id }
+    });
+    const profileKey = JSON.stringify({
+      systolicBP: healthProfile?.systolicBP ?? null,
+      diastolicBP: healthProfile?.diastolicBP ?? null,
+      onBPMedication: healthProfile?.onBPMedication ?? null,
+      smokingStatus: healthProfile?.smokingStatus ?? null,
+      race: healthProfile?.race ?? null,
+      familyHistoryCVD: healthProfile?.familyHistoryCVD ?? null
+    });
+    const biomarkerHash = crypto
+      .createHash("md5")
+      .update(`${createBiomarkerHash(biomarkerData)}|${profileKey}`)
+      .digest("hex");
+
+    // Return the saved analysis whenever the biomarker data is unchanged. A new
+    // analysis is only generated when the underlying results change (i.e. a new
+    // blood test is uploaded) — the report is never force-regenerated.
+    {
       try {
         const cachedAnalysis = await prisma.aIAnalysisCache.findUnique({
           where: {
@@ -435,15 +452,14 @@ export async function GET(request: Request) {
           }
         });
 
-        if (cachedAnalysis &&
-            cachedAnalysis.biomarkerHash === biomarkerHash &&
-            cachedAnalysis.expiresAt > new Date()) {
-          console.log("[Heart Analysis] Returning cached analysis");
+        if (cachedAnalysis && cachedAnalysis.biomarkerHash === biomarkerHash) {
+          console.log("[Heart Analysis] Returning saved analysis for unchanged data");
           const cachedData = cachedAnalysis.analysisData as unknown as HeartAnalysisResult;
           return NextResponse.json({
             ...cachedData,
             cached: true,
-            cacheExpiresAt: cachedAnalysis.expiresAt.toISOString()
+            dataDate,
+            resultsStale
           });
         }
       } catch (cacheError) {
@@ -453,11 +469,6 @@ export async function GET(request: Request) {
 
     console.log("[Heart Analysis] Generating new scientific analysis...");
     console.log("[Heart Analysis] Biomarkers:", biomarkerData.map(b => `${b.id}=${b.value}`).join(", "));
-
-    // Fetch health profile for ASCVD risk factors
-    const healthProfile = await prisma.healthProfile.findUnique({
-      where: { userId: session.user.id }
-    });
 
     if (healthProfile) {
       console.log("[Heart Analysis] Health profile found:", {
@@ -557,8 +568,10 @@ export async function GET(request: Request) {
       ascvdRisk: ascvdResult || undefined
     };
 
+    // The saved analysis stays valid until the biomarker data changes, so use a
+    // far-future expiry; invalidation is driven by the biomarker hash instead.
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + CACHE_DURATION_HOURS);
+    expiresAt.setFullYear(expiresAt.getFullYear() + 100);
 
     try {
       await prisma.aIAnalysisCache.upsert({
@@ -604,7 +617,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ...finalAnalysis,
       cached: false,
-      cacheExpiresAt: expiresAt.toISOString()
+      dataDate,
+      resultsStale
     });
 
   } catch (error) {

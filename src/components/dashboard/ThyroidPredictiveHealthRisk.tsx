@@ -11,6 +11,7 @@ import {
   ChevronRight, ChevronDown, CheckCircle, Clock, Target, LineChart, ArrowRight,
   Loader2, RefreshCw, Sparkles, AlertCircle, Lightbulb, History, Calendar, BarChart3, FileText, Zap, ThermometerSun
 } from "lucide-react";
+import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotice";
 
 interface ThyroidRiskFactor {
   id: string;
@@ -47,6 +48,8 @@ interface ThyroidAnalysisResult {
   analyzedAt: string;
   cached?: boolean;
   cacheExpiresAt?: string;
+  dataDate?: string | null;
+  resultsStale?: boolean;
 }
 
 interface HistoryItem extends ThyroidAnalysisResult {
@@ -64,7 +67,6 @@ export function ThyroidPredictiveHealthRisk() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async () => {
@@ -79,17 +81,12 @@ export function ThyroidPredictiveHealthRisk() {
     }
   }, []);
 
-  const fetchAnalysis = useCallback(async (forceRefresh = false) => {
-    if (forceRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+  const fetchAnalysis = useCallback(async () => {
+    setIsLoading(true);
     setError(null);
 
     try {
-      const url = forceRefresh ? "/api/thyroid-analysis?refresh=true" : "/api/thyroid-analysis";
-      const response = await fetch(url);
+      const response = await fetch("/api/thyroid-analysis");
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -98,16 +95,12 @@ export function ThyroidPredictiveHealthRisk() {
 
       const data = await response.json();
       setAnalysis(data);
-
-      if (forceRefresh) {
-        fetchHistory();
-      }
+      fetchHistory();
     } catch (err) {
       console.error("Error fetching thyroid analysis:", err);
       setError(err instanceof Error ? err.message : "Failed to load analysis");
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, [fetchHistory]);
 
@@ -201,7 +194,7 @@ export function ThyroidPredictiveHealthRisk() {
               <h3 className="text-lg font-semibold text-orange-800 mb-2">Analysis Unavailable</h3>
               <p className="text-orange-600 text-sm max-w-md">{error}</p>
             </div>
-            <Button onClick={() => fetchAnalysis(true)} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-100">
+            <Button onClick={() => fetchAnalysis()} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-100">
               <RefreshCw className="w-4 h-4" />
               Try Again
             </Button>
@@ -237,27 +230,10 @@ export function ThyroidPredictiveHealthRisk() {
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchAnalysis(true)}
-          disabled={isRefreshing}
-          className="gap-2 border-slate-200"
-        >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-          {isRefreshing ? "Analyzing..." : "New Analysis"}
-        </Button>
       </div>
 
-      {isRefreshing && (
-        <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-center gap-3">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-              <span className="text-blue-700 font-medium">Generating new AI analysis...</span>
-            </div>
-          </CardContent>
-        </Card>
+      {!selectedHistoryItem && (
+        <ReportDataDateNotice dataDate={analysis.dataDate} resultsStale={analysis.resultsStale} />
       )}
 
       {error && analysis && (

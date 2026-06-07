@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import crypto from "crypto";
+import { getDataDate, isResultsStale } from "@/lib/ai-report-cache";
 
 const anthropic = new Anthropic();
 
@@ -71,7 +72,7 @@ interface HormoneAnalysisResult {
 
 function generateBiomarkerHash(biomarkers: any[]): string {
   const sortedData = biomarkers
-    .map(b => `${b.biomarkerId}:${b.value}`)
+    .map(b => `${b.biomarkerId}:${b.value}:${b.testedAt ? new Date(b.testedAt).toISOString() : ""}`)
     .sort()
     .join("|");
   return crypto.createHash("md5").update(sortedData).digest("hex");
@@ -124,7 +125,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const userId = body.userId || session.user.id;
-    const forceRefresh = body.refresh === true;
 
     // Get user details for sex-specific analysis
     const user = await prisma.user.findUnique({
@@ -173,27 +173,26 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check cache
+    // Date of the underlying results (most recent test) + staleness flag
+    const dataDate = getDataDate(uniqueResults.map(r => r.testedAt));
+    const resultsStale = isResultsStale(dataDate);
+
+    // Return the saved analysis whenever the biomarker data is unchanged. A new
+    // analysis is only generated when the underlying results change (i.e. a new
+    // blood test is uploaded) — the report is never force-regenerated.
     const biomarkerHash = generateBiomarkerHash(uniqueResults);
 
-    if (!forceRefresh) {
-      const cachedAnalysis = await prisma.aIAnalysisCache.findFirst({
-        where: {
-          userId,
-          analysisType: "hormone",
-          biomarkerHash,
-          expiresAt: { gt: new Date() }
-        },
-        orderBy: { createdAt: "desc" }
-      });
+    const existingAnalysis = await prisma.aIAnalysisCache.findUnique({
+      where: { userId_analysisType: { userId, analysisType: "hormone" } }
+    });
 
-      if (cachedAnalysis) {
-        return NextResponse.json({
-          analysis: cachedAnalysis.analysisData,
-          cached: true,
-          cacheExpires: cachedAnalysis.expiresAt
-        });
-      }
+    if (existingAnalysis && existingAnalysis.biomarkerHash === biomarkerHash) {
+      return NextResponse.json({
+        analysis: existingAnalysis.analysisData,
+        cached: true,
+        dataDate,
+        resultsStale
+      });
     }
 
     // Prepare biomarker data for Claude
@@ -361,23 +360,38 @@ Provide ONLY the JSON object, no additional text.`;
       );
     }
 
-    // Cache the analysis (24 hours)
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // The saved analysis stays valid until the biomarker data changes, so use a
+    // far-future expiry; invalidation is driven by the biomarker hash instead.
+    const expiresAt = new Date();
+    expiresAt.setFullYear(expiresAt.getFullYear() + 100);
+    const analysisData = JSON.parse(JSON.stringify(analysis));
 
-    await prisma.aIAnalysisCache.create({
-      data: {
-        userId,
-        analysisType: "hormone",
-        analysisData: JSON.parse(JSON.stringify(analysis)),
-        biomarkerHash,
-        expiresAt
-      }
-    });
+    try {
+      await prisma.aIAnalysisCache.upsert({
+        where: { userId_analysisType: { userId, analysisType: "hormone" } },
+        update: { analysisData, biomarkerHash, expiresAt, updatedAt: new Date() },
+        create: { userId, analysisType: "hormone", analysisData, biomarkerHash, expiresAt }
+      });
+
+      await prisma.aIAnalysisHistory.create({
+        data: {
+          userId,
+          analysisType: "hormone",
+          analysisData,
+          overallScore: typeof analysis.riskScore === "number" ? Math.round(analysis.riskScore) : 0,
+          riskLevel: analysis.overallRisk || "low",
+          biomarkerCount: uniqueResults.length
+        }
+      });
+    } catch (cacheError) {
+      console.error("[Hormone Analysis] Failed to save analysis:", cacheError);
+    }
 
     return NextResponse.json({
       analysis,
       cached: false,
-      cacheExpires: expiresAt
+      dataDate,
+      resultsStale
     });
 
   } catch (error) {

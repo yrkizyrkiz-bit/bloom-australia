@@ -16,6 +16,7 @@ import {
   Loader2, RefreshCw, Sparkles, AlertCircle, Lightbulb, History, Calendar, BarChart3, FileText, Flame, Zap,
   HeartPulse, Calculator, Info, User, Edit3, Save, X, Stethoscope
 } from "lucide-react";
+import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotice";
 
 interface HeartRiskFactor {
   id: string;
@@ -84,6 +85,8 @@ interface HeartAnalysisResult {
   analyzedAt: string;
   cached?: boolean;
   cacheExpiresAt?: string;
+  dataDate?: string | null;
+  resultsStale?: boolean;
 }
 
 interface HistoryItem extends HeartAnalysisResult {
@@ -101,7 +104,6 @@ export function HeartPredictiveHealthRisk() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Health profile editing state
@@ -146,8 +148,9 @@ export function HeartPredictiveHealthRisk() {
       if (response.ok) {
         setHealthProfile(editedProfile);
         setIsEditingProfile(false);
-        // Refresh analysis with new profile data
-        fetchAnalysis(true);
+        // Profile changes are part of the report's input data, so re-fetch to
+        // pick up the freshly generated analysis.
+        fetchAnalysis();
       }
     } catch (err) {
       console.error("Error saving health profile:", err);
@@ -168,17 +171,15 @@ export function HeartPredictiveHealthRisk() {
     }
   }, []);
 
-  const fetchAnalysis = useCallback(async (forceRefresh = false) => {
-    if (forceRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+  // The report is always based on the latest saved analysis for the member's
+  // current data; a new report is only produced when a new blood test (or
+  // health-profile change) changes that data, so there is no manual regeneration.
+  const fetchAnalysis = useCallback(async () => {
+    setIsLoading(true);
     setError(null);
 
     try {
-      const url = forceRefresh ? "/api/heart-analysis?refresh=true" : "/api/heart-analysis";
-      const response = await fetch(url);
+      const response = await fetch("/api/heart-analysis");
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -187,16 +188,12 @@ export function HeartPredictiveHealthRisk() {
 
       const data = await response.json();
       setAnalysis(data);
-
-      if (forceRefresh) {
-        fetchHistory();
-      }
+      fetchHistory();
     } catch (err) {
       console.error("Error fetching heart analysis:", err);
       setError(err instanceof Error ? err.message : "Failed to load analysis");
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, [fetchHistory]);
 
@@ -300,7 +297,7 @@ export function HeartPredictiveHealthRisk() {
               <h3 className="text-lg font-semibold text-orange-800 mb-2">Analysis Unavailable</h3>
               <p className="text-orange-600 text-sm max-w-md">{error}</p>
             </div>
-            <Button onClick={() => fetchAnalysis(true)} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-100">
+            <Button onClick={() => fetchAnalysis()} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-100">
               <RefreshCw className="w-4 h-4" />
               Try Again
             </Button>
@@ -337,27 +334,11 @@ export function HeartPredictiveHealthRisk() {
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchAnalysis(true)}
-          disabled={isRefreshing}
-          className="gap-2 border-slate-200"
-        >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-          {isRefreshing ? "Analyzing..." : "New Analysis"}
-        </Button>
       </div>
 
-      {isRefreshing && (
-        <Card className="border-red-200 bg-gradient-to-r from-red-50 to-rose-50">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-center gap-3">
-              <Loader2 className="w-5 h-5 animate-spin text-red-600" />
-              <span className="text-red-700 font-medium">Generating new AI analysis...</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Based-on-results notice (and stale-results recommendation) */}
+      {!selectedHistoryItem && (
+        <ReportDataDateNotice dataDate={analysis.dataDate} resultsStale={analysis.resultsStale} />
       )}
 
       {error && analysis && (

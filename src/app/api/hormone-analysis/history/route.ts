@@ -1,38 +1,42 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get("userId") || session.user.id;
-    const limit = parseInt(searchParams.get("limit") || "10");
-
-    // Get historical analyses
-    const analyses = await prisma.aIAnalysisCache.findMany({
+    const history = await prisma.aIAnalysisHistory.findMany({
       where: {
-        userId,
+        userId: session.user.id,
         analysisType: "hormone"
       },
       orderBy: { createdAt: "desc" },
-      take: limit
+      take: 10,
+      select: {
+        id: true,
+        analysisData: true,
+        overallScore: true,
+        riskLevel: true,
+        biomarkerCount: true,
+        createdAt: true
+      }
     });
 
-    // Transform for the frontend
-    const history = analyses.map(a => ({
-      id: a.id,
-      createdAt: a.createdAt,
-      analysis: a.analysisData,
-      isExpired: a.expiresAt < new Date()
-    }));
-
-    return NextResponse.json({ history });
+    return NextResponse.json({
+      history: history.map(h => ({
+        id: h.id,
+        overallScore: h.overallScore,
+        riskLevel: h.riskLevel,
+        biomarkerCount: h.biomarkerCount,
+        createdAt: h.createdAt.toISOString(),
+        ...h.analysisData as object
+      }))
+    });
   } catch (error) {
     console.error("Error fetching hormone analysis history:", error);
     return NextResponse.json(

@@ -14,6 +14,7 @@ import {
   Loader2, RefreshCw, Sparkles, AlertCircle, Lightbulb, History, Calendar, BarChart3, FileText,
   Beaker, Heart, Info, MapPin
 } from "lucide-react";
+import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotice";
 
 interface KidneyRiskFactor {
   id: string;
@@ -99,6 +100,8 @@ interface KidneyAnalysisResult {
   analyzedAt: string;
   cached?: boolean;
   cacheExpiresAt?: string;
+  dataDate?: string | null;
+  resultsStale?: boolean;
 }
 
 interface HistoryItem extends KidneyAnalysisResult {
@@ -117,7 +120,6 @@ export function KidneyPredictiveHealthRisk() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async () => {
@@ -132,17 +134,15 @@ export function KidneyPredictiveHealthRisk() {
     }
   }, []);
 
-  const fetchAnalysis = useCallback(async (forceRefresh = false) => {
-    if (forceRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+  // The report is always based on the latest saved analysis for the member's
+  // current biomarker data; a new report is only produced when a new blood test
+  // changes that data, so there is no manual regeneration.
+  const fetchAnalysis = useCallback(async () => {
+    setIsLoading(true);
     setError(null);
 
     try {
-      const url = forceRefresh ? "/api/kidney-analysis?refresh=true" : "/api/kidney-analysis";
-      const response = await fetch(url);
+      const response = await fetch("/api/kidney-analysis");
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -151,16 +151,12 @@ export function KidneyPredictiveHealthRisk() {
 
       const data = await response.json();
       setAnalysis(data);
-
-      if (forceRefresh) {
-        fetchHistory();
-      }
+      fetchHistory();
     } catch (err) {
       console.error("Error fetching kidney analysis:", err);
       setError(err instanceof Error ? err.message : "Failed to load analysis");
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, [fetchHistory]);
 
@@ -362,7 +358,7 @@ export function KidneyPredictiveHealthRisk() {
               <h3 className="text-lg font-semibold text-orange-800 mb-2">Analysis Unavailable</h3>
               <p className="text-orange-600 text-sm max-w-md">{error}</p>
             </div>
-            <Button onClick={() => fetchAnalysis(true)} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-100">
+            <Button onClick={() => fetchAnalysis()} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-100">
               <RefreshCw className="w-4 h-4" />
               Try Again
             </Button>
@@ -411,30 +407,12 @@ export function KidneyPredictiveHealthRisk() {
               <SelectItem value="anemia">Anemia</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchAnalysis(true)}
-            disabled={isRefreshing}
-            className="gap-2 border-slate-200"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            {isRefreshing ? "Analyzing..." : "New Analysis"}
-          </Button>
         </div>
       </div>
 
-      {/* Refreshing Banner */}
-      {isRefreshing && (
-        <Card className="border-cyan-200 bg-gradient-to-r from-cyan-50 to-teal-50">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-center gap-3">
-              <Loader2 className="w-5 h-5 animate-spin text-cyan-600" />
-              <span className="text-cyan-700 font-medium">Generating new AI analysis...</span>
-              <span className="text-cyan-600 text-sm">Your current analysis is shown below</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Based-on-results notice (and stale-results recommendation) */}
+      {!selectedHistoryItem && (
+        <ReportDataDateNotice dataDate={analysis.dataDate} resultsStale={analysis.resultsStale} />
       )}
 
       {/* Error Banner */}

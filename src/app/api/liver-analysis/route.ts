@@ -4,13 +4,11 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import crypto from "crypto";
+import { getDataDate, isResultsStale } from "@/lib/ai-report-cache";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
-
-// Cache duration: 24 hours
-const CACHE_DURATION_HOURS = 24;
 
 interface BiomarkerData {
   id: string;
@@ -64,6 +62,8 @@ interface LiverAnalysisResult {
   analyzedAt: string;
   cached?: boolean;
   cacheExpiresAt?: string;
+  dataDate?: string | null;
+  resultsStale?: boolean;
 }
 
 // Liver-related biomarker IDs
@@ -90,7 +90,7 @@ function createBiomarkerHash(biomarkers: BiomarkerData[]): string {
   return crypto.createHash("md5").update(sortedData).digest("hex");
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     console.log("[Liver Analysis] API called");
 
@@ -102,20 +102,6 @@ export async function GET(request: Request) {
     }
 
     console.log("[Liver Analysis] User:", session.user.id);
-
-    // Check if refresh is requested
-    let forceRefresh = false;
-    try {
-      // Handle both full URLs and relative paths
-      const urlString = request.url;
-      if (urlString.includes("?")) {
-        const queryString = urlString.split("?")[1];
-        const params = new URLSearchParams(queryString);
-        forceRefresh = params.get("refresh") === "true";
-      }
-    } catch (urlError) {
-      console.log("[Liver Analysis] URL parsing failed:", urlError);
-    }
 
     // Get the user's latest liver-related biomarkers
     const results = await prisma.biomarkerResult.findMany({
@@ -191,6 +177,10 @@ export async function GET(request: Request) {
       }, { status: 404 });
     }
 
+    // Date of the underlying results (most recent test) + staleness flag
+    const dataDate = getDataDate(biomarkerData.map(b => b.testedAt));
+    const resultsStale = isResultsStale(dataDate);
+
     // Create hash of current biomarker data
     let biomarkerHash: string;
     try {
@@ -201,37 +191,34 @@ export async function GET(request: Request) {
       throw new Error(`Failed to create biomarker hash: ${hashError instanceof Error ? hashError.message : "Unknown error"}`);
     }
 
-    // Check for cached analysis (unless force refresh requested)
-    if (!forceRefresh) {
-      try {
-        const cachedAnalysis = await prisma.aIAnalysisCache.findUnique({
-          where: {
-            userId_analysisType: {
-              userId: session.user.id,
-              analysisType: "liver"
-            }
+    // Return the saved analysis whenever the biomarker data is unchanged. A new
+    // analysis is only generated when the underlying results change (i.e. a new
+    // blood test is uploaded) — the report is never force-regenerated.
+    try {
+      const cachedAnalysis = await prisma.aIAnalysisCache.findUnique({
+        where: {
+          userId_analysisType: {
+            userId: session.user.id,
+            analysisType: "liver"
           }
-        });
-
-        // Return cached data if valid
-        if (cachedAnalysis &&
-            cachedAnalysis.biomarkerHash === biomarkerHash &&
-            cachedAnalysis.expiresAt > new Date()) {
-
-          console.log("[Liver Analysis] Returning cached analysis");
-
-          const cachedData = cachedAnalysis.analysisData as unknown as LiverAnalysisResult;
-          return NextResponse.json({
-            ...cachedData,
-            cached: true,
-            cacheExpiresAt: cachedAnalysis.expiresAt.toISOString()
-          });
         }
-        console.log("[Liver Analysis] No valid cache found");
-      } catch (cacheError) {
-        console.error("[Liver Analysis] Cache lookup error:", cacheError);
-        // Continue without cache if there's an error
+      });
+
+      if (cachedAnalysis && cachedAnalysis.biomarkerHash === biomarkerHash) {
+        console.log("[Liver Analysis] Returning saved analysis for unchanged data");
+
+        const cachedData = cachedAnalysis.analysisData as unknown as LiverAnalysisResult;
+        return NextResponse.json({
+          ...cachedData,
+          cached: true,
+          dataDate,
+          resultsStale
+        });
       }
+      console.log("[Liver Analysis] No saved analysis for current data");
+    } catch (cacheError) {
+      console.error("[Liver Analysis] Cache lookup error:", cacheError);
+      // Continue without cache if there's an error
     }
 
     console.log("[Liver Analysis] Generating new AI analysis...");
@@ -251,9 +238,10 @@ export async function GET(request: Request) {
       throw new Error(`AI analysis failed: ${aiError instanceof Error ? aiError.message : "Unknown error"}`);
     }
 
-    // Cache the analysis
+    // The saved analysis stays valid until the biomarker data changes, so use a
+    // far-future expiry; invalidation is driven by the biomarker hash instead.
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + CACHE_DURATION_HOURS);
+    expiresAt.setFullYear(expiresAt.getFullYear() + 100);
 
     try {
       // Save to cache
@@ -304,7 +292,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ...analysis,
       cached: false,
-      cacheExpiresAt: expiresAt.toISOString()
+      dataDate,
+      resultsStale
     });
 
   } catch (error) {

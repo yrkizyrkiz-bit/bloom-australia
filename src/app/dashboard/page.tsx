@@ -133,13 +133,17 @@ function DashboardPageContent({
     };
   }, [healthTestScores, dashboardData]);
 
-  // Calculate totals from the 6 health test categories
+  // Results Summary totals must reflect ALL of the user's biomarker results,
+  // not just the markers that belong to the 6 organ panels. Prefer the
+  // server-computed stats (counted across every latest result); fall back to
+  // counting the raw results client-side if stats aren't available.
   const totals = useMemo(() => {
-    if (healthTestScores) {
+    const stats = dashboardData?.biomarkerStats;
+    if (stats) {
       return {
-        optimal: healthTestScores.totalOptimal,
-        normal: healthTestScores.totalNormal,
-        outOfRange: healthTestScores.totalOutOfRange,
+        optimal: stats.optimal ?? 0,
+        normal: stats.normal ?? 0,
+        outOfRange: (stats.outOfRange ?? 0) + (stats.critical ?? 0),
       };
     }
     // Fallback to raw biomarker calculation
@@ -148,7 +152,7 @@ function DashboardPageContent({
       normal: biomarkerResults.filter(r => r.status === "normal").length,
       outOfRange: biomarkerResults.filter(r => r.status === "out_of_range" || r.status === "critical").length,
     };
-  }, [healthTestScores, biomarkerResults]);
+  }, [dashboardData, biomarkerResults]);
 
   // Get out of range biomarkers for attention section
   const outOfRangeBiomarkers = useMemo(() => {
@@ -223,7 +227,7 @@ function DashboardPageContent({
             <TabsList>
               <TabsTrigger value="tests" className="gap-2">
                 <LayoutGrid className="w-4 h-4" />
-                Health Tests
+                Organ & Metabolic Health
               </TabsTrigger>
               <TabsTrigger value="categories" className="gap-2">
                 <List className="w-4 h-4" />

@@ -170,7 +170,7 @@ export function DashboardNav() {
                   className={`gap-2 rounded-xl ${isHealthTestActive ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
                 >
                   <TestTubes className="w-4 h-4" />
-                  Health Tests
+                  Organ & Metabolic Health
                   {!biomarkersUnlocked && (
                     <span className="text-[10px] uppercase tracking-wide text-[#7e9a72]">Explore</span>
                   )}
