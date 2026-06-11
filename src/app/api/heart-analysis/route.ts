@@ -441,9 +441,10 @@ export async function GET() {
     // Return the saved analysis whenever the biomarker data is unchanged. A new
     // analysis is only generated when the underlying results change (i.e. a new
     // blood test is uploaded) — the report is never force-regenerated.
+    let cachedAnalysis: { biomarkerHash: string; analysisData: unknown } | null = null;
     {
       try {
-        const cachedAnalysis = await prisma.aIAnalysisCache.findUnique({
+        cachedAnalysis = await prisma.aIAnalysisCache.findUnique({
           where: {
             userId_analysisType: {
               userId: session.user.id,
@@ -600,16 +601,18 @@ export async function GET() {
                         finalAnalysis.overallRiskScore < 40 ? "moderate" :
                         finalAnalysis.overallRiskScore < 60 ? "elevated" : "high";
 
-      await prisma.aIAnalysisHistory.create({
-        data: {
-          userId: session.user.id,
-          analysisType: "heart",
-          analysisData: finalAnalysis as object,
-          overallScore: finalAnalysis.overallRiskScore,
-          riskLevel,
-          biomarkerCount: biomarkerData.length
-        }
-      });
+      if (!cachedAnalysis || cachedAnalysis.biomarkerHash !== biomarkerHash) {
+        await prisma.aIAnalysisHistory.create({
+          data: {
+            userId: session.user.id,
+            analysisType: "heart",
+            analysisData: finalAnalysis as object,
+            overallScore: finalAnalysis.overallRiskScore,
+            riskLevel,
+            biomarkerCount: biomarkerData.length
+          }
+        });
+      }
     } catch (cacheError) {
       console.error("[Heart Analysis] Failed to cache:", cacheError);
     }

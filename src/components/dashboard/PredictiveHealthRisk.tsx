@@ -301,8 +301,8 @@ export function PredictiveHealthRisk() {
         {/* Current Analysis Tab */}
         <TabsContent value="current" className="mt-6 space-y-6">
           {/* Risk Score Hero Card */}
-          <Card className="border-0 shadow-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+          <Card className="relative border-0 shadow-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
             <CardContent className="relative pt-8 pb-8">
               <div className="grid lg:grid-cols-3 gap-8">
                 {/* Score Display */}
@@ -345,7 +345,7 @@ export function PredictiveHealthRisk() {
                 <div className="lg:col-span-2">
                   <p className="text-slate-400 text-sm font-medium mb-4">Risk Categories</p>
                   <div className="space-y-4">
-                    {displayAnalysis.riskFactors.slice(0, 4).map(risk => {
+                    {(displayAnalysis.riskFactors ?? []).slice(0, 4).map(risk => {
                       const level = getRiskLevel(risk.currentRisk);
                       return (
                         <div key={risk.id} className="space-y-2">
@@ -437,7 +437,7 @@ export function PredictiveHealthRisk() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {displayAnalysis.riskFactors.map(risk => {
+              {(displayAnalysis.riskFactors ?? []).map(risk => {
                 const level = getRiskLevel(risk.currentRisk);
                 const isExpanded = expandedRisk === risk.id;
 

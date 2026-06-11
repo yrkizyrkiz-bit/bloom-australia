@@ -226,8 +226,18 @@ export async function POST(request: Request) {
       }
     });
 
-    // Update health profile with latest reading
+    // Update health profile with latest reading; only invalidate the heart
+    // report cache when BP values actually change.
     try {
+      const existingProfile = await prisma.healthProfile.findUnique({
+        where: { userId: session.user.id },
+        select: { systolicBP: true, diastolicBP: true },
+      });
+
+      const bpChanged =
+        existingProfile?.systolicBP !== systolicBP ||
+        existingProfile?.diastolicBP !== diastolicBP;
+
       await prisma.healthProfile.upsert({
         where: { userId: session.user.id },
         update: {
@@ -243,13 +253,14 @@ export async function POST(request: Request) {
         }
       });
 
-      // Clear heart analysis cache
-      await prisma.aIAnalysisCache.deleteMany({
-        where: {
-          userId: session.user.id,
-          analysisType: "heart"
-        }
-      });
+      if (bpChanged) {
+        await prisma.aIAnalysisCache.deleteMany({
+          where: {
+            userId: session.user.id,
+            analysisType: "heart"
+          }
+        });
+      }
     } catch {
       // Ignore profile update errors
     }

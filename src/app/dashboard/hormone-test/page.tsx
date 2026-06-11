@@ -37,6 +37,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
 import { HormonePredictiveHealthRisk } from "@/components/dashboard/HormonePredictiveHealthRisk";
+import { OrganAIInsights } from "@/components/dashboard/OrganAIInsights";
+import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
+import { OrganGoalSetting } from "@/components/dashboard/OrganGoalSetting";
 
 const hormoneTestConfig = {
   sexHormones: {
@@ -282,6 +285,8 @@ export default function HormoneTestPage() {
           <TabsTrigger value="overview" className="gap-1.5"><Activity className="w-4 h-4" /><span className="hidden sm:inline">Overview</span></TabsTrigger>
           <TabsTrigger value="trends" className="gap-1.5"><BarChart3 className="w-4 h-4" /><span className="hidden sm:inline">Trends</span></TabsTrigger>
           <TabsTrigger value="balance" className="gap-1.5"><Brain className="w-4 h-4" /><span className="hidden sm:inline">Balance Analysis</span></TabsTrigger>
+          <TabsTrigger value="risk" className="gap-1.5"><AlertTriangle className="w-4 h-4" /><span className="hidden sm:inline">Risk Assessment</span></TabsTrigger>
+          <TabsTrigger value="goals" className="gap-1.5"><Target className="w-4 h-4" /><span className="hidden sm:inline">Goals</span></TabsTrigger>
           <TabsTrigger value="insights" className="gap-1.5"><Sparkles className="w-4 h-4" /><span className="hidden sm:inline">AI Insights</span></TabsTrigger>
           <TabsTrigger value="schedule" className="gap-1.5"><Calendar className="w-4 h-4" /><span className="hidden sm:inline">Schedule</span></TabsTrigger>
         </TabsList>
@@ -468,68 +473,13 @@ export default function HormoneTestPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="trends" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" />Hormone Trends Over Time</CardTitle>
-              <CardDescription>Track your hormone balance journey</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <Sparkles className="w-12 h-12 mx-auto mb-3 text-purple-300" />
-                  <p>Your hormone levels have remained stable over the past 9 months</p>
-                  <p className="text-sm mt-2">Cortisol trending down from 28 to 22 μg/dL</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Cortisol Rhythm</CardTitle>
-                <CardDescription>Daily cortisol pattern</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-center">
-                    <Sun className="w-6 h-6 text-amber-500 mx-auto" />
-                    <p className="text-xs text-muted-foreground mt-1">Morning</p>
-                    <p className="font-bold">22 μg/dL</p>
-                  </div>
-                  <div className="flex-1 h-1 bg-gradient-to-r from-amber-500 via-yellow-300 to-blue-500 mx-4 rounded" />
-                  <div className="text-center">
-                    <Moon className="w-6 h-6 text-blue-500 mx-auto" />
-                    <p className="text-xs text-muted-foreground mt-1">Evening</p>
-                    <p className="font-bold">8 μg/dL</p>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground text-center">Normal rhythm: High AM, Low PM</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Hormone Balance Ratio</CardTitle>
-                <CardDescription>Key hormone relationships</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Cortisol:DHEA-S</span>
-                  <Badge variant="outline" className="text-green-600 border-green-500">Optimal</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Estrogen:Progesterone</span>
-                  <Badge variant="outline" className="text-green-600 border-green-500">Balanced</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">FSH:LH</span>
-                  <Badge variant="outline" className="text-green-600 border-green-500">Normal</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="trends" className="mt-6">
+          <OrganTrendSection
+            organ="hormones"
+            gender={gender}
+            title="Hormone Trends Over Time"
+            description="Track your hormone balance journey"
+          />
         </TabsContent>
 
         <TabsContent value="balance" className="mt-6">
@@ -584,12 +534,20 @@ export default function HormoneTestPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="insights" className="mt-6">
+        <TabsContent value="risk" className="mt-6">
           <HormonePredictiveHealthRisk
             biomarkerResults={allBiomarkerResults}
             gender={gender}
             historicalData={[]}
           />
+        </TabsContent>
+
+        <TabsContent value="goals" className="mt-6">
+          <OrganGoalSetting organ="hormone" currentResults={allBiomarkerResults} gender={gender} />
+        </TabsContent>
+
+        <TabsContent value="insights" className="mt-6">
+          <OrganAIInsights organ="hormone" />
         </TabsContent>
 
         <TabsContent value="schedule" className="space-y-6 mt-6">

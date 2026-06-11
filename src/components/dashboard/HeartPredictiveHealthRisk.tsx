@@ -6,17 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertTriangle, TrendingUp, TrendingDown, Activity, Heart, Shield, Brain,
   ChevronRight, ChevronDown, CheckCircle, Clock, Target, LineChart, ArrowRight,
   Loader2, RefreshCw, Sparkles, AlertCircle, Lightbulb, History, Calendar, BarChart3, FileText, Flame, Zap,
-  HeartPulse, Calculator, Info, User, Edit3, Save, X, Stethoscope
+  HeartPulse, Calculator, Info, User, Stethoscope
 } from "lucide-react";
 import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotice";
+import { AscvdSetupForm } from "@/components/dashboard/AscvdSetupForm";
+import type { AscvdLabInputs, AscvdProfileInputs } from "@/lib/ascvd-inputs";
 
 interface HeartRiskFactor {
   id: string;
@@ -62,15 +60,10 @@ interface ASCVDResult {
   };
 }
 
-// Health Profile Types
-interface HealthProfile {
-  systolicBP: number | null;
-  diastolicBP: number | null;
-  onBPMedication: boolean;
-  smokingStatus: "NEVER" | "FORMER" | "CURRENT";
-  race: "WHITE" | "AFRICAN_AMERICAN" | "ASIAN" | "HISPANIC" | "OTHER";
-  familyHistoryCVD: boolean;
-}
+// Health profile = ASCVD lifestyle / BP inputs
+type HealthProfile = AscvdProfileInputs;
+
+type SetupPhase = "initializing" | "setup" | "generating" | "report";
 
 interface HeartAnalysisResult {
   overallRiskScore: number;
@@ -103,12 +96,13 @@ export function HeartPredictiveHealthRisk() {
   const [analysis, setAnalysis] = useState<HeartAnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [phase, setPhase] = useState<SetupPhase>("initializing");
   const [error, setError] = useState<string | null>(null);
-
-  // Health profile editing state
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [labInputs, setLabInputs] = useState<AscvdLabInputs | null>(null);
+  const [missingForFirstRun, setMissingForFirstRun] = useState<string[]>([]);
+  const [hasExistingReport, setHasExistingReport] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
   const [healthProfile, setHealthProfile] = useState<HealthProfile>({
     systolicBP: null,
     diastolicBP: null,
@@ -118,46 +112,6 @@ export function HeartPredictiveHealthRisk() {
     familyHistoryCVD: false
   });
   const [editedProfile, setEditedProfile] = useState<HealthProfile>(healthProfile);
-
-  // Fetch health profile
-  const fetchHealthProfile = useCallback(async () => {
-    try {
-      const response = await fetch("/api/health-profile");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.profile) {
-          setHealthProfile(data.profile);
-          setEditedProfile(data.profile);
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching health profile:", err);
-    }
-  }, []);
-
-  // Save health profile
-  const saveHealthProfile = async () => {
-    setIsSavingProfile(true);
-    try {
-      const response = await fetch("/api/health-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editedProfile)
-      });
-
-      if (response.ok) {
-        setHealthProfile(editedProfile);
-        setIsEditingProfile(false);
-        // Profile changes are part of the report's input data, so re-fetch to
-        // pick up the freshly generated analysis.
-        fetchAnalysis();
-      }
-    } catch (err) {
-      console.error("Error saving health profile:", err);
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -171,11 +125,8 @@ export function HeartPredictiveHealthRisk() {
     }
   }, []);
 
-  // The report is always based on the latest saved analysis for the member's
-  // current data; a new report is only produced when a new blood test (or
-  // health-profile change) changes that data, so there is no manual regeneration.
   const fetchAnalysis = useCallback(async () => {
-    setIsLoading(true);
+    setPhase("generating");
     setError(null);
 
     try {
@@ -188,20 +139,110 @@ export function HeartPredictiveHealthRisk() {
 
       const data = await response.json();
       setAnalysis(data);
+      setHasExistingReport(true);
+      setPhase("report");
       fetchHistory();
     } catch (err) {
       console.error("Error fetching heart analysis:", err);
       setError(err instanceof Error ? err.message : "Failed to load analysis");
-    } finally {
-      setIsLoading(false);
+      setPhase(hasExistingReport ? "report" : "setup");
     }
-  }, [fetchHistory]);
+  }, [fetchHistory, hasExistingReport]);
+
+  const initialize = useCallback(async () => {
+    setPhase("initializing");
+    setError(null);
+
+    try {
+      const [inputsResponse, historyResponse] = await Promise.all([
+        fetch("/api/heart-analysis/ascvd-inputs"),
+        fetch("/api/heart-analysis/history"),
+      ]);
+
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        setHistory(historyData.history || []);
+      }
+
+      if (!inputsResponse.ok) {
+        const errorData = await inputsResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || "Failed to load ASCVD inputs");
+      }
+
+      const inputsData = await inputsResponse.json();
+      setLabInputs(inputsData.labInputs);
+      setHealthProfile(inputsData.profile);
+      setEditedProfile(inputsData.profile);
+      setMissingForFirstRun(inputsData.missingForFirstRun || []);
+      setHasExistingReport(Boolean(inputsData.hasExistingReport));
+
+      if (inputsData.hasExistingReport) {
+        const analysisResponse = await fetch("/api/heart-analysis");
+        if (analysisResponse.ok) {
+          setAnalysis(await analysisResponse.json());
+          setPhase("report");
+        } else {
+          setPhase("setup");
+        }
+      } else {
+        setPhase("setup");
+      }
+    } catch (err) {
+      console.error("Error initializing heart risk assessment:", err);
+      setError(err instanceof Error ? err.message : "Failed to load cardiovascular assessment");
+      setPhase("setup");
+    }
+  }, []);
 
   useEffect(() => {
-    fetchAnalysis();
-    fetchHistory();
-    fetchHealthProfile();
-  }, [fetchAnalysis, fetchHistory, fetchHealthProfile]);
+    initialize();
+  }, [initialize]);
+
+  const saveProfile = async (profile: HealthProfile, bpOnly: boolean) => {
+    setIsSavingProfile(true);
+    setError(null);
+
+    try {
+      const payload = bpOnly
+        ? {
+            systolicBP: profile.systolicBP,
+            diastolicBP: profile.diastolicBP,
+          }
+        : profile;
+
+      const response = await fetch("/api/health-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save profile");
+      }
+
+      const data = await response.json();
+      const savedProfile = data.profile
+        ? {
+            systolicBP: data.profile.systolicBP,
+            diastolicBP: data.profile.diastolicBP,
+            onBPMedication: data.profile.onBPMedication,
+            smokingStatus: data.profile.smokingStatus,
+            race: data.profile.race,
+            familyHistoryCVD: data.profile.familyHistoryCVD,
+          }
+        : profile;
+
+      setHealthProfile(savedProfile);
+      setEditedProfile(savedProfile);
+      await fetchAnalysis();
+    } catch (err) {
+      console.error("Error saving health profile:", err);
+      setError(err instanceof Error ? err.message : "Failed to save profile");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const getRiskLevel = (risk: number) => {
     if (risk < 20) return { label: "Low", color: "text-emerald-600", bgColor: "bg-emerald-500", lightBg: "bg-emerald-50" };
@@ -256,7 +297,68 @@ export function HeartPredictiveHealthRisk() {
     });
   };
 
-  if (isLoading && !analysis) {
+  if (phase === "initializing") {
+    return (
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-slate-50 to-white">
+        <CardContent className="py-20">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+            <p className="text-slate-600">Loading cardiovascular assessment…</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (phase === "setup" && labInputs) {
+    if (!labInputs.hasHeartBiomarkers) {
+      return (
+        <Card className="border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50">
+          <CardContent className="py-16 text-center">
+            <AlertCircle className="w-10 h-10 text-orange-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-orange-800 mb-2">Blood test results required</h3>
+            <p className="text-orange-700 text-sm max-w-md mx-auto">
+              Upload heart blood test results before generating your cardiovascular risk report.
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg shadow-red-500/20">
+            <Calculator className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-serif font-semibold text-slate-800">Cardiovascular Risk Assessment</h2>
+            <p className="text-slate-500 text-sm mt-0.5">
+              Confirm ASCVD calculator inputs before your first report is generated
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="py-3 text-sm text-orange-700">{error}</CardContent>
+          </Card>
+        )}
+
+        <AscvdSetupForm
+          mode="initial"
+          labInputs={labInputs}
+          profile={editedProfile}
+          onProfileChange={setEditedProfile}
+          onSubmit={() => saveProfile(editedProfile, false)}
+          isSubmitting={isSavingProfile || phase === "generating"}
+          missingForFirstRun={missingForFirstRun}
+        />
+      </div>
+    );
+  }
+
+  if (phase === "generating" && !analysis) {
     return (
       <Card className="border-0 shadow-lg bg-gradient-to-br from-slate-50 to-white">
         <CardContent className="py-20">
@@ -300,6 +402,9 @@ export function HeartPredictiveHealthRisk() {
             <Button onClick={() => fetchAnalysis()} variant="outline" className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-100">
               <RefreshCw className="w-4 h-4" />
               Try Again
+            </Button>
+            <Button onClick={() => setPhase("setup")} variant="ghost" className="gap-2">
+              Review ASCVD inputs
             </Button>
           </div>
         </CardContent>
@@ -355,6 +460,17 @@ export function HeartPredictiveHealthRisk() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {labInputs && !selectedHistoryItem && (
+        <AscvdSetupForm
+          mode="bp_update"
+          labInputs={labInputs}
+          profile={editedProfile}
+          onProfileChange={setEditedProfile}
+          onSubmit={() => saveProfile(editedProfile, true)}
+          isSubmitting={isSavingProfile || phase === "generating"}
+        />
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -600,240 +716,6 @@ export function HeartPredictiveHealthRisk() {
               </CardContent>
             </Card>
           )}
-
-          {/* Blood Pressure & Risk Factors Input Card */}
-          <Card className="border-0 shadow-md">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Stethoscope className="w-5 h-5 text-red-600" />
-                  Cardiovascular Risk Factors
-                </CardTitle>
-                {!isEditingProfile ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEditedProfile(healthProfile);
-                      setIsEditingProfile(true);
-                    }}
-                    className="gap-2"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    Update
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingProfile(false)}
-                      className="gap-2"
-                    >
-                      <X className="w-4 h-4" />
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={saveHealthProfile}
-                      disabled={isSavingProfile}
-                      className="gap-2 bg-red-600 hover:bg-red-700"
-                    >
-                      {isSavingProfile ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4" />
-                      )}
-                      Save
-                    </Button>
-                  </div>
-                )}
-              </div>
-              <CardDescription>
-                Add your blood pressure and lifestyle factors for more accurate ASCVD risk calculation
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isEditingProfile ? (
-                <div className="space-y-6">
-                  {/* Blood Pressure Inputs */}
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="systolicBP">Systolic Blood Pressure (mmHg)</Label>
-                      <Input
-                        id="systolicBP"
-                        type="number"
-                        placeholder="e.g., 120"
-                        value={editedProfile.systolicBP || ""}
-                        onChange={(e) => setEditedProfile({
-                          ...editedProfile,
-                          systolicBP: e.target.value ? parseInt(e.target.value) : null
-                        })}
-                        min={70}
-                        max={250}
-                      />
-                      <p className="text-xs text-slate-500">Upper number (70-250)</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="diastolicBP">Diastolic Blood Pressure (mmHg)</Label>
-                      <Input
-                        id="diastolicBP"
-                        type="number"
-                        placeholder="e.g., 80"
-                        value={editedProfile.diastolicBP || ""}
-                        onChange={(e) => setEditedProfile({
-                          ...editedProfile,
-                          diastolicBP: e.target.value ? parseInt(e.target.value) : null
-                        })}
-                        min={40}
-                        max={150}
-                      />
-                      <p className="text-xs text-slate-500">Lower number (40-150)</p>
-                    </div>
-                  </div>
-
-                  {/* BP Medication Switch */}
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-100">
-                    <div>
-                      <Label htmlFor="onBPMeds" className="font-medium">On Blood Pressure Medication?</Label>
-                      <p className="text-sm text-slate-500">Taking antihypertensive drugs</p>
-                    </div>
-                    <Switch
-                      id="onBPMeds"
-                      checked={editedProfile.onBPMedication}
-                      onCheckedChange={(checked) => setEditedProfile({
-                        ...editedProfile,
-                        onBPMedication: checked
-                      })}
-                    />
-                  </div>
-
-                  {/* Smoking Status */}
-                  <div className="space-y-2">
-                    <Label>Smoking Status</Label>
-                    <Select
-                      value={editedProfile.smokingStatus}
-                      onValueChange={(value) => setEditedProfile({
-                        ...editedProfile,
-                        smokingStatus: value as HealthProfile["smokingStatus"]
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select smoking status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NEVER">Never Smoked</SelectItem>
-                        <SelectItem value="FORMER">Former Smoker</SelectItem>
-                        <SelectItem value="CURRENT">Current Smoker</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Race/Ethnicity */}
-                  <div className="space-y-2">
-                    <Label>Race/Ethnicity (for ASCVD calculation)</Label>
-                    <Select
-                      value={editedProfile.race}
-                      onValueChange={(value) => setEditedProfile({
-                        ...editedProfile,
-                        race: value as HealthProfile["race"]
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select race/ethnicity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="WHITE">White</SelectItem>
-                        <SelectItem value="AFRICAN_AMERICAN">African American</SelectItem>
-                        <SelectItem value="ASIAN">Asian</SelectItem>
-                        <SelectItem value="HISPANIC">Hispanic</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-slate-500">
-                      ASCVD equations have validated coefficients for White and African American populations
-                    </p>
-                  </div>
-
-                  {/* Family History Switch */}
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-100">
-                    <div>
-                      <Label htmlFor="familyHistory" className="font-medium">Family History of Heart Disease?</Label>
-                      <p className="text-sm text-slate-500">First-degree relative with premature CVD</p>
-                    </div>
-                    <Switch
-                      id="familyHistory"
-                      checked={editedProfile.familyHistoryCVD}
-                      onCheckedChange={(checked) => setEditedProfile({
-                        ...editedProfile,
-                        familyHistoryCVD: checked
-                      })}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Display current values */}
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Blood Pressure</p>
-                    {healthProfile.systolicBP ? (
-                      <>
-                        <p className="text-2xl font-bold text-slate-800">
-                          {healthProfile.systolicBP}/{healthProfile.diastolicBP || "—"}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">mmHg</p>
-                        <Badge className="mt-2 bg-emerald-100 text-emerald-700 text-xs">Measured</Badge>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-2xl font-bold text-slate-400">—</p>
-                        <p className="text-xs text-slate-500 mt-1">Not provided</p>
-                        <Badge className="mt-2 bg-amber-100 text-amber-700 text-xs">Using 120 mmHg</Badge>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">BP Medication</p>
-                    <p className="text-2xl font-bold text-slate-800">
-                      {healthProfile.onBPMedication ? "Yes" : "No"}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">Antihypertensive</p>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Smoking</p>
-                    <p className="text-2xl font-bold text-slate-800">
-                      {healthProfile.smokingStatus === "NEVER" ? "Never" :
-                       healthProfile.smokingStatus === "FORMER" ? "Former" : "Current"}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">Status</p>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Race</p>
-                    <p className="text-lg font-bold text-slate-800">
-                      {healthProfile.race?.replace("_", " ") || "Not specified"}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">For ASCVD</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Data quality notice */}
-              {!isEditingProfile && !healthProfile.systolicBP && (
-                <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                  <div>
-                    <p className="text-sm text-amber-800 font-medium">Improve Accuracy</p>
-                    <p className="text-xs text-amber-700">
-                      Add your actual blood pressure to get a more accurate ASCVD risk calculation
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {/* AI Summary */}
           <Card className="border-0 shadow-md bg-gradient-to-r from-red-50 via-rose-50 to-red-50">

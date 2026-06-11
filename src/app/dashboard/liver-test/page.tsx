@@ -41,7 +41,7 @@ import {
   ChevronUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LiverHealthTrendChart } from "@/components/dashboard/LiverHealthTrendChart";
+import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
 import { LiverAIRecommendations } from "@/components/dashboard/LiverAIRecommendations";
 import { PopulationComparison } from "@/components/dashboard/PopulationComparison";
 import { LiverTestScheduler } from "@/components/dashboard/LiverTestScheduler";
@@ -1308,83 +1308,19 @@ export default function LiverTestPage() {
         </TabsContent>
 
         {/* Trends Tab */}
-        <TabsContent value="trends" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-primary" />
-                Liver Health Score Over Time
-              </CardTitle>
-              <CardDescription>
-                Track your liver health improvement journey
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <LiverHealthTrendChart height={320} showCategories />
-            </CardContent>
-          </Card>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Score Milestones</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20">
-                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold">85</div>
-                  <div>
-                    <p className="font-medium">Current Score</p>
-                    <p className="text-xs text-muted-foreground">March 2024</p>
-                  </div>
-                  <Badge className="ml-auto bg-green-600">+23 pts</Badge>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold">62</div>
-                  <div>
-                    <p className="font-medium">Starting Score</p>
-                    <p className="text-xs text-muted-foreground">June 2023</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">90</div>
-                  <div>
-                    <p className="font-medium">Target Score</p>
-                    <p className="text-xs text-muted-foreground">By September 2024</p>
-                  </div>
-                  <Badge variant="outline" className="ml-auto">5 pts to go</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Biggest Improvements</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                  <span className="text-sm">Liver Enzymes</span>
-                  <span className="font-medium text-green-600">+32 pts</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                  <span className="text-sm">Inflammation</span>
-                  <span className="font-medium text-green-600">+34 pts</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                  <span className="text-sm">Metabolic Panel</span>
-                  <span className="font-medium text-green-600">+18 pts</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                  <span className="text-sm">Lipid Profile</span>
-                  <span className="font-medium text-green-600">+17 pts</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="trends" className="mt-6">
+          <OrganTrendSection
+            organ="liver"
+            gender={gender}
+            title="Liver Health Score Over Time"
+            description="Track your liver health improvement journey"
+            showMilestones
+          />
         </TabsContent>
 
         {/* Risk Assessment Tab */}
         <TabsContent value="risk" className="mt-6">
-          <PredictiveHealthRisk />
+          {activeTab === "risk" && <PredictiveHealthRisk />}
         </TabsContent>
 
         {/* Goals Tab */}

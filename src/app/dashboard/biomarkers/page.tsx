@@ -24,9 +24,15 @@ import {
   type Gender
 } from "@/data/bloodPanelConfig";
 import type { BiomarkerDefinition, BiomarkerResult, BiomarkerCategory } from "@/types";
-import { Search, Filter, X, Loader2, FileText, Info, User, BookOpen, TestTubes, Bean, Droplets, Heart, Activity, Sparkles, Flame } from "lucide-react";
+import { BiomarkerProgramEssentialView } from "@/components/dashboard/BiomarkerProgramEssentialView";
+import {
+  isProgramEssentialSlug,
+  type ProgramEssentialSlug,
+} from "@/lib/program-essential-panels";
+import { Search, Filter, X, Loader2, Info, User, BookOpen, TestTubes, Bean, Droplets, Heart, Activity, Sparkles, Flame, LayoutGrid, Stethoscope } from "lucide-react";
 
 type FilterStatus = "all" | "optimal" | "normal" | "out_of_range" | "not_tested";
+type BiomarkerViewMode = "all" | "program";
 
 // Organ-specific health test panels (mirrors the desktop nav dropdown), surfaced
 // on mobile where that dropdown is hidden.
@@ -108,6 +114,12 @@ function GrayscaleBiomarkerCard({
 export default function BiomarkersPage() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams?.get("category") as BloodPanelCategoryKey | null;
+  const initialView = searchParams?.get("view") === "program" ? "program" : "all";
+  const programParam = searchParams?.get("program");
+  const initialProgram: ProgramEssentialSlug =
+    programParam && isProgramEssentialSlug(programParam)
+      ? programParam
+      : "WEIGHT_MANAGEMENT";
 
   const { user } = useAuth();
   const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, { latest: true });
@@ -120,6 +132,8 @@ export default function BiomarkersPage() {
     result: BiomarkerResult;
     panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
+  const [viewMode, setViewMode] = useState<BiomarkerViewMode>(initialView);
+  const [selectedProgram, setSelectedProgram] = useState<ProgramEssentialSlug>(initialProgram);
 
   // Get user gender for gender-specific ranges
   const gender: Gender = user?.gender === "female" ? "female" : "male";
@@ -500,7 +514,9 @@ export default function BiomarkersPage() {
             Biomarkers
           </h1>
           <p className="text-muted-foreground mt-1">
-            View and explore all your biomarker results across {Object.keys(bloodPanelConfig).length} health categories
+            {viewMode === "program"
+              ? "Essential monitoring panels by clinical program — toggle Weight, Hair, Men's or Women's"
+              : `View and explore all your biomarker results across ${Object.keys(bloodPanelConfig).length} health categories`}
           </p>
         </div>
         <Link
@@ -521,6 +537,33 @@ export default function BiomarkersPage() {
         Learn about Biomarkers
       </Link>
 
+      {/* View mode: full catalog vs program essential panels */}
+      <Tabs
+        value={viewMode}
+        onValueChange={(v) => setViewMode(v as BiomarkerViewMode)}
+      >
+        <TabsList className="grid w-full max-w-md grid-cols-2 h-auto p-1">
+          <TabsTrigger value="all" className="gap-2 text-sm py-2">
+            <LayoutGrid className="w-4 h-4" />
+            All biomarkers
+          </TabsTrigger>
+          <TabsTrigger value="program" className="gap-2 text-sm py-2">
+            <Stethoscope className="w-4 h-4" />
+            By program
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {viewMode === "program" ? (
+        <BiomarkerProgramEssentialView
+          program={selectedProgram}
+          onProgramChange={setSelectedProgram}
+          rows={allBiomarkersWithResults}
+          gender={gender}
+          onBiomarkerClick={handleBiomarkerClick}
+        />
+      ) : (
+        <>
       {/* Health Tests quick access — mobile only (desktop uses the nav dropdown) */}
       <div className="md:hidden">
         <h2 className="text-sm font-medium text-foreground mb-2">Organ & Metabolic Health</h2>
@@ -781,6 +824,8 @@ export default function BiomarkersPage() {
             <Button onClick={clearFilters}>Clear filters</Button>
           </CardContent>
         </Card>
+      )}
+        </>
       )}
 
       {/* Biomarker Detail Dialog */}

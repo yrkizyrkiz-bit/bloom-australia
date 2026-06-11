@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { BLOCKING_GOAL_STATUSES } from "@/lib/goal-deduplication";
+import {
+  attachLatestResultsToGoals,
+  indexLatestResultsByBiomarker,
+} from "@/lib/goal-latest-values";
+import type { GoalStatus } from "@prisma/client";
 
 // GET /api/goals - Get user's health goals
 export async function GET(request: NextRequest) {
@@ -41,7 +47,42 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ goals });
+    const biomarkerIds = [...new Set(goals.map(g => g.biomarkerId))];
+    const latestResults =
+      biomarkerIds.length > 0
+        ? await prisma.biomarkerResult.findMany({
+            where: { userId, biomarkerId: { in: biomarkerIds } },
+            orderBy: { testedAt: "desc" },
+            select: {
+              biomarkerId: true,
+              value: true,
+              testedAt: true,
+              status: true,
+            },
+          })
+        : [];
+
+    const latestByBiomarker = indexLatestResultsByBiomarker(latestResults);
+    const enrichedGoals = attachLatestResultsToGoals(goals, latestByBiomarker);
+
+    // Keep stored currentValue in sync for active goals when newer labs exist
+    await Promise.all(
+      enrichedGoals
+        .filter(
+          g =>
+            g.status === "IN_PROGRESS" &&
+            g.latestResult &&
+            g.latestResult.value !== g.currentValue
+        )
+        .map(g =>
+          prisma.healthGoal.update({
+            where: { id: g.id },
+            data: { currentValue: g.latestResult!.value },
+          })
+        )
+    );
+
+    return NextResponse.json({ goals: enrichedGoals });
   } catch (error) {
     console.error("Error fetching goals:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -93,13 +134,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Biomarker not found" }, { status: 404 });
     }
 
+    const latestResult = await prisma.biomarkerResult.findFirst({
+      where: { userId: targetUserId, biomarkerId },
+      orderBy: { testedAt: "desc" },
+      select: { value: true },
+    });
+
+    const resolvedCurrent =
+      currentValue ?? startValue ?? latestResult?.value ?? 0;
+    const resolvedStart =
+      startValue ?? currentValue ?? latestResult?.value ?? resolvedCurrent;
+
+    const existingGoal = await prisma.healthGoal.findFirst({
+      where: {
+        userId: targetUserId,
+        biomarkerId,
+        status: { in: [...BLOCKING_GOAL_STATUSES] as GoalStatus[] },
+      },
+      include: {
+        biomarker: {
+          select: {
+            name: true,
+            shortName: true,
+            category: true,
+            unit: true,
+          },
+        },
+      },
+    });
+
+    if (existingGoal) {
+      return NextResponse.json(
+        {
+          error: `An active goal already exists for ${biomarker.name}`,
+          code: "DUPLICATE_GOAL",
+          existingGoal,
+        },
+        { status: 409 }
+      );
+    }
+
     const goal = await prisma.healthGoal.create({
       data: {
         userId: targetUserId,
         biomarkerId,
         targetValue,
-        currentValue: currentValue ?? startValue ?? 0,
-        startValue: startValue ?? currentValue ?? 0,
+        currentValue: resolvedCurrent,
+        startValue: resolvedStart,
         startDate: startDate ? new Date(startDate) : new Date(),
         targetDate: targetDate ? new Date(targetDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // Default 90 days
         status: "IN_PROGRESS",

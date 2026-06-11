@@ -35,7 +35,7 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react";
-import { HeartHealthTrendChart } from "@/components/dashboard/HeartHealthTrendChart";
+import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
 import { HeartAIRecommendations } from "@/components/dashboard/HeartAIRecommendations";
 import { HeartPopulationComparison } from "@/components/dashboard/HeartPopulationComparison";
 import { HeartTestScheduler } from "@/components/dashboard/HeartTestScheduler";
@@ -477,18 +477,19 @@ export default function HeartTestPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="trends" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" />Heart Health Score Over Time</CardTitle>
-              <CardDescription>Track your cardiovascular health improvement journey</CardDescription>
-            </CardHeader>
-            <CardContent><HeartHealthTrendChart height={320} showCategories /></CardContent>
-          </Card>
+        <TabsContent value="trends" className="mt-6">
+          <OrganTrendSection
+            organ="heart"
+            gender={gender}
+            title="Heart Health Score Over Time"
+            description="Track your cardiovascular health improvement journey"
+          />
         </TabsContent>
 
         <TabsContent value="bp" className="mt-6"><BloodPressureHistory /></TabsContent>
-        <TabsContent value="risk" className="mt-6"><HeartPredictiveHealthRisk /></TabsContent>
+        <TabsContent value="risk" className="mt-6">
+          {activeTab === "risk" && <HeartPredictiveHealthRisk />}
+        </TabsContent>
         <TabsContent value="goals" className="mt-6"><HeartGoalSetting currentResults={heartTestResults.map(r => r.result)} /></TabsContent>
         <TabsContent value="insights" className="mt-6"><HeartAIRecommendations /></TabsContent>
         <TabsContent value="compare" className="mt-6"><HeartPopulationComparison results={heartTestResults.map(r => r.result)} gender={gender} /></TabsContent>

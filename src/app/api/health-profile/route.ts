@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import {
+  profileFromDb,
+  profilesAffectHeartAnalysis,
+} from "@/lib/ascvd-inputs";
 
 // GET - Fetch user's health profile
 export async function GET() {
@@ -75,6 +79,11 @@ export async function POST(request: Request) {
       }
     }
 
+    const existingProfile = await prisma.healthProfile.findUnique({
+      where: { userId: session.user.id },
+    });
+    const previousProfile = profileFromDb(existingProfile);
+
     // Upsert health profile
     const healthProfile = await prisma.healthProfile.upsert({
       where: { userId: session.user.id },
@@ -101,16 +110,18 @@ export async function POST(request: Request) {
       }
     });
 
-    // Clear heart analysis cache to recalculate with new values
-    try {
-      await prisma.aIAnalysisCache.deleteMany({
-        where: {
-          userId: session.user.id,
-          analysisType: "heart"
-        }
-      });
-    } catch {
-      // Ignore cache clear errors
+    const nextProfile = profileFromDb(healthProfile);
+    if (profilesAffectHeartAnalysis(previousProfile, nextProfile)) {
+      try {
+        await prisma.aIAnalysisCache.deleteMany({
+          where: {
+            userId: session.user.id,
+            analysisType: "heart",
+          },
+        });
+      } catch {
+        // Ignore cache clear errors
+      }
     }
 
     return NextResponse.json({

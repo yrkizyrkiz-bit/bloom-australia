@@ -2,32 +2,37 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { getBiomarkerById, biomarkerDefinitions, categoryInfo } from "@/data/biomarkers";
+import { getBiomarkerById, biomarkerDefinitions } from "@/data/biomarkers";
+import {
+  duplicateGoalMessage,
+  findBlockingGoalForBiomarker,
+  getBlockingBiomarkerIds,
+  PAUSED_GOAL_STATUS,
+} from "@/lib/goal-deduplication";
+import { defaultNextReviewDate } from "@/lib/goal-review";
+import { calculateGoalProgress } from "@/lib/goal-display";
+import { GoalReviewDialog } from "@/components/dashboard/GoalReviewDialog";
+import { HealthGoalCard } from "@/components/dashboard/HealthGoalCard";
 import { toast } from "sonner";
 import {
   Target,
   Plus,
-  TrendingUp,
-  TrendingDown,
   CheckCircle,
   Clock,
-  Calendar,
   Pause,
-  Play,
   Trophy,
   Sparkles,
   Loader2,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 
 interface Goal {
@@ -41,6 +46,11 @@ interface Goal {
   status: string;
   notes?: string;
   createdAt: string;
+  effectiveCurrentValue?: number;
+  latestResult?: {
+    value: number;
+    testedAt: string;
+  } | null;
   biomarker?: {
     name: string;
     shortName: string;
@@ -57,8 +67,14 @@ export default function GoalsPage() {
   const [showNewGoalDialog, setShowNewGoalDialog] = useState(false);
   const [selectedBiomarker, setSelectedBiomarker] = useState<string>("");
   const [targetValue, setTargetValue] = useState<string>("");
-  const [targetDate, setTargetDate] = useState<string>("");
+  const [targetDate, setTargetDate] = useState<string>(defaultNextReviewDate(3));
   const [notes, setNotes] = useState<string>("");
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [editTargetDate, setEditTargetDate] = useState<string>("");
+  const [editTargetValue, setEditTargetValue] = useState<string>("");
+  const [editNotes, setEditNotes] = useState<string>("");
+  const [deletingGoal, setDeletingGoal] = useState<Goal | null>(null);
+  const [reviewingGoal, setReviewingGoal] = useState<Goal | null>(null);
 
   const gender = user?.gender === "female" ? "female" : "male";
 
@@ -83,27 +99,28 @@ export default function GoalsPage() {
 
   const activeGoals = useMemo(() => goals.filter(g => g.status === "IN_PROGRESS"), [goals]);
   const achievedGoals = useMemo(() => goals.filter(g => g.status === "ACHIEVED"), [goals]);
-  const pausedGoals = useMemo(() => goals.filter(g => g.status === "PAUSED" || g.status === "CANCELLED"), [goals]);
+  const pausedGoals = useMemo(
+    () => goals.filter(g => g.status === PAUSED_GOAL_STATUS),
+    [goals]
+  );
 
-  // Get biomarkers that don't already have active goals
+  const blockingBiomarkerIds = useMemo(
+    () => getBlockingBiomarkerIds(goals),
+    [goals]
+  );
+
+  // Biomarkers without an active or paused goal anywhere in the portal
   const availableBiomarkers = useMemo(() => {
-    const activeGoalBiomarkers = new Set(activeGoals.map(g => g.biomarkerId));
-    return biomarkerDefinitions.filter(b => !activeGoalBiomarkers.has(b.id));
-  }, [activeGoals]);
+    return biomarkerDefinitions.filter(b => !blockingBiomarkerIds.has(b.id));
+  }, [blockingBiomarkerIds]);
 
-  const calculateProgress = (goal: Goal) => {
-    const totalDistance = Math.abs(goal.targetValue - goal.startValue);
-    if (totalDistance === 0) return 100;
-    const currentDistance = Math.abs(goal.currentValue - goal.startValue);
-    return Math.min(100, Math.round((currentDistance / totalDistance) * 100));
-  };
-
-  const getDaysRemaining = (targetDate: string) => {
-    const target = new Date(targetDate);
-    const now = new Date();
-    const diff = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return diff;
-  };
+  const calculateProgress = (goal: Goal) =>
+    calculateGoalProgress(
+      goal.startValue,
+      goal.targetValue,
+      goal.effectiveCurrentValue ?? goal.currentValue,
+      goal.biomarkerId
+    );
 
   const handleCreateGoal = async () => {
     if (!selectedBiomarker || !targetValue || !targetDate) {
@@ -114,6 +131,12 @@ export default function GoalsPage() {
     const biomarker = getBiomarkerById(selectedBiomarker);
     if (!biomarker) {
       toast.error("Could not find biomarker data");
+      return;
+    }
+
+    const existing = findBlockingGoalForBiomarker(goals, selectedBiomarker);
+    if (existing) {
+      toast.info(duplicateGoalMessage(selectedBiomarker, existing));
       return;
     }
 
@@ -135,6 +158,10 @@ export default function GoalsPage() {
 
       if (!response.ok) {
         const data = await response.json();
+        if (response.status === 409 && data.code === "DUPLICATE_GOAL") {
+          toast.info(duplicateGoalMessage(selectedBiomarker, data.existingGoal));
+          return;
+        }
         throw new Error(data.error || "Failed to create goal");
       }
 
@@ -142,7 +169,7 @@ export default function GoalsPage() {
       setShowNewGoalDialog(false);
       setSelectedBiomarker("");
       setTargetValue("");
-      setTargetDate("");
+      setTargetDate(defaultNextReviewDate(3));
       setNotes("");
       fetchGoals(); // Refresh goals list
     } catch (error) {
@@ -155,155 +182,79 @@ export default function GoalsPage() {
 
   const handleUpdateGoalStatus = async (goalId: string, newStatus: string) => {
     try {
-      const response = await fetch("/api/goals", {
+      const response = await fetch(`/api/goals/${goalId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: goalId,
-          status: newStatus,
-        }),
+        body: JSON.stringify({ status: newStatus }),
       });
 
       if (!response.ok) {
         throw new Error("Failed to update goal");
       }
 
-      toast.success(`Goal ${newStatus === "PAUSED" ? "paused" : newStatus === "IN_PROGRESS" ? "resumed" : "updated"}`);
-      fetchGoals(); // Refresh goals list
+      toast.success(`Goal ${newStatus === PAUSED_GOAL_STATUS ? "paused" : newStatus === "IN_PROGRESS" ? "resumed" : "updated"}`);
+      fetchGoals();
     } catch (error) {
       console.error("Error updating goal:", error);
       toast.error("Failed to update goal");
     }
   };
 
-  const GoalCard = ({ goal }: { goal: Goal }) => {
-    const biomarker = goal.biomarker || getBiomarkerById(goal.biomarkerId);
-    if (!biomarker) return null;
+  const handleOpenEditGoal = (goal: Goal) => {
+    setEditingGoal(goal);
+    setEditTargetDate(new Date(goal.targetDate).toISOString().split("T")[0]);
+    setEditTargetValue(String(goal.targetValue));
+    setEditNotes(goal.notes || "");
+  };
 
-    const progress = calculateProgress(goal);
-    const daysRemaining = getDaysRemaining(goal.targetDate);
-    const biomarkerDef = getBiomarkerById(goal.biomarkerId);
-    const range = biomarkerDef?.ranges[gender];
-    const isImproving = goal.targetValue > goal.startValue
-      ? goal.currentValue > goal.startValue
-      : goal.currentValue < goal.startValue;
+  const handleSaveGoalEdits = async () => {
+    if (!editingGoal || !editTargetDate || !editTargetValue) {
+      toast.error("Please fill in target value and date");
+      return;
+    }
 
-    const categoryColor = biomarkerDef ? categoryInfo[biomarkerDef.category]?.color : "#666";
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/goals/${editingGoal.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetValue: parseFloat(editTargetValue),
+          targetDate: editTargetDate,
+          notes: editNotes || null,
+        }),
+      });
 
-    return (
-      <Card className={`relative overflow-hidden ${goal.status === "ACHIEVED" ? "border-green-500/30" : goal.status === "PAUSED" ? "opacity-60" : ""}`}>
-        {goal.status === "ACHIEVED" && (
-          <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-bl-full flex items-start justify-end p-2">
-            <Trophy className="w-5 h-5 text-green-600" />
-          </div>
-        )}
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{
-                  backgroundColor: `${categoryColor}20`,
-                  color: categoryColor
-                }}
-              >
-                <Target className="w-5 h-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">{biomarker.shortName}</CardTitle>
-                <CardDescription>{biomarker.name}</CardDescription>
-              </div>
-            </div>
-            <Badge className={`
-              ${goal.status === "ACHIEVED" ? "bg-green-500/10 text-green-600" :
-                goal.status === "PAUSED" ? "bg-gray-500/10 text-gray-600" :
-                "bg-primary/10 text-primary"}
-            `}>
-              {goal.status === "IN_PROGRESS" ? "Active" : goal.status.charAt(0) + goal.status.slice(1).toLowerCase()}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Progress visualization */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{progress}%</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Start: {goal.startValue} {range?.unit || (goal.biomarker as { unit?: string })?.unit || ''}</span>
-              <span>Target: {goal.targetValue} {range?.unit || (goal.biomarker as { unit?: string })?.unit || ''}</span>
-            </div>
-          </div>
+      if (!response.ok) throw new Error("Failed to update goal");
 
-          {/* Current value */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-            <div>
-              <p className="text-xs text-muted-foreground">Current Value</p>
-              <p className="text-2xl font-serif font-bold">{goal.currentValue}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {goal.currentValue > 0 && (isImproving ? (
-                <div className="flex items-center gap-1 text-green-600">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-sm font-medium">On Track</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-orange-600">
-                  <TrendingDown className="w-4 h-4" />
-                  <span className="text-sm font-medium">Needs Focus</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      toast.success("Goal updated");
+      setEditingGoal(null);
+      fetchGoals();
+    } catch (error) {
+      console.error("Error updating goal:", error);
+      toast.error("Failed to update goal");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-          {/* Timeline */}
-          {goal.status !== "ACHIEVED" && (
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                <span>Target: {new Date(goal.targetDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-              </div>
-              <Badge variant="outline" className={daysRemaining < 30 ? "border-orange-500 text-orange-600" : ""}>
-                {daysRemaining > 0 ? `${daysRemaining} days left` : "Overdue"}
-              </Badge>
-            </div>
-          )}
+  const handleDeleteGoal = async () => {
+    if (!deletingGoal) return;
 
-          {/* Notes */}
-          {goal.notes && (
-            <p className="text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-3">
-              {goal.notes}
-            </p>
-          )}
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/goals/${deletingGoal.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete goal");
 
-          {/* Actions */}
-          {goal.status !== "ACHIEVED" && (
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => handleUpdateGoalStatus(goal.id, goal.status === "PAUSED" ? "IN_PROGRESS" : "PAUSED")}
-              >
-                {goal.status === "PAUSED" ? (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    Resume
-                  </>
-                ) : (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    Pause
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
+      toast.success("Goal deleted");
+      setDeletingGoal(null);
+      fetchGoals();
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      toast.error("Failed to delete goal");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -322,7 +273,7 @@ export default function GoalsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif text-foreground">Health Goals</h1>
-          <p className="text-muted-foreground mt-1">Set and track targets for your biomarkers</p>
+          <p className="text-muted-foreground mt-1">Set biomarker targets and review progress on scheduled dates</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchGoals}>
@@ -382,13 +333,16 @@ export default function GoalsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Target Date</Label>
+                      <Label>Review date</Label>
                       <Input
                         type="date"
                         value={targetDate}
                         onChange={(e) => setTargetDate(e.target.value)}
                         min={new Date().toISOString().split('T')[0]}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        When to check progress and mark achieved or schedule the next review
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -484,7 +438,20 @@ export default function GoalsPage() {
           {activeGoals.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeGoals.map(goal => (
-                <GoalCard key={goal.id} goal={goal} />
+                <HealthGoalCard
+                  key={goal.id}
+                  goal={goal}
+                  gender={gender}
+                  onReview={() => setReviewingGoal(goal)}
+                  onEdit={() => handleOpenEditGoal(goal)}
+                  onDelete={() => setDeletingGoal(goal)}
+                  onPauseToggle={() =>
+                    handleUpdateGoalStatus(
+                      goal.id,
+                      goal.status === PAUSED_GOAL_STATUS ? "IN_PROGRESS" : PAUSED_GOAL_STATUS
+                    )
+                  }
+                />
               ))}
             </div>
           ) : (
@@ -504,7 +471,7 @@ export default function GoalsPage() {
           {achievedGoals.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {achievedGoals.map(goal => (
-                <GoalCard key={goal.id} goal={goal} />
+                <HealthGoalCard key={goal.id} goal={goal} gender={gender} />
               ))}
             </div>
           ) : (
@@ -520,7 +487,15 @@ export default function GoalsPage() {
           {pausedGoals.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pausedGoals.map(goal => (
-                <GoalCard key={goal.id} goal={goal} />
+                <HealthGoalCard
+                  key={goal.id}
+                  goal={goal}
+                  gender={gender}
+                  onReview={() => setReviewingGoal(goal)}
+                  onEdit={() => handleOpenEditGoal(goal)}
+                  onDelete={() => setDeletingGoal(goal)}
+                  onPauseToggle={() => handleUpdateGoalStatus(goal.id, "IN_PROGRESS")}
+                />
               ))}
             </div>
           ) : (
@@ -564,6 +539,95 @@ export default function GoalsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!editingGoal} onOpenChange={open => !open && setEditingGoal(null)}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Edit goal</DialogTitle>
+            <DialogDescription>
+              Update your target for{" "}
+              {editingGoal &&
+                (editingGoal.biomarker?.name ||
+                  getBiomarkerById(editingGoal.biomarkerId)?.name ||
+                  editingGoal.biomarkerId)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-goal-value">Target value</Label>
+              <Input
+                id="edit-goal-value"
+                type="number"
+                step="0.1"
+                value={editTargetValue}
+                onChange={e => setEditTargetValue(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-goal-date">Review date</Label>
+              <Input
+                id="edit-goal-date"
+                type="date"
+                value={editTargetDate}
+                onChange={e => setEditTargetDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-goal-notes">Notes</Label>
+              <Textarea
+                id="edit-goal-notes"
+                placeholder="Strategy or motivation"
+                value={editNotes}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingGoal(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveGoalEdits}
+              disabled={isSaving || !editTargetDate || !editTargetValue}
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <GoalReviewDialog
+        goal={reviewingGoal}
+        open={!!reviewingGoal}
+        onOpenChange={open => !open && setReviewingGoal(null)}
+        onComplete={fetchGoals}
+        gender={gender}
+      />
+
+      <Dialog open={!!deletingGoal} onOpenChange={open => !open && setDeletingGoal(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete goal?</DialogTitle>
+            <DialogDescription>
+              This will permanently remove your goal for{" "}
+              {deletingGoal &&
+                (deletingGoal.biomarker?.name ||
+                  getBiomarkerById(deletingGoal.biomarkerId)?.name ||
+                  deletingGoal.biomarkerId)}
+              . This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingGoal(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteGoal} disabled={isSaving}>
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete goal"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

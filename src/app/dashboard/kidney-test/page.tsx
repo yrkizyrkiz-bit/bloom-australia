@@ -37,7 +37,7 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react";
-import { KidneyHealthTrendChart } from "@/components/dashboard/KidneyHealthTrendChart";
+import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
 import { KidneyAIRecommendations } from "@/components/dashboard/KidneyAIRecommendations";
 import { KidneyPopulationComparison } from "@/components/dashboard/KidneyPopulationComparison";
 import { KidneyTestScheduler } from "@/components/dashboard/KidneyTestScheduler";
@@ -619,83 +619,19 @@ export default function KidneyTestPage() {
         </TabsContent>
 
         {/* Trends Tab */}
-        <TabsContent value="trends" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-primary" />
-                Kidney Health Score Over Time
-              </CardTitle>
-              <CardDescription>
-                Track your kidney health improvement journey
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <KidneyHealthTrendChart height={320} showCategories />
-            </CardContent>
-          </Card>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Score Milestones</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-cyan-50 dark:bg-cyan-950/20">
-                  <div className="w-10 h-10 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold">{healthScore.overall}</div>
-                  <div>
-                    <p className="font-medium">Current Score</p>
-                    <p className="text-xs text-muted-foreground">March 2024</p>
-                  </div>
-                  <Badge className="ml-auto bg-cyan-600">+15 pts</Badge>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold">78</div>
-                  <div>
-                    <p className="font-medium">Starting Score</p>
-                    <p className="text-xs text-muted-foreground">June 2023</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">95</div>
-                  <div>
-                    <p className="font-medium">Target Score</p>
-                    <p className="text-xs text-muted-foreground">By September 2024</p>
-                  </div>
-                  <Badge variant="outline" className="ml-auto">2 pts to go</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Biggest Improvements</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                  <span className="text-sm">eGFR (Filtration)</span>
-                  <span className="font-medium text-green-600">+10 pts</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                  <span className="text-sm">UACR (Protein)</span>
-                  <span className="font-medium text-green-600">+17 pts</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                  <span className="text-sm">Cystatin C</span>
-                  <span className="font-medium text-green-600">+16 pts</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-muted/50">
-                  <span className="text-sm">Electrolytes</span>
-                  <span className="font-medium text-green-600">+8 pts</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="trends" className="mt-6">
+          <OrganTrendSection
+            organ="kidney"
+            gender={gender}
+            title="Kidney Health Score Over Time"
+            description="Track your kidney health improvement journey"
+            showMilestones
+          />
         </TabsContent>
 
         {/* Risk Assessment Tab */}
         <TabsContent value="risk" className="mt-6">
-          <KidneyPredictiveHealthRisk />
+          {activeTab === "risk" && <KidneyPredictiveHealthRisk />}
         </TabsContent>
 
         {/* Goals Tab */}

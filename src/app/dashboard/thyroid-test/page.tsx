@@ -35,6 +35,9 @@ import {
 } from "lucide-react";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
 import { ThyroidPredictiveHealthRisk } from "@/components/dashboard/ThyroidPredictiveHealthRisk";
+import { OrganAIInsights } from "@/components/dashboard/OrganAIInsights";
+import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
+import { OrganGoalSetting } from "@/components/dashboard/OrganGoalSetting";
 
 const thyroidTestConfig = {
   thyroidFunction: {
@@ -255,6 +258,8 @@ export default function ThyroidTestPage() {
         <TabsList className="flex flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="overview" className="gap-1.5"><Activity className="w-4 h-4" /><span className="hidden sm:inline">Overview</span></TabsTrigger>
           <TabsTrigger value="trends" className="gap-1.5"><BarChart3 className="w-4 h-4" /><span className="hidden sm:inline">Trends</span></TabsTrigger>
+          <TabsTrigger value="risk" className="gap-1.5"><Brain className="w-4 h-4" /><span className="hidden sm:inline">Risk Assessment</span></TabsTrigger>
+          <TabsTrigger value="goals" className="gap-1.5"><Target className="w-4 h-4" /><span className="hidden sm:inline">Goals</span></TabsTrigger>
           <TabsTrigger value="insights" className="gap-1.5"><Sparkles className="w-4 h-4" /><span className="hidden sm:inline">AI Insights</span></TabsTrigger>
           <TabsTrigger value="schedule" className="gap-1.5"><Calendar className="w-4 h-4" /><span className="hidden sm:inline">Schedule</span></TabsTrigger>
         </TabsList>
@@ -445,22 +450,25 @@ export default function ThyroidTestPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="trends" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" />Thyroid Markers Over Time</CardTitle>
-              <CardDescription>Track TSH and T4 trends</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 flex items-center justify-center text-muted-foreground">
-                <p>Thyroid trend chart - Your TSH has remained stable in the optimal range</p>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="trends" className="mt-6">
+          <OrganTrendSection
+            organ="thyroid"
+            gender={gender}
+            title="Thyroid Markers Over Time"
+            description="Track your thyroid health score across blood tests"
+          />
+        </TabsContent>
+
+        <TabsContent value="risk" className="mt-6">
+          <ThyroidPredictiveHealthRisk />
+        </TabsContent>
+
+        <TabsContent value="goals" className="mt-6">
+          <OrganGoalSetting organ="thyroid" currentResults={allBiomarkerResults} gender={gender} />
         </TabsContent>
 
         <TabsContent value="insights" className="mt-6">
-          <ThyroidPredictiveHealthRisk />
+          <OrganAIInsights organ="thyroid" />
         </TabsContent>
 
         <TabsContent value="schedule" className="space-y-6 mt-6">
