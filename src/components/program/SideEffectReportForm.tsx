@@ -21,8 +21,9 @@ type Props = {
   symptomOptions: SymptomOption[];
   medicationDoseId?: string;
   onComplete?: (reportId?: string) => void;
-  onSkip?: () => void;
+  onSkip?: () => void | Promise<void>;
   showSkip?: boolean;
+  skipLoading?: boolean;
   compact?: boolean;
 };
 
@@ -32,6 +33,7 @@ export function SideEffectReportForm({
   onComplete,
   onSkip,
   showSkip = true,
+  skipLoading = false,
   compact = false,
 }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
@@ -113,8 +115,11 @@ export function SideEffectReportForm({
     }
   };
 
-  const handleNoSideEffects = () => {
-    onSkip?.();
+  const handleNoSideEffects = async () => {
+    if (onSkip) {
+      await onSkip();
+      return;
+    }
     onComplete?.();
   };
 
@@ -161,6 +166,27 @@ export function SideEffectReportForm({
 
   return (
     <div className={`space-y-4 ${compact ? "" : "pt-2"}`}>
+      {showSkip && (
+        <NoSideEffectsCard
+          onClick={handleNoSideEffects}
+          loading={skipLoading}
+          disabled={submitting}
+        />
+      )}
+
+      {showSkip && (
+        <div className="relative py-1">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              Or report symptoms
+            </span>
+          </div>
+        </div>
+      )}
+
       <p className="text-sm text-muted-foreground">
         Logging side effects helps us tailor support and know when your care partner should check in.
       </p>
@@ -221,7 +247,8 @@ export function SideEffectReportForm({
         <Button
           onClick={handleSubmit}
           disabled={submitting}
-          className="w-full bg-emerald-600 hover:bg-emerald-700"
+          variant="outline"
+          className="w-full"
         >
           {submitting ? (
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -230,13 +257,43 @@ export function SideEffectReportForm({
           )}
           Submit & see guidance
         </Button>
-        {showSkip && (
-          <Button type="button" variant="ghost" onClick={handleNoSideEffects}>
-            No side effects right now
-          </Button>
-        )}
       </div>
     </div>
+  );
+}
+
+function NoSideEffectsCard({
+  onClick,
+  loading = false,
+  disabled = false,
+}: {
+  onClick: () => void;
+  loading?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      className="group w-full rounded-2xl border-2 border-emerald-500 bg-gradient-to-br from-emerald-600 to-teal-600 p-5 text-left text-white shadow-lg transition-all hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl active:scale-[0.99] disabled:pointer-events-none disabled:opacity-70"
+    >
+      <div className="flex items-center gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/20 ring-2 ring-white/30 transition-transform group-hover:scale-105">
+          {loading ? (
+            <Loader2 className="h-7 w-7 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-7 w-7" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-lg font-bold leading-tight">No side effects</p>
+          <p className="mt-1 text-sm text-emerald-50/95">
+            I&apos;m feeling fine — skip this check-in
+          </p>
+        </div>
+      </div>
+    </button>
   );
 }
 

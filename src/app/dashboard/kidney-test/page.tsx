@@ -3,8 +3,11 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBiomarkerResults } from "@/hooks/useApi";
-import { BiomarkerCard } from "@/components/dashboard/BiomarkerCard";
 import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDialog";
+import { OrganTestBiomarkerGrid } from "@/components/dashboard/OrganTestBiomarkerGrid";
+import { buildBiomarkerResultsMap } from "@/lib/organ-test-biomarkers";
+import { mapApiBiomarkerResults } from "@/lib/map-api-biomarker-results";
+import type { BloodPanelBiomarker } from "@/data/bloodPanelConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -53,7 +56,7 @@ const kidneyTestConfig = {
     icon: Droplets,
     color: "#0ea5e9",
     bgColor: "bg-cyan-600/10",
-    biomarkerIds: ["creatinine", "egfr", "bun", "cystatin_c"]
+    biomarkerIds: ["creatinine", "egfr", "bun"]
   },
   urineMarkers: {
     name: "Urine Markers",
@@ -194,26 +197,15 @@ export default function KidneyTestPage() {
 
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
-    result: BiomarkerResult;
+    result: BiomarkerResult | null;
+    panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
 
   // Transform API data to BiomarkerResult format
-  const allBiomarkerResults: BiomarkerResult[] = useMemo(() => {
-    if (!biomarkerData?.results) return [];
-
-    return biomarkerData.results.map((r: any) => ({
-      id: r.id,
-      biomarkerId: r.biomarkerId,
-      value: r.value,
-      unit: r.biomarker?.unit || "",
-      status: r.status?.toLowerCase() as BiomarkerResult["status"],
-      testedAt: r.testedAt,
-      labReportId: r.labReportId || "",
-      notes: r.notes || "",
-      previousValue: r.previousValue,
-      trend: r.trend?.toLowerCase() as "up" | "down" | "stable" | undefined,
-    }));
-  }, [biomarkerData]);
+  const allBiomarkerResults: BiomarkerResult[] = useMemo(
+    () => mapApiBiomarkerResults(biomarkerData?.results),
+    [biomarkerData]
+  );
 
   // Get biomarkers with their results for kidney test
   const kidneyTestResults = useMemo(() => {
@@ -230,13 +222,22 @@ export default function KidneyTestPage() {
       );
   }, [allBiomarkerResults]);
 
+  const resultsById = useMemo(
+    () => buildBiomarkerResultsMap(allBiomarkerResults),
+    [allBiomarkerResults]
+  );
+
   // Calculate health score
   const healthScore = useMemo(() => {
     return calculateKidneyHealthScore(allBiomarkerResults, gender);
   }, [allBiomarkerResults, gender]);
 
-  const handleBiomarkerClick = (biomarker: BiomarkerDefinition, result: BiomarkerResult) => {
-    setSelectedBiomarker({ biomarker, result });
+  const handleBiomarkerClick = (
+    biomarker: BiomarkerDefinition,
+    result: BiomarkerResult | null,
+    panelBiomarker?: BloodPanelBiomarker
+  ) => {
+    setSelectedBiomarker({ biomarker, result, panelBiomarker });
   };
 
   // Count statuses
@@ -495,7 +496,7 @@ export default function KidneyTestPage() {
                   </div>
                   <ul className="list-disc pl-5 space-y-1">
                     <li>
-                      <span className="font-medium">eGFR</span> (estimated Glomerular Filtration Rate) is the primary marker for kidney filtration, calculated from creatinine, age, sex, and sometimes cystatin C.
+                      <span className="font-medium">eGFR</span> (estimated Glomerular Filtration Rate) is the primary marker for kidney filtration, calculated from creatinine, age, and sex.
                     </li>
                     <li>
                       <span className="font-medium">UACR</span> (Urine Albumin-to-Creatinine Ratio) detects early kidney damage by measuring protein leakage.
@@ -526,10 +527,8 @@ export default function KidneyTestPage() {
           {/* Biomarker Categories */}
           <div className="space-y-8">
             {Object.entries(kidneyTestConfig).map(([key, config]) => {
-              const categoryResults = kidneyTestResults.filter(
-                item => config.biomarkerIds.includes(item.result.biomarkerId)
-              );
               const categoryScore = healthScore.categoryScores[key];
+              const testedInCategory = config.biomarkerIds.filter((id) => resultsById[id]).length;
 
               return (
                 <div key={key}>
@@ -538,9 +537,12 @@ export default function KidneyTestPage() {
                       <config.icon className="w-5 h-5" style={{ color: config.color }} />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h2 className="text-lg font-medium text-foreground">{config.name}</h2>
                         <Badge variant="secondary" className="text-xs">{config.subtitle}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {testedInCategory}/{config.biomarkerIds.length} tested
+                        </Badge>
                         {categoryScore && (
                           <Badge variant="outline" className={`${getScoreColor(categoryScore.score)} border-current`}>
                             Score: {categoryScore.score}
@@ -553,17 +555,13 @@ export default function KidneyTestPage() {
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {categoryResults.map(({ biomarker, result }) => (
-                      <BiomarkerCard
-                        key={result.id}
-                        biomarker={biomarker}
-                        result={result}
-                        gender={gender}
-                        onClick={() => handleBiomarkerClick(biomarker, result)}
-                      />
-                    ))}
-                  </div>
+                  <OrganTestBiomarkerGrid
+                    biomarkerIds={config.biomarkerIds}
+                    resultsById={resultsById}
+                    gender={gender}
+                    categoryColor={config.color}
+                    onBiomarkerClick={handleBiomarkerClick}
+                  />
                 </div>
               );
             })}
@@ -668,6 +666,7 @@ export default function KidneyTestPage() {
         result={selectedBiomarker?.result || null}
         history={selectedBiomarker ? [] : []}
         gender={gender}
+        panelBiomarker={selectedBiomarker?.panelBiomarker}
         open={!!selectedBiomarker}
         onOpenChange={(open) => !open && setSelectedBiomarker(null)}
       />

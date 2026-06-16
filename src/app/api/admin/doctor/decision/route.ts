@@ -14,7 +14,7 @@ function getStripeClient(): Stripe | null {
   }
   if (!stripeClient) {
     stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2025-04-30.basil",
+      apiVersion: "2026-04-22.dahlia",
     });
   }
   return stripeClient;
@@ -935,7 +935,7 @@ ${clinicalNotes}
 
         // Trigger refund workflow
         let refundInitiated = false;
-        if (consultation.paymentIntentId) {
+        if (consultation.paymentIntentId && stripe) {
           try {
             await stripe.refunds.create({
               payment_intent: consultation.paymentIntentId,

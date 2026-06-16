@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import type { ApiBiomarkerResultRow } from "@/lib/map-api-biomarker-results";
 
 // Generic fetch hook
 export function useApi<T>(url: string | null, options?: RequestInit) {
@@ -65,14 +66,18 @@ export function useDashboardStats(userId?: string) {
 }
 
 // Biomarker results hook
-export function useBiomarkerResults(userId?: string, options?: { latest?: boolean; category?: string }) {
+export function useBiomarkerResults(
+  userId?: string,
+  options?: { latest?: boolean; category?: string; ensureDerived?: boolean }
+) {
   const params = new URLSearchParams();
   if (userId) params.append("userId", userId);
   if (options?.latest) params.append("latest", "true");
   if (options?.category) params.append("category", options.category);
+  if (options?.ensureDerived) params.append("ensureDerived", "true");
 
   const url = `/api/biomarkers/results?${params.toString()}`;
-  return useApi<{ results: any[] }>(url);
+  return useApi<{ results: ApiBiomarkerResultRow[] }>(url);
 }
 
 // Health goals hook

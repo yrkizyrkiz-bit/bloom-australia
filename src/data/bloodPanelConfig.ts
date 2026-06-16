@@ -86,8 +86,6 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       },
       { id: "total_cholesterol", name: "Total Cholesterol", shortName: "TC", unit: "mmol/L", optimalLow: 3.5, optimalHigh: 5.2, normalLow: 3.0, normalHigh: 6.2, criticalHigh: 7.0 },
       { id: "triglycerides", name: "Triglycerides", shortName: "TG", unit: "mmol/L", optimalLow: 0, optimalHigh: 1.7, normalLow: 0, normalHigh: 2.3, criticalHigh: 5.0 },
-      { id: "apob", name: "Apolipoprotein B", shortName: "ApoB", unit: "g/L", optimalLow: 0, optimalHigh: 0.9, normalLow: 0, normalHigh: 1.2, criticalHigh: 1.5 },
-      { id: "lpa", name: "Lipoprotein(a)", shortName: "Lp(a)", unit: "nmol/L", optimalLow: 0, optimalHigh: 75, normalLow: 0, normalHigh: 125, criticalHigh: 200 },
       // Calculated/Derived markers
       { id: "non_hdl_cholesterol", name: "Non-HDL Cholesterol", shortName: "Non-HDL", unit: "mmol/L", optimalLow: 0, optimalHigh: 3.4, normalLow: 0, normalHigh: 4.9, criticalHigh: 6.0 },
       {
@@ -102,6 +100,8 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       },
       { id: "ldl_hdl_ratio", name: "LDL/HDL Ratio", shortName: "LDL/HDL", unit: "", optimalLow: 1.0, optimalHigh: 2.5, normalLow: 0.5, normalHigh: 4.0, criticalHigh: 5.0 },
       { id: "tg_hdl_ratio", name: "TG/HDL Ratio", shortName: "TG/HDL", unit: "", optimalLow: 0.5, optimalHigh: 2.0, normalLow: 0.3, normalHigh: 4.0, criticalHigh: 6.0 },
+      { id: "atherogenic_index_plasma", name: "Atherogenic Index of Plasma", shortName: "AIP", unit: "", optimalLow: -0.5, optimalHigh: 0.11, normalLow: -0.5, normalHigh: 0.21, criticalHigh: 0.35, note: "Calculated as log10(triglycerides / HDL). Lower is better." },
+      { id: "vldl_cholesterol", name: "VLDL Cholesterol", shortName: "VLDL", unit: "mmol/L", optimalLow: 0, optimalHigh: 1.0, normalLow: 0, normalHigh: 1.5, criticalHigh: 2.5, note: "Calculated from triglycerides (÷ 2.2) when TG < 4.5 mmol/L" },
     ]
   },
   metabolism: {
@@ -115,6 +115,8 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "glucose", name: "Fasting Glucose", shortName: "Gluc", unit: "mmol/L", optimalLow: 3.9, optimalHigh: 5.5, normalLow: 3.5, normalHigh: 6.0, criticalHigh: 7.0 },
       { id: "insulin", name: "Fasting Insulin", shortName: "Ins", unit: "mIU/L", optimalLow: 2.0, optimalHigh: 8.0, normalLow: 2.0, normalHigh: 12.0, criticalHigh: 25.0 },
       { id: "homa_ir", name: "HOMA-IR", shortName: "HOMA", unit: "", optimalLow: 0, optimalHigh: 1.0, normalLow: 0, normalHigh: 2.5, criticalHigh: 4.0 },
+      { id: "tyg_index", name: "TyG Index", shortName: "TyG", unit: "", optimalLow: 0, optimalHigh: 8.5, normalLow: 0, normalHigh: 9.5, criticalHigh: 10.5, note: "Calculated from fasting triglycerides and glucose (mmol/L → mg/dL)" },
+      { id: "estimated_average_glucose", name: "Estimated Average Glucose", shortName: "eAG", unit: "mmol/L", optimalLow: 3.9, optimalHigh: 5.5, normalLow: 3.5, normalHigh: 6.0, criticalHigh: 7.8, note: "Calculated from HbA1c (%)" },
       {
         id: "uric_acid",
         name: "Uric Acid",
@@ -137,9 +139,9 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "tsh", name: "TSH", shortName: "TSH", unit: "mIU/L", optimalLow: 0.5, optimalHigh: 2.5, normalLow: 0.4, normalHigh: 4.0, criticalLow: 0.1, criticalHigh: 10.0 },
       { id: "free_t4", name: "Free T4", shortName: "fT4", unit: "pmol/L", optimalLow: 12.0, optimalHigh: 18.0, normalLow: 10.0, normalHigh: 22.0, criticalLow: 8.0, criticalHigh: 28.0 },
       { id: "free_t3", name: "Free T3", shortName: "fT3", unit: "pmol/L", optimalLow: 4.0, optimalHigh: 5.5, normalLow: 3.5, normalHigh: 6.5, criticalLow: 2.5, criticalHigh: 8.0 },
-      { id: "reverse_t3", name: "Reverse T3", shortName: "rT3", unit: "pmol/L", optimalLow: 0.14, optimalHigh: 0.35, normalLow: 0.10, normalHigh: 0.45, criticalHigh: 0.60 },
       { id: "tpo_antibodies", name: "TPO Antibodies", shortName: "TPO-Ab", unit: "IU/mL", optimalLow: 0, optimalHigh: 35, normalLow: 0, normalHigh: 60, criticalHigh: 500 },
       { id: "tg_antibodies", name: "Thyroglobulin Antibodies", shortName: "TG-Ab", unit: "IU/mL", optimalLow: 0, optimalHigh: 40, normalLow: 0, normalHigh: 115, criticalHigh: 500 },
+      { id: "free_t3_t4_ratio", name: "Free T3/T4 Ratio", shortName: "fT3/fT4", unit: "", optimalLow: 0.28, optimalHigh: 0.45, normalLow: 0.22, normalHigh: 0.55, criticalLow: 0.15, criticalHigh: 0.65, note: "Calculated from free T3 and free T4" },
     ]
   },
   hormones: {
@@ -246,6 +248,16 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
         femaleRange: { optimalLow: 60, optimalHigh: 400, normalLow: 40, normalHigh: 600, criticalHigh: 1200 },
         note: "Higher in females, increases during pregnancy/breastfeeding"
       },
+      {
+        id: "free_androgen_index",
+        name: "Free Androgen Index",
+        shortName: "FAI",
+        unit: "",
+        optimalLow: 30, optimalHigh: 150, normalLow: 15, normalHigh: 200,
+        maleRange: { optimalLow: 30, optimalHigh: 150, normalLow: 15, normalHigh: 200, criticalHigh: 250 },
+        femaleRange: { optimalLow: 0.5, optimalHigh: 5.0, normalLow: 0.3, normalHigh: 8.0, criticalHigh: 12.0 },
+        note: "Calculated from total testosterone and SHBG. Sex-specific ranges apply."
+      },
     ]
   },
   nutrients: {
@@ -295,7 +307,6 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "zinc", name: "Zinc", shortName: "Zn", unit: "µmol/L", optimalLow: 12.0, optimalHigh: 18.0, normalLow: 10.0, normalHigh: 22.0, criticalLow: 8.0 },
       { id: "selenium", name: "Selenium", shortName: "Se", unit: "µmol/L", optimalLow: 1.0, optimalHigh: 1.5, normalLow: 0.8, normalHigh: 2.0, criticalLow: 0.6 },
       { id: "copper", name: "Copper", shortName: "Cu", unit: "µmol/L", optimalLow: 12.0, optimalHigh: 20.0, normalLow: 10.0, normalHigh: 25.0 },
-      { id: "iodine", name: "Iodine (Urinary)", shortName: "Iodine", unit: "µg/L", optimalLow: 100, optimalHigh: 199, normalLow: 50, normalHigh: 300, criticalLow: 20 },
     ]
   },
   liver: {
@@ -340,6 +351,10 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "albumin", name: "Albumin", shortName: "Alb", unit: "g/L", optimalLow: 38, optimalHigh: 48, normalLow: 35, normalHigh: 50, criticalLow: 30 },
       { id: "total_protein", name: "Total Protein", shortName: "TP", unit: "g/L", optimalLow: 64, optimalHigh: 78, normalLow: 60, normalHigh: 83, criticalLow: 50, criticalHigh: 95 },
       { id: "globulin", name: "Globulin", shortName: "Glob", unit: "g/L", optimalLow: 23, optimalHigh: 35, normalLow: 20, normalHigh: 40, criticalHigh: 50 },
+      { id: "albumin_globulin_ratio", name: "Albumin/Globulin Ratio", shortName: "A/G", unit: "", optimalLow: 1.0, optimalHigh: 2.0, normalLow: 0.8, normalHigh: 2.5, criticalLow: 0.6, criticalHigh: 3.0, note: "Calculated from albumin and globulin" },
+      { id: "ast_alt_ratio", name: "AST/ALT Ratio (De Ritis)", shortName: "AST/ALT", unit: "", optimalLow: 0.8, optimalHigh: 1.2, normalLow: 0.6, normalHigh: 2.0, criticalHigh: 3.0, note: "Calculated from AST and ALT" },
+      { id: "indirect_bilirubin", name: "Indirect Bilirubin", shortName: "Ind.Bil", unit: "µmol/L", optimalLow: 2, optimalHigh: 14, normalLow: 0, normalHigh: 17, criticalHigh: 25, note: "Calculated from total minus direct bilirubin" },
+      { id: "bilirubin_albumin_ratio", name: "Bilirubin/Albumin Ratio", shortName: "BAR", unit: "", optimalLow: 0, optimalHigh: 0.4, normalLow: 0, normalHigh: 0.8, criticalHigh: 1.5, note: "Calculated from total bilirubin and albumin" },
     ]
   },
   kidney: {
@@ -361,20 +376,13 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       },
       { id: "egfr", name: "eGFR", shortName: "eGFR", unit: "mL/min/1.73m²", optimalLow: 90, optimalHigh: 120, normalLow: 60, normalHigh: 120, criticalLow: 30 },
       { id: "bun", name: "Urea", shortName: "Urea", unit: "mmol/L", optimalLow: 2.5, optimalHigh: 6.5, normalLow: 2.0, normalHigh: 8.0, criticalHigh: 15.0 },
-      {
-        id: "cystatin_c",
-        name: "Cystatin C",
-        shortName: "CysC",
-        unit: "mg/L",
-        optimalLow: 0.55, optimalHigh: 0.90, normalLow: 0.50, normalHigh: 1.00, criticalHigh: 1.50,
-        maleRange: { optimalLow: 0.60, optimalHigh: 0.95, normalLow: 0.52, normalHigh: 1.05, criticalHigh: 1.55 },
-        femaleRange: { optimalLow: 0.50, optimalHigh: 0.85, normalLow: 0.45, normalHigh: 0.95, criticalHigh: 1.40 }
-      },
       { id: "uacr", name: "Urine Albumin/Creatinine", shortName: "UACR", unit: "mg/mmol", optimalLow: 0, optimalHigh: 2.5, normalLow: 0, normalHigh: 3.5, criticalHigh: 30 },
       { id: "sodium", name: "Sodium", shortName: "Na", unit: "mmol/L", optimalLow: 136, optimalHigh: 142, normalLow: 135, normalHigh: 145, criticalLow: 130, criticalHigh: 150 },
       { id: "potassium", name: "Potassium", shortName: "K", unit: "mmol/L", optimalLow: 3.8, optimalHigh: 4.8, normalLow: 3.5, normalHigh: 5.2, criticalLow: 3.0, criticalHigh: 6.0 },
       { id: "chloride", name: "Chloride", shortName: "Cl", unit: "mmol/L", optimalLow: 98, optimalHigh: 106, normalLow: 96, normalHigh: 108, criticalLow: 90, criticalHigh: 115 },
       { id: "bicarbonate", name: "Bicarbonate", shortName: "HCO3", unit: "mmol/L", optimalLow: 22, optimalHigh: 28, normalLow: 20, normalHigh: 30, criticalLow: 15, criticalHigh: 35 },
+      { id: "urea_creatinine_ratio", name: "Urea/Creatinine Ratio", shortName: "Urea/Cr", unit: "", optimalLow: 40, optimalHigh: 80, normalLow: 30, normalHigh: 100, criticalLow: 15, criticalHigh: 150, note: "Calculated from urea (mmol/L) and creatinine (µmol/L)" },
+      { id: "anion_gap", name: "Anion Gap", shortName: "AG", unit: "mmol/L", optimalLow: 8, optimalHigh: 16, normalLow: 6, normalHigh: 20, criticalLow: 3, criticalHigh: 25, note: "Calculated from sodium, chloride and bicarbonate" },
     ]
   },
   blood: {
@@ -462,6 +470,10 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
         femaleRange: { optimalLow: 30, optimalHigh: 120, normalLow: 15, normalHigh: 200, criticalHigh: 400 },
         note: "Elevated ferritin can indicate inflammation"
       },
+      { id: "crp_albumin_ratio", name: "CRP/Albumin Ratio", shortName: "CAR", unit: "", optimalLow: 0, optimalHigh: 0.06, normalLow: 0, normalHigh: 0.12, criticalHigh: 0.25, note: "Calculated from hs-CRP (mg/L) and albumin (g/L). Lower is better." },
+      { id: "ferritin_albumin_ratio", name: "Ferritin/Albumin Ratio", shortName: "FAR", unit: "", optimalLow: 0, optimalHigh: 10, normalLow: 0, normalHigh: 20, criticalHigh: 40, note: "Calculated from ferritin and albumin" },
+      { id: "nlr", name: "Neutrophil/Lymphocyte Ratio", shortName: "NLR", unit: "", optimalLow: 0.5, optimalHigh: 2.5, normalLow: 0.5, normalHigh: 4.0, criticalHigh: 6.0, note: "Calculated from absolute neutrophil and lymphocyte counts" },
+      { id: "platelet_lymphocyte_ratio", name: "Platelet/Lymphocyte Ratio", shortName: "PLR", unit: "", optimalLow: 50, optimalHigh: 150, normalLow: 30, normalHigh: 250, criticalHigh: 350, note: "Calculated from platelets and lymphocytes" },
     ]
   }
 };

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 
 interface HistoricalDataPoint {
   date: string;
@@ -74,9 +75,10 @@ export async function GET(request: Request) {
     });
 
     // Filter by category if specified (after fetch since Prisma doesn't support nested filtering well)
-    const filteredResults = category
+    const filteredResults = (category
       ? results.filter(r => r.biomarker?.category?.toLowerCase() === category.toLowerCase())
-      : results;
+      : results
+    ).filter((r) => isCatalogBiomarker(r.biomarkerId));
 
     // Group by biomarker ID
     const biomarkerGroups = new Map<string, typeof filteredResults>();

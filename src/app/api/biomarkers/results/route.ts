@@ -2,6 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { persistDerivedBiomarkersForUser } from "@/lib/persist-derived-biomarkers";
+import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
+import type { BiomarkerStatus, Prisma } from "@prisma/client";
+
+type BiomarkerResultWithDef = Prisma.BiomarkerResultGetPayload<{
+  include: {
+    biomarker: {
+      select: {
+        name: true;
+        shortName: true;
+        category: true;
+        unit: true;
+        maleRanges: true;
+        femaleRanges: true;
+      };
+    };
+  };
+}>;
+
+interface BiomarkerResultInput {
+  biomarkerId: string;
+  value: number;
+  testedAt?: string;
+  status?: string;
+  notes?: string | null;
+}
+
+interface BiomarkerRangeJson {
+  low: number;
+  optimal_low: number;
+  optimal_high: number;
+  high: number;
+}
+
+type BiomarkerDefForStatus = {
+  maleRanges: unknown;
+  femaleRanges: unknown;
+};
 
 // GET /api/biomarkers/results - Get user's biomarker results
 export async function GET(request: NextRequest) {
@@ -19,6 +57,7 @@ export async function GET(request: NextRequest) {
     const fromDate = searchParams.get("from");
     const toDate = searchParams.get("to");
     const latest = searchParams.get("latest") === "true";
+    const ensureDerived = searchParams.get("ensureDerived") === "true";
 
     // Non-staff can only view their own results
     const staffRoles = ["ADMIN", "CARE_PARTNER", "DOCTOR"];
@@ -26,18 +65,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const where: any = { userId };
+    if (ensureDerived) {
+      await persistDerivedBiomarkersForUser(userId);
+    }
+
+    const where: Prisma.BiomarkerResultWhereInput = { userId };
 
     if (biomarkerId) {
       where.biomarkerId = biomarkerId;
     }
 
-    if (fromDate) {
-      where.testedAt = { ...where.testedAt, gte: new Date(fromDate) };
-    }
-
-    if (toDate) {
-      where.testedAt = { ...where.testedAt, lte: new Date(toDate) };
+    if (fromDate || toDate) {
+      const testedAtFilter: Prisma.DateTimeFilter = {};
+      if (fromDate) testedAtFilter.gte = new Date(fromDate);
+      if (toDate) testedAtFilter.lte = new Date(toDate);
+      where.testedAt = testedAtFilter;
     }
 
     // If category filter, we need to join with biomarker definitions
@@ -63,7 +105,7 @@ export async function GET(request: NextRequest) {
       });
 
       // Group by biomarkerId and take the latest
-      const latestMap = new Map();
+      const latestMap = new Map<string, BiomarkerResultWithDef>();
       for (const result of allResults) {
         if (!latestMap.has(result.biomarkerId)) {
           latestMap.set(result.biomarkerId, result);
@@ -100,6 +142,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    results = results.filter((r) => isCatalogBiomarker(r.biomarkerId));
+
     return NextResponse.json({ results });
   } catch (error) {
     console.error("Error fetching biomarker results:", error);
@@ -108,14 +152,20 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper function to calculate biomarker status based on ranges
-function calculateStatus(value: number, biomarkerDef: any, gender: string): string {
+function calculateStatus(
+  value: number,
+  biomarkerDef: BiomarkerDefForStatus | null | undefined,
+  gender: string
+): BiomarkerStatus {
   if (!biomarkerDef) return "NORMAL";
 
   const ranges = gender === "FEMALE" ? biomarkerDef.femaleRanges : biomarkerDef.maleRanges;
   if (!ranges) return "NORMAL";
 
   // Parse ranges (stored as JSON)
-  const rangeData = typeof ranges === "string" ? JSON.parse(ranges) : ranges;
+  const rangeData = typeof ranges === "string"
+    ? (JSON.parse(ranges) as BiomarkerRangeJson)
+    : (ranges as BiomarkerRangeJson);
 
   const { low, optimal_low, optimal_high, high } = rangeData;
 
@@ -141,7 +191,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, results, labReportId } = body;
+    const { userId, results, labReportId } = body as {
+      userId?: string;
+      results?: BiomarkerResultInput[];
+      labReportId?: string | null;
+    };
 
     console.log("[Biomarker Results] Received save request:", { userId, resultsCount: results?.length });
 
@@ -176,11 +230,11 @@ export async function POST(request: NextRequest) {
     const biomarkerDefMap = new Map(biomarkerDefs.map(b => [b.biomarkerId, b]));
 
     // Validate all biomarker IDs exist
-    const invalidIds = results.filter((r: any) => !biomarkerDefMap.has(r.biomarkerId));
+    const invalidIds = results.filter((r) => !biomarkerDefMap.has(r.biomarkerId));
     if (invalidIds.length > 0) {
-      console.error("[Biomarker Results] Invalid biomarker IDs:", invalidIds.map((r: any) => r.biomarkerId));
+      console.error("[Biomarker Results] Invalid biomarker IDs:", invalidIds.map((r) => r.biomarkerId));
       return NextResponse.json({
-        error: `Invalid biomarker IDs: ${invalidIds.map((r: any) => r.biomarkerId).join(", ")}`
+        error: `Invalid biomarker IDs: ${invalidIds.map((r) => r.biomarkerId).join(", ")}`
       }, { status: 400 });
     }
 
@@ -189,7 +243,7 @@ export async function POST(request: NextRequest) {
     const existingResults = await prisma.biomarkerResult.findMany({
       where: {
         userId,
-        biomarkerId: { in: results.map((r: any) => r.biomarkerId) },
+        biomarkerId: { in: results.map((r) => r.biomarkerId) },
       },
       select: {
         biomarkerId: true,
@@ -208,8 +262,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Filter out duplicates
-    const newResults: any[] = [];
-    const duplicateResults: any[] = [];
+    const newResults: BiomarkerResultInput[] = [];
+    const duplicateResults: BiomarkerResultInput[] = [];
 
     for (const result of results) {
       const testedAt = new Date(result.testedAt || new Date());
@@ -240,16 +294,18 @@ export async function POST(request: NextRequest) {
 
     // Create only new results with calculated status
     const createdResults = await prisma.$transaction(
-      newResults.map((result: any) => {
+      newResults.map((result) => {
         const biomarkerDef = biomarkerDefMap.get(result.biomarkerId);
-        const calculatedStatus = result.status || calculateStatus(result.value, biomarkerDef, user.gender);
+        const calculatedStatus: BiomarkerStatus = result.status
+          ? (result.status.toUpperCase() as BiomarkerStatus)
+          : calculateStatus(result.value, biomarkerDef, user.gender);
 
         return prisma.biomarkerResult.create({
           data: {
             userId,
             biomarkerId: result.biomarkerId,
             value: result.value,
-            status: calculatedStatus.toUpperCase(),
+            status: calculatedStatus,
             testedAt: new Date(result.testedAt || new Date()),
             uploadedBy: session.user.id,
             labReportId: labReportId || null,
@@ -260,6 +316,13 @@ export async function POST(request: NextRequest) {
     );
 
     console.log(`[Biomarker Results] Successfully saved ${createdResults.length} results for user ${user.firstName} ${user.lastName} (${duplicateResults.length} duplicates skipped)`);
+
+    const derivedPersist = await persistDerivedBiomarkersForUser(userId);
+    if (derivedPersist.created > 0) {
+      console.log(
+        `[Biomarker Results] Persisted ${derivedPersist.created} derived biomarkers for ${user.firstName} ${user.lastName}`
+      );
+    }
 
     // Log activity
     await prisma.activityLog.create({
@@ -299,6 +362,7 @@ export async function POST(request: NextRequest) {
       success: true,
       results: createdResults,
       duplicatesSkipped: duplicateResults.length,
+      derivedCreated: derivedPersist.created,
       message,
     }, { status: 201 });
   } catch (error) {

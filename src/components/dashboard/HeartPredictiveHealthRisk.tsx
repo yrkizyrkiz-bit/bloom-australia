@@ -351,7 +351,7 @@ export function HeartPredictiveHealthRisk() {
           profile={editedProfile}
           onProfileChange={setEditedProfile}
           onSubmit={() => saveProfile(editedProfile, false)}
-          isSubmitting={isSavingProfile || phase === "generating"}
+          isSubmitting={isSavingProfile}
           missingForFirstRun={missingForFirstRun}
         />
       </div>

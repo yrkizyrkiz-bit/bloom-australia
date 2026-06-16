@@ -30,6 +30,8 @@ const getStripe = () => {
 interface PaymentFormProps {
   userId: string;
   selectedPlan: "core" | "precision";
+  programType?: "weight_management" | "hair_loss";
+  planName?: string;
   firstMonthAmount: number;
   ongoingMonthlyAmount: number;
   discountAmount: number;
@@ -352,6 +354,8 @@ function CheckoutForm({
 export function StripePaymentForm({
   userId,
   selectedPlan,
+  programType = "weight_management",
+  planName: planNameOverride,
   firstMonthAmount,
   ongoingMonthlyAmount,
   discountAmount,
@@ -381,8 +385,10 @@ export function StripePaymentForm({
   const [isProcessingTest, setIsProcessingTest] = useState(false);
   const [paymentIntentHoldId, setPaymentIntentHoldId] = useState<string | null>(null);
 
-  const planName = selectedPlan === "precision" ? "Sanative Precision" : "Sanative Core";
-  const amount = selectedPlan === "precision" ? 39900 : 24900; // cents
+  const planName =
+    planNameOverride ||
+    (selectedPlan === "precision" ? "Sanative Precision" : "Sanative Core");
+  const amount = firstMonthAmount;
 
   // Check if we're in a preview/iframe environment
   const isPreviewEnvironment = typeof window !== 'undefined' &&
@@ -434,6 +440,8 @@ export function StripePaymentForm({
           planId: selectedPlan,
           billingType: "one_time",
           selectedPlan,
+          programType,
+          planName,
           firstMonthAmount,
           ongoingMonthlyAmount,
           discountAmount,

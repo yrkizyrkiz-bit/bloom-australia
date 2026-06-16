@@ -268,7 +268,7 @@ export default function DoctorDashboardPage() {
   const [decisionOptions, setDecisionOptions] = useState<DecisionOptions | null>(null);
   const [showDecisionDialog, setShowDecisionDialog] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState("today");
+  const [activeTab, setActiveTab] = useState("all");
   const [counts, setCounts] = useState({
     total: 0,
     pending: 0,
@@ -638,6 +638,7 @@ export default function DoctorDashboardPage() {
   };
 
   const filtered = consultations.filter((c) => {
+    if (activeTab === "all") return true;
     if (activeTab === "today") return isToday(new Date(c.scheduledAt));
     if (activeTab === "pending") return c.status === "BOOKING_CONFIRMED" && !c.isCallCompleted;
     if (activeTab === "awaiting") return c.isAwaitingDecision;
@@ -653,19 +654,19 @@ export default function DoctorDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-3 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Doctor Dashboard</h1>
             <p className="text-slate-500">Manage consultations, patients, and care communications</p>
           </div>
-          <Button onClick={() => { fetchConsultations(); fetchPatientsAndCareComs(); }} variant="outline" size="sm">
+          <Button onClick={() => { fetchConsultations(); fetchPatientsAndCareComs(); }} variant="outline" size="sm" className="w-full sm:w-auto">
             <RefreshCw className="w-4 h-4 mr-2" />Refresh
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
           <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Calendar className="w-5 h-5 text-blue-600" /></div><div><p className="text-2xl font-bold">{counts.todayCount}</p><p className="text-sm text-slate-500">Today</p></div></div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-amber-100 rounded-lg"><Clock className="w-5 h-5 text-amber-600" /></div><div><p className="text-2xl font-bold">{counts.pending}</p><p className="text-sm text-slate-500">Pending</p></div></div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-purple-100 rounded-lg"><ClipboardList className="w-5 h-5 text-purple-600" /></div><div><p className="text-2xl font-bold">{counts.awaitingDecision}</p><p className="text-sm text-slate-500">Decisions</p></div></div></CardContent></Card>
@@ -675,16 +676,16 @@ export default function DoctorDashboardPage() {
 
         {/* Main navigation tabs */}
         <Tabs value={mainView} onValueChange={(v) => setMainView(v as typeof mainView)}>
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid h-auto w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="consultations" className="flex items-center gap-2">
-              <Stethoscope className="w-4 h-4" />Consultations
+              <Stethoscope className="w-4 h-4" /><span className="hidden sm:inline">Consultations</span><span className="sm:hidden">Consults</span>
               {counts.pending > 0 && <Badge className="ml-1 bg-amber-500 text-white text-xs">{counts.pending}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="patients" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />My Patients
+              <Users className="w-4 h-4" /><span className="hidden sm:inline">My Patients</span><span className="sm:hidden">Patients</span>
             </TabsTrigger>
             <TabsTrigger value="care-comms" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />Care Comms
+              <MessageSquare className="w-4 h-4" /><span className="hidden sm:inline">Care Comms</span><span className="sm:hidden">Comms</span>
               {patientStats.highPriorityCareComms > 0 && <Badge className="ml-1 bg-red-500 text-white text-xs">{patientStats.highPriorityCareComms}</Badge>}
             </TabsTrigger>
           </TabsList>
@@ -696,12 +697,13 @@ export default function DoctorDashboardPage() {
               <CardHeader className="pb-3"><CardTitle className="text-lg">Consultations</CardTitle></CardHeader>
               <CardContent className="p-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="w-full rounded-none border-b">
+                  <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b">
+                    <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
                     <TabsTrigger value="today" className="flex-1">Today</TabsTrigger>
                     <TabsTrigger value="pending" className="flex-1">Pending</TabsTrigger>
                     <TabsTrigger value="awaiting" className="flex-1">Decisions</TabsTrigger>
                   </TabsList>
-                  <ScrollArea className="h-[600px]">
+                  <ScrollArea className="h-[520px] sm:h-[600px]">
                     <div className="p-3 space-y-2">
                       {filtered.length === 0 ? (
                         <div className="text-center py-8 text-slate-500">
@@ -740,7 +742,7 @@ export default function DoctorDashboardPage() {
               <div className="space-y-4">
                 <Card>
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-center gap-4">
                         <Avatar className="h-14 w-14"><AvatarFallback className="bg-blue-100 text-blue-700 text-lg">{patientBrief.patient.fullName.split(" ").map((n) => n[0]).join("")}</AvatarFallback></Avatar>
                         <div>
@@ -751,7 +753,7 @@ export default function DoctorDashboardPage() {
                           <div className="flex items-center gap-2 mt-2">{getRiskBadge(patientBrief.riskAssessment.riskLevel)}<Badge variant="outline">Triage: {patientBrief.status.triageScore || "N/A"}</Badge></div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
                         <Button variant="outline" size="sm" asChild>
                           <Link href={patientBrief.urls.memberProfile}>
                             <User className="w-4 h-4 mr-2" />
@@ -1021,7 +1023,7 @@ export default function DoctorDashboardPage() {
                     ) : (
                       <div className="space-y-3">
                         <p className="text-sm text-slate-500 mb-4">Select decision:</p>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                           <Button onClick={() => openDecisionDialog("APPROVED")} className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">Prescribe</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_NO_TREATMENT")} className="bg-blue-600 hover:bg-blue-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">No Treatment</span></Button>
                           <Button onClick={() => openDecisionDialog("DECLINED")} variant="destructive" className="h-auto py-4 flex-col"><XCircle className="w-6 h-6 mb-1" /><span className="font-semibold">Decline</span><span className="text-xs opacity-80">Refund</span></Button>
@@ -1040,7 +1042,7 @@ export default function DoctorDashboardPage() {
           {/* My Patients Tab */}
           <TabsContent value="patients" className="mt-6">
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Users className="w-5 h-5 text-blue-600" /></div><div><p className="text-2xl font-bold">{patientStats.totalPatients}</p><p className="text-sm text-slate-500">Total Patients</p></div></div></CardContent></Card>
                 <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><CheckCircle2 className="w-5 h-5 text-green-600" /></div><div><p className="text-2xl font-bold">{patientStats.approved}</p><p className="text-sm text-slate-500">Approved</p></div></div></CardContent></Card>
                 <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-amber-100 rounded-lg"><Clock className="w-5 h-5 text-amber-600" /></div><div><p className="text-2xl font-bold">{patientStats.pendingApproval}</p><p className="text-sm text-slate-500">Pending</p></div></div></CardContent></Card>
@@ -1062,7 +1064,7 @@ export default function DoctorDashboardPage() {
                     <div className="space-y-3">
                       {patients.map((patient) => (
                         <div key={patient.id} className="p-4 border rounded-lg hover:bg-slate-50 transition-colors">
-                          <div className="flex items-start justify-between">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex items-center gap-3">
                               <Avatar className="h-10 w-10"><AvatarFallback className="bg-blue-100 text-blue-700">{patient.firstName[0]}{patient.lastName[0]}</AvatarFallback></Avatar>
                               <div>
@@ -1080,7 +1082,7 @@ export default function DoctorDashboardPage() {
                               <Button variant="outline" size="sm" asChild><Link href={`/admin/crm/customers/${patient.id}`}><FileText className="w-4 h-4 mr-1" />View</Link></Button>
                             </div>
                           </div>
-                          <div className="mt-3 grid grid-cols-4 gap-4 text-sm">
+                          <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 sm:gap-4">
                             <div><p className="text-slate-500">Weight</p><p className="font-medium">{patient.currentWeight ? `${patient.currentWeight} kg` : "—"}</p></div>
                             <div><p className="text-slate-500">BMI</p><p className="font-medium">{patient.bmi?.toFixed(1) || "—"}</p></div>
                             <div><p className="text-slate-500">Last Consultation</p><p className="font-medium">{patient.consultation?.scheduledAt ? format(new Date(patient.consultation.scheduledAt), "d MMM") : "—"}</p></div>
@@ -1098,7 +1100,7 @@ export default function DoctorDashboardPage() {
           {/* Care Communications Tab */}
           <TabsContent value="care-comms" className="mt-6">
             <div className="space-y-6">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-amber-100 rounded-lg"><MessageSquare className="w-5 h-5 text-amber-600" /></div><div><p className="text-2xl font-bold">{patientStats.pendingCareComms}</p><p className="text-sm text-slate-500">Pending Tasks</p></div></div></CardContent></Card>
                 <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-red-100 rounded-lg"><AlertCircle className="w-5 h-5 text-red-600" /></div><div><p className="text-2xl font-bold">{patientStats.highPriorityCareComms}</p><p className="text-sm text-slate-500">High Priority</p></div></div></CardContent></Card>
                 <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><CheckCircle2 className="w-5 h-5 text-green-600" /></div><div><p className="text-2xl font-bold">{careCommunications.filter(c => c.status === "COMPLETED").length}</p><p className="text-sm text-slate-500">Completed</p></div></div></CardContent></Card>
@@ -1119,7 +1121,7 @@ export default function DoctorDashboardPage() {
                     <div className="space-y-3">
                       {careCommunications.map((cc) => (
                         <div key={cc.id} className="p-4 border rounded-lg hover:bg-slate-50 transition-colors">
-                          <div className="flex items-start justify-between">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 {getPriorityBadge(cc.priority)}

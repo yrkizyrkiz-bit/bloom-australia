@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { processSideEffectReport } from "@/lib/program/escalate-side-effect";
 import type { SideEffectSeverity } from "@prisma/client";
-import { startOfDayUTC } from "@/lib/program/dose-schedule";
+import { startOfDayUTC, canLogDoseScheduledFor } from "@/lib/program/dose-schedule";
 
 export async function PATCH(
   request: NextRequest,
@@ -46,6 +46,16 @@ export async function PATCH(
     });
 
     if (action === "taken") {
+      if (!canLogDoseScheduledFor(dose.scheduledAt)) {
+        return NextResponse.json(
+          {
+            error:
+              "This dose cannot be logged before its scheduled date. Please follow your prescribed dosing schedule.",
+          },
+          { status: 400 }
+        );
+      }
+
       await prisma.medicationDose.update({
         where: { id: doseId },
         data: {

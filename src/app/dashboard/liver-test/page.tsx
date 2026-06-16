@@ -3,8 +3,11 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBiomarkerResults } from "@/hooks/useApi";
-import { BiomarkerCard } from "@/components/dashboard/BiomarkerCard";
 import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDialog";
+import { OrganTestBiomarkerGrid } from "@/components/dashboard/OrganTestBiomarkerGrid";
+import { buildBiomarkerResultsMap } from "@/lib/organ-test-biomarkers";
+import { mapApiBiomarkerResults } from "@/lib/map-api-biomarker-results";
+import type { BloodPanelBiomarker } from "@/data/bloodPanelConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -579,26 +582,15 @@ export default function LiverTestPage() {
 
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
-    result: BiomarkerResult;
+    result: BiomarkerResult | null;
+    panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
 
   // Transform API data to BiomarkerResult format
-  const allBiomarkerResults: BiomarkerResult[] = useMemo(() => {
-    if (!biomarkerData?.results) return [];
-
-    return biomarkerData.results.map((r: any) => ({
-      id: r.id,
-      biomarkerId: r.biomarkerId,
-      value: r.value,
-      unit: r.biomarker?.unit || "",
-      status: r.status?.toLowerCase() as BiomarkerResult["status"],
-      testedAt: r.testedAt,
-      labReportId: r.labReportId || "",
-      notes: r.notes || "",
-      previousValue: r.previousValue,
-      trend: r.trend?.toLowerCase() as "up" | "down" | "stable" | undefined,
-    }));
-  }, [biomarkerData]);
+  const allBiomarkerResults: BiomarkerResult[] = useMemo(
+    () => mapApiBiomarkerResults(biomarkerData?.results),
+    [biomarkerData]
+  );
 
   // Get biomarkers with their results for liver test
   const liverTestResults = useMemo(() => {
@@ -614,6 +606,11 @@ export default function LiverTestPage() {
         item.biomarker !== undefined
       );
   }, [allBiomarkerResults]);
+
+  const resultsById = useMemo(
+    () => buildBiomarkerResultsMap(allBiomarkerResults),
+    [allBiomarkerResults]
+  );
 
   // Calculate age from user's date of birth
   const userAge = useMemo(() => {
@@ -679,8 +676,12 @@ export default function LiverTestPage() {
     };
   }, [allBiomarkerResults, userAge, gender]);
 
-  const handleBiomarkerClick = (biomarker: BiomarkerDefinition, result: BiomarkerResult) => {
-    setSelectedBiomarker({ biomarker, result });
+  const handleBiomarkerClick = (
+    biomarker: BiomarkerDefinition,
+    result: BiomarkerResult | null,
+    panelBiomarker?: BloodPanelBiomarker
+  ) => {
+    setSelectedBiomarker({ biomarker, result, panelBiomarker });
   };
 
   // Count statuses - calculate dynamically based on actual values and ranges
@@ -1214,14 +1215,11 @@ export default function LiverTestPage() {
           {/* Biomarker Categories */}
           <div className="space-y-8">
             {Object.entries(liverTestConfig).map(([key, config]) => {
-              const categoryResults = liverTestResults.filter(
-                item => config.biomarkerIds.includes(item.result.biomarkerId)
-              );
-              // Use scientificScores.liverRisk.components for scores if available
               const comp = scientificScores.liverRisk.components.find(c => c.name.toLowerCase() === config.name.toLowerCase().split(" ")[0]);
               const categoryScore = comp
                 ? { score: Math.round((comp.contribution / comp.weight) * 100), optimal: 0, normal: 0, outOfRange: 0 }
                 : undefined;
+              const testedInCategory = config.biomarkerIds.filter((id) => resultsById[id]).length;
 
               return (
                 <div key={key}>
@@ -1230,9 +1228,12 @@ export default function LiverTestPage() {
                       <config.icon className="w-5 h-5" style={{ color: config.color }} />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h2 className="text-lg font-medium text-foreground">{config.name}</h2>
                         <Badge variant="secondary" className="text-xs">{config.subtitle}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {testedInCategory}/{config.biomarkerIds.length} tested
+                        </Badge>
                         {categoryScore && (
                           <Badge variant="outline" className={`${getScoreColor(categoryScore.score)} border-current`}>
                             Score: {categoryScore.score}
@@ -1242,17 +1243,13 @@ export default function LiverTestPage() {
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {categoryResults.map(({ biomarker, result }) => (
-                      <BiomarkerCard
-                        key={result.id}
-                        biomarker={biomarker}
-                        result={result}
-                        gender={gender}
-                        onClick={() => handleBiomarkerClick(biomarker, result)}
-                      />
-                    ))}
-                  </div>
+                  <OrganTestBiomarkerGrid
+                    biomarkerIds={config.biomarkerIds}
+                    resultsById={resultsById}
+                    gender={gender}
+                    categoryColor={config.color}
+                    onBiomarkerClick={handleBiomarkerClick}
+                  />
                 </div>
               );
             })}
@@ -1355,8 +1352,9 @@ export default function LiverTestPage() {
       <BiomarkerDetailDialog
         biomarker={selectedBiomarker?.biomarker || null}
         result={selectedBiomarker?.result || null}
-        history={[]} // No mock-data, so leave empty or implement API history if available
+        history={[]}
         gender={gender}
+        panelBiomarker={selectedBiomarker?.panelBiomarker}
         open={!!selectedBiomarker}
         onOpenChange={(open) => !open && setSelectedBiomarker(null)}
       />

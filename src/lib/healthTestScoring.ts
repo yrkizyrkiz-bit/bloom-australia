@@ -17,7 +17,7 @@ export const healthTestsConfig = [
     color: "#06b6d4",
     bgColor: "bg-cyan-500/10",
     href: "/dashboard/kidney-test",
-    biomarkerIds: ["creatinine", "egfr", "bun", "cystatin_c", "uacr", "potassium", "sodium", "calcium", "phosphorus", "bicarbonate", "pth"],
+    biomarkerIds: ["creatinine", "egfr", "bun", "uacr", "potassium", "sodium", "calcium", "phosphorus", "bicarbonate", "pth"],
     useScientificScoring: true // KDIGO methodology
   },
   {
@@ -464,18 +464,6 @@ function calculateKidneyRiskScore(
     additionalCount++;
   }
 
-  const cystatinValue = getBiomarkerValue("cystatin_c");
-  if (cystatinValue !== null) {
-    if (cystatinValue >= 0.55 && cystatinValue <= 0.95) {
-      additionalScore += 100;
-    } else if (cystatinValue <= 1.2) {
-      additionalScore += 60;
-    } else {
-      additionalScore += 25;
-    }
-    additionalCount++;
-  }
-
   if (additionalCount > 0) {
     totalWeight += 10;
     totalScore += (additionalScore / additionalCount) * 0.1;
@@ -484,7 +472,7 @@ function calculateKidneyRiskScore(
   const normalizedScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 100) : 0;
 
   const { optimal, normal, outOfRange, hasData } = countBiomarkerStatuses(
-    ["creatinine", "egfr", "bun", "cystatin_c", "uacr", "potassium", "sodium", "calcium", "phosphorus", "bicarbonate", "pth"],
+    ["creatinine", "egfr", "bun", "uacr", "potassium", "sodium", "calcium", "phosphorus", "bicarbonate", "pth"],
     biomarkerResults,
     gender
   );
@@ -1483,7 +1471,7 @@ export function calculateTestScore(
 
   if (testId === "kidney") {
     const kidneyScore = calculateKidneyRiskScore(biomarkerResults, gender);
-    const kidneyBiomarkerIds = ["creatinine", "egfr", "bun", "cystatin_c", "uacr", "potassium", "sodium", "calcium", "phosphorus", "bicarbonate", "pth"];
+    const kidneyBiomarkerIds = ["creatinine", "egfr", "bun", "uacr", "potassium", "sodium", "calcium", "phosphorus", "bicarbonate", "pth"];
     return {
       ...kidneyScore,
       trend: calculateTrend(kidneyScore.optimal, kidneyScore.outOfRange),

@@ -4,7 +4,7 @@
  *
  * Usage: bun run prisma/repair-george-journey.ts
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -198,7 +198,7 @@ async function main() {
         mobile: "0416299091",
         dob,
         program: "WEIGHT_MANAGEMENT",
-        intakeData: intake?.quizData || quizData,
+        intakeData: (intake?.quizData || quizData) as Prisma.InputJsonValue,
         membershipStatus: "PENDING",
         membershipStart: new Date(),
         membershipEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
@@ -209,7 +209,7 @@ async function main() {
         lastName: "Coolando",
         mobile: "0416299091",
         dob,
-        intakeData: intake?.quizData || quizData,
+        intakeData: (intake?.quizData || quizData) as Prisma.InputJsonValue,
         membershipStatus: "PENDING",
         carePartnerId: miaCarePartner.id,
       },

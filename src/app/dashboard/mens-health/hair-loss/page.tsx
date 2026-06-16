@@ -7,23 +7,117 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft, Camera, TrendingUp, Pill, Calendar, ChevronRight,
-  Sparkles, Clock, CheckCircle2, AlertCircle, Play, Award,
-  Lightbulb, Target, BarChart3, ArrowUpRight, ArrowDownRight
+  Sparkles, Clock, CheckCircle2, AlertCircle, Play,
+  Lightbulb, Target, BarChart3, Loader2, Stethoscope
 } from "lucide-react";
 import Link from "next/link";
 
-// Mock data for hair progress
-const mockProgressData = {
-  currentDay: 45,
-  totalDays: 365,
-  startDate: "2024-01-01",
-  treatmentAdherence: 92,
-  photosLogged: 6,
-  nextMilestone: 90,
+type HairPortalData = {
+  user: {
+    firstName: string;
+    subscriptionTier: string | null;
+    journeyStatus: string | null;
+    approvalStatus: string | null;
+  };
+  status: {
+    hasPaid: boolean;
+    isApproved: boolean;
+    hasActiveTreatment: boolean;
+    label: string;
+  };
+  intake: Record<string, unknown> | null;
+  booking: {
+    id: string;
+    status: string;
+    scheduledAt: string;
+    doctorName: string | null;
+    appointmentType: string;
+  } | null;
+  progress: {
+    currentDay: number;
+    totalDays: number;
+    startDate: string | null;
+    treatmentAdherence: number | null;
+    photosLogged: number;
+    nextMilestone: number;
+  };
+  prescriptions: Array<{
+    id: string;
+    medicationName: string;
+    strength: string;
+    dosage: string;
+    frequency: string;
+    status: string;
+    scriptStatus: string;
+    prescribedAt: string;
+    startDate: string;
+    nextRefillDate: string | null;
+    refillsRemaining: number;
+  }>;
+  treatments: Array<{
+    id: string;
+    medicationName: string;
+    dosage: string;
+    frequency: string;
+    instructions: string | null;
+    startDate: string;
+    nextDoseDate: string | null;
+    adherence: number | null;
+  }>;
 };
 
+const emptyProgress = {
+  currentDay: 0,
+  totalDays: 365,
+  startDate: null,
+  treatmentAdherence: null,
+  photosLogged: 0,
+  nextMilestone: 30,
+};
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-AU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export default function HairLossPage() {
-  const [progressData, setProgressData] = useState(mockProgressData);
+  const [data, setData] = useState<HairPortalData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/hair-loss/portal");
+        if (!res.ok) throw new Error("Failed to load");
+        const json = await res.json();
+        if (!cancelled) setData(json);
+      } catch (error) {
+        console.error("Hair portal load error:", error);
+        if (!cancelled) setData(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+      </div>
+    );
+  }
+
+  const progressData = data?.progress || emptyProgress;
+  const hasActiveTreatment = data?.status.hasActiveTreatment || false;
 
   // Treatment timeline milestones
   const milestones = [
@@ -35,30 +129,10 @@ export default function HairLossPage() {
 
   // Quick stats
   const stats = [
-    { label: "Days on Treatment", value: progressData.currentDay, icon: Calendar, color: "text-violet-600" },
-    { label: "Adherence Rate", value: `${progressData.treatmentAdherence}%`, icon: CheckCircle2, color: "text-green-600" },
+    { label: "Days on Treatment", value: hasActiveTreatment ? progressData.currentDay : "—", icon: Calendar, color: "text-violet-600" },
+    { label: "Adherence Rate", value: progressData.treatmentAdherence != null ? `${progressData.treatmentAdherence}%` : "—", icon: CheckCircle2, color: "text-green-600" },
     { label: "Photos Logged", value: progressData.photosLogged, icon: Camera, color: "text-blue-600" },
-    { label: "Next Milestone", value: `Day ${progressData.nextMilestone}`, icon: Target, color: "text-amber-600" },
-  ];
-
-  // Current treatments
-  const treatments = [
-    {
-      name: "Finasteride 1mg",
-      type: "Oral",
-      frequency: "Daily",
-      status: "active",
-      adherence: 95,
-      daysRemaining: 25,
-    },
-    {
-      name: "Minoxidil 5%",
-      type: "Topical",
-      frequency: "Twice daily",
-      status: "active",
-      adherence: 88,
-      daysRemaining: 18,
-    },
+    { label: "Next Milestone", value: hasActiveTreatment ? `Day ${progressData.nextMilestone}` : "After approval", icon: Target, color: "text-amber-600" },
   ];
 
   return (
@@ -83,12 +157,18 @@ export default function HairLossPage() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-violet-300 text-sm uppercase tracking-wider mb-1">Your Journey</p>
-              <p className="text-4xl font-bold">Day {progressData.currentDay}</p>
-              <p className="text-violet-200 text-sm mt-1">of your hair restoration journey</p>
+              <p className="text-4xl font-bold">
+                {hasActiveTreatment ? `Day ${progressData.currentDay}` : "Awaiting review"}
+              </p>
+              <p className="text-violet-200 text-sm mt-1">
+                {hasActiveTreatment
+                  ? "of your hair restoration journey"
+                  : "your care team is preparing your hair care pathway"}
+              </p>
             </div>
             <div className="text-right">
-              <Badge className="bg-green-500/20 text-green-300 border-0">
-                <CheckCircle2 className="w-3 h-3 mr-1" /> On Track
+              <Badge className="bg-white/15 text-white border-0">
+                <CheckCircle2 className="w-3 h-3 mr-1" /> {data?.status.label || "Pending"}
               </Badge>
             </div>
           </div>
@@ -97,12 +177,12 @@ export default function HairLossPage() {
           <div className="mb-4">
             <div className="flex justify-between text-xs text-violet-300 mb-2">
               <span>Progress to full results</span>
-              <span>{Math.round((progressData.currentDay / 365) * 100)}%</span>
+              <span>{hasActiveTreatment ? Math.round((progressData.currentDay / 365) * 100) : 0}%</span>
             </div>
             <div className="h-3 bg-violet-950 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-violet-500 to-purple-400 rounded-full transition-all"
-                style={{ width: `${(progressData.currentDay / 365) * 100}%` }}
+                style={{ width: `${hasActiveTreatment ? (progressData.currentDay / 365) * 100 : 0}%` }}
               />
             </div>
           </div>
@@ -126,6 +206,30 @@ export default function HairLossPage() {
           </div>
         </CardContent>
       </Card>
+
+      {!hasActiveTreatment && (
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex gap-3">
+            <Stethoscope className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-900 dark:text-amber-100">
+                No active hair treatment yet
+              </p>
+              <p className="text-sm text-amber-800 dark:text-amber-200 mt-1">
+                Your portal is connected to your real record. Treatment, adherence and
+                refill details will appear here only after your doctor approves and
+                prescribes a hair care plan.
+              </p>
+              {data?.booking && (
+                <p className="text-sm text-amber-800 dark:text-amber-200 mt-2">
+                  Consultation: {formatDate(data.booking.scheduledAt)}
+                  {data.booking.doctorName ? ` with ${data.booking.doctorName}` : ""}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
@@ -190,16 +294,16 @@ export default function HairLossPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {treatments.map((treatment, index) => (
+          {data?.treatments.length ? data.treatments.map((treatment) => (
             <div
-              key={index}
+              key={treatment.id}
               className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900"
             >
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="font-semibold">{treatment.name}</p>
+                  <p className="font-semibold">{treatment.medicationName}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className="text-xs">{treatment.type}</Badge>
+                    <Badge variant="secondary" className="text-xs">{treatment.dosage}</Badge>
                     <span className="text-xs text-muted-foreground">{treatment.frequency}</span>
                   </div>
                 </div>
@@ -210,15 +314,23 @@ export default function HairLossPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Adherence</span>
-                  <span className="font-medium">{treatment.adherence}%</span>
+                  <span className="font-medium">{treatment.adherence ?? "—"}{treatment.adherence != null ? "%" : ""}</span>
                 </div>
-                <Progress value={treatment.adherence} className="h-2" />
+                <Progress value={treatment.adherence ?? 0} className="h-2" />
                 <p className="text-xs text-muted-foreground">
-                  {treatment.daysRemaining} days until refill
+                  {treatment.nextDoseDate
+                    ? `Next dose: ${formatDate(treatment.nextDoseDate)}`
+                    : "Dose schedule will appear after setup"}
                 </p>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="p-6 rounded-xl border border-dashed text-center text-muted-foreground">
+              <Pill className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="font-medium">No prescribed hair treatments yet</p>
+              <p className="text-sm mt-1">Your doctor-approved plan will appear here.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

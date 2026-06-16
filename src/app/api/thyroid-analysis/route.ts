@@ -68,9 +68,9 @@ interface ThyroidAnalysisResult {
 // Thyroid-related biomarker IDs
 const THYROID_BIOMARKER_IDS = [
   "tsh", "free_t4", "free_t3", "total_t4", "total_t3",
-  "reverse_t3", "tpo_antibodies", "thyroglobulin_antibodies",
+  "tpo_antibodies", "thyroglobulin_antibodies",
   "thyroglobulin", "calcitonin",
-  "iodine", "selenium", "zinc",
+  "selenium", "zinc",
   "cortisol", "dhea_s",
   "vitamin_d", "vitamin_b12", "iron", "ferritin"
 ];
@@ -280,7 +280,7 @@ Focus on thyroid health assessment including:
 - Autoimmune thyroid conditions (Hashimoto's, Graves')
 - Thyroid hormone conversion efficiency
 - T3/T4 balance
-- Supporting nutrients (selenium, iodine, zinc, iron)
+- Supporting nutrients (selenium, zinc, iron)
 
 Determine thyroidStatus as one of: "Normal", "Possible Hypothyroidism", "Possible Hyperthyroidism", "Subclinical Hypothyroidism", "Subclinical Hyperthyroidism", "Autoimmune Thyroiditis Risk"
 

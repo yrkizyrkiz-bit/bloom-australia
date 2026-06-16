@@ -59,13 +59,6 @@ type ProgramTodayData = {
     focusArea: string;
     encouragement: string;
   } | null;
-  biomarkerFlags?: Array<{
-    biomarkerId: string;
-    name: string;
-    status: string;
-    programFocus?: string;
-  }>;
-  biomarkerSummary?: string | null;
   openSideEffects?: Array<{ escalated: boolean }>;
   symptomOptions?: Array<{ id: string; label: string }>;
 };

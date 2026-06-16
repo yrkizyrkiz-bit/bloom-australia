@@ -36,6 +36,7 @@ export interface HoldRequest {
   userId?: string;
   slotId: string;
   selectedPlan: "CORE" | "PRECISION";
+  programType?: "WEIGHT_MANAGEMENT" | "HAIR_LOSS";
   intakeId?: string;
   patientPhone?: string;
   patientBmi?: number;
@@ -61,7 +62,17 @@ export interface HoldResponse {
 export async function POST(req: NextRequest) {
   try {
     const body: HoldRequest = await req.json();
-    const { sessionId, userId: bodyUserId, slotId, selectedPlan, intakeId, patientPhone, patientBmi, riskFlags } = body;
+    const {
+      sessionId,
+      userId: bodyUserId,
+      slotId,
+      selectedPlan,
+      programType = "WEIGHT_MANAGEMENT",
+      intakeId,
+      patientPhone,
+      patientBmi,
+      riskFlags,
+    } = body;
 
     // Verify session or user ID
     let userId = bodyUserId;
@@ -194,6 +205,9 @@ export async function POST(req: NextRequest) {
     const endTime = new Date(scheduledAt);
     endTime.setMinutes(endTime.getMinutes() + 30);
 
+    const programLabel =
+      programType === "HAIR_LOSS" ? "Hair Loss Program" : "Weight Management Program";
+
     // UNIFIED CALENDAR: Create booking WITHOUT doctor assignment
     // Doctor will be assigned during triage by care partner
     const booking = await prisma.consultationBooking.create({
@@ -214,7 +228,7 @@ export async function POST(req: NextRequest) {
         patientPhone,
         patientBmi,
         riskFlags: riskFlags || [],
-        notes: "Doctor to be assigned during triage by care partner",
+        notes: `${programLabel} - Doctor to be assigned during triage by care partner`,
       },
     });
 
@@ -230,6 +244,7 @@ export async function POST(req: NextRequest) {
             slotId,
             scheduledAt: scheduledAt.toISOString(),
             selectedPlan,
+            programType,
             holdExpiresAt: holdExpiresAt.toISOString(),
             doctorAssignment: "Pending - to be assigned during triage",
           },

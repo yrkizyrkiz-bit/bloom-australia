@@ -39,6 +39,39 @@ interface LiveChatProps {
   minimized?: boolean;
 }
 
+function mergeChatMessages(existing: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
+  const withoutRedundantTemps = existing.filter(msg => {
+    if (!msg.id.startsWith("temp-") || msg.senderType !== "MEMBER") {
+      return true;
+    }
+    return !incoming.some(
+      incomingMsg =>
+        incomingMsg.senderType === "MEMBER" &&
+        incomingMsg.message === msg.message
+    );
+  });
+
+  const byId = new Map<string, ChatMessage>();
+  for (const msg of withoutRedundantTemps) {
+    byId.set(msg.id, msg);
+  }
+  for (const msg of incoming) {
+    byId.set(msg.id, msg);
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+}
+
+function getLastPersistedMessageId(messages: ChatMessage[]): string | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (!messages[i].id.startsWith("temp-")) {
+      return messages[i].id;
+    }
+  }
+  return undefined;
+}
+
 export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: LiveChatProps) {
   const [session, setSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -48,6 +81,16 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
   const [coachesAvailable, setCoachesAvailable] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const sendingRef = useRef(false);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    sendingRef.current = sending;
+  }, [sending]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -62,7 +105,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
 
       if (data.session) {
         setSession(data.session);
-        setMessages(data.session.messages || []);
+        setMessages(mergeChatMessages([], data.session.messages || []));
       }
       setCoachesAvailable(data.coachesAvailable);
     } catch (error) {
@@ -83,10 +126,13 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
       });
       const data = await res.json();
 
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to start chat");
+      }
+
       if (data.session) {
         setSession(data.session);
-        // Refresh messages
-        await pollMessages(data.session.id);
+        setMessages(mergeChatMessages([], data.session.messages || []));
       }
     } catch (error) {
       console.error("Error starting chat:", error);
@@ -98,8 +144,10 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
 
   // Poll for new messages
   const pollMessages = useCallback(async (sessionId: string) => {
+    if (sendingRef.current) return;
+
     try {
-      const lastMessageId = messages[messages.length - 1]?.id;
+      const lastMessageId = getLastPersistedMessageId(messagesRef.current);
       const url = lastMessageId
         ? `/api/chat/messages?sessionId=${sessionId}&after=${lastMessageId}`
         : `/api/chat/messages?sessionId=${sessionId}`;
@@ -108,11 +156,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
       const data = await res.json();
 
       if (data.messages && data.messages.length > 0) {
-        if (lastMessageId) {
-          setMessages(prev => [...prev, ...data.messages]);
-        } else {
-          setMessages(data.messages);
-        }
+        setMessages(prev => mergeChatMessages(prev, data.messages));
       }
 
       // Update session status
@@ -129,7 +173,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
     } catch (error) {
       console.error("Error polling messages:", error);
     }
-  }, [messages]);
+  }, []);
 
   // Send message
   const sendMessage = async () => {
@@ -162,14 +206,18 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
       });
       const data = await res.json();
 
+      if (!res.ok || !data.memberMessage) {
+        throw new Error(data.error || "Failed to send message");
+      }
+
       // Replace temp message with real one
       setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== tempMessage.id);
-        const newMessages = [data.memberMessage];
+        const withoutTemp = prev.filter(m => m.id !== tempMessage.id);
+        const incoming = [data.memberMessage];
         if (data.aiMessage) {
-          newMessages.push(data.aiMessage);
+          incoming.push(data.aiMessage);
         }
-        return [...filtered, ...newMessages];
+        return mergeChatMessages(withoutTemp, incoming);
       });
     } catch (error) {
       console.error("Error sending message:", error);
@@ -207,9 +255,14 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
     }
   }, [isOpen, minimized, initializeChat]);
 
-  // Poll for messages when session active
+  // Poll for coach replies only — AI responses come back on the send POST
   useEffect(() => {
-    if (session && session.status !== "ENDED" && !minimized) {
+    if (
+      session &&
+      session.status !== "ENDED" &&
+      !session.isAiHandled &&
+      !minimized
+    ) {
       pollIntervalRef.current = setInterval(() => {
         pollMessages(session.id);
       }, 3000);

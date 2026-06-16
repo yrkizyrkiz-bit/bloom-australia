@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { BLOCKING_GOAL_STATUSES } from "@/lib/goal-deduplication";
+import { BLOCKING_GOAL_STATUSES, normalizeHealthGoalStatus } from "@/lib/goal-deduplication";
 import {
   attachLatestResultsToGoals,
   indexLatestResultsByBiomarker,
 } from "@/lib/goal-latest-values";
-import type { GoalStatus } from "@prisma/client";
+import type { GoalStatus, Prisma } from "@prisma/client";
 
 // GET /api/goals - Get user's health goals
 export async function GET(request: NextRequest) {
@@ -27,9 +27,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const where: any = { userId };
+    const where: Prisma.HealthGoalWhereInput = { userId };
     if (status) {
-      where.status = status.toUpperCase();
+      try {
+        where.status = normalizeHealthGoalStatus(status);
+      } catch {
+        return NextResponse.json({ error: "Invalid goal status" }, { status: 400 });
+      }
     }
 
     const goals = await prisma.healthGoal.findMany({
@@ -257,13 +261,22 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let normalizedStatus: ReturnType<typeof normalizeHealthGoalStatus> | undefined;
+    if (status) {
+      try {
+        normalizedStatus = normalizeHealthGoalStatus(status);
+      } catch {
+        return NextResponse.json({ error: "Invalid goal status" }, { status: 400 });
+      }
+    }
+
     const goal = await prisma.healthGoal.update({
       where: { id },
       data: {
         ...(currentValue !== undefined && { currentValue }),
-        ...(status && { status: status.toUpperCase() }),
+        ...(normalizedStatus !== undefined && { status: normalizedStatus }),
         ...(notes !== undefined && { notes }),
-        ...(status === "ACHIEVED" && { completedAt: new Date() }),
+        ...(normalizedStatus === "ACHIEVED" && { completedAt: new Date() }),
       },
       include: {
         biomarker: {

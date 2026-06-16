@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, type ComponentType } from "react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -170,6 +171,7 @@ const TIME_SLOTS = Array.from({ length: 11 }, (_, i) => {
 });
 
 export default function BookingsCalendarPage() {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"week" | "day" | "list">("week");
@@ -183,6 +185,7 @@ export default function BookingsCalendarPage() {
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [doctors, setDoctors] = useState<DoctorOption[]>([]);
   const [assigningDoctor, setAssigningDoctor] = useState(false);
+  const isDoctor = user?.role === "DOCTOR";
 
   // Fetch bookings
   useEffect(() => {
@@ -190,6 +193,8 @@ export default function BookingsCalendarPage() {
   }, [currentDate]);
 
   useEffect(() => {
+    if (isDoctor) return;
+
     fetch("/api/admin/staff")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -206,7 +211,7 @@ export default function BookingsCalendarPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [isDoctor]);
 
   const fetchBookings = async () => {
     setIsLoading(true);
@@ -392,80 +397,84 @@ export default function BookingsCalendarPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif text-foreground flex items-center gap-2">
-            <Calendar className="w-7 h-7 text-primary" />
-            Bookings Calendar
+            <Calendar className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
+            {isDoctor ? "My Bookings" : "Bookings Calendar"}
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage all consultations and appointments across patients
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            {isDoctor
+              ? "Your assigned consultations and appointments"
+              : "Manage all consultations and appointments across patients"}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchBookings}>
+          <Button variant="outline" onClick={fetchBookings} className="flex-1 sm:flex-none">
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            New Booking
-          </Button>
+          {!isDoctor && (
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              New Booking
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 sm:pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Today</p>
-                <p className="text-3xl font-bold">{stats.todayCount}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{stats.todayCount}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <CalendarDays className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 sm:pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">This Week</p>
-                <p className="text-3xl font-bold">{stats.weekCount}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{stats.weekCount}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-blue-500" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 sm:pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Confirmed</p>
-                <p className="text-3xl font-bold text-green-600">{stats.confirmedCount}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-green-600">{stats.confirmedCount}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-500" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 sm:pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-3xl font-bold text-amber-600">{stats.pendingCount}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-amber-600">{stats.pendingCount}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-amber-500" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
               </div>
             </div>
           </CardContent>
@@ -485,37 +494,37 @@ export default function BookingsCalendarPage() {
 
       {/* Filters and Controls */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="p-4 sm:pt-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             {/* Week Navigation */}
-            <div className="flex items-center gap-3">
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:gap-3">
               <Button variant="outline" size="icon" onClick={() => navigateWeek(-1)}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <div className="text-center min-w-[200px]">
-                <p className="font-semibold">{getWeekDateRange()}</p>
+              <div className="text-center min-w-0 sm:min-w-[200px]">
+                <p className="font-semibold text-sm sm:text-base truncate">{getWeekDateRange()}</p>
               </div>
               <Button variant="outline" size="icon" onClick={() => navigateWeek(1)}>
                 <ChevronRight className="w-4 h-4" />
               </Button>
-              <Button variant="outline" size="sm" onClick={goToToday}>
+              <Button variant="outline" size="sm" onClick={goToToday} className="col-span-3 sm:col-span-1">
                 Today
               </Button>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
+              <div className="relative sm:col-span-2 lg:col-span-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search patients..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-[200px]"
+                  className="pl-9 w-full lg:w-[200px]"
                 />
               </div>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full lg:w-[140px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -528,7 +537,7 @@ export default function BookingsCalendarPage() {
                 </SelectContent>
               </Select>
               <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-full lg:w-[160px]">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -541,12 +550,12 @@ export default function BookingsCalendarPage() {
               </Select>
 
               {/* View Mode Toggle */}
-              <div className="flex border rounded-lg p-1">
+              <div className="flex border rounded-lg p-1 sm:col-span-2 lg:col-span-1">
                 <Button
                   variant={viewMode === "week" ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("week")}
-                  className="gap-1"
+                  className="flex-1 gap-1 lg:flex-none"
                 >
                   <CalendarDays className="w-4 h-4" />
                   Week
@@ -555,7 +564,7 @@ export default function BookingsCalendarPage() {
                   variant={viewMode === "list" ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("list")}
-                  className="gap-1"
+                  className="flex-1 gap-1 lg:flex-none"
                 >
                   <List className="w-4 h-4" />
                   List
@@ -570,7 +579,82 @@ export default function BookingsCalendarPage() {
       {viewMode === "week" && (
         <Card>
           <CardContent className="p-0">
-            <div className="grid grid-cols-7 border-b">
+            <div className="md:hidden divide-y">
+              {weekDays.map((day) => (
+                <div
+                  key={day.date}
+                  className={`${day.isToday ? "bg-primary/5" : ""}`}
+                >
+                  <div className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {day.dayName}
+                      </p>
+                      <p className={`text-lg font-semibold ${day.isToday ? "text-primary" : ""}`}>
+                        {formatSydneyDate(day.date, {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </p>
+                    </div>
+                    <Badge variant={day.bookings.length > 0 ? "default" : "secondary"}>
+                      {day.bookings.length} {day.bookings.length === 1 ? "booking" : "bookings"}
+                    </Badge>
+                  </div>
+
+                  <div className="px-4 pb-4 space-y-3">
+                    {day.bookings.length === 0 ? (
+                      <div className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+                        No bookings
+                      </div>
+                    ) : (
+                      day.bookings.map((booking) => {
+                        const StatusIcon = STATUS_STYLES[booking.status]?.icon || Clock;
+                        const statusStyle = STATUS_STYLES[booking.status];
+
+                        return (
+                          <button
+                            key={booking.id}
+                            onClick={() => setSelectedBooking(booking)}
+                            className="w-full rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="font-semibold truncate">{booking.patientName}</p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {booking.title}
+                                </p>
+                              </div>
+                              <Badge className={`${statusStyle?.bg} ${statusStyle?.text} shrink-0`}>
+                                <StatusIcon className="w-3 h-3 mr-1" />
+                                {formatStatusLabel(booking.status)}
+                              </Badge>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {formatSydneyTime(booking.scheduledAt)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                {booking.location === "Video" ? (
+                                  <Video className="w-4 h-4" />
+                                ) : (
+                                  <Phone className="w-4 h-4" />
+                                )}
+                                {booking.duration} min
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden md:grid grid-cols-7 border-b">
               {weekDays.map((day) => (
                 <div
                   key={day.date}
@@ -595,7 +679,7 @@ export default function BookingsCalendarPage() {
               ))}
             </div>
 
-            <div className="grid grid-cols-7 min-h-[500px]">
+            <div className="hidden md:grid grid-cols-7 min-h-[500px]">
               {weekDays.map((day) => (
                 <div
                   key={day.date}
@@ -606,7 +690,6 @@ export default function BookingsCalendarPage() {
                   <ScrollArea className="h-[480px]">
                     <div className="space-y-2">
                       {day.bookings.map((booking) => {
-                        const StatusIcon = STATUS_STYLES[booking.status]?.icon || Clock;
                         const time = formatSydneyTime(booking.scheduledAt);
 
                         return (
@@ -651,12 +734,12 @@ export default function BookingsCalendarPage() {
       {/* List View */}
       {viewMode === "list" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle className="text-lg">All Bookings</CardTitle>
             <CardDescription>{filteredBookings.length} bookings found</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[600px]">
+            <ScrollArea className="h-[520px] sm:h-[600px]">
               <div className="divide-y">
                 {filteredBookings.map((booking) => {
                   const StatusIcon = STATUS_STYLES[booking.status]?.icon || Clock;
@@ -665,22 +748,22 @@ export default function BookingsCalendarPage() {
                   return (
                     <div
                       key={booking.id}
-                      className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between"
+                      className="p-4 hover:bg-muted/30 transition-colors flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
                         <Avatar className="h-10 w-10">
                           <AvatarFallback className="bg-primary/10 text-primary">
                             {patientInitials(booking.patientName)}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <Link
                             href={`/admin/crm/customers/${booking.userId}`}
                             className="font-medium hover:text-primary transition-colors"
                           >
                             {booking.patientName}
                           </Link>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                          <div className="mt-1 grid gap-1 text-sm text-muted-foreground sm:flex sm:items-center sm:gap-3">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               {formatSydneyDate(booking.scheduledAt, {
@@ -705,12 +788,14 @@ export default function BookingsCalendarPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline">{booking.type.replace("_", " ")}</Badge>
+                      <div className="flex items-center justify-between gap-3 sm:justify-end">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">{booking.type.replace("_", " ")}</Badge>
                         <Badge className={`${statusStyle?.bg} ${statusStyle?.text}`}>
                           <StatusIcon className="w-3 h-3 mr-1" />
                           {formatStatusLabel(booking.status)}
                         </Badge>
+                        </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
@@ -721,23 +806,27 @@ export default function BookingsCalendarPage() {
                             <DropdownMenuItem onClick={() => setSelectedBooking(booking)}>
                               View Details
                             </DropdownMenuItem>
-                            {canManageBooking(booking) && (
+                            {!isDoctor && canManageBooking(booking) && (
                               <DropdownMenuItem onClick={() => setRescheduleTarget(booking)}>
                                 <CalendarClock className="w-4 h-4 mr-2" />
                                 Reschedule
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(booking.id, "CONFIRMED")}
-                            >
-                              Mark Confirmed
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(booking.id, "COMPLETED")}
-                            >
-                              Mark Completed
-                            </DropdownMenuItem>
-                            {canManageBooking(booking) && (
+                            {!isDoctor && (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(booking.id, "CONFIRMED")}
+                              >
+                                Mark Confirmed
+                              </DropdownMenuItem>
+                            )}
+                            {!isDoctor && (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(booking.id, "COMPLETED")}
+                              >
+                                Mark Completed
+                              </DropdownMenuItem>
+                            )}
+                            {!isDoctor && canManageBooking(booking) && (
                               <DropdownMenuItem
                                 onClick={() => setCancelTarget(booking)}
                                 className="text-red-600"
@@ -766,7 +855,7 @@ export default function BookingsCalendarPage() {
 
       {/* Booking Detail Dialog */}
       <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Stethoscope className="w-5 h-5 text-primary" />
@@ -783,21 +872,21 @@ export default function BookingsCalendarPage() {
                     {patientInitials(selectedBooking.patientName)}
                   </AvatarFallback>
                 </Avatar>
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold">{selectedBooking.patientName}</p>
-                  <p className="text-sm text-muted-foreground">{selectedBooking.patientEmail}</p>
+                  <p className="text-sm text-muted-foreground break-all">{selectedBooking.patientEmail}</p>
                 </div>
               </div>
 
               {/* Details */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <span className="text-sm text-muted-foreground">Type</span>
                   <Badge variant="outline">{selectedBooking.type.replace("_", " ")}</Badge>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between gap-4">
                   <span className="text-sm text-muted-foreground">Date</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-right">
                     {formatSydneyDate(selectedBooking.scheduledAt, {
                       weekday: "long",
                       day: "numeric",
@@ -806,17 +895,17 @@ export default function BookingsCalendarPage() {
                     })}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <span className="text-sm text-muted-foreground">Time (AEST/AEDT)</span>
                   <span className="font-medium">
                     {formatSydneyTime(selectedBooking.scheduledAt)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <span className="text-sm text-muted-foreground">Duration</span>
                   <span className="font-medium">{selectedBooking.duration} minutes</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <span className="text-sm text-muted-foreground">Location</span>
                   <span className="font-medium flex items-center gap-1">
                     {selectedBooking.location === "Video" ? (
@@ -827,34 +916,38 @@ export default function BookingsCalendarPage() {
                     {selectedBooking.location}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <span className="text-sm text-muted-foreground">Status</span>
-                  <Select
-                    value={selectedBooking.status}
-                    onValueChange={(value) => {
-                      handleStatusChange(selectedBooking.id, value);
-                      setSelectedBooking({ ...selectedBooking, status: value as Booking["status"] });
-                    }}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BOOKING_STATUS_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isDoctor ? (
+                    <Badge variant="outline">{formatStatusLabel(selectedBooking.status)}</Badge>
+                  ) : (
+                    <Select
+                      value={selectedBooking.status}
+                      onValueChange={(value) => {
+                        handleStatusChange(selectedBooking.id, value);
+                        setSelectedBooking({ ...selectedBooking, status: value as Booking["status"] });
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BOOKING_STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 {selectedBooking.program && (
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span className="text-sm text-muted-foreground">Program</span>
-                    <span className="font-medium">{selectedBooking.program}</span>
+                    <span className="font-medium text-right">{selectedBooking.program}</span>
                   </div>
                 )}
-                {selectedBooking.source === "consultation" && canManageBooking(selectedBooking) && (
+                {!isDoctor && selectedBooking.source === "consultation" && canManageBooking(selectedBooking) && (
                   <div className="space-y-2 pt-1">
                     <Label className="text-sm text-muted-foreground">Assigned doctor</Label>
                     <div className="flex gap-2">
@@ -886,13 +979,13 @@ export default function BookingsCalendarPage() {
                 )}
               </div>
 
-              {selectedBooking.source === "consultation" && (
+              {!isDoctor && selectedBooking.source === "consultation" && (
                 <BookingChangeHistory bookingId={selectedBooking.id} />
               )}
 
               {/* Actions */}
               <div className="flex flex-col gap-2 pt-4 border-t">
-                {canManageBooking(selectedBooking) && (
+                {!isDoctor && canManageBooking(selectedBooking) && (
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -912,7 +1005,7 @@ export default function BookingsCalendarPage() {
                     </Button>
                   </div>
                 )}
-                <div className="flex gap-2">
+                <div className="grid gap-2 sm:flex">
                   <Link href={`/admin/crm/customers/${selectedBooking.userId}`} className="flex-1">
                     <Button variant="outline" className="w-full">
                       <User className="w-4 h-4 mr-2" />

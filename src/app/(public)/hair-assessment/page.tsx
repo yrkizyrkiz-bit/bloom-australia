@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { scoreHairLoss, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
+import {
+  UnifiedCheckoutScreen,
+  type UnifiedSlot,
+  type UnifiedCheckoutPricing,
+} from "@/components/checkout/UnifiedCheckoutScreen";
+import { resolveAustralianTimezone } from "@/lib/australia-timezone";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -20,6 +26,7 @@ import {
   Stethoscope,
   Package,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // Types
 interface FormData {
@@ -36,8 +43,43 @@ interface FormData {
   pregnancyStatus: string;
   otherConcerns: string[];
   postcode: string;
+  streetAddress: string;
+  addressUnit: string;
+  suburb: string;
+  state: string;
+  consultationDate: string;
+  consultationTime: string;
+  selectedSlotId: string;
   howHeard: string;
 }
+
+type DaySlots = {
+  date: Date;
+  dateStr: string;
+  dayName: string;
+  slots: UnifiedSlot[];
+};
+
+type GenderFilter = "all" | "male" | "female";
+
+type GenderedOption = {
+  label: string;
+  gender?: GenderFilter;
+};
+
+const HAIR_CHECKOUT_PRICING: UnifiedCheckoutPricing = {
+  planName: "Sanative Hair Care",
+  firstMonthList: 79,
+  dueToday: 49,
+  ongoingPrice: 79,
+  discount: 30,
+};
+
+const HAIR_VALUE_PROPS = [
+  "Doctor-led hair assessment",
+  "Treatment if clinically prescribed",
+  "Care team support in your portal",
+];
 
 // Hair stages for men (Norwood scale)
 const maleHairStages = [
@@ -66,22 +108,27 @@ const timelineOptions = [
   "Slowly over many years",
 ];
 
-const medicalConditions = [
-  "Blood pressure concerns",
-  "Dizziness or lightheadedness",
-  "Heart rhythm issues",
-  "Thyroid condition",
-  "PCOS (women only)",
-  "Autoimmune condition",
-  "None of these apply to me",
+const medicalConditions: GenderedOption[] = [
+  { label: "Blood pressure concerns" },
+  { label: "Dizziness or lightheadedness" },
+  { label: "Heart rhythm issues" },
+  { label: "Thyroid condition" },
+  { label: "PCOS", gender: "female" },
+  { label: "Heavy or irregular periods", gender: "female" },
+  { label: "Menopause or perimenopause symptoms", gender: "female" },
+  { label: "Prostate concerns or PSA monitoring", gender: "male" },
+  { label: "Taking testosterone or anabolic steroids", gender: "male" },
+  { label: "Autoimmune condition" },
+  { label: "None of these apply to me" },
 ];
 
 const otherConcernsOptions = [
-  { id: "weight", label: "Weight management" },
-  { id: "hormones", label: "Hormone optimisation" },
-  { id: "energy", label: "Energy & vitality" },
-  { id: "sleep", label: "Sleep quality" },
-  { id: "none", label: "Just hair health for now" },
+  { id: "weight", label: "Weight management", gender: "all" },
+  { id: "hormones", label: "Hormone optimisation", gender: "all" },
+  { id: "womens-hormones", label: "Periods, PCOS or menopause support", gender: "female" },
+  { id: "mens-health", label: "Men's sexual health", gender: "male" },
+  { id: "sleep", label: "Sleep quality", gender: "all" },
+  { id: "none", label: "Just hair health for now", gender: "all" },
 ];
 
 const howHeardOptions = [
@@ -113,6 +160,13 @@ export default function HairAssessmentPage() {
     pregnancyStatus: "",
     otherConcerns: [],
     postcode: "",
+    streetAddress: "",
+    addressUnit: "",
+    suburb: "",
+    state: "",
+    consultationDate: "",
+    consultationTime: "",
+    selectedSlotId: "",
     howHeard: "",
   });
   const [showFAQ, setShowFAQ] = useState(false);
@@ -120,15 +174,94 @@ export default function HairAssessmentPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
+  const [bookingHoldId, setBookingHoldId] = useState<string | null>(null);
+  const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
+  const [holdCountdown, setHoldCountdown] = useState(0);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
+  const [creatingHold, setCreatingHold] = useState(false);
+  const [selectingSlotId, setSelectingSlotId] = useState<string | null>(null);
+  const [offerCountdown, setOfferCountdown] = useState(300);
+  const [portalMagicLink, setPortalMagicLink] = useState<string | null>(null);
 
   // Fetch biomarker campaigns on mount
   useEffect(() => {
     fetchBiomarkerCampaigns('HAIR_LOSS').then(setCampaigns);
   }, []);
 
-  // Total steps (dynamic based on gender)
-  const totalSteps = formData.gender === "female" ? 12 : 11;
+  const postcodeStep = formData.gender === "female" ? 12 : 11;
+  const snapshotStep = postcodeStep + 1;
+  const shippingStep = postcodeStep + 2;
+  const checkoutStep = postcodeStep + 3;
+  const thankYouStep = postcodeStep + 4;
+  const totalSteps = thankYouStep;
   const progress = ((step + 1) / totalSteps) * 100;
+  const patientTimezone = useMemo(
+    () => resolveAustralianTimezone(formData.state, formData.postcode),
+    [formData.state, formData.postcode]
+  );
+  const filteredMedicalConditions = useMemo(
+    () =>
+      medicalConditions.filter(
+        (option) => !option.gender || option.gender === "all" || option.gender === formData.gender
+      ),
+    [formData.gender]
+  );
+  const filteredOtherConcernsOptions = useMemo(
+    () =>
+      otherConcernsOptions.filter(
+        (option) => option.gender === "all" || option.gender === formData.gender
+      ),
+    [formData.gender]
+  );
+
+  useEffect(() => {
+    if (!formData.gender) return;
+
+    const validMedicalLabels = new Set(filteredMedicalConditions.map((option) => option.label));
+    const validConcernLabels = new Set(filteredOtherConcernsOptions.map((option) => option.label));
+
+    setFormData((prev) => ({
+      ...prev,
+      medicalConditions: prev.medicalConditions.filter((condition) =>
+        validMedicalLabels.has(condition)
+      ),
+      otherConcerns: prev.otherConcerns.filter((concern) =>
+        validConcernLabels.has(concern)
+      ),
+      pregnancyStatus: prev.gender === "female" ? prev.pregnancyStatus : "",
+    }));
+  }, [filteredMedicalConditions, filteredOtherConcernsOptions, formData.gender]);
+
+  useEffect(() => {
+    if (offerCountdown > 0 && step >= checkoutStep) {
+      const timer = setInterval(() => {
+        setOfferCountdown((prev) => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [checkoutStep, offerCountdown, step]);
+
+  useEffect(() => {
+    if (!holdExpiry) return;
+    const timer = setInterval(() => {
+      const remaining = Math.max(
+        0,
+        Math.floor((holdExpiry.getTime() - Date.now()) / 1000)
+      );
+      setHoldCountdown(remaining);
+      if (remaining === 0) {
+        setBookingHoldId(null);
+        setHoldExpiry(null);
+        updateFormData("selectedSlotId", "");
+        updateFormData("consultationDate", "");
+        updateFormData("consultationTime", "");
+        setSlotsRefreshKey((k) => k + 1);
+        clearInterval(timer);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [holdExpiry]);
 
   const updateFormData = (field: keyof FormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -184,12 +317,26 @@ export default function HairAssessmentPage() {
         if (formData.gender === "female") return formData.otherConcerns.length > 0;
         return formData.postcode.length >= 4;
       case 12: return formData.postcode.length >= 4;
+      case shippingStep:
+        return Boolean(
+          formData.phone.trim() &&
+          formData.lastName.trim() &&
+          formData.streetAddress.trim() &&
+          formData.suburb.trim() &&
+          formData.state.trim() &&
+          formData.postcode.length >= 4
+        );
+      case checkoutStep: return true;
       default: return true;
     }
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (canProceed() && step < totalSteps) {
+      if (step === shippingStep) {
+        const saved = await saveHairIntake();
+        if (!saved) return;
+      }
       setStep(step + 1);
       window.scrollTo(0, 0);
     }
@@ -261,7 +408,206 @@ export default function HairAssessmentPage() {
     }
   };
 
+  const saveHairIntake = async (): Promise<boolean> => {
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    try {
+      const response = await fetch("/api/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programType: "HAIR_LOSS",
+          ...formData,
+          selectedPlan: "hair_care",
+          completedAt: new Date().toISOString(),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.detail || "Could not save your details");
+      }
+
+      setUserId(data.userId);
+      toast.success("Details saved", {
+        description: "Now choose your consultation time.",
+      });
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      setSubmissionError(message);
+      toast.error("Could not save your details", { description: message });
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatSlotDate = (isoString: string) =>
+    new Date(isoString).toLocaleDateString("en-AU", {
+      timeZone: patientTimezone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+
+  const formatSlotTime = (isoString: string) =>
+    new Date(isoString).toLocaleTimeString("en-AU", {
+      timeZone: patientTimezone,
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+  const handleSlotSelection = async (slot: UnifiedSlot) => {
+    if (slot.availabilityStatus === "BOOKED" || creatingHold) return;
+    if (formData.selectedSlotId === slot.slotId) return;
+
+    const previousHoldId = bookingHoldId;
+    const previousSlotId = formData.selectedSlotId;
+    setCreatingHold(true);
+    setSelectingSlotId(slot.slotId);
+    setSlotsError(null);
+
+    try {
+      updateFormData("selectedSlotId", slot.slotId);
+      updateFormData("consultationDate", formatSlotDate(slot.startTime));
+      updateFormData("consultationTime", formatSlotTime(slot.startTime));
+
+      const response = await fetch("/api/bookings/hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId || undefined,
+          slotId: slot.slotId,
+          selectedPlan: "CORE",
+          programType: "HAIR_LOSS",
+          patientPhone: formData.phone || undefined,
+          riskFlags: ["HAIR_LOSS_PROGRAM"],
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reserve this time");
+      }
+
+      setBookingHoldId(data.bookingHoldId);
+      setHoldExpiry(new Date(data.holdExpiryTime));
+      setSlotsRefreshKey((k) => k + 1);
+
+      if (previousHoldId && previousHoldId !== data.bookingHoldId) {
+        fetch(`/api/bookings/hold?holdId=${previousHoldId}`, {
+          method: "DELETE",
+        }).catch(() => {});
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to reserve this time";
+      setSlotsError(message);
+      updateFormData("selectedSlotId", previousSlotId);
+      if (!previousSlotId) {
+        updateFormData("consultationDate", "");
+        updateFormData("consultationTime", "");
+      }
+      setBookingHoldId(previousHoldId);
+      toast.error("Could not reserve this slot", { description: message });
+    } finally {
+      setCreatingHold(false);
+      setSelectingSlotId(null);
+    }
+  };
+
+  const handleCheckoutPaymentSuccess = async (paymentIntentId?: string) => {
+    if (!bookingHoldId) {
+      setStep(thankYouStep);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/bookings/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingHoldId,
+          paymentIntentId: paymentIntentId || "pi_hair_manual_confirmation",
+          userId,
+          selectedPlan: "CORE",
+          clientOrigin:
+            typeof window !== "undefined" ? window.location.origin : undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        if (data.magicLink) setPortalMagicLink(data.magicLink);
+        toast.success("Booking confirmed", {
+          description: `Your consultation is scheduled for ${formData.consultationDate} at ${formData.consultationTime}`,
+        });
+      } else {
+        toast.success("Payment successful", {
+          description: data.error || "Your consultation will be confirmed shortly.",
+        });
+      }
+    } catch (error) {
+      console.error("[Hair Assessment] Booking confirmation error:", error);
+      toast.success("Payment successful", {
+        description: "Your consultation will be confirmed shortly.",
+      });
+    } finally {
+      setBookingHoldId(null);
+      setHoldExpiry(null);
+      setStep(thankYouStep);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handleCheckoutPaymentError = (error: string) => {
+    toast.error("Payment failed", { description: error });
+  };
+
   const renderStep = () => {
+    if (step === snapshotStep) {
+      const risks = scoreHairLoss(
+        formData as unknown as Record<string, unknown>,
+        campaigns
+      ).map((risk) =>
+        risk.crossSell?.toLowerCase().includes("vitality")
+          ? {
+              ...risk,
+              crossSell: undefined,
+              crossSellPath: undefined,
+              crossSellPrice: undefined,
+            }
+          : risk
+      );
+      return (
+        <BiomarkerSnapshot
+          risks={risks}
+          primaryProgram="Hair Loss Program"
+          primaryPrice="$49 first month"
+          firstName={formData.firstName}
+          onPrimary={() => {
+            setStep(shippingStep);
+            window.scrollTo(0, 0);
+          }}
+          onLabs={() => window.location.href = '/labs'}
+        />
+      );
+    }
+
+    if (step === shippingStep) {
+      return renderHairDetailsStep();
+    }
+
+    if (step === checkoutStep) {
+      return renderHairCheckoutStep();
+    }
+
+    if (step === thankYouStep) {
+      return renderThankYouStep();
+    }
+
     switch (step) {
       // Step 0: Your journey
       case 0:
@@ -674,29 +1020,27 @@ export default function HairAssessmentPage() {
             </div>
 
             <div className="space-y-3 mt-8">
-              {medicalConditions
-                .filter(c => formData.gender === "male" ? c !== "PCOS (women only)" : true)
-                .map((condition) => (
+              {filteredMedicalConditions.map((condition) => (
                 <button
-                  key={condition}
+                  key={condition.label}
                   type="button"
-                  onClick={() => toggleArrayField("medicalConditions", condition)}
+                  onClick={() => toggleArrayField("medicalConditions", condition.label)}
                   className={`w-full py-4 px-5 rounded-xl border-2 text-left flex items-center gap-3 transition-all ${
-                    formData.medicalConditions.includes(condition)
+                    formData.medicalConditions.includes(condition.label)
                       ? "border-[#5c7a52] bg-[#5c7a52]/10"
                       : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"
                   }`}
                 >
                   <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                    formData.medicalConditions.includes(condition)
+                    formData.medicalConditions.includes(condition.label)
                       ? "border-[#5c7a52] bg-[#5c7a52]"
                       : "border-[#cdd8c6]"
                   }`}>
-                    {formData.medicalConditions.includes(condition) && (
+                    {formData.medicalConditions.includes(condition.label) && (
                       <Check className="w-3 h-3 text-white" />
                     )}
                   </div>
-                  <span className="text-[#2c3628]">{condition}</span>
+                  <span className="text-[#2c3628]">{condition.label}</span>
                 </button>
               ))}
             </div>
@@ -757,20 +1101,195 @@ export default function HairAssessmentPage() {
         return renderPostcode();
 
       default:
-        // Final step: Show biomarker snapshot
-        const risks = scoreHairLoss(formData as unknown as Record<string, unknown>, campaigns);
-        return (
-          <BiomarkerSnapshot
-            risks={risks}
-            primaryProgram="Hair Loss Program"
-            primaryPrice="$79/mo"
-            firstName={formData.firstName}
-            onPrimary={handleSubmit}
-            onLabs={() => window.location.href = '/labs'}
-          />
-        );
+        return null;
     }
   };
+
+  const renderHairDetailsStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
+          Where should we send your treatment if prescribed?
+        </h1>
+        <p className="mt-3 text-[#5c7a52]">
+          We use this for delivery, timezone and care team triage.
+        </p>
+      </div>
+
+      {submissionError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">
+          {submissionError}
+        </div>
+      )}
+
+      <div className="space-y-4 mt-8">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-[#2c3628] mb-2">
+              Last name
+            </label>
+            <input
+              type="text"
+              value={formData.lastName}
+              onChange={(e) => updateFormData("lastName", e.target.value)}
+              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#2c3628] mb-2">
+              Mobile number
+            </label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => updateFormData("phone", e.target.value)}
+              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
+              placeholder="04XX XXX XXX"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-[#2c3628] mb-2">
+            Street address
+          </label>
+          <input
+            type="text"
+            value={formData.streetAddress}
+            onChange={(e) => updateFormData("streetAddress", e.target.value)}
+            className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
+            placeholder="Street address"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-[#2c3628] mb-2">
+            Apartment/unit (optional)
+          </label>
+          <input
+            type="text"
+            value={formData.addressUnit}
+            onChange={(e) => updateFormData("addressUnit", e.target.value)}
+            className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
+          />
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-[#2c3628] mb-2">
+              Suburb
+            </label>
+            <input
+              type="text"
+              value={formData.suburb}
+              onChange={(e) => updateFormData("suburb", e.target.value)}
+              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#2c3628] mb-2">
+              State
+            </label>
+            <select
+              value={formData.state}
+              onChange={(e) => updateFormData("state", e.target.value)}
+              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
+            >
+              <option value="">Select</option>
+              {["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"].map((state) => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#2c3628] mb-2">
+              Postcode
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={formData.postcode}
+              onChange={(e) => updateFormData("postcode", e.target.value.replace(/\D/g, "").slice(0, 4))}
+              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
+              maxLength={4}
+            />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-[#e6ebe3] p-4">
+          <p className="font-semibold text-[#2c3628]">Hair Care plan</p>
+          <p className="text-sm text-[#5c7a52] mt-1">
+            $49 first month with a $30 first-month discount, then $79/month if clinically approved.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderHairCheckoutStep = () => (
+    <UnifiedCheckoutScreen
+      formData={{
+        consultationDate: formData.consultationDate,
+        consultationTime: formData.consultationTime,
+        selectedSlotId: formData.selectedSlotId,
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      }}
+      userId={userId}
+      bookingHoldId={bookingHoldId}
+      holdCountdown={holdCountdown}
+      offerCountdown={offerCountdown}
+      slotsError={slotsError}
+      slotsRefreshKey={slotsRefreshKey}
+      creatingHold={creatingHold}
+      selectingSlotId={selectingSlotId}
+      onSlotSelect={handleSlotSelection}
+      onSlotsError={setSlotsError}
+      onPaymentSuccess={handleCheckoutPaymentSuccess}
+      onPaymentError={handleCheckoutPaymentError}
+      patientTimezone={patientTimezone}
+      pricing={HAIR_CHECKOUT_PRICING}
+      valueProps={HAIR_VALUE_PROPS}
+      programType="hair_loss"
+    />
+  );
+
+  const renderThankYouStep = () => (
+    <div className="text-center space-y-6">
+      <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center">
+        <Check className="w-10 h-10 text-white" />
+      </div>
+      <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
+        You're booked in
+      </h1>
+      <p className="text-[#5c7a52] max-w-md mx-auto">
+        Your hair care questionnaire is with our care team for triage. A doctor will review your suitability before treatment is prescribed.
+      </p>
+      <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5 text-left space-y-3">
+        <p className="font-semibold text-[#2c3628]">What happens next</p>
+        {[
+          "Care team triage with a Hair Loss badge",
+          "Doctor consultation at your selected time",
+          "Hair module access in your portal if clinically appropriate",
+        ].map((item) => (
+          <div key={item} className="flex items-center gap-2 text-sm text-[#5c7a52]">
+            <Check className="w-4 h-4" />
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+      {portalMagicLink && (
+        <a
+          href={portalMagicLink}
+          className="btn-primary inline-flex items-center justify-center gap-2"
+        >
+          Go to portal
+          <ArrowRight className="w-5 h-5" />
+        </a>
+      )}
+    </div>
+  );
 
   const renderOtherConcerns = () => (
     <div className="space-y-6">
@@ -784,7 +1303,7 @@ export default function HairAssessmentPage() {
       </div>
 
       <div className="space-y-3 mt-8">
-        {otherConcernsOptions.map((option) => (
+        {filteredOtherConcernsOptions.map((option) => (
           <button
             key={option.id}
             type="button"
@@ -966,7 +1485,7 @@ export default function HairAssessmentPage() {
       </main>
 
       {/* Bottom navigation */}
-      {step < totalSteps && (
+      {step < totalSteps && step !== snapshotStep && step !== checkoutStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
             {step > 0 && (
@@ -984,7 +1503,13 @@ export default function HairAssessmentPage() {
               disabled={!canProceed()}
               className="flex-1 py-4 bg-[#5c7a52] text-white font-medium rounded-xl hover:bg-[#4a6343] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {step === 0 ? "Let's begin" : "Continue"}
+              {isSubmitting
+                ? "Saving..."
+                : step === 0
+                  ? "Let's begin"
+                  : step === shippingStep
+                    ? "Continue to booking"
+                    : "Continue"}
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>

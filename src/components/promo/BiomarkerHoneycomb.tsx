@@ -16,7 +16,6 @@ const biomarkers: Biomarker[] = [
   { id: "HDL", name: "HDL", fullName: "HDL Cholesterol", description: "High-density lipoprotein cholesterol, known as 'good' cholesterol. Helps remove other forms of cholesterol from bloodstream.", categories: ["heart", "metabolism"] },
   { id: "TC", name: "TC", fullName: "Total Cholesterol", description: "The total amount of cholesterol in your blood, including LDL, HDL, and other lipid components.", categories: ["heart"] },
   { id: "TG", name: "TG", fullName: "Triglycerides", description: "A type of fat in your blood. High levels may increase risk of heart disease.", categories: ["heart", "metabolism"] },
-  { id: "ApoB", name: "ApoB", fullName: "Apolipoprotein B", description: "A protein that helps carry fat and cholesterol through your body. May be a better predictor of heart disease than LDL.", categories: ["heart"] },
   { id: "hsCRP", name: "hsCRP", fullName: "High-Sensitivity CRP", description: "Measures inflammation in the body. Elevated levels may indicate increased cardiovascular risk.", categories: ["heart", "inflammation"] },
 
   // Metabolism

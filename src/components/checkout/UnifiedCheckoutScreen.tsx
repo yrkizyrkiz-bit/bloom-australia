@@ -102,6 +102,8 @@ const CORE_PRICING = {
   discount: 100,
 };
 
+export type UnifiedCheckoutPricing = typeof CORE_PRICING;
+
 const TRUST_BADGES = [
   {
     icon: Shield,
@@ -187,6 +189,9 @@ interface OrderSummaryCardProps {
   offerCountdown: number;
   holdCountdown: number;
   hasSlot: boolean;
+  pricing: UnifiedCheckoutPricing;
+  valueProps: string[];
+  trustBadges: typeof TRUST_BADGES;
   className?: string;
 }
 
@@ -195,10 +200,11 @@ function OrderSummaryCard({
   offerCountdown,
   holdCountdown,
   hasSlot,
+  pricing,
+  valueProps,
+  trustBadges,
   className = "",
 }: OrderSummaryCardProps) {
-  const pricing = CORE_PRICING;
-
   return (
     <div
       className={`bg-white rounded-3xl border border-[#e6ebe3] shadow-[0_8px_40px_rgba(44,54,40,0.08)] overflow-hidden flex flex-col ${CHECKOUT_COLUMN_HEIGHT} ${className}`}
@@ -213,7 +219,7 @@ function OrderSummaryCard({
           <div className="mt-3 inline-flex items-center gap-2 py-2 px-3 bg-amber-400/20 border border-amber-300/40 rounded-lg">
             <Timer className="w-4 h-4 text-amber-200 flex-shrink-0" />
             <span className="text-sm font-semibold text-amber-50">
-              Save $100 · ends in {formatOfferCountdown(offerCountdown)}
+              Save ${pricing.discount} · ends in {formatOfferCountdown(offerCountdown)}
             </span>
           </div>
         )}
@@ -234,7 +240,7 @@ function OrderSummaryCard({
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-6 py-4 gap-3">
         <ul className="space-y-2 shrink-0">
-          {VALUE_PROPS.map((prop) => (
+          {valueProps.map((prop) => (
             <li key={prop} className="flex items-center gap-2 text-[#2c3628]">
               <span className="w-5 h-5 rounded-full bg-[#5c7a52]/10 flex items-center justify-center flex-shrink-0">
                 <Check className="w-3 h-3 text-[#5c7a52]" />
@@ -245,7 +251,7 @@ function OrderSummaryCard({
         </ul>
 
         <div className="space-y-2 border-t border-[#e6ebe3] pt-3 shrink-0">
-          {TRUST_BADGES.map(({ icon: Icon, title, description }) => (
+          {trustBadges.map(({ icon: Icon, title, description }) => (
             <div key={title} className="flex gap-2.5 items-start">
               <div className="w-7 h-7 rounded-lg bg-[#f4f7f2] flex items-center justify-center flex-shrink-0">
                 <Icon className="w-3.5 h-3.5 text-[#5c7a52]" />
@@ -614,6 +620,10 @@ export interface UnifiedCheckoutScreenProps {
   onPaymentError: (error: string) => void;
   /** Patient IANA timezone for display (from profile address) */
   patientTimezone?: string;
+  pricing?: UnifiedCheckoutPricing;
+  valueProps?: string[];
+  trustBadges?: typeof TRUST_BADGES;
+  programType?: "weight_management" | "hair_loss";
 }
 
 const PAYMENT_FORM_ID = "wm-unified-checkout-payment";
@@ -633,6 +643,10 @@ export function UnifiedCheckoutScreen({
   onPaymentSuccess,
   onPaymentError,
   patientTimezone: patientTimezoneProp,
+  pricing: pricingProp,
+  valueProps = VALUE_PROPS,
+  trustBadges = TRUST_BADGES,
+  programType = "weight_management",
 }: UnifiedCheckoutScreenProps) {
   const patientTimezone = patientTimezoneProp ?? CLINIC_TIMEZONE;
   const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -707,7 +721,7 @@ export function UnifiedCheckoutScreen({
 
   const hasSlot = Boolean(formData.selectedSlotId && bookingHoldId);
   const holdExpired = hasSlot && holdCountdown <= 0;
-  const pricing = CORE_PRICING;
+  const pricing = pricingProp ?? CORE_PRICING;
 
   const canPay =
     Boolean(userId) &&
@@ -725,6 +739,9 @@ export function UnifiedCheckoutScreen({
     offerCountdown,
     holdCountdown,
     hasSlot,
+    pricing,
+    valueProps,
+    trustBadges,
   };
 
   const pickerProps = {
@@ -759,6 +776,7 @@ export function UnifiedCheckoutScreen({
     onPaymentError,
     onReadyChange: setStripeReady,
     onProcessingChange: setPaymentProcessing,
+    programType,
     showPayButton: true as const,
     payDisabled: ctaDisabled,
     payLoading: ctaLoading,
@@ -882,6 +900,7 @@ function PaymentBlock({
   formData,
   bookingHoldId,
   pricing,
+  programType,
   onPaymentSuccess,
   onPaymentError,
   onReadyChange,
@@ -897,7 +916,8 @@ function PaymentBlock({
   userId: string | null;
   formData: UnifiedCheckoutFormData;
   bookingHoldId: string | null;
-  pricing: typeof CORE_PRICING;
+  pricing: UnifiedCheckoutPricing;
+  programType: "weight_management" | "hair_loss";
   onPaymentSuccess: (paymentIntentId?: string) => void;
   onPaymentError: (error: string) => void;
   onReadyChange: (ready: boolean) => void;
@@ -939,6 +959,8 @@ function PaymentBlock({
         <StripePaymentForm
           userId={userId}
           selectedPlan="core"
+          programType={programType}
+          planName={pricing.planName}
           firstMonthAmount={pricing.dueToday * 100}
           ongoingMonthlyAmount={pricing.ongoingPrice * 100}
           discountAmount={pricing.discount * 100}

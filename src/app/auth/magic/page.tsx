@@ -9,7 +9,7 @@ const PROGRAM_ROUTES: Record<string, string> = {
   weight_management: "/dashboard/weight-management?onboarding=post-checkout",
   womens_health:     "/dashboard/womens-health",
   mens_health:       "/dashboard/mens-health",
-  hair_loss:         "/dashboard/mens-health",
+  hair_loss:         "/dashboard/mens-health/hair-loss",
   fatty_liver:       "/dashboard/weight-management?onboarding=post-checkout",
 };
 

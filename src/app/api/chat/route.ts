@@ -91,9 +91,16 @@ export async function POST(request: NextRequest) {
       });
 
       if (existingSession) {
+        const sessionWithMessages = await prisma.chatSession.findUnique({
+          where: { id: existingSession.id },
+          include: {
+            messages: { orderBy: { createdAt: "asc" } },
+          },
+        });
+
         return NextResponse.json({
-          session: existingSession,
-          message: "Existing session found"
+          session: sessionWithMessages ?? existingSession,
+          message: "Existing session found",
         });
       }
 

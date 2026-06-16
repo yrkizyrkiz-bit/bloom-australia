@@ -144,7 +144,7 @@ const healthTestConfigs: Record<string, {
         icon: Droplets,
         color: "#0ea5e9",
         bgColor: "bg-cyan-600/10",
-        biomarkerIds: ["creatinine", "egfr", "bun", "cystatin_c"]
+        biomarkerIds: ["creatinine", "egfr", "bun"]
       },
       urine: {
         name: "Urine Markers",

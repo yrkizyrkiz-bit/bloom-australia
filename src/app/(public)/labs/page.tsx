@@ -803,7 +803,7 @@ function LabsPageContent() {
                 </div>
                 <h3 className="text-xl font-serif text-gray-900 mb-2">Heart Health Panel</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Advanced cardiovascular risk assessment including ApoB and Lp(a).
+                  Cardiovascular risk assessment with standard lipid and inflammation markers.
                 </p>
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -812,11 +812,7 @@ function LabsPageContent() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Check className="w-4 h-4 text-green-500" />
-                    <span>ApoB & Lp(a)</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>hs-CRP Inflammation</span>
+                    <span>hs-CRP & Homocysteine</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Check className="w-4 h-4 text-green-500" />
@@ -893,10 +889,6 @@ function LabsPageContent() {
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Check className="w-4 h-4 text-green-500" />
                     <span>Thyroid Antibodies</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Reverse T3</span>
                   </div>
                 </div>
                 <div className="flex items-baseline gap-2 mb-4">

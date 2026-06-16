@@ -236,7 +236,7 @@ export default function KidneyHealthPage() {
   ];
 
   const biomarkers = [
-    { name: "Kidney Function", markers: ["Creatinine", "eGFR", "BUN", "Cystatin C"], category: "Core" },
+    { name: "Kidney Function", markers: ["Creatinine", "eGFR", "BUN"], category: "Core" },
     { name: "Protein/Albumin", markers: ["uACR", "Serum Albumin", "Total Protein"], category: "Damage" },
     { name: "Metabolic Panel", markers: ["HbA1c", "Fasting Glucose", "Insulin", "HOMA-IR"], category: "Risk" },
     { name: "Electrolytes", markers: ["Sodium", "Potassium", "Phosphorus", "Calcium"], category: "Balance" },
@@ -562,8 +562,7 @@ export default function KidneyHealthPage() {
                   We look at the full picture — including markers that show metabolic stress on your kidneys <em>before</em> damage happens.
                 </p>
                 <p className="text-gray-600 mb-6">
-                  For example, <strong className="text-teal-600">Cystatin C</strong> is a newer kidney marker that's often more accurate than creatinine —
-                  especially for people with different muscle mass or certain health conditions. It's one of many markers we include that most basic tests leave out.
+                  We also track <strong className="text-teal-600">uACR and metabolic markers</strong> — protein in urine and blood sugar stress on the kidneys often show up before creatinine rises.
                 </p>
                 <div className="bg-white rounded-2xl p-4 text-xs text-gray-600 border border-teal-100">
                   <p className="font-medium mb-2">References:</p>
@@ -585,7 +584,7 @@ export default function KidneyHealthPage() {
                 </div>
                 <ul className="space-y-3 mb-6">
                   {[
-                    "Kidney function tests (Creatinine, eGFR, BUN, Cystatin C)",
+                    "Kidney function tests (Creatinine, eGFR, BUN)",
                     "Kidney damage markers (uACR, Serum Albumin)",
                     "Metabolic health (HbA1c, Insulin, HOMA-IR)",
                     "Electrolytes (Sodium, Potassium, Phosphorus, Calcium)",

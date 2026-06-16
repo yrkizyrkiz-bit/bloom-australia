@@ -166,6 +166,27 @@ function FAQItem({
   );
 }
 
+type HairLossCause = {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  details: string;
+  prevalence: string;
+  image: string;
+  heroImage?: string;
+  heroImageFit?: "cover" | "contain";
+  imageCaption?: string;
+};
+
+function getCauseHeroVisual(cause: HairLossCause) {
+  return {
+    src: cause.heroImage ?? cause.image,
+    fit: cause.heroImageFit ?? "cover",
+    caption: cause.imageCaption,
+  };
+}
+
 function HairHealthPageContent() {
   const searchParams = useSearchParams();
   const [gender, setGender] = useState<"men" | "women">("women");
@@ -233,7 +254,7 @@ function HairHealthPageContent() {
     },
   ];
 
-  const hairLossCausesMen = [
+  const hairLossCausesMen: HairLossCause[] = [
     {
       id: "hereditary",
       title: "Hereditary",
@@ -241,7 +262,8 @@ function HairHealthPageContent() {
       description: "Hereditary hair loss in men, also known as androgenetic alopecia, is the most common form of hair loss. Typical signs are a receding hairline, receding hairline and thinning hair on the crown.",
       details: "This is caused by a genetic predisposition in combination with a hypersensitivity to dihydrotestosterone (DHT) — a hormone that causes hair follicles to shrink and shortens hair growth. If left untreated, this can lead to complete baldness.",
       prevalence: "95% of cases",
-      image: "https://images.pexels.com/photos/7697913/pexels-photo-7697913.jpeg?auto=compress&cs=tinysrgb&w=600",
+      image: "https://images.pexels.com/photos/7697913/pexels-photo-7697913.jpeg?auto=compress&cs=tinysrgb&w=800",
+      imageCaption: "Receding hairline and crown thinning — classic male pattern",
     },
     {
       id: "diffuse",
@@ -250,7 +272,8 @@ function HairHealthPageContent() {
       description: "Diffuse hair loss in men is characterized by a uniform thinning of the hair over the entire scalp, rather than a specific pattern only on the top of the head as in hereditary hair loss.",
       details: "It can be caused by various factors such as hormonal changes, stress, nutritional deficiencies or disease. A gradual loss of hair density can occur without certain areas of the head being more affected than others.",
       prevalence: "Common",
-      image: "https://images.pexels.com/photos/6829573/pexels-photo-6829573.jpeg?auto=compress&cs=tinysrgb&w=600",
+      image: "https://images.pexels.com/photos/6829573/pexels-photo-6829573.jpeg?auto=compress&cs=tinysrgb&w=800",
+      imageCaption: "Uniform thinning across the scalp without a single bald patch",
     },
     {
       id: "circular",
@@ -259,7 +282,8 @@ function HairHealthPageContent() {
       description: "Circular hair loss in men is characterized by the sudden appearance of circular or oval bald patches on the scalp. These bald patches can develop at different rates and vary in size.",
       details: "The exact cause is not fully understood, but it is thought to be an autoimmune disorder in which the immune system attacks the hair follicles. This condition can affect men of any age and may resolve on its own or require treatment.",
       prevalence: "2% of population",
-      image: "https://images.pexels.com/photos/5646825/pexels-photo-5646825.jpeg?auto=compress&cs=tinysrgb&w=600",
+      image: "https://images.pexels.com/photos/5646825/pexels-photo-5646825.jpeg?auto=compress&cs=tinysrgb&w=800",
+      imageCaption: "Well-defined round patches of sudden hair loss",
     },
     {
       id: "traction",
@@ -268,11 +292,12 @@ function HairHealthPageContent() {
       description: "Traction alopecia is caused by repeated pulling or tugging on the hair, typically by certain hairstyles such as tight ponytails, braids, or man buns worn consistently over time.",
       details: "This pulling can lead to damage to the hair follicles and permanent hair loss in the affected areas. Traction alopecia often appears along the hairline or on the sides of the head. Early intervention is key to preventing permanent damage.",
       prevalence: "Lifestyle-related",
-      image: "https://images.pexels.com/photos/32721706/pexels-photo-32721706.jpeg?auto=compress&cs=tinysrgb&w=600",
+      image: "https://images.pexels.com/photos/32721706/pexels-photo-32721706.jpeg?auto=compress&cs=tinysrgb&w=800",
+      imageCaption: "Hairline recession from tight styles and repeated tension",
     },
   ];
 
-  const hairLossCausesWomen = [
+  const hairLossCausesWomen: HairLossCause[] = [
     {
       id: "hereditary",
       title: "Hereditary",
@@ -280,8 +305,12 @@ function HairHealthPageContent() {
       description: "Hereditary hair loss in women, also known as female androgenetic alopecia, is the most common form of hair loss in women. This genetic form can occur at a young age and is usually characterized by a gradual thinning of the hair on the crown.",
       details: "Hormonal changes, particularly increased androgen levels such as testosterone, have a significant influence on the development of this form of hair loss, as they reduce the size of the hair follicles and slow down hair growth. Early intervention and targeted treatment can help to stop the progression.",
       prevalence: "Most common",
-      image: "https://images.pexels.com/photos/3764568/pexels-photo-3764568.jpeg?auto=compress&cs=tinysrgb&w=600",
-      patternImage: "https://cdn-joddj.nitrocdn.com/ZwCNHXcYUInPGlkxtPSBefGLXZGKEkkk/assets/images/optimized/rev-664b77c/www.forhair.com/wp-content/uploads/2006/10/ludwig-scale-female-hair-loss-grades.webp-1024x687.jpg",
+      image:
+        "https://images.pexels.com/photos/3764568/pexels-photo-3764568.jpeg?auto=compress&cs=tinysrgb&w=800",
+      heroImage:
+        "https://images.pexels.com/photos/3764568/pexels-photo-3764568.jpeg?auto=compress&cs=tinysrgb&w=1000",
+      imageCaption:
+        "Female pattern hair loss usually shows as gradual crown and part-line thinning",
     },
     {
       id: "hormonal",
@@ -290,8 +319,12 @@ function HairHealthPageContent() {
       description: "Hormonal changes during a woman's life, such as pregnancy, the menopause or after stopping hormonal contraceptives, can lead to significant hair loss or changes in hair condition.",
       details: "After giving birth, many women experience increased hair loss due to hormonal changes. During menopause, oestrogen levels decrease and the effect of androgens increases, which can trigger thinning. Stopping the pill can also cause temporary telogen effluvium as the body adjusts.",
       prevalence: "Very common",
-      image: "https://images.pexels.com/photos/3807517/pexels-photo-3807517.jpeg?auto=compress&cs=tinysrgb&w=600",
-      patternImage: "https://images.pexels.com/photos/7176319/pexels-photo-7176319.jpeg?auto=compress&cs=tinysrgb&w=600",
+      image:
+        "https://images.pexels.com/photos/7176319/pexels-photo-7176319.jpeg?auto=compress&cs=tinysrgb&w=800",
+      heroImage:
+        "https://images.pexels.com/photos/7176319/pexels-photo-7176319.jpeg?auto=compress&cs=tinysrgb&w=1000",
+      imageCaption:
+        "Hormonal shifts around pregnancy, postpartum, contraception and menopause can trigger shedding",
     },
     {
       id: "diffuse",
@@ -300,8 +333,12 @@ function HairHealthPageContent() {
       description: "Diffuse hair loss in women is characterized by evenly distributed hair loss over the entire head, which leads to an overall thin hair structure and usually lasts for several months.",
       details: "This type of hair loss can be caused by various factors such as hormonal changes, nutritional deficiencies, psychological or physical stress, illness or medication. Unlike circular hair loss, no clear bald patches are recognizable — just overall thinning.",
       prevalence: "Common",
-      image: "https://images.pexels.com/photos/3764568/pexels-photo-3764568.jpeg?auto=compress&cs=tinysrgb&w=600",
-      patternImage: "https://kopelmanhair.com/wp-content/uploads/2025/08/ludwig-scale-female-hair-loss-e1755057003343-1200x720.webp",
+      image:
+        "https://images.pexels.com/photos/3993449/pexels-photo-3993449.jpeg?auto=compress&cs=tinysrgb&w=800",
+      heroImage:
+        "https://images.pexels.com/photos/3993449/pexels-photo-3993449.jpeg?auto=compress&cs=tinysrgb&w=1000",
+      imageCaption:
+        "Diffuse shedding is usually all-over thinning rather than one obvious bald patch",
     },
     {
       id: "circular",
@@ -310,8 +347,12 @@ function HairHealthPageContent() {
       description: "Circular hair loss in women, also known as alopecia areata, is an autoimmune disorder that leads to sudden hair loss causing circular or oval bald patches on the scalp.",
       details: "These bald patches can vary in size and quickly increase or disappear. The exact cause is not fully understood, but it is thought that the immune system mistakenly regards hair follicles as foreign bodies and attacks them. Treatment can help manage the condition.",
       prevalence: "2% of population",
-      image: "https://images.pexels.com/photos/3771120/pexels-photo-3771120.jpeg?auto=compress&cs=tinysrgb&w=600",
-      patternImage: "https://images.pexels.com/photos/3771120/pexels-photo-3771120.jpeg?auto=compress&cs=tinysrgb&w=600",
+      image:
+        "https://images.pexels.com/photos/5646825/pexels-photo-5646825.jpeg?auto=compress&cs=tinysrgb&w=800",
+      heroImage:
+        "https://images.pexels.com/photos/5646825/pexels-photo-5646825.jpeg?auto=compress&cs=tinysrgb&w=1000",
+      imageCaption:
+        "Alopecia areata often appears as sudden round or oval patches of hair loss",
     },
     {
       id: "traction",
@@ -320,8 +361,12 @@ function HairHealthPageContent() {
       description: "Traction alopecia in women is hair loss caused by repeated tension or pulling on the hair, such as from tight hairstyles, hair extensions, or regular styling with heat tools.",
       details: "This causes damage to the hair follicles and can lead to permanent hair loss, especially along the hairline or in areas where hair has been pulled tight. Avoiding tight hairstyles and giving hair regular breaks from extensions can help prevent this type of hair loss.",
       prevalence: "Lifestyle-related",
-      image: "https://images.pexels.com/photos/3065209/pexels-photo-3065209.jpeg?auto=compress&cs=tinysrgb&w=600",
-      patternImage: "https://images.pexels.com/photos/3065209/pexels-photo-3065209.jpeg?auto=compress&cs=tinysrgb&w=600",
+      image:
+        "https://images.pexels.com/photos/3998370/pexels-photo-3998370.jpeg?auto=compress&cs=tinysrgb&w=800",
+      heroImage:
+        "https://images.pexels.com/photos/3998370/pexels-photo-3998370.jpeg?auto=compress&cs=tinysrgb&w=1000",
+      imageCaption:
+        "Traction alopecia is linked to repeated tension from braids, extensions and tight styles",
     },
   ];
 
@@ -522,13 +567,13 @@ function HairHealthPageContent() {
       <Header />
       <main className="min-h-screen bg-[#fdfbf7]">
         {/* Hero Section */}
-        <section className="relative py-8 lg:py-12 overflow-hidden">
+        <section className="relative py-6 lg:py-8 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-[#cdd8c6] via-[#e6ebe3] to-[#f4f7f2]" />
           <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[#a8bb9e]/20 to-transparent" />
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div>
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+              <div className="lg:pt-4">
                 {/* Gender Toggle - Moved to top */}
                 <div className="flex items-center gap-4 mb-6">
                   <span className="text-sm text-[#5c7a52]">I am:</span>
@@ -564,71 +609,14 @@ function HairHealthPageContent() {
                   <span className="text-[#5c7a52] italic">healthier</span>{" "}
                   hair
                 </h1>
-                <p className="text-lg text-[#5c7a52] mb-6 max-w-lg">
+                <p className="text-lg text-[#5c7a52] max-w-lg">
                   Personalised treatment plans backed by biomarker analysis. Prescribed by Australian-registered doctors, delivered to your door.
                 </p>
-
-                {/* Pricing & Membership Banner */}
-                <div className="mb-8 space-y-4">
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl sm:text-4xl font-serif text-[#2c3628]">$39</span>
-                      <span className="text-[#5c7a52]">/month for Members</span>
-                    </div>
-                    <Link
-                      href="/membership"
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#c17a58] hover:bg-[#a9634a] text-white text-sm font-medium rounded-full transition-all hover:scale-105"
-                    >
-                      Become a Member
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  </div>
-                  <div className="relative overflow-hidden flex items-center gap-2 bg-gradient-to-r from-[#5c7a52] to-[#4a6343] text-white px-4 py-2.5 rounded-xl w-fit group">
-                    {/* Animated shine effect */}
-                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 ease-in-out" />
-                    <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                    {/* GAP-023: Removed "free biomarker" positioning */}
-                    <Sparkles className="w-4 h-4 flex-shrink-0 animate-pulse" />
-                    <span className="text-sm font-medium relative">Blood tests requested where clinically appropriate</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Link
-                    href="/hair-assessment"
-                    className="btn-primary inline-flex items-center justify-center gap-2"
-                  >
-                    Start your assessment
-                    <ArrowRight className="w-5 h-5" />
-                  </Link>
-                  <Link
-                    href="#how-it-works"
-                    className="btn-secondary inline-flex items-center justify-center"
-                  >
-                    Learn how it works
-                  </Link>
-                </div>
-
-                {/* Trust Indicators */}
-                <div className="flex flex-wrap gap-6 mt-10 text-sm text-[#5c7a52]">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
-                    <span>AHPRA Doctors</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
-                    <span>AHPRA Doctors</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
-                    <span>Discreet Delivery</span>
-                  </div>
-                </div>
               </div>
 
-              {/* Hero Image */}
-              <div className="relative">
-                <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl">
+              {/* Hero image, badges & CTA */}
+              <div className="relative flex flex-col gap-6 lg:-mt-2">
+                <div className="relative aspect-[4/5] max-h-[520px] sm:max-h-[560px] lg:max-h-none rounded-3xl overflow-hidden shadow-2xl">
                   <img
                     src={gender === "women"
                       ? "https://images.pexels.com/photos/1308881/pexels-photo-1308881.jpeg?auto=compress&cs=tinysrgb&w=800&h=1000&dpr=1"
@@ -652,6 +640,30 @@ function HairHealthPageContent() {
                     </div>
                   </div>
                 </div>
+
+                {/* Trust Indicators */}
+                <div className="flex flex-wrap gap-4 sm:gap-6 text-sm text-[#5c7a52]">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
+                    <span>AHPRA Doctors</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
+                    <span>Personalised plans</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
+                    <span>Discreet Delivery</span>
+                  </div>
+                </div>
+
+                <Link
+                  href="/hair-assessment"
+                  className="btn-primary inline-flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  Start your assessment
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
               </div>
             </div>
           </div>
@@ -783,14 +795,30 @@ function HairHealthPageContent() {
                 </div>
               </div>
               <div className="order-1 lg:order-2">
-                <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-xl transform transition-all duration-500 hover:scale-[1.02]">
-                  <img
-                    src={hairLossCauses[activeCause].image}
-                    alt={hairLossCauses[activeCause].title}
-                    className="w-full h-full object-cover transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#34412f]/30 to-transparent" />
-                </div>
+                {(() => {
+                  const cause = hairLossCauses[activeCause];
+                  const visual = getCauseHeroVisual(cause);
+                  return (
+                    <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-xl transform transition-all duration-500 hover:scale-[1.02] bg-[#fdfbf7]">
+                      <img
+                        key={`${gender}-${cause.id}`}
+                        src={visual.src}
+                        alt={`${cause.title} — ${cause.subtitle}`}
+                        className={`w-full h-full transition-all duration-500 ${
+                          visual.fit === "contain"
+                            ? "object-contain p-4 sm:p-6"
+                            : "object-cover"
+                        }`}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#34412f]/40 via-transparent to-transparent pointer-events-none" />
+                      {visual.caption && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#34412f]/90 to-transparent px-4 pb-4 pt-10">
+                          <p className="text-sm font-medium text-white">{visual.caption}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -846,14 +874,14 @@ function HairHealthPageContent() {
                       stage: "Type II",
                       title: "Moderate Thinning",
                       description: "Noticeable widening of the part line. Scalp more visible.",
-                      image: "https://images.pexels.com/photos/3764568/pexels-photo-3764568.jpeg?auto=compress&cs=tinysrgb&w=400",
+                      image: "https://images.pexels.com/photos/3764568/pexels-photo-3764568.jpeg?auto=compress&cs=tinysrgb&w=600",
                       treatability: "80%",
                     },
                     {
                       stage: "Type III",
                       title: "Advanced Thinning",
                       description: "Significant hair loss. Requires intensive treatment.",
-                      image: "https://images.pexels.com/photos/3807517/pexels-photo-3807517.jpeg?auto=compress&cs=tinysrgb&w=400",
+                      image: "https://images.pexels.com/photos/5646825/pexels-photo-5646825.jpeg?auto=compress&cs=tinysrgb&w=600",
                       treatability: "60%",
                     },
                   ].map((stage) => (

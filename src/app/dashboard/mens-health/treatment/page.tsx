@@ -27,6 +27,35 @@ interface Medication {
   refillDate: string;
 }
 
+interface HairPortalTreatment {
+  id: string;
+  medicationName: string;
+  dosage: string;
+  frequency: string;
+  nextDoseDate: string | null;
+  adherence: number | null;
+}
+
+interface HairPortalPrescription {
+  id: string;
+  medicationName: string;
+  strength: string;
+  dosage: string;
+  frequency: string;
+  status: string;
+  nextRefillDate: string | null;
+}
+
+interface HairPortalData {
+  isHairMember: boolean;
+  status: {
+    hasActiveTreatment: boolean;
+    label: string;
+  };
+  treatments: HairPortalTreatment[];
+  prescriptions: HairPortalPrescription[];
+}
+
 const mockMedications: Medication[] = [
   {
     id: "1",
@@ -88,6 +117,27 @@ export default function TreatmentPage() {
   const [medications, setMedications] = useState<Medication[]>(mockMedications);
   const [selectedMed, setSelectedMed] = useState<Medication | null>(null);
   const [showLog, setShowLog] = useState(false);
+  const [hairPortalData, setHairPortalData] = useState<HairPortalData | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadHairPortalData() {
+      try {
+        const res = await fetch("/api/hair-loss/portal");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled && json.isHairMember) {
+          setHairPortalData(json);
+        }
+      } catch (error) {
+        console.error("Hair treatment load error:", error);
+      }
+    }
+    loadHairPortalData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const logDose = (medId: string) => {
     setMedications(prev => prev.map(med => {
@@ -122,6 +172,85 @@ export default function TreatmentPage() {
     acc[med.category].push(med);
     return acc;
   }, {} as Record<string, Medication[]>);
+
+  if (hairPortalData?.isHairMember) {
+    const hairItems = hairPortalData.treatments.length
+      ? hairPortalData.treatments
+      : hairPortalData.prescriptions.map((rx) => ({
+          id: rx.id,
+          medicationName: rx.medicationName,
+          dosage: rx.strength || rx.dosage,
+          frequency: rx.frequency,
+          nextDoseDate: null,
+          adherence: null,
+        }));
+
+    return (
+      <div className="space-y-6 pb-20 md:pb-6">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/mens-health/hair-loss">
+            <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Pill className="w-6 h-6 text-violet-600" />
+              Hair Treatments
+            </h1>
+            <p className="text-muted-foreground">Doctor-approved medications and refills</p>
+          </div>
+        </div>
+
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-violet-600" />
+              Hair Loss
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {hairItems.length ? hairItems.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="font-semibold">{item.medicationName}</p>
+                    <p className="text-sm text-muted-foreground">{item.dosage} • {item.frequency}</p>
+                  </div>
+                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                    Active
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Adherence</span>
+                    <span className="font-medium">
+                      {item.adherence != null ? `${item.adherence}%` : "Starts after dosing"}
+                    </span>
+                  </div>
+                  <Progress value={item.adherence ?? 0} className="h-2" />
+                  <p className="text-xs text-muted-foreground">
+                    {item.nextDoseDate
+                      ? `Next dose: ${formatDate(item.nextDoseDate)}`
+                      : "Dose schedule will appear after setup"}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              <div className="p-6 rounded-xl border border-dashed text-center text-muted-foreground">
+                <Pill className="w-8 h-8 mx-auto mb-2" />
+                <p className="font-medium">No hair treatment prescribed yet</p>
+                <p className="text-sm mt-1">
+                  Your doctor-approved treatment will appear here after triage and approval.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">

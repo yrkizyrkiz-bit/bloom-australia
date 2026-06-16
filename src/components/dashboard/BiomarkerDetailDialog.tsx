@@ -7,28 +7,31 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { BiomarkerDefinition, BiomarkerResult, BiomarkerStatus } from "@/types";
 import {
   TrendingUp,
-  TrendingDown,
   Info,
   Lightbulb,
   Link2,
   Calendar,
   AlertTriangle,
   CheckCircle,
-  MinusCircle
+  MinusCircle,
+  Calculator,
+  Clock,
 } from "lucide-react";
 import {
   getBiomarkerStatus as getPanelStatus,
   getEffectiveRange,
   type BloodPanelBiomarker,
-  type Gender
+  type Gender,
 } from "@/data/bloodPanelConfig";
+import { isDerivedBiomarker } from "@/lib/biomarker-medicare-eligibility";
+import { MedicareEligibilityBadge } from "@/components/dashboard/MedicareEligibilityBadge";
 
 interface BiomarkerDetailDialogProps {
   biomarker: BiomarkerDefinition | null;
   result: BiomarkerResult | null;
   history: BiomarkerResult[];
   gender: "male" | "female";
-  panelBiomarker?: BloodPanelBiomarker; // Optional panel biomarker for consistent ranges
+  panelBiomarker?: BloodPanelBiomarker;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -40,32 +43,64 @@ export function BiomarkerDetailDialog({
   gender,
   panelBiomarker,
   open,
-  onOpenChange
+  onOpenChange,
 }: BiomarkerDetailDialogProps) {
-  if (!biomarker || !result) return null;
+  if (!biomarker) return null;
 
+  const isDerived = isDerivedBiomarker(biomarker.id);
+  const isUntested = !result;
   const usePanelRanges = !!panelBiomarker;
 
-  // Get range for display - prefer panel ranges if available
   const displayRange = usePanelRanges && panelBiomarker
     ? {
         low: getEffectiveRange(panelBiomarker, gender as Gender).normalLow,
         optimal_low: getEffectiveRange(panelBiomarker, gender as Gender).optimalLow,
         optimal_high: getEffectiveRange(panelBiomarker, gender as Gender).optimalHigh,
         high: getEffectiveRange(panelBiomarker, gender as Gender).normalHigh,
-        unit: panelBiomarker.unit
+        unit: panelBiomarker.unit,
       }
     : biomarker.ranges[gender];
 
-  // Get status from panel config for consistency
-  const panelStatusResult = panelBiomarker
-    ? getPanelStatus(result.value, panelBiomarker, gender as Gender)
-    : null;
+  const rangeSpan = displayRange.high - displayRange.low;
 
-  // Map panel status to our status types
+  const getStatusColor = (status: BiomarkerStatus) => {
+    switch (status) {
+      case "optimal":
+        return "text-green-600 bg-green-500/10";
+      case "normal":
+        return "text-yellow-600 bg-yellow-500/10";
+      case "out_of_range":
+        return "text-orange-600 bg-orange-500/10";
+      case "critical":
+        return "text-red-600 bg-red-500/10";
+      default:
+        return "text-gray-600 bg-gray-500/10";
+    }
+  };
+
+  const getStatusIcon = (status: BiomarkerStatus) => {
+    switch (status) {
+      case "optimal":
+        return CheckCircle;
+      case "normal":
+        return MinusCircle;
+      case "out_of_range":
+      case "critical":
+        return AlertTriangle;
+      default:
+        return Info;
+    }
+  };
+
+  const panelStatusResult =
+    result && panelBiomarker
+      ? getPanelStatus(result.value, panelBiomarker, gender as Gender)
+      : null;
+
   const getStatusFromPanel = (): { status: BiomarkerStatus; label: string } => {
+    if (!result) return { status: "normal", label: "Not tested" };
+
     if (!panelStatusResult) {
-      // Fall back to calculating from biomarker definition
       const range = biomarker.ranges[gender];
       if (result.value >= range.optimal_low && result.value <= range.optimal_high) {
         return { status: "optimal", label: "Optimal" };
@@ -79,44 +114,21 @@ export function BiomarkerDetailDialog({
       return { status: "out_of_range", label: "Attention" };
     }
 
-    // Map panel status strings to our types
     const statusStr = panelStatusResult.status;
     if (statusStr === "Optimal") return { status: "optimal", label: "Optimal" };
     if (statusStr === "Normal") return { status: "normal", label: "Normal" };
-    if (statusStr === "Critical Low" || statusStr === "Critical High") return { status: "critical", label: "Critical" };
-    // "Low", "High", or any other out of range status -> "Attention"
+    if (statusStr === "Critical Low" || statusStr === "Critical High") {
+      return { status: "critical", label: "Critical" };
+    }
     return { status: "out_of_range", label: "Attention" };
   };
 
   const { status: calculatedStatus, label: statusLabel } = getStatusFromPanel();
+  const StatusIcon = isUntested ? (isDerived ? Calculator : Clock) : getStatusIcon(calculatedStatus);
 
-  const getStatusColor = (status: BiomarkerStatus) => {
-    switch (status) {
-      case "optimal": return "text-green-600 bg-green-500/10";
-      case "normal": return "text-yellow-600 bg-yellow-500/10";
-      case "out_of_range": return "text-orange-600 bg-orange-500/10";
-      case "critical": return "text-red-600 bg-red-500/10";
-      default: return "text-gray-600 bg-gray-500/10";
-    }
-  };
-
-  const getStatusIcon = (status: BiomarkerStatus) => {
-    switch (status) {
-      case "optimal": return CheckCircle;
-      case "normal": return MinusCircle;
-      case "out_of_range": return AlertTriangle;
-      case "critical": return AlertTriangle;
-      default: return Info;
-    }
-  };
-
-  const StatusIcon = getStatusIcon(calculatedStatus);
-
-  // Calculate position on range bar
   const calculatePosition = (value: number) => {
-    const totalRange = displayRange.high - displayRange.low;
-    if (totalRange === 0) return 50;
-    const position = ((value - displayRange.low) / totalRange) * 100;
+    if (rangeSpan === 0) return 50;
+    const position = ((value - displayRange.low) / rangeSpan) * 100;
     return Math.max(0, Math.min(100, position));
   };
 
@@ -125,7 +137,11 @@ export function BiomarkerDetailDialog({
       <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${getStatusColor(calculatedStatus)}`}>
+            <div
+              className={`p-2 rounded-lg ${
+                isUntested ? "text-muted-foreground bg-muted/60" : getStatusColor(calculatedStatus)
+              }`}
+            >
               <StatusIcon className="w-5 h-5" />
             </div>
             <div>
@@ -137,146 +153,220 @@ export function BiomarkerDetailDialog({
 
         <ScrollArea className="max-h-[calc(90vh-120px)]">
           <div className="space-y-6 pr-4">
-            {/* Current Value Section */}
-            <div className="bg-muted/50 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Current Value</p>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-4xl font-serif font-bold text-foreground">
-                      {result.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-lg text-muted-foreground">{displayRange.unit}</span>
-                  </div>
-                </div>
-                <Badge variant="outline" className={`text-sm px-3 py-1 ${getStatusColor(calculatedStatus)}`}>
-                  {statusLabel}
+            <div className="flex flex-wrap items-center gap-2">
+              <MedicareEligibilityBadge biomarkerId={biomarker.id} />
+              {isUntested && (
+                <Badge variant="outline" className="text-xs">
+                  {isDerived ? "Awaiting calculation" : "Awaiting results"}
                 </Badge>
-              </div>
-
-              {/* Range visualization */}
-              <div className="space-y-2">
-                <div className="h-4 bg-muted rounded-full overflow-hidden relative">
-                  {/* Low zone */}
-                  <div
-                    className="absolute h-full bg-orange-500/30"
-                    style={{
-                      left: 0,
-                      width: `${((displayRange.optimal_low - displayRange.low) / (displayRange.high - displayRange.low)) * 100}%`
-                    }}
-                  />
-                  {/* Optimal zone */}
-                  <div
-                    className="absolute h-full bg-green-500/40"
-                    style={{
-                      left: `${((displayRange.optimal_low - displayRange.low) / (displayRange.high - displayRange.low)) * 100}%`,
-                      width: `${((displayRange.optimal_high - displayRange.optimal_low) / (displayRange.high - displayRange.low)) * 100}%`
-                    }}
-                  />
-                  {/* High zone */}
-                  <div
-                    className="absolute h-full bg-orange-500/30"
-                    style={{
-                      left: `${((displayRange.optimal_high - displayRange.low) / (displayRange.high - displayRange.low)) * 100}%`,
-                      right: 0
-                    }}
-                  />
-                  {/* Current position marker */}
-                  <div
-                    className="absolute w-4 h-4 rounded-full bg-foreground border-2 border-white shadow-lg -top-0 -translate-x-1/2"
-                    style={{ left: `${calculatePosition(result.value)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Low: {displayRange.low}</span>
-                  <span className="text-green-600 font-medium">Optimal: {displayRange.optimal_low} - {displayRange.optimal_high}</span>
-                  <span>High: {displayRange.high}</span>
-                </div>
-              </div>
-
-              {/* Test date */}
-              <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                <span>
-                  Tested on {new Date(result.testedAt).toLocaleDateString('en-AU', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </span>
-              </div>
+              )}
             </div>
 
-            {/* History Chart */}
-            {history.length > 1 && (
-              <>
-                <Separator />
-                <div>
-                  <h4 className="font-medium flex items-center gap-2 mb-4">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                    Trend History
-                  </h4>
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <div className="flex items-end justify-between h-24 gap-2">
-                      {history.map((h, i) => {
-                        const height = (h.value / displayRange.high) * 100;
-                        const isOptimal = h.value >= displayRange.optimal_low && h.value <= displayRange.optimal_high;
-                        return (
-                          <div key={h.id} className="flex-1 flex flex-col items-center gap-1">
-                            <div
-                              className={`w-full max-w-8 rounded-t ${isOptimal ? 'bg-green-500' : 'bg-orange-500'}`}
-                              style={{ height: `${Math.max(height, 10)}%` }}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(h.testedAt).toLocaleDateString('en-AU', { month: 'short' })}
-                            </span>
-                          </div>
-                        );
-                      })}
+            {isUntested ? (
+              <div className="bg-muted/50 rounded-xl p-6">
+                <p className="text-sm text-muted-foreground mb-4">
+                  {isDerived
+                    ? "This marker is calculated automatically from your other lab results once the required inputs are available."
+                    : "This marker is in your Sanative panel but does not have a result yet. Upload a lab report or order testing to populate it."}
+                </p>
+                {panelBiomarker?.note && (
+                  <p className="text-sm text-foreground/80 mb-4 p-3 rounded-lg bg-background border">
+                    {panelBiomarker.note}
+                  </p>
+                )}
+                <p className="text-sm font-medium text-foreground mb-3">Reference ranges</p>
+                {rangeSpan > 0 && (
+                  <div className="space-y-2">
+                    <div className="h-4 bg-muted rounded-full overflow-hidden relative">
+                      <div
+                        className="absolute h-full bg-orange-500/20"
+                        style={{
+                          left: 0,
+                          width: `${
+                            ((displayRange.optimal_low - displayRange.low) / rangeSpan) * 100
+                          }%`,
+                        }}
+                      />
+                      <div
+                        className="absolute h-full bg-green-500/35"
+                        style={{
+                          left: `${((displayRange.optimal_low - displayRange.low) / rangeSpan) * 100}%`,
+                          width: `${
+                            ((displayRange.optimal_high - displayRange.optimal_low) / rangeSpan) *
+                            100
+                          }%`,
+                        }}
+                      />
+                      <div
+                        className="absolute h-full bg-orange-500/20"
+                        style={{
+                          left: `${((displayRange.optimal_high - displayRange.low) / rangeSpan) * 100}%`,
+                          right: 0,
+                        }}
+                      />
                     </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Low: {displayRange.low}</span>
+                      <span className="text-green-600 font-medium">
+                        Optimal: {displayRange.optimal_low} - {displayRange.optimal_high}
+                      </span>
+                      <span>High: {displayRange.high}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Unit: {displayRange.unit || "—"}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="bg-muted/50 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Current Value</p>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-4xl font-serif font-bold text-foreground">
+                          {result.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-lg text-muted-foreground">{displayRange.unit}</span>
+                      </div>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-sm px-3 py-1 ${getStatusColor(calculatedStatus)}`}
+                    >
+                      {statusLabel}
+                    </Badge>
+                  </div>
+
+                  {rangeSpan > 0 && (
+                    <div className="space-y-2">
+                      <div className="h-4 bg-muted rounded-full overflow-hidden relative">
+                        <div
+                          className="absolute h-full bg-orange-500/30"
+                          style={{
+                            left: 0,
+                            width: `${
+                              ((displayRange.optimal_low - displayRange.low) / rangeSpan) * 100
+                            }%`,
+                          }}
+                        />
+                        <div
+                          className="absolute h-full bg-green-500/40"
+                          style={{
+                            left: `${((displayRange.optimal_low - displayRange.low) / rangeSpan) * 100}%`,
+                            width: `${
+                              ((displayRange.optimal_high - displayRange.optimal_low) / rangeSpan) *
+                              100
+                            }%`,
+                          }}
+                        />
+                        <div
+                          className="absolute h-full bg-orange-500/30"
+                          style={{
+                            left: `${((displayRange.optimal_high - displayRange.low) / rangeSpan) * 100}%`,
+                            right: 0,
+                          }}
+                        />
+                        <div
+                          className="absolute w-4 h-4 rounded-full bg-foreground border-2 border-white shadow-lg -top-0 -translate-x-1/2"
+                          style={{ left: `${calculatePosition(result.value)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Low: {displayRange.low}</span>
+                        <span className="text-green-600 font-medium">
+                          Optimal: {displayRange.optimal_low} - {displayRange.optimal_high}
+                        </span>
+                        <span>High: {displayRange.high}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                      Tested on{" "}
+                      {new Date(result.testedAt).toLocaleDateString("en-AU", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
                   </div>
                 </div>
+
+                {history.length > 1 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="font-medium flex items-center gap-2 mb-4">
+                        <TrendingUp className="w-4 h-4 text-primary" />
+                        Trend History
+                      </h4>
+                      <div className="bg-muted/30 rounded-lg p-4">
+                        <div className="flex items-end justify-between h-24 gap-2">
+                          {history.map((h) => {
+                            const height = (h.value / displayRange.high) * 100;
+                            const isOptimal =
+                              h.value >= displayRange.optimal_low &&
+                              h.value <= displayRange.optimal_high;
+                            return (
+                              <div key={h.id} className="flex-1 flex flex-col items-center gap-1">
+                                <div
+                                  className={`w-full max-w-8 rounded-t ${
+                                    isOptimal ? "bg-green-500" : "bg-orange-500"
+                                  }`}
+                                  style={{ height: `${Math.max(height, 10)}%` }}
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(h.testedAt).toLocaleDateString("en-AU", {
+                                    month: "short",
+                                  })}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
 
             <Separator />
 
-            {/* About Section */}
             <div>
               <h4 className="font-medium flex items-center gap-2 mb-3">
                 <Info className="w-4 h-4 text-primary" />
                 About {biomarker.shortName}
               </h4>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {biomarker.description}
-              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{biomarker.description}</p>
             </div>
 
             <Separator />
 
-            {/* Why It Matters */}
             <div>
               <h4 className="font-medium flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-accent" />
                 Why It Matters
               </h4>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {biomarker.whyItMatters}
-              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{biomarker.whyItMatters}</p>
             </div>
 
-            {/* Improvement Tips - Only show if not optimal */}
-            {calculatedStatus !== "optimal" && (
+            {(isUntested || calculatedStatus !== "optimal") && biomarker.improvementTips.length > 0 && (
               <>
                 <Separator />
                 <div>
                   <h4 className="font-medium flex items-center gap-2 mb-4">
                     <Lightbulb className="w-4 h-4 text-yellow-500" />
-                    How to Improve
+                    {isUntested ? "General guidance" : "How to Improve"}
                   </h4>
                   <div className="space-y-3">
                     {biomarker.improvementTips.map((tip, index) => (
-                      <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
+                      <div
+                        key={index}
+                        className="flex items-start gap-3 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20"
+                      >
                         <div className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 text-yellow-600 text-sm font-medium">
                           {index + 1}
                         </div>
@@ -288,7 +378,6 @@ export function BiomarkerDetailDialog({
               </>
             )}
 
-            {/* Related Biomarkers */}
             {biomarker.relatedBiomarkers.length > 0 && (
               <>
                 <Separator />
@@ -300,7 +389,7 @@ export function BiomarkerDetailDialog({
                   <div className="flex flex-wrap gap-2">
                     {biomarker.relatedBiomarkers.map((related) => (
                       <Badge key={related} variant="secondary" className="text-xs">
-                        {related.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        {related.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                       </Badge>
                     ))}
                   </div>

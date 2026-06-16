@@ -9,8 +9,6 @@ export const HEART_BIOMARKER_IDS = [
   "triglycerides",
   "non_hdl_cholesterol",
   "vldl",
-  "apob",
-  "lpa",
   "crp",
   "homocysteine",
   "fibrinogen",

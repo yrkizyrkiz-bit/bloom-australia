@@ -6,7 +6,7 @@ import {
   migrateMemberPrograms,
 } from "@/lib/program/migrate-program";
 
-function requireAdmin(session: { user?: { role?: string } } | null) {
+function requireAdmin(session: { user?: { id?: string; role?: string } } | null) {
   if (!session?.user?.id || session.user.role !== "ADMIN") {
     return false;
   }

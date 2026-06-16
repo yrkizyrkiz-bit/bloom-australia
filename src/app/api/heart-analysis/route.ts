@@ -326,7 +326,7 @@ interface HeartAnalysisResult {
 // Heart-related biomarker IDs
 const HEART_BIOMARKER_IDS = [
   "total_cholesterol", "ldl_cholesterol", "hdl_cholesterol", "triglycerides",
-  "non_hdl_cholesterol", "vldl", "apob", "lpa",
+  "non_hdl_cholesterol", "vldl",
   "crp", "homocysteine", "fibrinogen",
   "glucose", "hba1c", "insulin",
   "sodium", "potassium", "magnesium",

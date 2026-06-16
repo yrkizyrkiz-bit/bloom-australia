@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { biomarkerDefinitions } from "../src/data/biomarkers";
+import { DEPRECATED_BIOMARKER_IDS } from "../src/lib/catalog-biomarkers";
 
 const prisma = new PrismaClient();
 
@@ -72,7 +73,7 @@ async function main() {
   // Demo member (main test user)
   const demoMember = await prisma.user.upsert({
     where: { email: "demo@sanative.com.au" },
-    update: {},
+    update: { passwordHash: memberPassword },
     create: {
       email: "demo@sanative.com.au",
       passwordHash: memberPassword,
@@ -122,7 +123,28 @@ async function main() {
   for (const biomarker of biomarkerDefinitions) {
     await prisma.biomarkerDefinition.upsert({
       where: { biomarkerId: biomarker.id },
-      update: {},
+      update: {
+        name: biomarker.name,
+        shortName: biomarker.shortName,
+        category: biomarker.category.toUpperCase() as any,
+        description: biomarker.description,
+        whyItMatters: biomarker.whyItMatters,
+        unit: biomarker.ranges.male.unit,
+        maleRanges: {
+          low: biomarker.ranges.male.low,
+          optimal_low: biomarker.ranges.male.optimal_low,
+          optimal_high: biomarker.ranges.male.optimal_high,
+          high: biomarker.ranges.male.high,
+        },
+        femaleRanges: {
+          low: biomarker.ranges.female.low,
+          optimal_low: biomarker.ranges.female.optimal_low,
+          optimal_high: biomarker.ranges.female.optimal_high,
+          high: biomarker.ranges.female.high,
+        },
+        improvementTips: biomarker.improvementTips,
+        relatedBiomarkerIds: biomarker.relatedBiomarkers || [],
+      },
       create: {
         biomarkerId: biomarker.id,
         name: biomarker.name,
@@ -139,6 +161,21 @@ async function main() {
     });
   }
   console.log(`✓ Created ${biomarkerDefinitions.length} biomarker definitions\n`);
+
+  // Retire private / removed markers — hide from portal and drop stale results
+  const deprecatedIds = [...DEPRECATED_BIOMARKER_IDS];
+  if (deprecatedIds.length > 0) {
+    const deletedResults = await prisma.biomarkerResult.deleteMany({
+      where: { biomarkerId: { in: deprecatedIds } },
+    });
+    await prisma.biomarkerDefinition.updateMany({
+      where: { biomarkerId: { in: deprecatedIds } },
+      data: { isActive: false },
+    });
+    console.log(
+      `✓ Retired ${deprecatedIds.length} deprecated biomarkers (${deletedResults.count} results removed)\n`
+    );
+  }
 
   // ==================== CREATE BIOMARKER RESULTS ====================
   console.log("Creating biomarker results...");
@@ -289,7 +326,7 @@ async function main() {
   console.log("Creating George (second demo user)...");
   const george = await prisma.user.upsert({
     where: { email: "george@sanative.com.au" },
-    update: {},
+    update: { passwordHash: memberPassword },
     create: {
       email: "george@sanative.com.au",
       passwordHash: memberPassword,

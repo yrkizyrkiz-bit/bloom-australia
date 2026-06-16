@@ -51,7 +51,7 @@ export async function getMemberProgramState(userId: string) {
       orderBy: { createdAt: "desc" },
     });
     if (rx) {
-      program = await ensureMemberProgram(userId, rx.id);
+      await ensureMemberProgram(userId, rx.id);
       program = await prisma.memberProgram.findUnique({
         where: { userId },
         include: {

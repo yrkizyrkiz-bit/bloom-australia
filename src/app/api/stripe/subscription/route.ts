@@ -138,6 +138,8 @@ async function handleWeightManagementPayment(body: {
   planId: string;
   billingType?: "one_time" | "subscription";
   selectedPlan?: "core" | "precision";
+  programType?: "weight_management" | "hair_loss";
+  planName?: string;
   firstMonthAmount?: number;
   ongoingMonthlyAmount?: number;
   discountAmount?: number;
@@ -154,6 +156,8 @@ async function handleWeightManagementPayment(body: {
     userId,
     planId,
     selectedPlan,
+    programType = "weight_management",
+    planName: planNameOverride,
     firstMonthAmount,
     ongoingMonthlyAmount,
     discountAmount,
@@ -203,7 +207,11 @@ async function handleWeightManagementPayment(body: {
 
   // Use provided amounts or defaults from plan
   const chargeAmount = firstMonthAmount ? firstMonthAmount : planDetails.amount;
-  const planName = selectedPlan === 'precision' ? 'Sanative Precision' : selectedPlan === 'core' ? 'Sanative Core' : planDetails.name;
+  const planName =
+    planNameOverride ||
+    (selectedPlan === 'precision' ? 'Sanative Precision' : selectedPlan === 'core' ? 'Sanative Core' : planDetails.name);
+  const programLabel =
+    programType === "hair_loss" ? "Hair Loss" : "Weight Management";
 
   // Get or create Stripe customer
   let customerId: string;
@@ -226,8 +234,8 @@ async function handleWeightManagementPayment(body: {
     customer: customerId,
     metadata: {
       // GAP-004: Include all required Weight Management metadata
-      type: 'weight_management_plan',
-      program: 'weight_management',
+      type: `${programType}_plan`,
+      program: programType,
       planId: effectivePlanId,
       planName,
       userId: user.id,
@@ -247,7 +255,7 @@ async function handleWeightManagementPayment(body: {
       journeyStatus: user.journeyStatus || 'CONSULTATION_BOOKING_STARTED',
     },
     automatic_payment_methods: { enabled: true },
-    description: `Sanative ${planName} - First Month (Weight Management)`,
+    description: `Sanative ${planName} - First Month (${programLabel})`,
   });
 
   return NextResponse.json({

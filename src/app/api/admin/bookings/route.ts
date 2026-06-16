@@ -1,13 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+type CalendarBooking = {
+  id: string;
+  userId: string;
+  patientName: string;
+  patientEmail: string;
+  type: string;
+  title: string;
+  scheduledAt: string;
+  duration: number;
+  location: string;
+  status: string;
+  notes?: string | null;
+  program?: string | null;
+  doctorName?: string | null;
+  doctorId?: string | null;
+  source: "appointment" | "consultation";
+};
+
+function duplicateBookingKey(booking: CalendarBooking): string {
+  const scheduledAt = new Date(booking.scheduledAt);
+  scheduledAt.setSeconds(0, 0);
+  return `${booking.userId}:${scheduledAt.toISOString()}`;
+}
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (
+      !session?.user?.id ||
+      !["admin", "ADMIN", "CARE_PARTNER", "DOCTOR"].includes(session.user.role)
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const status = searchParams.get("status");
     const userId = searchParams.get("userId");
+    const isDoctor = session.user.role === "DOCTOR";
 
     const where: Record<string, unknown> = {};
 
@@ -29,20 +64,12 @@ export async function GET(req: NextRequest) {
       where.userId = userId;
     }
 
+    if (isDoctor) {
+      where.doctorId = session.user.id;
+    }
+
     // Fetch appointments (legacy consultations table)
-    let appointmentBookings: Array<{
-      id: string;
-      userId: string;
-      patientName: string;
-      patientEmail: string;
-      type: string;
-      title: string;
-      scheduledAt: string;
-      duration: number;
-      location: string;
-      status: string;
-      notes?: string | null;
-    }> = [];
+    let appointmentBookings: CalendarBooking[] = [];
 
     try {
       const appointments = await prisma.appointment.findMany({
@@ -84,20 +111,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Also fetch consultation bookings if they exist
-    let consultationBookings: Array<{
-      id: string;
-      userId: string;
-      patientName: string;
-      patientEmail: string;
-      type: string;
-      title: string;
-      scheduledAt: string;
-      duration: number;
-      location: string;
-      status: string;
-      notes?: string | null;
-      program?: string | null;
-    }> = [];
+    let consultationBookings: CalendarBooking[] = [];
 
     try {
       const now = new Date();
@@ -111,6 +125,7 @@ export async function GET(req: NextRequest) {
                 },
               }
             : {}),
+          ...(isDoctor ? { doctorId: session.user.id } : {}),
           OR: [
             { status: "BOOKING_CONFIRMED" },
             { status: "BOOKING_COMPLETED" },
@@ -162,8 +177,16 @@ export async function GET(req: NextRequest) {
       console.log("ConsultationBooking lookup skipped:", e);
     }
 
+    // Prefer ConsultationBooking over legacy Appointment when both represent
+    // the same patient at the same minute. Triage creates a legacy appointment
+    // for older workflows, but the real calendar item is ConsultationBooking.
+    const consultationKeys = new Set(consultationBookings.map(duplicateBookingKey));
+    const dedupedAppointmentBookings = appointmentBookings.filter(
+      (booking) => !consultationKeys.has(duplicateBookingKey(booking))
+    );
+
     // Combine and sort all bookings
-    const allBookings = [...appointmentBookings, ...consultationBookings].sort(
+    const allBookings = [...dedupedAppointmentBookings, ...consultationBookings].sort(
       (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
     );
 

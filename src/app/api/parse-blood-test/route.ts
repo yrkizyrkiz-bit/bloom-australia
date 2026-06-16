@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { biomarkerDefinitions } from "@/data/biomarkers";
+import { biomarkerDefinitions, getBiomarkerById } from "@/data/biomarkers";
+import { deriveBiomarkersForEpisode, normalizeDeriveGender } from "@/lib/derived-biomarkers";
 
 // Next.js route segment config - increase timeout to 60 seconds
 // Note: Platform gateway may have its own lower timeout (nginx ~30-60s)
@@ -414,6 +415,7 @@ export async function POST(request: NextRequest) {
         testDate?: string;
         isHistorical?: boolean;
         flag?: string;
+        notes?: string;
       }>;
       labName?: string;
       testDate?: string;
@@ -436,7 +438,7 @@ export async function POST(request: NextRequest) {
 
       // Find JSON object - get the outermost braces
       const firstBrace = jsonStr.indexOf('{');
-      let lastBrace = jsonStr.lastIndexOf('}');
+      const lastBrace = jsonStr.lastIndexOf('}');
 
       if (firstBrace === -1) {
         throw new Error("No JSON object found in response");
@@ -930,6 +932,58 @@ export async function POST(request: NextRequest) {
           return acc;
         }, {} as Record<string, number>);
         console.log(`[Blood Test Parser] Derived biomarkers:`, Object.entries(derivedSummary).map(([id, count]) => `${id}(${count})`).join(', '));
+      }
+
+      // Pass 2: extended derived biomarkers via shared library (globulin, eGFR, AU clinical ratios)
+      const biomarkersByDatePass2 = new Map<string, typeof parsedData.biomarkers>();
+      for (const biomarker of parsedData.biomarkers) {
+        const dateKey = biomarker.testDate || "unknown";
+        if (!biomarkersByDatePass2.has(dateKey)) {
+          biomarkersByDatePass2.set(dateKey, []);
+        }
+        biomarkersByDatePass2.get(dateKey)!.push(biomarker);
+      }
+
+      const genderRaw = formData.get("gender");
+      const ageYearsRaw = formData.get("ageYears");
+      const deriveContext = {
+        gender: normalizeDeriveGender(
+          typeof genderRaw === "string" ? genderRaw : undefined
+        ),
+        ageYears:
+          typeof ageYearsRaw === "string" && ageYearsRaw.trim()
+            ? Number.parseInt(ageYearsRaw, 10)
+            : undefined,
+      };
+
+      const pass2Derived: typeof parsedData.biomarkers = [];
+      for (const [testDate, biomarkers] of biomarkersByDatePass2) {
+        const existingIds = new Set(biomarkers.map(b => b.biomarkerId));
+        const values = biomarkers
+          .filter(b => Number.isFinite(b.value))
+          .map(b => ({ biomarkerId: b.biomarkerId, value: b.value }));
+        const extras = deriveBiomarkersForEpisode(values, deriveContext, existingIds);
+        const isHistorical = biomarkers.some(b => b.isHistorical) || false;
+        const dateValue = testDate !== "unknown" ? testDate : undefined;
+
+        for (const item of extras) {
+          const def = getBiomarkerById(item.biomarkerId);
+          pass2Derived.push({
+            biomarkerId: item.biomarkerId,
+            name: def?.name ?? item.biomarkerId,
+            value: item.value,
+            unit: def?.ranges.male.unit ?? "",
+            confidence: 0.8,
+            testDate: dateValue,
+            isHistorical,
+            notes: item.notes,
+          });
+        }
+      }
+
+      if (pass2Derived.length > 0) {
+        parsedData.biomarkers = [...parsedData.biomarkers, ...pass2Derived];
+        console.log(`[Blood Test Parser] ✅ Added ${pass2Derived.length} extended derived biomarker values`);
       }
       // ==================== END DERIVE CALCULATED BIOMARKERS ====================
 

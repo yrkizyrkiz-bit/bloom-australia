@@ -7,7 +7,26 @@ export const BLOCKING_GOAL_STATUSES = ["IN_PROGRESS"] as const;
 /** UI "paused" goals are stored as CANCELLED in the database. */
 export const PAUSED_GOAL_STATUS = "CANCELLED" as const;
 
+const VALID_GOAL_STATUSES = [
+  "IN_PROGRESS",
+  "ACHIEVED",
+  "MISSED",
+  "CANCELLED",
+] as const;
+
+export type HealthGoalStatus = (typeof VALID_GOAL_STATUSES)[number];
+
 export type BlockingGoalStatus = (typeof BLOCKING_GOAL_STATUSES)[number];
+
+/** Map UI/API aliases to prisma GoalStatus values. */
+export function normalizeHealthGoalStatus(status: string): HealthGoalStatus {
+  const upper = status.toUpperCase();
+  if (upper === "PAUSED") return PAUSED_GOAL_STATUS;
+  if (VALID_GOAL_STATUSES.includes(upper as HealthGoalStatus)) {
+    return upper as HealthGoalStatus;
+  }
+  throw new Error(`Invalid goal status: ${status}`);
+}
 
 export interface GoalLike {
   biomarkerId: string;

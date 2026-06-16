@@ -10,6 +10,7 @@ import {
   type BloodPanelBiomarker,
   type Gender
 } from "@/data/bloodPanelConfig";
+import { MedicareEligibilityBadge } from "@/components/dashboard/MedicareEligibilityBadge";
 
 interface BiomarkerCardProps {
   biomarker: BiomarkerDefinition;
@@ -123,6 +124,8 @@ export function BiomarkerCard({ biomarker, result, previousResult, gender, panel
           {statusLabel}
         </Badge>
       </div>
+
+      <MedicareEligibilityBadge biomarkerId={biomarker.id} className="mb-3" />
 
       {/* Value */}
       <div className="flex items-baseline gap-2 mb-3">

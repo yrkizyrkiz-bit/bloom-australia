@@ -791,6 +791,7 @@ export async function POST(req: NextRequest) {
       lastName: string;
       phone: string | null;
       timezone: string | null;
+      subscriptionTier: string | null;
     } | null = null;
     const bookingUserId = userId || booking.userId;
 
@@ -804,6 +805,7 @@ export async function POST(req: NextRequest) {
           lastName: true,
           phone: true,
           timezone: true,
+          subscriptionTier: true,
         },
       });
     }
@@ -821,8 +823,13 @@ export async function POST(req: NextRequest) {
       ? `${baseUrl}/admin/doctor-brief/${bookingUserId}`
       : null;
 
+    const isHairLossProgram =
+      user?.subscriptionTier === "hair_loss" ||
+      booking.notes?.toLowerCase().includes("hair loss");
+    const programLabel = isHairLossProgram ? "Hair Loss" : "Weight Management";
+
     // GAP-013: Create calendar event with all required fields
-    const calendarTitle = `Sanative Weight Management Phone Consult — ${patientName}`;
+    const calendarTitle = `Sanative ${programLabel} Phone Consult — ${patientName}`;
 
     // UAT8-GAP-007: Get doctor's email for calendar integration
     let doctorEmail: string | null = null;
@@ -998,7 +1005,9 @@ export async function POST(req: NextRequest) {
         if (!existingInvoice) {
           // Determine amount based on plan
           const planSelected = selectedPlan || updatedBooking.selectedPlan;
-          const amount = planSelected?.toUpperCase() === "PRECISION" ? 399 : 249; // First month discounted prices
+          const amount = isHairLossProgram
+            ? 49
+            : planSelected?.toUpperCase() === "PRECISION" ? 399 : 249; // First month discounted prices
 
           await prisma.invoice.create({
             data: {
@@ -1009,7 +1018,9 @@ export async function POST(req: NextRequest) {
               status: "PAID",
               paidAt: new Date(),
               paymentMethod: "card",
-              description: `Weight Management - First Month (${planSelected || "Core"} Plan)`,
+              description: isHairLossProgram
+                ? "Hair Loss - First Month (Hair Care Plan)"
+                : `Weight Management - First Month (${planSelected || "Core"} Plan)`,
             },
           });
           console.log(`[Booking Confirm] Created fallback invoice for user ${bookingUserId}`);
@@ -1027,7 +1038,7 @@ export async function POST(req: NextRequest) {
         await prisma.user.update({
           where: { id: bookingUserId },
           data: {
-            subscriptionTier: "weight_management",
+            subscriptionTier: isHairLossProgram ? "hair_loss" : "weight_management",
             subscriptionStatus: "INACTIVE", // UAT8-GAP-004: Remains INACTIVE until doctor approval
             journeyStatus: "CONSULTATION_PAID", // Payment received, awaiting consultation
             memberStatus: "MEMBER",

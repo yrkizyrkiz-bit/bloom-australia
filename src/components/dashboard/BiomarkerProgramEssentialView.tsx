@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BiomarkerCard } from "@/components/dashboard/BiomarkerCard";
+import { UntestedBiomarkerCard } from "@/components/dashboard/UntestedBiomarkerCard";
 import {
   bloodPanelConfig,
   bloodPanelCategoryInfo,
@@ -20,6 +21,7 @@ import {
   PROGRAM_ESSENTIAL_PANELS,
   type ProgramEssentialSlug,
 } from "@/lib/program-essential-panels";
+import { MedicareEligibilityLegend } from "@/components/dashboard/MedicareEligibilityLegend";
 import { Info, User } from "lucide-react";
 
 type BiomarkerRow = {
@@ -29,29 +31,6 @@ type BiomarkerRow = {
   result: BiomarkerResult | null;
   biomarkerDef: BiomarkerDefinition | undefined;
 };
-
-interface GrayscaleCardProps {
-  biomarker: BloodPanelBiomarker;
-  gender?: Gender;
-}
-
-function GrayscaleBiomarkerCard({ biomarker, gender }: GrayscaleCardProps) {
-  return (
-    <Card className="p-4 opacity-60 grayscale border-border">
-      <div className="flex items-start justify-between mb-3">
-        <h4 className="font-medium text-gray-500">{biomarker.shortName}</h4>
-        <Badge variant="outline" className="text-xs text-gray-400 border-gray-300">
-          Not Tested
-        </Badge>
-      </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-serif font-bold text-gray-400">—</span>
-        <span className="text-sm text-gray-400">{biomarker.unit}</span>
-      </div>
-      <p className="text-xs text-muted-foreground mt-2">{biomarker.name}</p>
-    </Card>
-  );
-}
 
 interface BiomarkerProgramEssentialViewProps {
   program: ProgramEssentialSlug;
@@ -154,8 +133,7 @@ export function BiomarkerProgramEssentialView({
               </p>
               <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                 <Info className="w-3 h-3 shrink-0" />
-                Markers your care team may order when clinically appropriate. Medicare eligibility
-                depends on indication and MBS criteria.
+                Hover a marker badge for Medicare eligibility details.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
@@ -176,6 +154,8 @@ export function BiomarkerProgramEssentialView({
         </CardContent>
       </Card>
 
+      <MedicareEligibilityLegend />
+
       {/* Coverage bar */}
       <p className="text-xs text-muted-foreground">
         Program panel coverage: {counts.tested} of {counts.total} essential markers tested
@@ -192,6 +172,7 @@ export function BiomarkerProgramEssentialView({
           const config = bloodPanelConfig[category];
           const Icon = config.icon;
           const testedInGroup = items.filter((i) => i.result !== null).length;
+          const pendingInGroup = items.length - testedInGroup;
 
           return (
             <section key={category}>
@@ -202,15 +183,18 @@ export function BiomarkerProgramEssentialView({
                 >
                   <Icon className="w-5 h-5" style={{ color: config.color }} />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <h3 className="text-base font-medium text-foreground">
                     {bloodPanelCategoryInfo[category].name}
                   </h3>
                   <p className="text-xs text-muted-foreground">{config.description}</p>
                 </div>
-                <Badge variant="secondary" className="ml-auto">
-                  {testedInGroup}/{items.length}
-                </Badge>
+                <div className="flex gap-2 shrink-0">
+                  <Badge variant="secondary">{testedInGroup} tested</Badge>
+                  {pendingInGroup > 0 && (
+                    <Badge variant="outline">{pendingInGroup} pending</Badge>
+                  )}
+                </div>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {items.map(({ biomarker, result, biomarkerDef }) =>
@@ -224,10 +208,16 @@ export function BiomarkerProgramEssentialView({
                       onClick={() => onBiomarkerClick(biomarkerDef, result, biomarker)}
                     />
                   ) : (
-                    <GrayscaleBiomarkerCard
+                    <UntestedBiomarkerCard
                       key={biomarker.id}
                       biomarker={biomarker}
                       gender={gender}
+                      categoryColor={config.color}
+                      onClick={
+                        biomarkerDef
+                          ? () => onBiomarkerClick(biomarkerDef, null, biomarker)
+                          : undefined
+                      }
                     />
                   )
                 )}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { normalizeHealthGoalStatus } from "@/lib/goal-deduplication";
 
 // GET /api/goals/[id]
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,20 +47,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let normalizedStatus: ReturnType<typeof normalizeHealthGoalStatus> | undefined;
+    if (status !== undefined) {
+      try {
+        normalizedStatus = normalizeHealthGoalStatus(status);
+      } catch {
+        return NextResponse.json({ error: "Invalid goal status" }, { status: 400 });
+      }
+    }
+
     const goal = await prisma.healthGoal.update({
       where: { id },
       data: {
         ...(currentValue !== undefined && { currentValue }),
         ...(targetValue !== undefined && { targetValue }),
         ...(targetDate !== undefined && { targetDate: new Date(targetDate) }),
-        ...(status !== undefined && { status: status.toUpperCase() }),
+        ...(normalizedStatus !== undefined && { status: normalizedStatus }),
         ...(notes !== undefined && { notes }),
-        ...(status?.toUpperCase() === "ACHIEVED" && { completedAt: new Date() }),
+        ...(normalizedStatus === "ACHIEVED" && { completedAt: new Date() }),
       },
       include: { biomarker: { select: { name: true, shortName: true, category: true, unit: true } } },
     });
 
-    if (status?.toUpperCase() === "ACHIEVED") {
+    if (normalizedStatus === "ACHIEVED") {
       await prisma.notification.create({
         data: {
           userId: existing.userId,
@@ -75,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await prisma.activityLog.create({
       data: {
         userId: session.user.id,
-        action: status?.toUpperCase() === "ACHIEVED" ? "GOAL_ACHIEVED" : "GOAL_UPDATED",
+        action: normalizedStatus === "ACHIEVED" ? "GOAL_ACHIEVED" : "GOAL_UPDATED",
         entity: "health_goal",
         entityId: goal.id,
         details: { status: goal.status },

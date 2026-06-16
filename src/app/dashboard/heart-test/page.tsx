@@ -3,8 +3,11 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBiomarkerResults } from "@/hooks/useApi";
-import { BiomarkerCard } from "@/components/dashboard/BiomarkerCard";
 import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDialog";
+import { OrganTestBiomarkerGrid } from "@/components/dashboard/OrganTestBiomarkerGrid";
+import { buildBiomarkerResultsMap } from "@/lib/organ-test-biomarkers";
+import { mapApiBiomarkerResults } from "@/lib/map-api-biomarker-results";
+import type { BloodPanelBiomarker } from "@/data/bloodPanelConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -150,26 +153,15 @@ export default function HeartTestPage() {
 
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
-    result: BiomarkerResult;
+    result: BiomarkerResult | null;
+    panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
 
   // Transform API data to BiomarkerResult format
-  const allBiomarkerResults: BiomarkerResult[] = useMemo(() => {
-    if (!biomarkerData?.results) return [];
-
-    return biomarkerData.results.map((r: any) => ({
-      id: r.id,
-      biomarkerId: r.biomarkerId,
-      value: r.value,
-      unit: r.biomarker?.unit || "",
-      status: r.status?.toLowerCase() as BiomarkerResult["status"],
-      testedAt: r.testedAt,
-      labReportId: r.labReportId || "",
-      notes: r.notes || "",
-      previousValue: r.previousValue,
-      trend: r.trend?.toLowerCase() as "up" | "down" | "stable" | undefined,
-    }));
-  }, [biomarkerData]);
+  const allBiomarkerResults: BiomarkerResult[] = useMemo(
+    () => mapApiBiomarkerResults(biomarkerData?.results),
+    [biomarkerData]
+  );
 
   // Get biomarkers with their results for heart test
   const heartTestResults = useMemo(() => {
@@ -186,13 +178,22 @@ export default function HeartTestPage() {
       );
   }, [allBiomarkerResults]);
 
+  const resultsById = useMemo(
+    () => buildBiomarkerResultsMap(allBiomarkerResults),
+    [allBiomarkerResults]
+  );
+
   // Calculate health score
   const healthScore = useMemo(() => {
     return calculateHeartHealthScore(allBiomarkerResults, gender);
   }, [allBiomarkerResults, gender]);
 
-  const handleBiomarkerClick = (biomarker: BiomarkerDefinition, result: BiomarkerResult) => {
-    setSelectedBiomarker({ biomarker, result });
+  const handleBiomarkerClick = (
+    biomarker: BiomarkerDefinition,
+    result: BiomarkerResult | null,
+    panelBiomarker?: BloodPanelBiomarker
+  ) => {
+    setSelectedBiomarker({ biomarker, result, panelBiomarker });
   };
 
   // Count statuses
@@ -425,8 +426,8 @@ export default function HeartTestPage() {
 
           <div className="space-y-8">
             {Object.entries(heartTestConfig).map(([key, config]) => {
-              const categoryResults = heartTestResults.filter(item => config.biomarkerIds.includes(item.result.biomarkerId));
               const categoryScore = healthScore.categoryScores[key];
+              const testedInCategory = config.biomarkerIds.filter((id) => resultsById[id]).length;
               return (
                 <div key={key}>
                   <div className="flex items-center gap-3 mb-4">
@@ -434,19 +435,24 @@ export default function HeartTestPage() {
                       <config.icon className="w-5 h-5" style={{ color: config.color }} />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h2 className="text-lg font-medium text-foreground">{config.name}</h2>
                         <Badge variant="secondary" className="text-xs">{config.subtitle}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {testedInCategory}/{config.biomarkerIds.length} tested
+                        </Badge>
                         {categoryScore && <Badge variant="outline" className={`${getScoreColor(categoryScore.score)} border-current`}>Score: {categoryScore.score}</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground">{categoryScore?.optimal || 0} optimal, {categoryScore?.normal || 0} normal, {categoryScore?.outOfRange || 0} out of range</p>
                     </div>
                   </div>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {categoryResults.map(({ biomarker, result }) => (
-                      <BiomarkerCard key={result.id} biomarker={biomarker} result={result} gender={gender} onClick={() => setSelectedBiomarker({ biomarker, result })} />
-                    ))}
-                  </div>
+                  <OrganTestBiomarkerGrid
+                    biomarkerIds={config.biomarkerIds}
+                    resultsById={resultsById}
+                    gender={gender}
+                    categoryColor={config.color}
+                    onBiomarkerClick={handleBiomarkerClick}
+                  />
                 </div>
               );
             })}
@@ -502,8 +508,9 @@ export default function HeartTestPage() {
       <BiomarkerDetailDialog
         biomarker={selectedBiomarker?.biomarker || null}
         result={selectedBiomarker?.result || null}
-        history={[]} // No mock getHistoryForBiomarker, so leave empty or implement real history if available
+        history={[]}
         gender={gender}
+        panelBiomarker={selectedBiomarker?.panelBiomarker}
         open={!!selectedBiomarker}
         onOpenChange={(open) => !open && setSelectedBiomarker(null)}
       />

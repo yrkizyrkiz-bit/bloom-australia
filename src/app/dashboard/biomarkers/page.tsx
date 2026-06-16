@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,14 +17,15 @@ import {
   bloodPanelConfig,
   bloodPanelCategoryInfo,
   getBiomarkerStatus,
-  getEffectiveRange,
-  hasGenderSpecificRanges,
   type BloodPanelCategoryKey,
   type BloodPanelBiomarker,
   type Gender
 } from "@/data/bloodPanelConfig";
 import type { BiomarkerDefinition, BiomarkerResult, BiomarkerCategory } from "@/types";
 import { BiomarkerProgramEssentialView } from "@/components/dashboard/BiomarkerProgramEssentialView";
+import { UntestedBiomarkerCard } from "@/components/dashboard/UntestedBiomarkerCard";
+import { MedicareEligibilityLegend } from "@/components/dashboard/MedicareEligibilityLegend";
+import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 import {
   isProgramEssentialSlug,
   type ProgramEssentialSlug,
@@ -46,72 +47,21 @@ const healthTestPanels = [
   { href: "/dashboard/metabolic-panel", label: "Metabolic", icon: Flame, color: "#f97316" },
 ];
 
-// Grayscale biomarker card for biomarkers without results
-function GrayscaleBiomarkerCard({
-  biomarker,
-  gender,
-  onClick
-}: {
-  biomarker: BloodPanelBiomarker;
-  gender?: Gender;
-  onClick?: () => void;
-}) {
-  const range = getEffectiveRange(biomarker, gender);
-  const hasGenderRange = hasGenderSpecificRanges(biomarker);
-
+export default function BiomarkersPage() {
   return (
-    <Card
-      className="p-4 cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all duration-200 group opacity-60 grayscale"
-      onClick={onClick}
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      }
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-          <h4 className="font-medium text-gray-500 group-hover:text-gray-700 transition-colors">
-            {biomarker.shortName}
-          </h4>
-          {hasGenderRange && (
-            <span title={`${gender === 'male' ? 'Male' : 'Female'} reference range`}>
-              <User className="w-3 h-3 text-gray-400" />
-            </span>
-          )}
-        </div>
-        <Badge variant="outline" className="text-xs text-gray-400 border-gray-300">
-          Not Tested
-        </Badge>
-      </div>
-
-      {/* Value placeholder */}
-      <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-2xl font-serif font-bold text-gray-400">
-          —
-        </span>
-        <span className="text-sm text-gray-400">{biomarker.unit}</span>
-      </div>
-
-      {/* Range bar */}
-      <div className="space-y-1">
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden relative">
-          {/* Optimal zone indicator */}
-          <div
-            className="absolute h-full bg-gray-300/50"
-            style={{
-              left: `${((range.optimalLow - range.normalLow) / (range.normalHigh - range.normalLow)) * 100}%`,
-              width: `${((range.optimalHigh - range.optimalLow) / (range.normalHigh - range.normalLow)) * 100}%`
-            }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-gray-400">
-          <span>{range.normalLow}</span>
-          <span>Optimal: {range.optimalLow}-{range.optimalHigh}</span>
-          <span>{range.normalHigh}</span>
-        </div>
-      </div>
-    </Card>
+      <BiomarkersPageContent />
+    </Suspense>
   );
 }
 
-export default function BiomarkersPage() {
+function BiomarkersPageContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams?.get("category") as BloodPanelCategoryKey | null;
   const initialView = searchParams?.get("view") === "program" ? "program" : "all";
@@ -122,14 +72,17 @@ export default function BiomarkersPage() {
       : "WEIGHT_MANAGEMENT";
 
   const { user } = useAuth();
-  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, { latest: true });
+  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
+    latest: true,
+    ensureDerived: true,
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<BloodPanelCategoryKey | null>(initialCategory);
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
-    result: BiomarkerResult;
+    result: BiomarkerResult | null;
     panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
   const [viewMode, setViewMode] = useState<BiomarkerViewMode>(initialView);
@@ -138,12 +91,12 @@ export default function BiomarkersPage() {
   // Get user gender for gender-specific ranges
   const gender: Gender = user?.gender === "female" ? "female" : "male";
 
-  // Transform API data to a lookup map by biomarkerId
-  // Also derive missing biomarkers from available data
+  // Transform API data to a lookup map by biomarkerId (derived values persisted server-side)
   const biomarkerResultsMap = useMemo(() => {
     const map: Record<string, BiomarkerResult> = {};
     if (biomarkerData?.results) {
       for (const r of biomarkerData.results) {
+        if (!isCatalogBiomarker(r.biomarkerId)) continue;
         map[r.biomarkerId] = {
           id: r.id,
           biomarkerId: r.biomarkerId,
@@ -156,192 +109,6 @@ export default function BiomarkersPage() {
           previousValue: r.previousValue,
           trend: r.trend?.toLowerCase() as "up" | "down" | "stable" | undefined,
         };
-      }
-
-      // ===== DERIVE MISSING BIOMARKERS =====
-      // If we have absolute counts and WBC but not percentages, calculate them
-      const wbc = map["wbc"];
-
-      if (wbc && wbc.value > 0) {
-        // Derive Lymphocyte % from absolute count if missing
-        if (map["lymphocytes"] && !map["lymphocyte_percent"]) {
-          const rawPercent = (map["lymphocytes"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["lymphocyte_percent"] = {
-              id: `derived-lymphocyte_percent`,
-              biomarkerId: "lymphocyte_percent",
-              value: roundedPercent,
-              unit: "%",
-              status: "normal", // Will be recalculated by panel status
-              testedAt: map["lymphocytes"].testedAt,
-              labReportId: map["lymphocytes"].labReportId,
-              notes: "Calculated from absolute count",
-            };
-          }
-        }
-
-        // Derive Neutrophil % from absolute count if missing
-        if (map["neutrophils"] && !map["neutrophil_percent"]) {
-          const rawPercent = (map["neutrophils"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["neutrophil_percent"] = {
-              id: `derived-neutrophil_percent`,
-              biomarkerId: "neutrophil_percent",
-              value: roundedPercent,
-              unit: "%",
-              status: "normal",
-              testedAt: map["neutrophils"].testedAt,
-              labReportId: map["neutrophils"].labReportId,
-              notes: "Calculated from absolute count",
-            };
-          }
-        }
-
-        // Derive Monocyte % from absolute count if missing
-        if (map["monocytes"] && !map["monocyte_percent"]) {
-          const rawPercent = (map["monocytes"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["monocyte_percent"] = {
-              id: `derived-monocyte_percent`,
-              biomarkerId: "monocyte_percent",
-              value: roundedPercent,
-              unit: "%",
-              status: "normal",
-              testedAt: map["monocytes"].testedAt,
-              labReportId: map["monocytes"].labReportId,
-              notes: "Calculated from absolute count",
-            };
-          }
-        }
-
-        // Derive Eosinophil % from absolute count if missing
-        if (map["eosinophils"] && !map["eosinophil_percent"]) {
-          const rawPercent = (map["eosinophils"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["eosinophil_percent"] = {
-              id: `derived-eosinophil_percent`,
-              biomarkerId: "eosinophil_percent",
-              value: roundedPercent,
-              unit: "%",
-              status: "normal",
-              testedAt: map["eosinophils"].testedAt,
-              labReportId: map["eosinophils"].labReportId,
-              notes: "Calculated from absolute count",
-            };
-          }
-        }
-
-        // Derive Basophil % from absolute count if missing
-        if (map["basophils"] && !map["basophil_percent"]) {
-          const rawPercent = (map["basophils"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["basophil_percent"] = {
-              id: `derived-basophil_percent`,
-              biomarkerId: "basophil_percent",
-              value: roundedPercent,
-              unit: "%",
-              status: "normal",
-              testedAt: map["basophils"].testedAt,
-              labReportId: map["basophils"].labReportId,
-              notes: "Calculated from absolute count",
-            };
-          }
-        }
-      }
-
-      // Derive cholesterol ratios if missing
-      const tc = map["total_cholesterol"];
-      const hdl = map["hdl_cholesterol"];
-      const ldl = map["ldl_cholesterol"];
-      const tg = map["triglycerides"];
-
-      if (tc && hdl && hdl.value > 0 && !map["tc_hdl_ratio"]) {
-        const ratio = Math.round((tc.value / hdl.value) * 10) / 10;
-        if (ratio > 0 && ratio < 15) {
-          map["tc_hdl_ratio"] = {
-            id: `derived-tc_hdl_ratio`,
-            biomarkerId: "tc_hdl_ratio",
-            value: ratio,
-            unit: "",
-            status: "normal",
-            testedAt: tc.testedAt,
-            labReportId: tc.labReportId,
-            notes: "Calculated from TC and HDL",
-          };
-        }
-      }
-
-      if (ldl && hdl && hdl.value > 0 && !map["ldl_hdl_ratio"]) {
-        const ratio = Math.round((ldl.value / hdl.value) * 10) / 10;
-        if (ratio > 0 && ratio < 10) {
-          map["ldl_hdl_ratio"] = {
-            id: `derived-ldl_hdl_ratio`,
-            biomarkerId: "ldl_hdl_ratio",
-            value: ratio,
-            unit: "",
-            status: "normal",
-            testedAt: ldl.testedAt,
-            labReportId: ldl.labReportId,
-            notes: "Calculated from LDL and HDL",
-          };
-        }
-      }
-
-      if (tg && hdl && hdl.value > 0 && !map["tg_hdl_ratio"]) {
-        const ratio = Math.round((tg.value / hdl.value) * 10) / 10;
-        if (ratio > 0 && ratio < 15) {
-          map["tg_hdl_ratio"] = {
-            id: `derived-tg_hdl_ratio`,
-            biomarkerId: "tg_hdl_ratio",
-            value: ratio,
-            unit: "",
-            status: "normal",
-            testedAt: tg.testedAt,
-            labReportId: tg.labReportId,
-            notes: "Calculated from TG and HDL",
-          };
-        }
-      }
-
-      // Derive Non-HDL cholesterol if missing
-      if (tc && hdl && !map["non_hdl_cholesterol"]) {
-        const nonHdl = Math.round((tc.value - hdl.value) * 100) / 100;
-        if (nonHdl > 0 && nonHdl < 10) {
-          map["non_hdl_cholesterol"] = {
-            id: `derived-non_hdl_cholesterol`,
-            biomarkerId: "non_hdl_cholesterol",
-            value: nonHdl,
-            unit: "mmol/L",
-            status: "normal",
-            testedAt: tc.testedAt,
-            labReportId: tc.labReportId,
-            notes: "Calculated from TC and HDL",
-          };
-        }
-      }
-
-      // Derive HOMA-IR if missing
-      const glucose = map["glucose"];
-      const insulin = map["insulin"];
-      if (glucose && insulin && !map["homa_ir"]) {
-        const homaIr = Math.round((insulin.value * glucose.value / 22.5) * 100) / 100;
-        if (homaIr > 0 && homaIr < 20) {
-          map["homa_ir"] = {
-            id: `derived-homa_ir`,
-            biomarkerId: "homa_ir",
-            value: homaIr,
-            unit: "",
-            status: "normal",
-            testedAt: glucose.testedAt,
-            labReportId: glucose.labReportId,
-            notes: "Calculated from glucose and insulin",
-          };
-        }
       }
     }
     return map;
@@ -468,7 +235,7 @@ export default function BiomarkersPage() {
   }, [allBiomarkersWithResults, gender]);
 
   const handleBiomarkerClick = (biomarkerDef: BiomarkerDefinition | undefined, result: BiomarkerResult | null, panelBiomarker?: BloodPanelBiomarker) => {
-    if (biomarkerDef && result) {
+    if (biomarkerDef) {
       setSelectedBiomarker({ biomarker: biomarkerDef, result, panelBiomarker });
     }
   };
@@ -516,7 +283,7 @@ export default function BiomarkersPage() {
           <p className="text-muted-foreground mt-1">
             {viewMode === "program"
               ? "Essential monitoring panels by clinical program — toggle Weight, Hair, Men's or Women's"
-              : `View and explore all your biomarker results across ${Object.keys(bloodPanelConfig).length} health categories`}
+              : `View and explore all ${counts.totalInPanel} biomarkers across ${Object.keys(bloodPanelConfig).length} health categories`}
           </p>
         </div>
         <Link
@@ -564,6 +331,8 @@ export default function BiomarkersPage() {
         />
       ) : (
         <>
+      <MedicareEligibilityLegend />
+
       {/* Health Tests quick access — mobile only (desktop uses the nav dropdown) */}
       <div className="md:hidden">
         <h2 className="text-sm font-medium text-foreground mb-2">Organ & Metabolic Health</h2>
@@ -790,7 +559,7 @@ export default function BiomarkersPage() {
                   </div>
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {items.map(({ biomarker, result, biomarkerDef }) => (
+                  {items.map(({ biomarker, result, biomarkerDef }) =>
                     result && biomarkerDef ? (
                       <BiomarkerCard
                         key={biomarker.id}
@@ -801,13 +570,19 @@ export default function BiomarkersPage() {
                         onClick={() => handleBiomarkerClick(biomarkerDef, result, biomarker)}
                       />
                     ) : (
-                      <GrayscaleBiomarkerCard
+                      <UntestedBiomarkerCard
                         key={biomarker.id}
                         biomarker={biomarker}
                         gender={gender}
+                        categoryColor={config.color}
+                        onClick={
+                          biomarkerDef
+                            ? () => handleBiomarkerClick(biomarkerDef, null, biomarker)
+                            : undefined
+                        }
                       />
                     )
-                  ))}
+                  )}
                 </div>
               </div>
             );

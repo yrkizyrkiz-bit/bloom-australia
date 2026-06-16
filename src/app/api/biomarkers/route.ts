@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 
 // GET /api/biomarkers - Get all biomarker definitions
 export async function GET(request: NextRequest) {
@@ -19,7 +20,9 @@ export async function GET(request: NextRequest) {
       orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
     });
 
-    return NextResponse.json({ biomarkers });
+    return NextResponse.json({
+      biomarkers: biomarkers.filter((b) => isCatalogBiomarker(b.biomarkerId)),
+    });
   } catch (error) {
     console.error("Error fetching biomarkers:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

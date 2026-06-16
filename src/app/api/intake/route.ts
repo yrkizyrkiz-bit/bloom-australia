@@ -42,7 +42,7 @@ const PROGRAM_CONFIG: Record<ProgramType, {
   },
   HAIR_LOSS: {
     subscriptionTier:       "hair_loss",
-    portalPath:             "/dashboard/mens-health",
+    portalPath:             "/dashboard/mens-health/hair-loss",
     carePartnerQueue:       "HAIR_LOSS_TRIAGE",
     emailTemplateCategory:  "WELCOME",
     consultationAmount:     4900,

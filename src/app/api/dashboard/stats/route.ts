@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { calculateBiologicalAge, mapBiomarkerResultsToInput } from "@/lib/biological-age";
+import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 
 // GET /api/dashboard/stats - Get dashboard statistics for a user
 export async function GET(request: NextRequest) {
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
 
     const latestResults = new Map();
     for (const result of allResults) {
+      if (!isCatalogBiomarker(result.biomarkerId)) continue;
       if (!latestResults.has(result.biomarkerId)) latestResults.set(result.biomarkerId, result);
     }
     const biomarkerResults = Array.from(latestResults.values());

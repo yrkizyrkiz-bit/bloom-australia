@@ -67,10 +67,12 @@ export default function BloodPanelPage() {
   const gender: Gender = user?.gender === "female" ? "female" : "male";
 
   // Fetch real biomarker data from API
-  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, { latest: true });
+  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
+    latest: true,
+    ensureDerived: true,
+  });
 
-  // Transform API data to a lookup map
-  // Also derive missing biomarkers from available data
+  // Transform API data to a lookup map (derived values persisted server-side)
   const biomarkerValues = useMemo(() => {
     const map: Record<string, { value: number; testedAt: string; status: string }> = {};
     if (biomarkerData?.results) {
@@ -78,124 +80,8 @@ export default function BloodPanelPage() {
         map[r.biomarkerId] = {
           value: r.value,
           testedAt: r.testedAt,
-          status: r.status?.toLowerCase() || "normal"
+          status: r.status?.toLowerCase() || "normal",
         };
-      }
-
-      // ===== DERIVE MISSING BIOMARKERS =====
-      // If we have absolute counts and WBC but not percentages, calculate them
-      const wbc = map["wbc"];
-
-      if (wbc && wbc.value > 0) {
-        // Derive Lymphocyte % from absolute count if missing
-        if (map["lymphocytes"] && !map["lymphocyte_percent"]) {
-          const rawPercent = (map["lymphocytes"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["lymphocyte_percent"] = {
-              value: roundedPercent,
-              testedAt: map["lymphocytes"].testedAt,
-              status: "normal"
-            };
-          }
-        }
-
-        // Derive Neutrophil % from absolute count if missing
-        if (map["neutrophils"] && !map["neutrophil_percent"]) {
-          const rawPercent = (map["neutrophils"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["neutrophil_percent"] = {
-              value: roundedPercent,
-              testedAt: map["neutrophils"].testedAt,
-              status: "normal"
-            };
-          }
-        }
-
-        // Derive Monocyte % from absolute count if missing
-        if (map["monocytes"] && !map["monocyte_percent"]) {
-          const rawPercent = (map["monocytes"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["monocyte_percent"] = {
-              value: roundedPercent,
-              testedAt: map["monocytes"].testedAt,
-              status: "normal"
-            };
-          }
-        }
-
-        // Derive Eosinophil % from absolute count if missing
-        if (map["eosinophils"] && !map["eosinophil_percent"]) {
-          const rawPercent = (map["eosinophils"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["eosinophil_percent"] = {
-              value: roundedPercent,
-              testedAt: map["eosinophils"].testedAt,
-              status: "normal"
-            };
-          }
-        }
-
-        // Derive Basophil % from absolute count if missing
-        if (map["basophils"] && !map["basophil_percent"]) {
-          const rawPercent = (map["basophils"].value / wbc.value) * 100;
-          const roundedPercent = Math.round(rawPercent * 10) / 10;
-          if (roundedPercent >= 0 && roundedPercent <= 100) {
-            map["basophil_percent"] = {
-              value: roundedPercent,
-              testedAt: map["basophils"].testedAt,
-              status: "normal"
-            };
-          }
-        }
-      }
-
-      // Derive cholesterol ratios if missing
-      const tc = map["total_cholesterol"];
-      const hdl = map["hdl_cholesterol"];
-      const ldl = map["ldl_cholesterol"];
-      const tg = map["triglycerides"];
-
-      if (tc && hdl && hdl.value > 0 && !map["tc_hdl_ratio"]) {
-        const ratio = Math.round((tc.value / hdl.value) * 10) / 10;
-        if (ratio > 0 && ratio < 15) {
-          map["tc_hdl_ratio"] = { value: ratio, testedAt: tc.testedAt, status: "normal" };
-        }
-      }
-
-      if (ldl && hdl && hdl.value > 0 && !map["ldl_hdl_ratio"]) {
-        const ratio = Math.round((ldl.value / hdl.value) * 10) / 10;
-        if (ratio > 0 && ratio < 10) {
-          map["ldl_hdl_ratio"] = { value: ratio, testedAt: ldl.testedAt, status: "normal" };
-        }
-      }
-
-      if (tg && hdl && hdl.value > 0 && !map["tg_hdl_ratio"]) {
-        const ratio = Math.round((tg.value / hdl.value) * 10) / 10;
-        if (ratio > 0 && ratio < 15) {
-          map["tg_hdl_ratio"] = { value: ratio, testedAt: tg.testedAt, status: "normal" };
-        }
-      }
-
-      // Derive Non-HDL cholesterol if missing
-      if (tc && hdl && !map["non_hdl_cholesterol"]) {
-        const nonHdl = Math.round((tc.value - hdl.value) * 100) / 100;
-        if (nonHdl > 0 && nonHdl < 10) {
-          map["non_hdl_cholesterol"] = { value: nonHdl, testedAt: tc.testedAt, status: "normal" };
-        }
-      }
-
-      // Derive HOMA-IR if missing
-      const glucose = map["glucose"];
-      const insulin = map["insulin"];
-      if (glucose && insulin && !map["homa_ir"]) {
-        const homaIr = Math.round((insulin.value * glucose.value / 22.5) * 100) / 100;
-        if (homaIr > 0 && homaIr < 20) {
-          map["homa_ir"] = { value: homaIr, testedAt: glucose.testedAt, status: "normal" };
-        }
       }
     }
     return map;

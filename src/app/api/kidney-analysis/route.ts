@@ -414,7 +414,7 @@ interface KidneyAnalysisResult {
 
 // Kidney-related biomarker IDs
 const KIDNEY_BIOMARKER_IDS = [
-  "creatinine", "urea", "egfr", "cystatin_c", "uric_acid", "uacr",
+  "creatinine", "urea", "egfr", "uric_acid", "uacr",
   "sodium", "potassium", "chloride", "bicarbonate",
   "calcium", "phosphate", "magnesium",
   "albumin", "total_protein",

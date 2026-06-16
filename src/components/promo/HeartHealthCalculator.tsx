@@ -353,7 +353,7 @@ export function HeartHealthCalculator() {
               <ul className="space-y-1.5">
                 <li className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                  <span>Get a comprehensive lipid panel including ApoB and Lp(a)</span>
+                  <span>Get a comprehensive lipid panel with inflammation markers</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />

@@ -55,7 +55,7 @@ const mockScheduledTests: ScheduledTest[] = [
 
 const testTypes = [
   { id: "comprehensive", name: "Comprehensive Kidney Panel", category: "both", description: "Blood + Urine: eGFR, Creatinine, BUN, UACR, Electrolytes" },
-  { id: "blood", name: "Kidney Function Panel (Blood)", category: "blood", description: "eGFR, Creatinine, BUN, Cystatin C, Electrolytes" },
+  { id: "blood", name: "Kidney Function Panel (Blood)", category: "blood", description: "eGFR, Creatinine, BUN, Electrolytes" },
   { id: "urine", name: "Urine Albumin Test", category: "urine", description: "UACR, Microalbumin, Urine Protein" },
   { id: "electrolytes", name: "Electrolyte Panel", category: "blood", description: "Sodium, Potassium, Bicarbonate, Calcium, Phosphorus" },
 ];

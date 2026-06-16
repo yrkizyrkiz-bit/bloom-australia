@@ -81,7 +81,7 @@ const questions: QuestionCard[] = [
 
 // Simplified biomarker list for honeycomb
 const biomarkerNames = [
-  "LDL", "HDL", "TC", "TG", "ApoB", "hsCRP",
+  "LDL", "HDL", "TC", "TG", "hsCRP",
   "HbA1c", "Gluc", "Ins", "TSH", "fT4", "fT3", "COR",
   "DHEA", "E2", "Prog", "TT", "FSH", "VitD", "B12",
   "Fol", "Fe", "Fer", "Mg", "Zn", "Se", "Cu",

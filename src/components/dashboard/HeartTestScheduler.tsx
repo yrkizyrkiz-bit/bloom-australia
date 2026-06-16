@@ -29,7 +29,7 @@ const mockScheduledTests: ScheduledTest[] = [
 
 const testTypes = [
   { id: "lipid", name: "Complete Lipid Panel", description: "Total, LDL, HDL Cholesterol, Triglycerides" },
-  { id: "cardiac", name: "Cardiac Risk Panel", description: "Lipids + CRP, Homocysteine, Lp(a)" },
+  { id: "cardiac", name: "Cardiac Risk Panel", description: "Lipids + CRP, Homocysteine" },
   { id: "full", name: "Full Cardiovascular Assessment", description: "Comprehensive heart health markers" },
 ];
 

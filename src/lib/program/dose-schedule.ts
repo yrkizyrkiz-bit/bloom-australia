@@ -1,3 +1,41 @@
+/** Australian calendar day for dose scheduling (member-facing). */
+export const DOSE_SCHEDULE_TIMEZONE = "Australia/Sydney";
+
+export function getCalendarDateKey(
+  date: Date,
+  timeZone = DOSE_SCHEDULE_TIMEZONE
+): string {
+  return date.toLocaleDateString("en-CA", { timeZone });
+}
+
+/** True when today (AU) is on or after the scheduled dose day. */
+export function canLogDoseScheduledFor(
+  scheduledAt: Date | string,
+  now = new Date()
+): boolean {
+  const scheduled = new Date(scheduledAt);
+  return getCalendarDateKey(now) >= getCalendarDateKey(scheduled);
+}
+
+export function formatNextDoseDateLong(scheduledAt: Date | string): string {
+  return new Date(scheduledAt).toLocaleDateString("en-AU", {
+    timeZone: DOSE_SCHEDULE_TIMEZONE,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export function formatNextDoseDateShort(scheduledAt: Date | string): string {
+  return new Date(scheduledAt).toLocaleDateString("en-AU", {
+    timeZone: DOSE_SCHEDULE_TIMEZONE,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 /** Parse prescription frequency into dose interval days. */
 export function parseDoseIntervalDays(frequency: string): number {
   const f = frequency.toLowerCase();

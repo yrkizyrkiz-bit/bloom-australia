@@ -111,7 +111,6 @@ export const ORGAN_TREND_CONFIGS: Record<OrganTrendId, OrganTrendConfig> = {
       "creatinine",
       "egfr",
       "bun",
-      "cystatin_c",
       "uacr",
       "potassium",
       "sodium",
@@ -124,7 +123,7 @@ export const ORGAN_TREND_CONFIGS: Record<OrganTrendId, OrganTrendConfig> = {
       {
         key: "kidneyFunction",
         name: "Kidney Function",
-        biomarkerIds: ["creatinine", "egfr", "bun", "cystatin_c"],
+        biomarkerIds: ["creatinine", "egfr", "bun"],
       },
       { key: "urineMarkers", name: "Urine Markers", biomarkerIds: ["uacr"] },
       { key: "electrolytes", name: "Electrolytes", biomarkerIds: ["potassium", "sodium", "bicarbonate"] },
@@ -323,7 +322,6 @@ export const ORGAN_TREND_SUMMARY_DEFAULTS: Partial<
     categoryImprovements: [
       { label: "eGFR (Filtration)", delta: 10 },
       { label: "UACR (Protein)", delta: 17 },
-      { label: "Cystatin C", delta: 16 },
       { label: "Electrolytes", delta: 8 },
     ],
   },

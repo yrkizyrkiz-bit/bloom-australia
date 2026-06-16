@@ -4,10 +4,10 @@ export interface GoalLatestResult {
   status?: string;
 }
 
-export interface GoalWithLatest<T extends { biomarkerId: string; currentValue: number }> extends T {
+export type GoalWithLatest<T extends { biomarkerId: string; currentValue: number }> = T & {
   latestResult: GoalLatestResult | null;
   effectiveCurrentValue: number;
-}
+};
 
 /** Pick the most recent result per biomarker from a desc-sorted results list. */
 export function indexLatestResultsByBiomarker(

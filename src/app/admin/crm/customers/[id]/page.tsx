@@ -427,6 +427,12 @@ export default function CustomerDetailPage() {
     }>;
   } | null;
   const assessment = assessmentData?.assessment as AssessmentData | null;
+  const rawSurveyData =
+    (assessmentData?.rawSurveyData as Record<string, unknown> | null) || null;
+  const isHairLossQuestionnaire =
+    rawSurveyData?.programType === "HAIR_LOSS" ||
+    customer.subscriptionTier === "hair_loss" ||
+    assessmentData?.program === "HAIR_LOSS";
   const billingSummary = assessmentData?.billingSummary as {
     planLabel?: string;
     selectedPlan?: string | null;
@@ -598,8 +604,9 @@ export default function CustomerDetailPage() {
 
           {/* Tabs */}
           <Tabs defaultValue="assessment">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="assessment">Assessment</TabsTrigger>
+              <TabsTrigger value="hair">Hair</TabsTrigger>
               <TabsTrigger value="subscription">Subscription</TabsTrigger>
               <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -775,6 +782,96 @@ export default function CustomerDetailPage() {
                     <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">No assessment data available</p>
                     <p className="text-sm text-muted-foreground mt-1">The customer has not completed the health questionnaire yet.</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="hair" className="space-y-4 mt-4">
+              {isHairLossQuestionnaire && rawSurveyData ? (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-amber-600" />
+                        Hair Loss Questionnaire
+                        <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                          Hair Loss
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        Captured from the hair assessment quiz.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="p-3 bg-muted/30 rounded-lg">
+                          <p className="text-xs text-muted-foreground">Hair stage</p>
+                          <p className="font-medium">{(rawSurveyData.hairStage as string) || "—"}</p>
+                        </div>
+                        <div className="p-3 bg-muted/30 rounded-lg">
+                          <p className="text-xs text-muted-foreground">Timeline</p>
+                          <p className="font-medium">{(rawSurveyData.hairLossTimeline as string) || "—"}</p>
+                        </div>
+                        <div className="p-3 bg-muted/30 rounded-lg">
+                          <p className="text-xs text-muted-foreground">Family history</p>
+                          <p className="font-medium">{(rawSurveyData.familyHistory as string) || "—"}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Medical considerations</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div>
+                              <Label className="mb-2">Conditions</Label>
+                              {renderConditionBadges(
+                                (rawSurveyData.medicalConditions as string[]) || [],
+                                "bg-blue-50 text-blue-700"
+                              )}
+                            </div>
+                            {(rawSurveyData.gender as string) === "female" && (
+                              <div>
+                                <Label className="mb-2">Pregnancy status</Label>
+                                <Badge variant="outline">
+                                  {(rawSurveyData.pregnancyStatus as string) || "—"}
+                                </Badge>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Care context</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div>
+                              <Label className="mb-2">Other concerns</Label>
+                              {renderConditionBadges(
+                                (rawSurveyData.otherConcerns as string[]) || [],
+                                "bg-amber-50 text-amber-700"
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Plan:{" "}
+                              <span className="font-medium text-foreground">
+                                $49 first month, then $79/month if approved
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No hair questionnaire data available</p>
                   </CardContent>
                 </Card>
               )}

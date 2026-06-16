@@ -143,7 +143,7 @@ export default function HeartHealthPage() {
   ];
 
   const processSteps = [
-    { icon: Eye, title: "Assess", subtitle: "Comprehensive Lipid Panel", description: "Advanced markers including ApoB, Lp(a), and particle size analysis." },
+    { icon: Eye, title: "Assess", subtitle: "Comprehensive Lipid Panel", description: "Standard lipid profile plus inflammation and metabolic markers." },
     { icon: Wrench, title: "Plan", subtitle: "Personalised Protocol", description: "Evidence-based care plan with dietary, lifestyle, and medication options." },
     { icon: Check, title: "Monitor", subtitle: "Track Progress", description: "Regular biomarker testing to guide treatment adjustments." },
     { icon: RefreshCw, title: "Optimise", subtitle: "Long-term Management", description: "Ongoing support to maintain optimal cardiovascular markers." },
@@ -151,15 +151,15 @@ export default function HeartHealthPage() {
 
   const biomarkers = [
     { name: "Lipid Panel", markers: ["Total Cholesterol", "LDL-C", "HDL-C", "Triglycerides"], category: "Core" },
-    { name: "Advanced Lipids", markers: ["ApoB", "Lp(a)", "LDL Particle Size"], category: "Advanced" },
-    { name: "Inflammation", markers: ["hs-CRP", "Homocysteine", "Fibrinogen"], category: "Risk" },
+    { name: "Inflammation", markers: ["hs-CRP", "Homocysteine"], category: "Risk" },
+    { name: "Metabolic", markers: ["HbA1c", "Fasting Glucose"], category: "Metabolic" },
   ];
 
   const faqs = [
     { question: "What is dyslipidemia?", answer: "Dyslipidemia refers to abnormal levels of lipids in the blood. According to the Heart Foundation, it's a major risk factor for cardiovascular disease — Australia's leading cause of death." },
     { question: "How does obesity affect cholesterol?", answer: "The AIHW reports two-thirds of Australian adults are overweight or obese. Excess body fat increases LDL cholesterol and triglycerides while lowering HDL. Studies show 5-10% weight loss significantly improves lipid profiles." },
     { question: "Can high cholesterol be reversed?", answer: "In many cases, yes. Lifestyle modifications can reduce LDL by 10-15% (AIHW). However, some individuals need medication, especially those with genetic conditions like familial hypercholesterolemia." },
-    { question: "What biomarkers do you test?", answer: "Our comprehensive panel includes Total Cholesterol, LDL, HDL, Triglycerides, plus advanced markers: ApoB (better CVD predictor than LDL), Lp(a) (genetic risk), hs-CRP (inflammation), and HbA1c (metabolic health)." },
+    { question: "What biomarkers do you test?", answer: "Our heart health panel includes Total Cholesterol, LDL, HDL, Triglycerides, hs-CRP (inflammation), homocysteine, and HbA1c (metabolic health)." },
   ];
 
   return (
@@ -315,15 +315,15 @@ export default function HeartHealthPage() {
                   Beyond standard <span className="text-rose-600 italic">cholesterol tests</span>
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  <strong>Standard lipid panels miss crucial information.</strong> Research shows ApoB is a better predictor of cardiovascular risk than LDL alone, yet most tests don't include it.
+                  <strong>Standard lipid panels are the foundation of cardiovascular screening.</strong> We test total cholesterol, LDL, HDL, and triglycerides — the markers most commonly used to guide treatment.
                 </p>
                 <p className="text-gray-600 mb-6">
-                  <strong className="text-rose-600">Lp(a) is a genetic risk factor</strong> affecting ~20% of the population but rarely tested. Elevated Lp(a) increases heart attack risk independent of other factors.
+                  <strong className="text-rose-600">Inflammation and metabolic markers</strong> add context: hs-CRP and homocysteine reflect vascular inflammation, while HbA1c and glucose capture metabolic risk that affects heart health.
                 </p>
                 <div className="bg-white rounded-2xl p-4 text-xs text-gray-600 border border-rose-100">
                   <p className="font-medium mb-2">References:</p>
-                  <p className="mb-1"><sup>1</sup> Sniderman AD, et al. JAMA Cardiol. 2019;4(12):1287-1295.</p>
-                  <p><sup>2</sup> Tsimikas S, et al. JACC 2018;72(14):1670-1680.</p>
+                  <p className="mb-1"><sup>1</sup> Heart Foundation of Australia — Blood cholesterol guidelines.</p>
+                  <p><sup>2</sup> AIHW — Cardiovascular disease in Australia.</p>
                 </div>
               </div>
 
@@ -338,7 +338,7 @@ export default function HeartHealthPage() {
                   </div>
                 </div>
                 <ul className="space-y-3 mb-6">
-                  {["Complete lipid panel (Total, LDL, HDL, Triglycerides)", "ApoB & Lp(a) — advanced cardiovascular markers", "hs-CRP & homocysteine (inflammation)", "HbA1c & fasting glucose (metabolic)"].map((item) => (
+                  {["Complete lipid panel (Total, LDL, HDL, Triglycerides)", "hs-CRP & homocysteine (inflammation)", "HbA1c & fasting glucose (metabolic)"].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <CheckCircle className="w-5 h-5 text-rose-200 flex-shrink-0 mt-0.5" />
                       <span>{item}</span>

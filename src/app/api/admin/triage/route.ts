@@ -481,20 +481,44 @@ export async function PATCH(request: NextRequest) {
           role: session.user.role,
         }).catch(() => null);
 
-        // Create appointment for doctor review (legacy record)
-        await prisma.appointment.create({
-          data: {
+        // Maintain the legacy Appointment record for older workflows without
+        // creating a second calendar item for the same patient/time.
+        const appointmentScheduledAt = consultationBooking?.scheduledAt ?? new Date();
+        const existingLegacyAppointment = await prisma.appointment.findFirst({
+          where: {
             userId,
             type: "CONSULTATION",
-            title: "Weight Management Doctor Review",
-            description: notes || "Patient ready for doctor approval review",
-            scheduledAt: consultationBooking?.scheduledAt ?? new Date(),
-            duration: consultationBooking?.duration ?? 15,
-            status: "SCHEDULED",
-            doctorId: assignedDoctorId,
-            patientBriefSent: true,
+            scheduledAt: appointmentScheduledAt,
           },
         });
+
+        if (existingLegacyAppointment) {
+          await prisma.appointment.update({
+            where: { id: existingLegacyAppointment.id },
+            data: {
+              title: "Weight Management Doctor Review",
+              description: notes || "Patient ready for doctor approval review",
+              duration: consultationBooking?.duration ?? 15,
+              status: "SCHEDULED",
+              doctorId: assignedDoctorId,
+              patientBriefSent: true,
+            },
+          });
+        } else {
+          await prisma.appointment.create({
+            data: {
+              userId,
+              type: "CONSULTATION",
+              title: "Weight Management Doctor Review",
+              description: notes || "Patient ready for doctor approval review",
+              scheduledAt: appointmentScheduledAt,
+              duration: consultationBooking?.duration ?? 15,
+              status: "SCHEDULED",
+              doctorId: assignedDoctorId,
+              patientBriefSent: true,
+            },
+          });
+        }
 
         // Get doctor details
         const doctor = await prisma.user.findUnique({
@@ -698,11 +722,11 @@ ${notes ? `**Care Partner Notes:**\n${notes}` : ''}
             userId,
             action: "DOCTOR_ASSIGNED_TO_BOOKING",
             entity: "consultation_booking",
-            entityId: consultationBooking.id,
+            entityId: updatedBooking.id,
             details: {
               doctorId: assignedDoctorId,
               doctorName,
-              scheduledAt: consultationBooking.scheduledAt.toISOString(),
+              scheduledAt: updatedBooking.scheduledAt.toISOString(),
               assignedBy: session.user.id,
             },
           },
@@ -712,8 +736,8 @@ ${notes ? `**Care Partner Notes:**\n${notes}` : ''}
           success: true,
           action: "DOCTOR_ASSIGNED_TO_BOOKING",
           booking: {
-            id: consultationBooking.id,
-            scheduledAt: consultationBooking.scheduledAt.toISOString(),
+            id: updatedBooking.id,
+            scheduledAt: updatedBooking.scheduledAt.toISOString(),
             doctorId: assignedDoctorId,
             doctorName,
           }

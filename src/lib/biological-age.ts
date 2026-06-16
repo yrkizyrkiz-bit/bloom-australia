@@ -17,7 +17,7 @@
  * - Lipid Panel: Total Cholesterol, LDL, HDL, Triglycerides
  * - Liver Panel: ALT, AST, GGT, Bilirubin
  * - Metabolic: HbA1c, Insulin, Uric Acid
- * - Kidney: BUN, eGFR, Cystatin C
+ * - Kidney: BUN, eGFR, Creatinine
  * - Blood: Hemoglobin, Hematocrit, Platelets
  * - Hormones: TSH, Testosterone, Cortisol, DHEA-S
  * - Vitamins: Vitamin D, B12, Ferritin
@@ -65,7 +65,6 @@ export interface BiologicalAgeInput {
     // Kidney function
     bun?: number;               // mmol/L (Australian: Urea)
     egfr?: number;              // mL/min/1.73m²
-    cystatin_c?: number;        // mg/L
 
     // Thyroid
     tsh?: number;               // mIU/L
@@ -242,7 +241,6 @@ const BIOMARKER_REFS: Record<string, BiomarkerRef> = {
   // Kidney function
   bun: { optimal: 5.0, min: 2.5, max: 7.5, unit: "mmol/L", agingCoeff: 0.5, name: "Urea", category: "kidney" },
   egfr: { optimal: 100, min: 60, max: 120, unit: "mL/min/1.73m²", agingCoeff: -0.08, name: "eGFR", category: "kidney" },
-  cystatin_c: { optimal: 0.85, min: 0.6, max: 1.1, unit: "mg/L", agingCoeff: 5, name: "Cystatin C", category: "kidney" },
 
   // Thyroid
   tsh: { optimal: 2.0, min: 0.4, max: 4.0, unit: "mIU/L", agingCoeff: 0.8, name: "TSH", category: "hormone" },
@@ -527,7 +525,7 @@ function calculateOrganAges(chronologicalAge: number, biomarkers: BiologicalAgeI
     organAges.liver = Math.round((chronologicalAge + liverAdj / liverMarkers.length) * 10) / 10;
   }
 
-  // Kidney age (creatinine, BUN/urea, eGFR, cystatin C)
+  // Kidney age (creatinine, BUN/urea, eGFR)
   const kidneyMarkers: number[] = [];
   let kidneyAdj = 0;
 
@@ -543,10 +541,6 @@ function calculateOrganAges(chronologicalAge: number, biomarkers: BiologicalAgeI
   if (biomarkers.egfr != null) {
     kidneyMarkers.push(biomarkers.egfr);
     kidneyAdj -= (biomarkers.egfr - 100) * 0.16;
-  }
-  if (biomarkers.cystatin_c != null) {
-    kidneyMarkers.push(biomarkers.cystatin_c);
-    kidneyAdj += (biomarkers.cystatin_c - 0.85) * 10;
   }
 
   if (kidneyMarkers.length > 0) {
@@ -1025,7 +1019,6 @@ export function mapBiomarkerResultsToInput(
     urea: "bun",
     blood_urea_nitrogen: "bun",
     egfr: "egfr",
-    cystatin_c: "cystatin_c",
 
     // Thyroid
     tsh: "tsh",
