@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { verify } from "jsonwebtoken";
+import { getPublicOrganCareAnnualPricing } from "@/lib/billing/portal-pricing";
+import { grantEntitlement } from "@/lib/membership/entitlement-service";
+import { ORGAN_CARE_CHECKOUT_DESCRIPTION } from "@/lib/programs/organ-care-public-offer";
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
 let stripeClient: Stripe | null = null;
@@ -325,12 +328,14 @@ async function handleMembershipSubscription(body: {
     customerId = customer.id;
   }
 
+  const pricing = await getPublicOrganCareAnnualPricing();
+
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: 19900,
+    amount: pricing.amountCents,
     currency: 'aud',
     customer: customerId,
     metadata: {
-      type: 'membership_subscription',
+      type: 'organ_care_membership',
       email: userEmail,
       postcode: postcode || '',
       firstName: firstName || '',
@@ -338,15 +343,17 @@ async function handleMembershipSubscription(body: {
       phone: phone || '',
       priceId: MEMBERSHIP_PRICE_ID,
     },
-    automatic_payment_methods: { enabled: true },
-    description: 'Sanative Membership - Annual ($199/year)',
+    payment_method_types: ['card'],
+    description: ORGAN_CARE_CHECKOUT_DESCRIPTION,
   });
 
   return NextResponse.json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
     customerId,
-    amount: 19900,
+    amount: pricing.amountCents,
+    amountAud: pricing.amountAud,
+    priceLabel: pricing.priceLabel,
     currency: 'aud',
   });
 }
@@ -412,6 +419,9 @@ export async function PUT(req: NextRequest) {
     const currentPeriodEnd = new Date();
     currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
 
+    const pricing = await getPublicOrganCareAnnualPricing();
+    const amountAud = pricing.amountAud;
+
     await prisma.membershipSubscription.upsert({
       where: { userId: user.id },
       update: {
@@ -419,9 +429,10 @@ export async function PUT(req: NextRequest) {
         status: 'ACTIVE',
         startDate: new Date(),
         currentPeriodEnd,
-        amount: 199,
+        amount: amountAud,
         currency: 'AUD',
         billingCycle: 'yearly',
+        planName: 'Organ & Metabolic Care',
       },
       create: {
         userId: user.id,
@@ -429,12 +440,21 @@ export async function PUT(req: NextRequest) {
         status: 'ACTIVE',
         startDate: new Date(),
         currentPeriodEnd,
-        amount: 199,
+        amount: amountAud,
         currency: 'AUD',
         billingCycle: 'yearly',
-        planName: 'Sanative Membership',
+        planName: 'Organ & Metabolic Care',
       },
     });
+
+    await grantEntitlement({
+      userId: user.id,
+      type: 'SCOPE',
+      key: 'ORGAN_CARE',
+      status: 'ACTIVE',
+      source: 'SUBSCRIPTION',
+      notes: `Public organ care membership. PI ${paymentIntentId}`,
+    }).catch((err) => console.error("[organ_care_membership] entitlement grant failed:", err));
 
     return NextResponse.json({ success: true, userId: user.id, email: user.email, subscriptionStatus: 'ACTIVE' });
   } catch (error) {

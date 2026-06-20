@@ -39,6 +39,7 @@ import {
   Sparkles,
   Menu,
   KeyRound,
+  DollarSign,
 } from "lucide-react";
 
 type AdminNavItem = {
@@ -73,6 +74,7 @@ const doctorClinicalAdminNavItems: AdminNavItem[] = [
 
 const adminUtilityNavItems: AdminNavItem[] = [
   { href: "/admin/chat", label: "Live Chat", icon: MessageSquare },
+  { href: "/admin/membership-pricing", label: "Membership Pricing", icon: DollarSign },
   { href: "/admin/weight-management", label: "Weight", icon: Scale },
   { href: "/admin/crm/billing", label: "Billing", icon: CreditCard },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },

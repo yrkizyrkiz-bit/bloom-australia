@@ -104,6 +104,51 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const stripe = getStripeClient();
   console.log("Payment succeeded:", paymentIntent.id);
 
+  const portalSource = paymentIntent.metadata?.source;
+  if (portalSource === "portal_upsell") {
+    const { activatePortalProgramPurchase } = await import("@/lib/portal/program-purchase");
+    const userId = paymentIntent.metadata.userId;
+    const programKey = paymentIntent.metadata.programKey;
+    if (userId && programKey) {
+      await activatePortalProgramPurchase({
+        userId,
+        programKey,
+        paymentIntentId: paymentIntent.id,
+        amountAud: paymentIntent.amount_received / 100,
+        priceLabel: paymentIntent.metadata.priceLabel ?? "",
+        billingTerm: paymentIntent.metadata.billingTerm,
+        recurringBillingPriceId: paymentIntent.metadata.recurringBillingPriceId,
+        customerId: (paymentIntent.customer as string) || undefined,
+        planTier: paymentIntent.metadata.planTier || undefined,
+      }).catch((err) => console.error("[webhook] portal_upsell activation failed:", err));
+    }
+    return;
+  }
+
+  if (portalSource === "portal_biomarkers") {
+    const { activateBiomarkersPanelPurchase, isValidPanelTier } = await import(
+      "@/lib/portal/biomarkers-purchase"
+    );
+    const userId = paymentIntent.metadata.userId;
+    const panelTier = paymentIntent.metadata.panelTier;
+    if (userId && isValidPanelTier(panelTier)) {
+      await activateBiomarkersPanelPurchase({
+        userId,
+        panelTier,
+        addOrganCare: paymentIntent.metadata.addOrganCare === "true",
+        organCareTerm: paymentIntent.metadata.organCareTerm || undefined,
+        paymentIntentId: paymentIntent.id,
+        amountAud: paymentIntent.amount_received / 100,
+        priceLabel: paymentIntent.metadata.priceLabel,
+        customerId: (paymentIntent.customer as string) || undefined,
+        panelBillingPriceId: paymentIntent.metadata.panelBillingPriceId || undefined,
+        organBillingPriceId: paymentIntent.metadata.organBillingPriceId || undefined,
+        subscriptionId: paymentIntent.metadata.subscriptionId || undefined,
+      }).catch((err) => console.error("[webhook] portal_biomarkers activation failed:", err));
+    }
+    return;
+  }
+
   const {
     type, discount, discountType, program, userId, customerEmail, consultationType,
     selectedPlan, firstMonthAmount, ongoingAmount, discountAmount: metaDiscountAmount,

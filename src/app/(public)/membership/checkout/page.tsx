@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -8,8 +9,9 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { Check, Shield, Lock, ArrowRight, Mail, Phone, Loader2, Calendar, ExternalLink } from "lucide-react";
+import { Check, Shield, Lock, ArrowRight, Mail, Phone, Loader2, Calendar, ExternalLink, Heart, Activity, Droplets } from "lucide-react";
 import Link from "next/link";
+import { ORGAN_CARE_PUBLIC_OFFER, ORGAN_CARE_CHECKOUT_PREFILL_KEY, type OrganCareCheckoutPrefill } from "@/lib/programs/organ-care-public-offer";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -134,22 +136,26 @@ type Step = "verify" | "payment" | "onboard" | "booking" | "complete";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const MEMBERSHIP_BENEFITS = [
-  "Initial Doctor consultation to discuss your health goals",
-  "1 comprehensive annual Biomarker report",
-  "80+ biomarkers covering metabolic, nutrient, inflammation & biological age",
-  "Biological Age Score",
-  "Personalised Protocol with nutrition, supplements & lifestyle recommendations",
-  "Unlimited chat support with Sanative Care partners",
-  "24/7 AI Health Assistant",
-  "Access to Sanative Marketplace",
-  "Discounts on advanced testing & all Sanative programs",
+  "12 month access to portal and organ care program",
+  "Heart, liver, kidney, thyroid, hormones & metabolic dashboards",
+  "Personalised protocol with nutrition, supplements & lifestyle guidance",
+  "Care partner support between appointments",
+  "24/7 AI Health Assistant in your member portal",
 ];
+
+const ORGAN_SUMMARY_ICONS = [
+  { icon: Heart, label: "Heart", color: "text-rose-500", bg: "bg-rose-50" },
+  { icon: Activity, label: "Liver", color: "text-emerald-600", bg: "bg-emerald-50" },
+  { icon: Droplets, label: "Kidney", color: "text-cyan-600", bg: "bg-cyan-50" },
+] as const;
 
 // ─── Payment Form Component ────────────────────────────────────────────────
 function PaymentForm({
   onSuccess,
+  amountAud,
 }: {
   onSuccess: (paymentIntentId: string) => void;
+  amountAud: number;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -212,7 +218,7 @@ function PaymentForm({
         ) : (
           <>
             <Lock className="w-4 h-4" />
-            Pay $199 AUD
+            Pay ${amountAud} AUD
           </>
         )}
       </button>
@@ -222,6 +228,8 @@ function PaymentForm({
 
 // ─── Main Checkout Page ────────────────────────────────────────────────────
 export default function MembershipCheckoutPage() {
+  const searchParams = useSearchParams();
+  const funnelSource = searchParams.get("source");
   const [step, setStep] = useState<Step>("verify");
   const [verifyMethod, setVerifyMethod] = useState<"email" | "phone">("email");
   const [contact, setContact] = useState("");
@@ -242,6 +250,12 @@ export default function MembershipCheckoutPage() {
   const [postcode, setPostcode] = useState("");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [organCarePriceAud, setOrganCarePriceAud] = useState(
+    ORGAN_CARE_PUBLIC_OFFER.priceAud
+  );
+  const [organCarePriceLabel, setOrganCarePriceLabel] = useState(
+    ORGAN_CARE_PUBLIC_OFFER.priceLabel
+  );
 
   // Onboarding state
   const [firstName, setFirstName] = useState("");
@@ -256,6 +270,43 @@ export default function MembershipCheckoutPage() {
   const [userId, setUserId] = useState<string | null>(null);
 
   // Booking state - now handled by Cal.com embed
+
+  useEffect(() => {
+    fetch("/api/public/organ-care-pricing")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.amountAud === "number") {
+          setOrganCarePriceAud(data.amountAud);
+        }
+        if (typeof data.priceLabel === "string") {
+          setOrganCarePriceLabel(data.priceLabel);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(ORGAN_CARE_CHECKOUT_PREFILL_KEY);
+    if (!raw) return;
+
+    try {
+      const prefill = JSON.parse(raw) as OrganCareCheckoutPrefill;
+      const matchesSource = !funnelSource || prefill.source === funnelSource;
+      if (!matchesSource || !prefill.email) return;
+
+      setVerifyMethod("email");
+      setContact(prefill.email);
+      setEmail(prefill.email);
+      if (prefill.firstName) setFirstName(prefill.firstName);
+      if (prefill.lastName) setLastName(prefill.lastName);
+      if (prefill.phone) setPhone(prefill.phone);
+      if (prefill.dateOfBirth) setDateOfBirth(prefill.dateOfBirth);
+      if (prefill.postcode) setPostcode(prefill.postcode);
+    } catch {
+      // ignore malformed prefill
+    }
+  }, [funnelSource]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -342,6 +393,12 @@ export default function MembershipCheckoutPage() {
       if (!res.ok) throw new Error(data.error);
 
       setClientSecret(data.clientSecret);
+      if (typeof data.amountAud === "number") {
+        setOrganCarePriceAud(data.amountAud);
+      }
+      if (typeof data.priceLabel === "string") {
+        setOrganCarePriceLabel(data.priceLabel);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to initialize payment");
     } finally {
@@ -625,7 +682,7 @@ export default function MembershipCheckoutPage() {
             },
           }}
         >
-          <PaymentForm onSuccess={handlePaymentSuccess} />
+          <PaymentForm onSuccess={handlePaymentSuccess} amountAud={organCarePriceAud} />
         </Elements>
       )}
     </div>
@@ -913,30 +970,16 @@ export default function MembershipCheckoutPage() {
               <div className="mb-6">
                 <span className="inline-block px-3 py-1 bg-[#f97316] text-white text-xs
                   font-semibold rounded-full">
-                  Sanative Membership
+                  Organ & Metabolic Care
                 </span>
               </div>
 
               <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-                A health check like never before
+                All organs, one membership
               </h1>
               <p className="text-gray-500 mb-6">
-                Access 80+ biomarkers, personalised protocols, and 24/7 health support.
+                {ORGAN_CARE_PUBLIC_OFFER.tagline}. {organCarePriceLabel} — billed annually.
               </p>
-
-              {/* Trust indicator */}
-              <div className="flex items-center gap-3 mb-8">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400
-                        border-2 border-white"
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-600">Trusted by thousands of members</span>
-              </div>
 
               {/* Form steps */}
               {step === "verify" && renderVerificationStep()}
@@ -966,29 +1009,35 @@ export default function MembershipCheckoutPage() {
             <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 sticky top-8">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
 
-              {/* Product image placeholder */}
-              <div className="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl p-6 mb-6
-                flex items-center justify-center min-h-[200px]">
-                <div className="text-center">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500
-                    mx-auto mb-4 flex items-center justify-center">
-                    <svg className="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
-                      <path d="M12 6v6l4 2" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-medium text-teal-900">Your Health Journey</p>
+              <div className="rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50/80 to-emerald-50/50 p-5 mb-5">
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  {ORGAN_SUMMARY_ICONS.map(({ icon: Icon, label, color, bg }) => (
+                    <div key={label} className="flex flex-col items-center gap-1.5">
+                      <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${bg}`}>
+                        <Icon className={`h-5 w-5 ${color}`} />
+                      </div>
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                        {label}
+                      </span>
+                    </div>
+                  ))}
                 </div>
+                <p className="text-center text-sm font-medium text-teal-900">
+                  12 month access to portal and organ care program
+                </p>
+                <p className="text-center text-xs text-teal-700/80 mt-1">
+                  Plus thyroid, hormones & metabolic dashboards
+                </p>
               </div>
 
-              <h3 className="font-semibold text-gray-900 mb-2">Sanative Membership</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Organ & Metabolic Care</h3>
               <p className="text-sm text-gray-500 mb-4">
-                80+ biomarkers, personalised protocols, and 24/7 access to your care team.
+                {ORGAN_CARE_PUBLIC_OFFER.billingNote}. One membership, every organ dashboard.
               </p>
 
               {/* Benefits list */}
               <div className="space-y-2 mb-6">
-                {MEMBERSHIP_BENEFITS.slice(0, 5).map((benefit, i) => (
+                {MEMBERSHIP_BENEFITS.slice(1).map((benefit, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-xs text-gray-600">{benefit}</span>
@@ -999,14 +1048,14 @@ export default function MembershipCheckoutPage() {
               {/* Price */}
               <div className="border-t border-gray-200 pt-4 mt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600">Sanative Membership</span>
-                  <span className="font-semibold">$199 <span className="text-gray-400 font-normal">/yr</span></span>
+                  <span className="text-gray-600">Organ & Metabolic Care</span>
+                  <span className="font-semibold">{organCarePriceLabel}</span>
                 </div>
                 <div className="flex items-center justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span>$199</span>
+                  <span>${organCarePriceAud}</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">Billed annually</p>
+                <p className="text-xs text-gray-400 mt-2">All organs included · billed annually</p>
               </div>
             </div>
           </div>

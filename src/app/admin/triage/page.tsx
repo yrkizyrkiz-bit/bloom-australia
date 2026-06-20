@@ -172,6 +172,15 @@ export default function TriageQueuePage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+  const [memberProgramItems, setMemberProgramItems] = useState<
+    Array<{
+      taskId: string;
+      dueDate: string;
+      createdAt: string;
+      patient: { id: string; firstName: string; lastName: string; email: string } | null;
+      purchase: { label?: string; source?: string; priceLabel?: string; programKey?: string; panelTier?: string };
+    }>
+  >([]);
 
   // Dialog states
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -189,6 +198,23 @@ export default function TriageQueuePage() {
   const [escalationReason, setEscalationReason] = useState("");
 
   const fetchTriageQueue = useCallback(async () => {
+    if (activeTab === "member_programs") {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/admin/triage/member-programs");
+        if (res.ok) {
+          const data = await res.json();
+          setMemberProgramItems(data.items ?? []);
+        }
+      } catch (error) {
+        console.error("Error fetching member program queue:", error);
+        toast.error("Failed to load member added programs");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       // GAP-007: Using valid JourneyStatus values
       const status = activeTab === "pending" ? "PRE_TRIAGE_PENDING" :
@@ -579,6 +605,10 @@ export default function TriageQueuePage() {
                 <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{stats.pendingTests}</Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="member_programs" className="flex items-center gap-1">
+              <DollarSign className="w-4 h-4" />
+              Member Added Programs
+            </TabsTrigger>
             <TabsTrigger value="declined" className="flex items-center gap-1">
               <XCircle className="w-4 h-4" />
               Declined
@@ -654,6 +684,53 @@ export default function TriageQueuePage() {
               setShowDeclinedActionDialog(true);
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="member_programs" className="mt-4">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : memberProgramItems.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No in-portal program purchases awaiting consultation booking.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {memberProgramItems.map((item) => (
+                <Card key={item.taskId}>
+                  <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+                    <div>
+                      <p className="font-medium">
+                        {item.patient
+                          ? `${item.patient.firstName} ${item.patient.lastName}`
+                          : "Unknown member"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.purchase.label ?? "Program purchase"}
+                        {item.purchase.priceLabel ? ` · ${item.purchase.priceLabel}` : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item.purchase.source === "portal_biomarkers"
+                          ? "Biomarkers panel"
+                          : "Program upsell"}
+                        {item.purchase.panelTier ? ` · ${item.purchase.panelTier}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {item.patient && (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/admin/crm/customers/${item.patient.id}`}>View member</Link>
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="declined" className="mt-4">

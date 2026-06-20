@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -43,7 +44,7 @@ export default function LoginPage() {
       setIsRedirecting(true);
       // Redirect admin, care partners, and doctors to admin area
       const adminRoles = ["admin", "ADMIN", "CARE_PARTNER", "DOCTOR"];
-      const targetPath = adminRoles.includes(user.role) ? "/admin" : "/dashboard";
+      const targetPath = adminRoles.includes(user.role) ? "/admin" : MEMBER_PROGRAMS_HOME;
       router.push(targetPath);
     }
   }, [user, isAuthLoading, router]);

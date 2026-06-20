@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { HeartHealthCalculator } from "@/components/promo/HeartHealthCalculator";
+import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
 import {
   ArrowRight,
   ArrowLeft,
@@ -413,21 +414,24 @@ export default function HeartHealthPage() {
               <div>
                 <span className="inline-block px-4 py-1.5 text-sm font-medium bg-rose-100 text-rose-600 rounded-full mb-4">Start today</span>
                 <h2 className="text-3xl sm:text-4xl font-serif text-gray-900 mb-6">
-                  Your membership <span className="text-rose-600 italic">starts here</span>
+                  Organ & Metabolic Care <span className="text-rose-600 italic">— all organs</span>
                 </h2>
-                <p className="text-gray-600 mb-6"><strong>Annual 80+ biomarker panel</strong> including comprehensive heart health markers.</p>
+                <p className="text-gray-600 mb-6">
+                  One annual membership covers heart, liver, kidney, thyroid, hormones and metabolic
+                  dashboards — not a single-organ add-on.
+                </p>
                 <ul className="space-y-3 mb-8">
-                  {["Data dashboard and health tracking", "Upload past labs and connect wearables", "Personalised health protocol", "24/7 care team support", "Member pricing on add-on tests", "Prescription access if appropriate"].map((item) => (
+                  {ORGAN_CARE_PUBLIC_OFFER.includes.map((item) => (
                     <li key={item} className="flex items-center gap-3 text-gray-700">
                       <CheckCircle className="w-5 h-5 text-rose-500 flex-shrink-0" /><span>{item}</span>
                     </li>
                   ))}
                 </ul>
                 <div className="flex items-baseline gap-2 mb-6">
-                  <span className="text-5xl font-serif text-gray-900">$199</span>
-                  <span className="text-gray-500">/year*</span>
+                  <span className="text-5xl font-serif text-gray-900">{ORGAN_CARE_PUBLIC_OFFER.priceLabel.replace("/year", "")}</span>
+                  <span className="text-gray-500">/year · all organs</span>
                 </div>
-                <Link href="/membership/checkout" className="block w-full py-4 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl text-center transition-colors">Start your membership now</Link>
+                <Link href={ORGAN_CARE_PUBLIC_OFFER.checkoutPath} className="block w-full py-4 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl text-center transition-colors">Start Organ Care membership</Link>
                 <div className="flex flex-wrap justify-center gap-4 mt-4">
                   <div className="flex items-center gap-1.5 text-sm text-gray-600">
                     <CheckCircle className="w-4 h-4 text-rose-500" />

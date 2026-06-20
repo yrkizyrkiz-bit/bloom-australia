@@ -56,59 +56,65 @@ interface FormData {
   cardName: string;
 }
 
-// ED Duration options
+// Energy & Vitality duration options
 const edDurationOptions = [
-  { id: "less-3-months", label: "Less than 3 months", description: "Recently started noticing issues" },
-  { id: "3-6-months", label: "3 to 6 months", description: "Happening for a few months now" },
-  { id: "6-12-months", label: "6 to 12 months", description: "About half a year to a year" },
-  { id: "1-2-years", label: "1 to 2 years", description: "Been dealing with this for a while" },
-  { id: "more-2-years", label: "More than 2 years", description: "Long-standing concern" },
+  { id: "less-3-months", label: "Less than 3 months", description: "A recent change in energy, drive, or recovery" },
+  { id: "3-6-months", label: "3 to 6 months", description: "Noticeable for a few months now" },
+  { id: "6-12-months", label: "6 to 12 months", description: "Ongoing for most of the year" },
+  { id: "1-2-years", label: "1 to 2 years", description: "A longer-term shift in how you feel" },
+  { id: "more-2-years", label: "More than 2 years", description: "Long-standing energy or vitality concerns" },
 ];
 
-// ED Severity options
+// Energy & Vitality severity options
 const edSeverityOptions = [
-  { id: "mild", label: "Mild", description: "Occasional difficulties, mostly manageable" },
-  { id: "moderate", label: "Moderate", description: "Frequent difficulties affecting confidence" },
-  { id: "severe", label: "Severe", description: "Persistent problems most or all of the time" },
+  { id: "mild", label: "Mild", description: "Some tiredness or lower motivation, but mostly manageable" },
+  { id: "moderate", label: "Moderate", description: "Regular fatigue, low drive, or slower recovery" },
+  { id: "severe", label: "Severe", description: "Persistent symptoms affecting work, training, mood, or daily life" },
 ];
 
-// Erection difficulty type
+// Main vitality concern
 const erectionDifficultyOptions = [
-  { id: "getting", label: "Difficulty getting an erection", description: "Hard to achieve initial erection" },
-  { id: "maintaining", label: "Difficulty maintaining an erection", description: "Can get erect but it doesn't last" },
-  { id: "both", label: "Both getting and maintaining", description: "Issues with both achieving and keeping" },
-  { id: "inconsistent", label: "It varies", description: "Sometimes works, sometimes doesn't" },
+  { id: "fatigue", label: "Low energy or fatigue", description: "Feeling tired, flat, or run down more often" },
+  { id: "motivation", label: "Low motivation or drive", description: "Harder to feel switched on or productive" },
+  { id: "recovery", label: "Poor recovery or reduced strength", description: "Training, work, or stress takes longer to recover from" },
+  { id: "libido", label: "Lower libido or confidence", description: "Reduced interest, confidence, or vitality" },
+  { id: "mixed", label: "A mix of these", description: "Several areas of energy and wellbeing are affected" },
 ];
 
-// Morning erections
+// Daily energy pattern
 const morningErectionOptions = [
-  { id: "regularly", label: "Yes, regularly", description: "Most mornings or several times a week" },
-  { id: "sometimes", label: "Sometimes", description: "Occasionally, but less than before" },
-  { id: "rarely", label: "Rarely or never", description: "Very infrequent or not at all" },
-  { id: "not-sure", label: "I'm not sure", description: "Haven't really noticed" },
+  { id: "morning-low", label: "Low from the moment I wake up", description: "Mornings feel heavy or slow" },
+  { id: "afternoon-crash", label: "Afternoon crash", description: "Energy drops later in the day" },
+  { id: "variable", label: "It varies day to day", description: "Some good days, some very flat days" },
+  { id: "sleep-dependent", label: "Mostly linked to sleep", description: "Energy tracks closely with sleep quality" },
+  { id: "not-sure", label: "I'm not sure", description: "No clear pattern yet" },
 ];
 
-// Potential causes
+// Potential contributors
 const edCausesOptions = [
   { id: "stress", label: "Stress or anxiety" },
-  { id: "relationship", label: "Relationship issues" },
-  { id: "performance-anxiety", label: "Performance anxiety" },
+  { id: "burnout", label: "Burnout or high workload" },
+  { id: "poor-sleep", label: "Poor sleep or waking unrefreshed" },
   { id: "depression", label: "Depression or low mood" },
-  { id: "medical", label: "Medical condition" },
+  { id: "hormones", label: "Hormones or low testosterone" },
+  { id: "nutrition", label: "Nutrition or vitamin deficiency" },
+  { id: "metabolic", label: "Weight, blood sugar, or metabolic health" },
   { id: "medication", label: "Side effect of medication" },
-  { id: "lifestyle", label: "Lifestyle factors (sleep, diet, exercise)" },
   { id: "unsure", label: "I'm not sure" },
 ];
 
-// Medical conditions relevant to ED
+// Medical conditions relevant to energy and vitality
 const medicalConditionsOptions = [
   { id: "heart-disease", label: "Heart disease or heart condition", warning: true },
   { id: "high-bp", label: "High blood pressure", warning: false },
-  { id: "low-bp", label: "Low blood pressure", warning: true },
   { id: "diabetes", label: "Diabetes (Type 1 or 2)", warning: false },
   { id: "high-cholesterol", label: "High cholesterol", warning: false },
-  { id: "prostate", label: "Prostate problems or surgery", warning: false },
-  { id: "stroke", label: "Previous stroke", warning: true },
+  { id: "thyroid", label: "Thyroid condition", warning: false },
+  { id: "sleep-apnoea", label: "Sleep apnoea or heavy snoring", warning: false },
+  { id: "anaemia", label: "Low iron, anaemia, or B12 deficiency", warning: false },
+  { id: "testosterone", label: "Previously low testosterone", warning: false },
+  { id: "mental-health", label: "Anxiety, depression, or chronic stress", warning: false },
+  { id: "stroke", label: "Previous stroke or major cardiovascular event", warning: true },
   { id: "none", label: "None of these apply to me", warning: false },
 ];
 
@@ -116,27 +122,31 @@ const medicalConditionsOptions = [
 const lifestyleFactorsOptions = [
   { id: "smoking", label: "I smoke or vape" },
   { id: "heavy-drinking", label: "I drink alcohol regularly (10+ drinks/week)" },
-  { id: "recreational-drugs", label: "I use recreational drugs" },
   { id: "poor-sleep", label: "I don't sleep well" },
   { id: "sedentary", label: "I'm not very physically active" },
+  { id: "overtraining", label: "I train hard but don't recover well" },
   { id: "overweight", label: "I'm overweight" },
+  { id: "high-stress", label: "I'm under ongoing stress" },
+  { id: "irregular-meals", label: "My meals or nutrition are inconsistent" },
   { id: "none", label: "None of these apply" },
 ];
 
-// Treatment goals
+// Vitality goals
 const treatmentGoalOptions = [
-  { id: "occasional", label: "For occasional use", description: "When I need it for specific occasions" },
-  { id: "regular", label: "For regular intimacy", description: "Want reliable, ongoing confidence" },
-  { id: "spontaneous", label: "Maximum spontaneity", description: "Want to be ready anytime" },
-  { id: "explore", label: "Want to explore options", description: "Not sure yet, need guidance" },
+  { id: "energy", label: "Improve daily energy", description: "Feel more consistent and less drained" },
+  { id: "focus", label: "Improve focus and mental clarity", description: "Reduce brain fog and feel sharper" },
+  { id: "strength", label: "Improve strength and recovery", description: "Support training, muscle, and physical resilience" },
+  { id: "libido", label: "Improve libido and confidence", description: "Feel more like yourself again" },
+  { id: "root-cause", label: "Find the root cause", description: "Use biomarkers to understand what's driving symptoms" },
 ];
 
-// Previous treatment options
+// Previous support options
 const previousTreatmentOptions = [
-  { id: "viagra", label: "Sildenafil (Viagra)" },
-  { id: "cialis", label: "Tadalafil (Cialis)" },
-  { id: "other-prescription", label: "Other prescription medication" },
-  { id: "supplements", label: "Natural supplements or herbal remedies" },
+  { id: "blood-tests", label: "Blood tests or hormone testing" },
+  { id: "supplements", label: "Vitamins, minerals, or supplements" },
+  { id: "sleep-support", label: "Sleep support or sleep apnoea review" },
+  { id: "fitness-nutrition", label: "Exercise, nutrition, or weight-loss plan" },
+  { id: "prescription", label: "Prescription medication or hormone treatment" },
   { id: "none", label: "No, I haven't tried anything yet" },
 ];
 
@@ -151,7 +161,7 @@ const otherConcernsOptions = [
 
 function AssessmentContent() {
   const searchParams = useSearchParams();
-  const concernParam = searchParams.get("concern") || "erectile-dysfunction";
+  const concernParam = searchParams.get("concern") || "energy-vitality";
 
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({
@@ -185,7 +195,6 @@ function AssessmentContent() {
   });
   const [showFAQ, setShowFAQ] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showNitrateWarning, setShowNitrateWarning] = useState(false);
   const [discountApplied, setDiscountApplied] = useState(false);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
@@ -448,10 +457,6 @@ function AssessmentContent() {
   };
 
   const nextStep = () => {
-    if (step === 11 && formData.takingNitrates === "yes") {
-      setShowNitrateWarning(true);
-      return;
-    }
     if (canProceed() && step < totalSteps) {
       setStep(step + 1);
       window.scrollTo(0, 0);
@@ -588,14 +593,14 @@ function AssessmentContent() {
       case 0:
         return (
           <div className="space-y-6">
-            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628] text-center">Your path to better performance</h1>
-            <p className="text-center text-[#5c7a52]">Here's what to expect — completely confidential</p>
+            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628] text-center">Your path to better energy and vitality</h1>
+            <p className="text-center text-[#5c7a52]">Here's what to expect — personalised, practical, and confidential</p>
             <div className="space-y-4 mt-8">
               {[
-                { num: 1, title: "Quick health check", description: "A few questions about your health and symptoms — takes under 5 minutes.", icon: Heart },
-                { num: 2, title: "Doctor review", description: "An AHPRA-registered doctor reviews your assessment within 24 hours.", icon: Stethoscope },
-                { num: 3, title: "Treatment plan", description: "If suitable, you'll receive a personalised treatment recommendation.", icon: MessageCircle },
-                { num: 4, title: "Discreet delivery", description: "Plain packaging, free express shipping. No one will know what's inside.", icon: Package },
+                { num: 1, title: "Quick health check", description: "A few questions about energy, sleep, stress, hormones, and metabolic health.", icon: Heart },
+                { num: 2, title: "Biomarker-led review", description: "We identify which markers may explain fatigue, low drive, or poor recovery.", icon: Stethoscope },
+                { num: 3, title: "Doctor-guided plan", description: "If suitable, you'll receive a personalised plan for energy, vitality, and wellbeing.", icon: MessageCircle },
+                { num: 4, title: "Ongoing support", description: "Your care plan can include labs, lifestyle support, and doctor follow-up where appropriate.", icon: Package },
               ].map((item) => (
                 <div key={item.num} className="bg-white rounded-2xl p-5 border border-[#e6ebe3] flex gap-4">
                   <div className="w-10 h-10 rounded-full bg-[#5c7a52]/10 text-[#5c7a52] flex items-center justify-center flex-shrink-0">
@@ -621,7 +626,7 @@ function AssessmentContent() {
           <div className="space-y-6">
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Let's start with your name</h1>
-              <p className="mt-3 text-[#5c7a52]">Your legal name is required for prescriptions. We keep it completely private.</p>
+              <p className="mt-3 text-[#5c7a52]">Your legal name helps our clinical team safely review your assessment. We keep it completely private.</p>
             </div>
             <div className="grid sm:grid-cols-2 gap-4 mt-8">
               <div>
@@ -668,7 +673,7 @@ function AssessmentContent() {
           <div className="space-y-6">
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">When were you born?</h1>
-              <p className="mt-3 text-[#5c7a52]">Age affects treatment options and dosing recommendations.</p>
+              <p className="mt-3 text-[#5c7a52]">Age helps us interpret symptoms, risk factors, and biomarker patterns accurately.</p>
             </div>
             <div className="mt-8">
               <div className="flex gap-3 justify-center">
@@ -698,7 +703,7 @@ function AssessmentContent() {
               <Heart className="w-12 h-12 text-white" />
             </div>
             <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Now, a few health questions</h1>
-            <p className="text-[#5c7a52] max-w-md mx-auto">This helps our doctors recommend the safest and most effective treatment for your specific situation.</p>
+            <p className="text-[#5c7a52] max-w-md mx-auto">This helps our doctors understand what may be driving low energy, poor recovery, or reduced vitality.</p>
           </div>
         );
 
@@ -706,7 +711,7 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">How long have you been experiencing this?</h1>
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">How long have you noticed changes in your energy or vitality?</h1>
             </div>
             <div className="space-y-3 mt-8">
               {edDurationOptions.map((option) => (
@@ -723,8 +728,8 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">How would you rate the severity?</h1>
-              <p className="mt-3 text-[#5c7a52]">This helps us recommend the right treatment strength.</p>
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">How much is this affecting you?</h1>
+              <p className="mt-3 text-[#5c7a52]">This helps us understand the impact on your daily life and wellbeing.</p>
             </div>
             <div className="space-y-3 mt-8">
               {edSeverityOptions.map((option) => (
@@ -741,7 +746,7 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">What best describes your experience?</h1>
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">What best describes what you're experiencing?</h1>
             </div>
             <div className="space-y-3 mt-8">
               {erectionDifficultyOptions.map((option) => (
@@ -758,8 +763,8 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Do you wake up with erections?</h1>
-              <p className="mt-3 text-[#5c7a52]">Morning erections can help indicate underlying causes.</p>
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">When is your energy usually lowest?</h1>
+              <p className="mt-3 text-[#5c7a52]">Energy patterns can point toward sleep, stress, metabolic, or hormone-related drivers.</p>
             </div>
             <div className="space-y-3 mt-8">
               {morningErectionOptions.map((option) => (
@@ -776,7 +781,7 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">What do you think might be causing this?</h1>
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">What do you think might be contributing?</h1>
               <p className="mt-3 text-[#5c7a52]">Select all that might apply.</p>
             </div>
             <div className="space-y-3 mt-8">
@@ -817,16 +822,16 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Do you take nitrate medications?</h1>
-              <p className="mt-3 text-[#5c7a52]">This includes GTN spray, Anginine, Isosorbide, or similar heart medications.</p>
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Are you taking regular medications?</h1>
+              <p className="mt-3 text-[#5c7a52]">Some medications can affect energy, sleep, hormones, mood, or metabolic health.</p>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-amber-800"><strong>Important:</strong> ED medications cannot be safely taken with nitrates due to risk of dangerous drop in blood pressure.</p>
+              <p className="text-sm text-amber-800"><strong>Important:</strong> Please include heart, blood pressure, mood, sleep, hormone, and pain medications during your doctor review.</p>
             </div>
             <div className="space-y-3 mt-8">
-              {[{ value: "no", label: "No, I don't take nitrates" }, { value: "yes", label: "Yes, I take nitrate medication" }, { value: "not-sure", label: "I'm not sure" }].map((option) => (
-                <button key={option.value} type="button" onClick={() => { updateFormData("takingNitrates", option.value); if (option.value !== "yes") setTimeout(nextStep, 300); }} className={`w-full py-4 px-6 rounded-xl border-2 text-center transition-all ${formData.takingNitrates === option.value ? "border-[#5c7a52] bg-[#5c7a52]/10 text-[#2c3628]" : "border-[#e6ebe3] bg-white text-[#2c3628] hover:border-[#cdd8c6]"}`}>{option.label}</button>
+              {[{ value: "no", label: "No regular medications" }, { value: "yes", label: "Yes, I take regular medication" }, { value: "not-sure", label: "I'm not sure" }].map((option) => (
+                <button key={option.value} type="button" onClick={() => { updateFormData("takingNitrates", option.value); setTimeout(nextStep, 300); }} className={`w-full py-4 px-6 rounded-xl border-2 text-center transition-all ${formData.takingNitrates === option.value ? "border-[#5c7a52] bg-[#5c7a52]/10 text-[#2c3628]" : "border-[#e6ebe3] bg-white text-[#2c3628] hover:border-[#cdd8c6]"}`}>{option.label}</button>
               ))}
             </div>
           </div>
@@ -856,7 +861,7 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Have you tried ED treatment before?</h1>
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Have you tried anything for energy or vitality before?</h1>
             </div>
             <div className="space-y-3 mt-8">
               {previousTreatmentOptions.map((option) => (
@@ -872,7 +877,7 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">What's your goal with treatment?</h1>
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">What's your main goal?</h1>
               <p className="mt-3 text-[#5c7a52]">This helps us recommend the right approach for you.</p>
             </div>
             <div className="space-y-3 mt-8">
@@ -911,13 +916,13 @@ function AssessmentContent() {
           <div className="space-y-6">
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Contact details</h1>
-              <p className="mt-3 text-[#5c7a52]">We'll use these to arrange your consultation and delivery.</p>
+              <p className="mt-3 text-[#5c7a52]">We'll use these to arrange your consultation and follow-up.</p>
             </div>
             <div className="space-y-4 mt-8">
               <div>
                 <label className="block text-sm font-medium text-[#2c3628] mb-2">Mobile number</label>
                 <input type="tel" value={formData.phone} onChange={(e) => updateFormData("phone", e.target.value.replace(/[^0-9+]/g, ""))} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="04XX XXX XXX" />
-                <p className="text-xs text-[#7e9a72] mt-2">We'll SMS you when your doctor has reviewed your assessment to arrange a consultation.</p>
+                <p className="text-xs text-[#7e9a72] mt-2">We'll SMS you when your doctor has reviewed your assessment.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#2c3628] mb-2">Postcode</label>
@@ -1036,7 +1041,7 @@ function AssessmentContent() {
                     <Heart className="w-7 h-7 text-[#5c7a52]" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-medium text-[#2c3628]">ED Treatment Consultation</h4>
+                    <h4 className="font-medium text-[#2c3628]">Energy & Vitality Consultation</h4>
                     <p className="text-sm text-[#7e9a72]">AHPRA-registered doctor review</p>
                   </div>
                   <div className="text-right">
@@ -1045,7 +1050,7 @@ function AssessmentContent() {
                   </div>
                 </div>
                 <div className="pt-4 space-y-2 text-sm">
-                  {["Personalised treatment recommendation", "Prescription if clinically appropriate", "Free express delivery Australia-wide", "Ongoing doctor support"].map((item) => (
+                  {["Personalised vitality plan", "Biomarker guidance if clinically appropriate", "Doctor review and recommendations", "Ongoing support"].map((item) => (
                     <div key={item} className="flex items-center gap-2 text-[#5c7a52]">
                       <Check className="w-4 h-4 flex-shrink-0" />
                       <span>{item}</span>
@@ -1329,26 +1334,6 @@ function AssessmentContent() {
         </div>
       )}
 
-      {/* Nitrate Warning Modal */}
-      {showNitrateWarning && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-xl font-serif text-[#2c3628]">Unable to proceed</h3>
-            </div>
-            <p className="text-[#5c7a52] mb-6">ED medications cannot be safely used with nitrate medications due to the risk of a dangerous drop in blood pressure.</p>
-            <p className="text-[#5c7a52] mb-6">Please consult with your GP or cardiologist about alternative options.</p>
-            <div className="flex gap-3">
-              <button type="button" onClick={() => { setShowNitrateWarning(false); updateFormData("takingNitrates", ""); }} className="flex-1 py-3 border border-[#cdd8c6] text-[#5c7a52] font-medium rounded-xl hover:bg-[#f4f7f2] transition-colors">Go back</button>
-              <Link href="/mens-health" className="flex-1 py-3 bg-[#5c7a52] text-white font-medium rounded-xl hover:bg-[#4a6343] transition-colors text-center">Exit</Link>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* FAQ Modal */}
       {showFAQ && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
@@ -1358,9 +1343,9 @@ function AssessmentContent() {
               <button type="button" onClick={() => setShowFAQ(false)} className="p-2 hover:bg-[#f4f7f2] rounded-full transition-colors"><X className="w-5 h-5 text-[#5c7a52]" /></button>
             </div>
             <div className="p-6 space-y-6">
-              <div><h4 className="font-semibold text-[#2c3628] mb-2">What treatments are available?</h4><p className="text-sm text-[#5c7a52]">We offer Sildenafil (similar to Viagra) and Tadalafil (similar to Cialis). Your doctor will recommend the best option.</p></div>
-              <div><h4 className="font-semibold text-[#2c3628] mb-2">How quickly does it work?</h4><p className="text-sm text-[#5c7a52]">Most ED medications work within 30-60 minutes. Short-acting lasts 4-6 hours, longer-acting up to 36 hours.</p></div>
-              <div><h4 className="font-semibold text-[#2c3628] mb-2">Is everything confidential?</h4><p className="text-sm text-[#5c7a52]">Absolutely. All information is encrypted. Medications are delivered in plain, unmarked packaging.</p></div>
+              <div><h4 className="font-semibold text-[#2c3628] mb-2">What does this assessment look for?</h4><p className="text-sm text-[#5c7a52]">We look for patterns linked to hormones, thyroid function, metabolic health, sleep, stress, iron, vitamin levels, and cardiovascular risk.</p></div>
+              <div><h4 className="font-semibold text-[#2c3628] mb-2">Will I need blood tests?</h4><p className="text-sm text-[#5c7a52]">Your doctor may recommend biomarkers if they can help identify the root cause of fatigue, low drive, or poor recovery.</p></div>
+              <div><h4 className="font-semibold text-[#2c3628] mb-2">Is everything confidential?</h4><p className="text-sm text-[#5c7a52]">Absolutely. Your assessment and health information are encrypted and handled under Australian privacy standards.</p></div>
             </div>
           </div>
         </div>
@@ -1374,7 +1359,7 @@ function AssessmentContent() {
   );
 }
 
-export default function EDAssessmentPage() {
+export default function MensHealthAssessmentPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#fdfbf7] flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#5c7a52]/30 border-t-[#5c7a52] rounded-full animate-spin" /></div>}>
       <AssessmentContent />

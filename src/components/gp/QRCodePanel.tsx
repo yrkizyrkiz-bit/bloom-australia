@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Download, Loader2, QrCode, RefreshCw } from "lucide-react";
+import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
 
 interface QRCodeStats {
   totalScans: number;
@@ -21,6 +22,7 @@ export function QRCodePanel() {
   const [data, setData] = useState<QRCodeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [priceLabel, setPriceLabel] = useState(ORGAN_CARE_PUBLIC_OFFER.priceLabel);
 
   const fetchQRCode = async () => {
     setLoading(true);
@@ -44,6 +46,14 @@ export function QRCodePanel() {
 
   useEffect(() => {
     fetchQRCode();
+    fetch("/api/public/organ-care-pricing")
+      .then((res) => res.json())
+      .then((result) => {
+        if (typeof result.priceLabel === "string") {
+          setPriceLabel(result.priceLabel);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleDownloadPNG = async () => {
@@ -129,11 +139,11 @@ export function QRCodePanel() {
         <text x="210" y="420" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" fill="#5c7a52">${data.clinicName}</text>
 
         <!-- Price -->
-        <text x="210" y="470" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" font-weight="bold" fill="#34412f">$199/year</text>
+        <text x="210" y="470" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" font-weight="bold" fill="#34412f">${priceLabel}</text>
 
         <!-- Includes -->
-        <text x="210" y="510" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#5c7a52">80+ biomarkers • Biological Clock</text>
-        <text x="210" y="530" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#5c7a52">Organ health scores • Care partner support</text>
+        <text x="210" y="510" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#5c7a52">All organ dashboards included</text>
+        <text x="210" y="530" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#5c7a52">Biological Clock • Care partner support</text>
 
         <!-- Trust -->
         <text x="210" y="570" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#5c7a52">AHPRA Registered • NATA Labs</text>

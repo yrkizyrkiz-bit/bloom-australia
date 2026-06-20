@@ -59,6 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    if (user?.id) {
+      try {
+        sessionStorage.removeItem(`sanative_grid_overlay_dismissed_${user.id}`);
+      } catch {
+        // ignore
+      }
+    }
     await signOut({ redirect: false });
     setUser(null);
   };

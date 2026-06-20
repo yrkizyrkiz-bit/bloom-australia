@@ -118,12 +118,15 @@ model User {
   reminders                       Reminder[]
   sessions                        Session[]
   weeklyCheckIns                  WeeklyCheckIn[]
+  womensHealthCheckIns            WomensHealthCheckIn[]
   weightGoals                     WeightGoal[]
   weightLogs                      WeightLog[]
   prescriptions                   Prescription[]
   weightManagementIntakes         WeightManagementIntake[]
   memberProgram                   MemberProgram?
   sideEffectReports               SideEffectReport[]
+  entitlements                    Entitlement[]
+  portalQuizSubmissions           PortalQuizSubmission[]
 
   @@index([email])
   @@index([role])
@@ -594,6 +597,35 @@ model WeeklyCheckIn {
 
   @@index([userId])
   @@index([weekNumber])
+  @@index([checkedInAt])
+}
+
+model WomensHealthCheckIn {
+  id                      String   @id @default(cuid())
+  userId                  String
+  careArea                String
+  periodStatus            String?
+  cycleDay                Int?
+  lastPeriodDate          DateTime?
+  energyLevel             Int
+  moodLevel               Int
+  sleepQuality            Int
+  stressLevel             Int
+  painLevel               Int?
+  libidoLevel             Int?
+  hotFlushesLevel         Int?
+  cravingsLevel           Int?
+  symptoms                String[] @default([])
+  notes                   String?
+  treatmentSideEffectFlag Boolean  @default(false)
+  metadata                Json     @default("{}")
+  checkedInAt             DateTime @default(now())
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([careArea])
   @@index([checkedInAt])
 }
 
@@ -2338,4 +2370,67 @@ enum GpNotificationType {
   BIOMARKER_ALERT
   CHECKIN_DUE
   GP_VISIT_REMINDER
+}
+
+// In-portal program & biomarker quiz submissions — one row per submit; doctors
+// review the latest per programKey on the member CRM record.
+model PortalQuizSubmission {
+  id          String   @id @default(cuid())
+  userId      String
+  programKey  String
+  answers     Json
+  result      Json?
+  intent      String?
+  source      String   @default("in_portal")
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, programKey])
+  @@index([submittedAt])
+}
+
+// Explicit membership entitlement layer: separates "what the member is entitled to"
+// (program access + biomarker insight scopes) from the legacy string fields on User.
+// `key` is a canonical string (see src/lib/membership/keys.ts), e.g. WEIGHT_MANAGEMENT,
+// MENS_HEALTH_VITALITY, ORGAN_CARE, BIOLOGICAL_CLOCK, COMPLETE_HEALTH.
+model Entitlement {
+  id        String             @id @default(cuid())
+  userId    String
+  type      EntitlementType
+  key       String
+  status    EntitlementStatus  @default(ACTIVE)
+  source    EntitlementSource  @default(ADMIN_GRANT)
+  grantedAt DateTime           @default(now())
+  expiresAt DateTime?
+  notes     String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, key])
+  @@index([userId])
+  @@index([key])
+  @@index([status])
+}
+
+enum EntitlementType {
+  PROGRAM
+  SCOPE
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  PENDING
+  INACTIVE
+}
+
+enum EntitlementSource {
+  SUBSCRIPTION
+  PROGRAM_MEMBER
+  LEGACY_TIER
+  ADMIN_GRANT
+  BUNDLE
+  PORTAL_PURCHASE
 }

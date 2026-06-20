@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
 // Program routes by subscription tier
 const PROGRAM_ROUTES: Record<string, string> = {
@@ -21,7 +22,7 @@ function resolveRedirectPath(
   if (explicit && explicit.startsWith("/dashboard")) {
     return explicit;
   }
-  return PROGRAM_ROUTES[subscriptionTier || ""] || "/dashboard";
+  return PROGRAM_ROUTES[subscriptionTier || ""] || MEMBER_PROGRAMS_HOME;
 }
 
 function MagicLoginContent() {

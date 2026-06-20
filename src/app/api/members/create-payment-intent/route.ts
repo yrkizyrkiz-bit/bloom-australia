@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { getPublicOrganCareAnnualPricing } from "@/lib/billing/portal-pricing";
+import { ORGAN_CARE_CHECKOUT_DESCRIPTION } from "@/lib/programs/organ-care-public-offer";
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
 let stripeClient: Stripe | null = null;
@@ -48,20 +50,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create payment intent for $199 membership
+    const pricing = await getPublicOrganCareAnnualPricing();
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: 19900, // $199.00 in cents
+      amount: pricing.amountCents,
       currency: "aud",
       customer: customer.id,
       metadata: {
-        type: "membership",
-        program: program || "general",
+        type: "organ_care_membership",
+        program: program || "organ_care",
         firstName: firstName || "",
         lastName: lastName || "",
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      payment_method_types: ["card"],
+      description: ORGAN_CARE_CHECKOUT_DESCRIPTION,
     });
 
     return NextResponse.json({

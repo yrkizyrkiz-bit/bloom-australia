@@ -37,9 +37,10 @@ import {
   BookOpen,
   MessageSquare,
   HelpCircle,
-  Compass,
   CreditCard,
+  Grid3X3,
 } from "lucide-react";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { RealTimeNotificationBell } from "./RealTimeNotificationBell";
 
 const navItems = [
@@ -83,7 +84,7 @@ export function DashboardNav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-3 cursor-pointer group">
+          <Link href={MEMBER_PROGRAMS_HOME} className="flex items-center gap-3 cursor-pointer group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1D9E75] to-[#178a64] flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
               <Heart className="w-5 h-5 text-white" />
             </div>
@@ -94,29 +95,31 @@ export function DashboardNav() {
 
           {/* Nav Items */}
           <div className="hidden md:flex items-center gap-1">
-            {/* Overview */}
-            <Link href="/dashboard">
+            {/* Programs hub — default member home */}
+            <Link href={MEMBER_PROGRAMS_HOME}>
               <Button
                 variant="ghost"
                 size="sm"
-                className={`gap-2 rounded-xl ${pathname === "/dashboard" ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
+                className={`gap-2 rounded-xl ${pathname.startsWith("/dashboard/programs") ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
               >
-                <LayoutDashboard className="w-4 h-4" />
-                Overview
+                <Grid3X3 className="w-4 h-4" />
+                Programs
               </Button>
             </Link>
 
-            {/* Explore — biomarkers & tests as upsell when not yet entitled */}
-            <Link href="/dashboard/explore">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`gap-2 rounded-xl ${pathname.startsWith("/dashboard/explore") ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
-              >
-                <Compass className="w-4 h-4" />
-                Explore
-              </Button>
-            </Link>
+            {/* Classic health overview — biomarker dashboard when labs are unlocked */}
+            {biomarkersUnlocked && (
+              <Link href="/dashboard">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`gap-2 rounded-xl ${pathname === "/dashboard" ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Overview
+                </Button>
+              </Link>
+            )}
 
             {/* Biomarkers Dropdown */}
             <DropdownMenu>
@@ -128,18 +131,15 @@ export function DashboardNav() {
                 >
                   <FlaskConical className="w-4 h-4" />
                   Biomarkers
-                  {!biomarkersUnlocked && (
-                    <span className="text-[10px] uppercase tracking-wide text-[#7e9a72]">Explore</span>
-                  )}
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-52 rounded-xl border-[#e6ebe3] shadow-lg">
                 {!biomarkersUnlocked && (
                   <DropdownMenuLabel className="text-xs text-[#5c7a52] font-normal py-2">
-                    Opens with clinician-approved monitoring.{" "}
-                    <Link href="/dashboard/explore" className="text-[#1D9E75] underline">
-                      Learn more
+                    Unlocks when your panel is active.{" "}
+                    <Link href={MEMBER_PROGRAMS_HOME} className="text-[#1D9E75] underline">
+                      View programs
                     </Link>
                   </DropdownMenuLabel>
                 )}

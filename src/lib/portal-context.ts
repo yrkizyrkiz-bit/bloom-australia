@@ -3,6 +3,8 @@
  * Derived from journeyStatus (and related flags) on the server.
  */
 
+import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
+
 export type PortalMode =
   | "PRE_PROGRAM"
   | "ACTIVATING"
@@ -34,6 +36,8 @@ export interface PortalContextPayload {
   hasPassword: boolean;
   programs: PortalPrograms;
   features: PortalFeatures;
+  /** Derived membership entitlements (persisted Entitlement layer + biomarker readiness). */
+  membership?: DerivedMembershipEntitlements;
 }
 
 const ACTIVE_JOURNEY_STATUSES = ["ONBOARDING_COMPLETE", "ACTIVE"] as const;
@@ -120,6 +124,7 @@ export function derivePortalContext(input: {
   passwordHash?: string | null;
   subscriptionTier?: string | null;
   hasPaidWeightIntake?: boolean;
+  membership?: DerivedMembershipEntitlements;
 }): PortalContextPayload {
   const journeyStatus = input.journeyStatus || "LEAD";
   const hasPassword = Boolean(input.passwordHash);
@@ -175,5 +180,6 @@ export function derivePortalContext(input: {
       weightManagement: hasWeightProgram,
     },
     features,
+    membership: input.membership,
   };
 }

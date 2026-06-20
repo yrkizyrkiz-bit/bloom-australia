@@ -21,6 +21,11 @@ import {
   PROGRAM_ESSENTIAL_PANELS,
   type ProgramEssentialSlug,
 } from "@/lib/program-essential-panels";
+import {
+  isDerivedBiomarkerId,
+  WOMENS_HEALTH_SUBCATEGORIES,
+  type WomensHealthSubcategory,
+} from "@/lib/womens-health-biomarker-subcategories";
 import { MedicareEligibilityLegend } from "@/components/dashboard/MedicareEligibilityLegend";
 import { Info, User } from "lucide-react";
 
@@ -37,6 +42,7 @@ interface BiomarkerProgramEssentialViewProps {
   onProgramChange: (program: ProgramEssentialSlug) => void;
   rows: BiomarkerRow[];
   gender: Gender;
+  womensHealthSubcategory?: WomensHealthSubcategory;
   onBiomarkerClick: (
     biomarkerDef: BiomarkerDefinition | undefined,
     result: BiomarkerResult | null,
@@ -49,6 +55,7 @@ export function BiomarkerProgramEssentialView({
   onProgramChange,
   rows,
   gender,
+  womensHealthSubcategory,
   onBiomarkerClick,
 }: BiomarkerProgramEssentialViewProps) {
   const panelMeta = getProgramEssentialPanel(program);
@@ -57,10 +64,21 @@ export function BiomarkerProgramEssentialView({
     [program, gender]
   );
 
-  const programRows = useMemo(
-    () => rows.filter((row) => essentialIds.has(row.biomarker.id)),
-    [rows, essentialIds]
+  const subcategoryIds = useMemo(
+    () =>
+      program === "WOMENS_HEALTH" && womensHealthSubcategory
+        ? new Set(womensHealthSubcategory.markerIds)
+        : null,
+    [program, womensHealthSubcategory]
   );
+
+  const programRows = useMemo(() => {
+    return rows.filter((row) => {
+      if (!essentialIds.has(row.biomarker.id)) return false;
+      if (subcategoryIds && !subcategoryIds.has(row.biomarker.id)) return false;
+      return true;
+    });
+  }, [rows, essentialIds, subcategoryIds]);
 
   const grouped = useMemo(() => {
     const groups: Partial<Record<BloodPanelCategoryKey, BiomarkerRow[]>> = {};
@@ -126,14 +144,16 @@ export function BiomarkerProgramEssentialView({
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
               <h2 className="text-lg font-medium text-foreground">
-                {panelMeta.label} — Essential panel
+                {womensHealthSubcategory
+                  ? womensHealthSubcategory.label
+                  : `${panelMeta.label} — Essential panel`}
               </h2>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                {panelMeta.description}
+                {womensHealthSubcategory?.description || panelMeta.description}
               </p>
               <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                 <Info className="w-3 h-3 shrink-0" />
-                Hover a marker badge for Medicare eligibility details.
+                Includes measured portal markers and any relevant derived/calculated markers.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
@@ -151,6 +171,31 @@ export function BiomarkerProgramEssentialView({
               {program === "HAIR_LOSS" ? " · panel tailored to sex" : ""}
             </span>
           </div>
+          {program === "WOMENS_HEALTH" && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href="/dashboard/biomarkers?view=program&program=WOMENS_HEALTH"
+                className={!womensHealthSubcategory ? "pointer-events-none" : undefined}
+              >
+                <Badge variant={!womensHealthSubcategory ? "default" : "outline"}>
+                  All Women&apos;s Health
+                </Badge>
+              </a>
+              {WOMENS_HEALTH_SUBCATEGORIES.map((item) => (
+                <a
+                  key={item.slug}
+                  href={`/dashboard/biomarkers?view=program&program=WOMENS_HEALTH&subcategory=${item.slug}`}
+                  className={womensHealthSubcategory?.slug === item.slug ? "pointer-events-none" : undefined}
+                >
+                  <Badge
+                    variant={womensHealthSubcategory?.slug === item.slug ? "default" : "outline"}
+                  >
+                    {item.label}
+                  </Badge>
+                </a>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -199,26 +244,38 @@ export function BiomarkerProgramEssentialView({
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {items.map(({ biomarker, result, biomarkerDef }) =>
                   result && biomarkerDef ? (
-                    <BiomarkerCard
-                      key={biomarker.id}
-                      biomarker={biomarkerDef}
-                      result={result}
-                      gender={gender}
-                      panelBiomarker={biomarker}
-                      onClick={() => onBiomarkerClick(biomarkerDef, result, biomarker)}
-                    />
+                    <div key={biomarker.id} className="relative">
+                      {isDerivedBiomarkerId(biomarker.id) && (
+                        <Badge className="absolute right-3 top-3 z-10 bg-indigo-600/90">
+                          Calculated
+                        </Badge>
+                      )}
+                      <BiomarkerCard
+                        biomarker={biomarkerDef}
+                        result={result}
+                        gender={gender}
+                        panelBiomarker={biomarker}
+                        onClick={() => onBiomarkerClick(biomarkerDef, result, biomarker)}
+                      />
+                    </div>
                   ) : (
-                    <UntestedBiomarkerCard
-                      key={biomarker.id}
-                      biomarker={biomarker}
-                      gender={gender}
-                      categoryColor={config.color}
-                      onClick={
-                        biomarkerDef
-                          ? () => onBiomarkerClick(biomarkerDef, null, biomarker)
-                          : undefined
-                      }
-                    />
+                    <div key={biomarker.id} className="relative">
+                      {isDerivedBiomarkerId(biomarker.id) && (
+                        <Badge className="absolute right-3 top-3 z-10 bg-indigo-600/90">
+                          Calculated
+                        </Badge>
+                      )}
+                      <UntestedBiomarkerCard
+                        biomarker={biomarker}
+                        gender={gender}
+                        categoryColor={config.color}
+                        onClick={
+                          biomarkerDef
+                            ? () => onBiomarkerClick(biomarkerDef, null, biomarker)
+                            : undefined
+                        }
+                      />
+                    </div>
                   )
                 )}
               </div>

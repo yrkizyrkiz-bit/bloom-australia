@@ -40,7 +40,7 @@ const DEFAULT_META: Record<string, Omit<BiomarkerRisk, 'key' | 'score' | 'severi
   homaIR: { name: 'Insulin Resistance (HOMA-IR)', headline: 'Insulin resistance may be the missing piece', why: 'Your health profile is consistent with insulin resistance — the most common hidden driver of weight gain and fatigue.', program: 'Weight Management', programPath: '/weight-management/assessment', programPrice: '$549 trial', crossSell: 'Fatty Liver Program', crossSellPath: '/metabolic-care/fatty-liver', crossSellPrice: '$199/mo' },
   dht: { name: 'DHT (Hair Loss Hormone)', headline: 'DHT may already be affecting your hair follicles', why: 'Your pattern is consistent with DHT-driven hair loss — the most common and treatable form.', program: 'Hair Loss Program', programPath: '/hair-health', programPrice: '$79/mo', crossSell: "Men's Vitality Program", crossSellPath: '/mens-health', crossSellPrice: '$149/mo' },
   testosterone: { name: 'Testosterone', headline: 'Low testosterone may be contributing to your symptoms', why: 'Fatigue, reduced drive, and muscle changes are classic indicators of suboptimal testosterone.', program: "Men's Vitality Program", programPath: '/mens-health', programPrice: '$149/mo', crossSell: 'Hair Loss Program', crossSellPath: '/hair-health', crossSellPrice: '$79/mo' },
-  cardiovascular: { name: 'Cardiovascular Markers', headline: 'ED is often an early cardiovascular signal — worth screening', why: 'Erectile dysfunction has strong evidence as an early warning sign for cardiovascular disease.', program: 'Erectile Dysfunction Program', programPath: '/mens-health/assessment', programPrice: '$99/mo', crossSell: 'Heart Health Monitoring', crossSellPath: '/mens-health', crossSellPrice: '+$49/mo' },
+  cardiovascular: { name: 'Cardiovascular Markers', headline: 'Cardiovascular health may be affecting energy and stamina', why: 'Low energy, reduced exercise tolerance, and poor recovery can be linked with blood pressure, cholesterol, glucose, and broader cardiovascular risk.', program: "Men's Vitality Program", programPath: '/mens-health/assessment', programPrice: '$149/mo', crossSell: 'Heart Health Monitoring', crossSellPath: '/mens-health', crossSellPrice: '+$49/mo' },
   cortisol: { name: 'Cortisol (Stress Hormone)', headline: 'Stress hormones may be working against your goals', why: 'Chronic stress elevates cortisol, which promotes belly fat storage and blocks weight loss.', program: "Men's / Women's Vitality", programPath: '/mens-health', programPrice: '$149/mo', crossSell: 'Weight Management', crossSellPath: '/weight-management/assessment', crossSellPrice: '$249/mo' },
   tsh: { name: 'Thyroid Function (TSH)', headline: 'Thyroid function may be slowing your metabolism', why: 'Fatigue, difficulty losing weight, and hair changes are the classic cluster of thyroid dysfunction.', program: 'Weight Management / Women\'s Health', programPath: '/weight-management/assessment', programPrice: '$549 trial', crossSell: 'Essential Biomarker Panel', crossSellPath: '/labs', crossSellPrice: '$299 one-off' },
   estrogenProg: { name: 'Oestrogen / Progesterone', headline: 'Hormonal imbalance is likely driving your symptoms', why: 'Your symptom pattern points to an identifiable hormonal cause that guides the right treatment.', program: "Women's Health Program", programPath: '/womens-health/assessment', programPrice: '$149/mo', crossSell: 'Weight Management', crossSellPath: '/weight-management/assessment', crossSellPrice: '$249/mo' },
@@ -84,17 +84,31 @@ export function scoreWeightManagement(data: Record<string, unknown>, campaigns?:
 export function scoreMensHealth(data: Record<string, unknown>, campaigns?: BiomarkerCampaignData[]): BiomarkerRisk[] {
   const scores: Record<string, number> = { cardiovascular: 0, testosterone: 0, dht: 0, cortisol: 0, homaIR: 0 }
   const edSev = ((data.edSeverity as string) || '').toLowerCase()
-  if (edSev.includes('severe')) scores.cardiovascular += 50
-  else if (edSev.includes('moderate')) scores.cardiovascular += 30
-  else if (edSev.includes('mild')) scores.cardiovascular += 15
-  if (data.takingNitrates === 'yes') scores.cardiovascular += 60
+  if (edSev.includes('severe')) { scores.cardiovascular += 25; scores.testosterone += 25; scores.cortisol += 20 }
+  else if (edSev.includes('moderate')) { scores.cardiovascular += 15; scores.testosterone += 15; scores.cortisol += 15 }
+  else if (edSev.includes('mild')) { scores.testosterone += 10; scores.cortisol += 10 }
+  if (data.takingNitrates === 'yes') scores.cardiovascular += 20
+  const mainConcern = ((data.erectionDifficulty as string) || '').toLowerCase()
+  if (mainConcern.includes('fatigue') || mainConcern.includes('motivation') || mainConcern.includes('libido')) scores.testosterone += 25
+  if (mainConcern.includes('recovery') || mainConcern.includes('strength')) scores.testosterone += 20
+  if (mainConcern.includes('mixed')) { scores.testosterone += 15; scores.cortisol += 15; scores.homaIR += 10 }
+  const contributors = (data.edCauses as string[]) || []
+  if (contributors.some((c: string) => c.toLowerCase().includes('stress') || c.toLowerCase().includes('burnout'))) scores.cortisol += 30
+  if (contributors.some((c: string) => c.toLowerCase().includes('sleep'))) scores.cortisol += 20
+  if (contributors.some((c: string) => c.toLowerCase().includes('hormone') || c.toLowerCase().includes('testosterone'))) scores.testosterone += 30
+  if (contributors.some((c: string) => c.toLowerCase().includes('metabolic') || c.toLowerCase().includes('weight') || c.toLowerCase().includes('blood sugar'))) scores.homaIR += 30
   const conditions = (data.medicalConditions as string[]) || []
   if (conditions.some((c: string) => c.toLowerCase().includes('diabetes'))) scores.homaIR += 40
   if (conditions.some((c: string) => c.toLowerCase().includes('blood pressure'))) scores.cardiovascular += 35
   if (conditions.some((c: string) => c.toLowerCase().includes('heart'))) scores.cardiovascular += 40
+  if (conditions.some((c: string) => c.toLowerCase().includes('thyroid'))) scores.cortisol += 10
+  if (conditions.some((c: string) => c.toLowerCase().includes('testosterone'))) scores.testosterone += 40
+  if (conditions.some((c: string) => c.toLowerCase().includes('sleep'))) scores.cortisol += 25
   const lifestyle = (data.lifestyleFactors as string[]) || []
   if (lifestyle.some((l: string) => l.toLowerCase().includes('stress'))) scores.cortisol += 20
   if (lifestyle.some((l: string) => l.toLowerCase().includes('sleep'))) scores.cortisol += 15
+  if (lifestyle.some((l: string) => l.toLowerCase().includes('overweight') || l.toLowerCase().includes('sedentary'))) scores.homaIR += 20
+  if (lifestyle.some((l: string) => l.toLowerCase().includes('recover') || l.toLowerCase().includes('train'))) scores.testosterone += 15
   if (scores.cardiovascular > 20) scores.testosterone += 15
   return buildFlags(scores, 'male', campaigns)
 }

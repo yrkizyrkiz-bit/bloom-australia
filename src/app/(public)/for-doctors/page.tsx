@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
+import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
 import {
   ArrowRight,
   ArrowDown,
@@ -426,7 +427,7 @@ export default function ForDoctorsPage() {
                   </h3>
                   <p className="text-sm text-[#5c7a52] leading-relaxed">
                     Patients scan, read about the program, fill their own
-                    details, and pay $199. The entire enrolment is self-serve.
+                    details, and pay {ORGAN_CARE_PUBLIC_OFFER.priceLabel}. The entire enrolment is self-serve.
                     You are not involved in this step.
                   </p>
                 </div>
@@ -488,12 +489,12 @@ export default function ForDoctorsPage() {
               <div className="flex justify-center md:justify-end">
                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 text-center w-full max-w-xs">
                   <span className="text-[#5DCAA5] text-sm font-medium tracking-wider uppercase block mb-4">
-                    Patient membership
+                    Organ & Metabolic Care
                   </span>
                   <div className="flex items-baseline justify-center gap-1 mb-2">
-                    <span className="text-5xl font-bold text-white">$199</span>
+                    <span className="text-5xl font-bold text-white">${ORGAN_CARE_PUBLIC_OFFER.priceAud}</span>
                   </div>
-                  <span className="text-white/60 text-sm">per year</span>
+                  <span className="text-white/60 text-sm">per year · all organs included</span>
                   <div className="mt-6 pt-6 border-t border-white/20">
                     <span className="text-white/80 text-sm">
                       Paid by patient directly

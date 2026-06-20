@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { formatAud } from "@/lib/membership-display";
 import type { MemberBillingSummary } from "@/lib/billing/member-billing-summary";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
 type InvoiceRow = {
   id: string;
@@ -113,8 +114,8 @@ export function MemberBillingPanel({
           <CardDescription>No program billing on this account yet.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link href="/dashboard/explore">
-            <Button variant="outline">Explore programs</Button>
+          <Link href={MEMBER_PROGRAMS_HOME}>
+            <Button variant="outline">Browse programs</Button>
           </Link>
         </CardContent>
       </Card>

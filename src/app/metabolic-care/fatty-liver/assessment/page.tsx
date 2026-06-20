@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  ORGAN_CARE_PUBLIC_OFFER,
+  ORGAN_CARE_CHECKOUT_PREFILL_KEY,
+} from "@/lib/programs/organ-care-public-offer";
 
 interface FormData {
   firstName: string;
@@ -239,11 +243,22 @@ export default function FattyLiverAssessmentPage() {
       if (data.userId) {
         localStorage.setItem("intakeUserId", data.userId);
         localStorage.setItem("intakeProgram", "fatty_liver");
-
-        router.push(
-          `/payment?userId=${data.userId}&amount=${data.consultationAmount || 4900}&program=fatty_liver`
+        localStorage.setItem(
+          ORGAN_CARE_CHECKOUT_PREFILL_KEY,
+          JSON.stringify({
+            source: "fatty-liver",
+            userId: data.userId,
+            email: formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            phone: formData.phone,
+            dateOfBirth: formData.dateOfBirth,
+            postcode: formData.postcode,
+          })
         );
-      } else if (data.existing) {
+
+        router.push(`${ORGAN_CARE_PUBLIC_OFFER.checkoutPath}?source=fatty-liver`);
+      } else if (data.code === "EMAIL_EXISTS" || data.existing) {
         setError("An account with this email already exists. Please log in.");
       } else {
         setError(data.error || "Something went wrong. Please try again.");
@@ -903,10 +918,14 @@ export default function FattyLiverAssessmentPage() {
                 </div>
 
                 <div className="rounded-xl p-4" style={{ backgroundColor: themeColors.accent }}>
-                  <h3 className="font-medium mb-2" style={{ color: themeColors.text }}>Consultation Fee</h3>
-                  <p className="text-2xl font-semibold" style={{ color: themeColors.primary }}>$49 AUD</p>
+                  <h3 className="font-medium mb-2" style={{ color: themeColors.text }}>
+                    Organ & Metabolic Care
+                  </h3>
+                  <p className="text-2xl font-semibold" style={{ color: themeColors.primary }}>
+                    {ORGAN_CARE_PUBLIC_OFFER.priceLabel}
+                  </p>
                   <p className="text-sm mt-1" style={{ color: themeColors.textMuted }}>
-                    Includes doctor review and personalised liver health plan.
+                    12 month portal access including liver, heart, kidney and all organ dashboards.
                   </p>
                 </div>
               </div>
@@ -972,7 +991,7 @@ export default function FattyLiverAssessmentPage() {
                 </>
               ) : (
                 <>
-                  Proceed to payment
+                  Continue to checkout
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>

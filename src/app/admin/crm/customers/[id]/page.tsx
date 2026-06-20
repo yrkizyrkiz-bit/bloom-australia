@@ -39,6 +39,10 @@ import {
 import { RescheduleBookingDialog } from "@/components/admin/RescheduleBookingDialog";
 import { CancelBookingDialog } from "@/components/admin/CancelBookingDialog";
 import { BookingChangeHistory } from "@/components/admin/BookingChangeHistory";
+import {
+  MemberProgramQuizTabs,
+  type PortalQuizSubmissionView,
+} from "@/components/admin/MemberProgramQuizTabs";
 
 interface CustomerData {
   id: string;
@@ -216,6 +220,7 @@ export default function CustomerDetailPage() {
 
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [assessmentData, setAssessmentData] = useState<Record<string, unknown> | null>(null);
+  const [portalQuizzes, setPortalQuizzes] = useState<PortalQuizSubmissionView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -244,9 +249,10 @@ export default function CustomerDetailPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [customerRes, assessmentRes] = await Promise.all([
+      const [customerRes, assessmentRes, portalQuizzesRes] = await Promise.all([
         fetch(`/api/users/${customerId}`),
-        fetch(`/api/admin/customer-assessment?userId=${customerId}`)
+        fetch(`/api/admin/customer-assessment?userId=${customerId}`),
+        fetch(`/api/admin/portal-quizzes?userId=${customerId}`),
       ]);
 
       if (customerRes.ok) {
@@ -255,9 +261,28 @@ export default function CustomerDetailPage() {
         setEditData(data.user);
       }
 
+      if (portalQuizzesRes.ok) {
+        const portalJson = await portalQuizzesRes.json();
+        setPortalQuizzes(
+          Array.isArray(portalJson.submissions)
+            ? (portalJson.submissions as PortalQuizSubmissionView[])
+            : []
+        );
+      } else {
+        const portalErr = await portalQuizzesRes.json().catch(() => ({}));
+        console.error("Portal quizzes fetch failed:", portalErr);
+        setPortalQuizzes([]);
+        if (portalQuizzesRes.status === 401) {
+          toast.error("Could not load program quizzes — check your admin permissions.");
+        }
+      }
+
       const assessmentJson = await assessmentRes.json().catch(() => ({}));
       if (assessmentRes.ok) {
         setAssessmentData(assessmentJson);
+        if (!portalQuizzesRes.ok && Array.isArray(assessmentJson.portalQuizzes)) {
+          setPortalQuizzes(assessmentJson.portalQuizzes as PortalQuizSubmissionView[]);
+        }
       } else {
         console.error("Assessment fetch failed:", assessmentJson);
         if (customerRes.ok) {
@@ -603,17 +628,32 @@ export default function CustomerDetailPage() {
           </Card>
 
           {/* Tabs */}
-          <Tabs defaultValue="assessment">
-            <TabsList className="grid w-full grid-cols-8">
+          <Tabs defaultValue="quizzes">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9">
+              <TabsTrigger value="quizzes">
+                Program Quizzes
+                {portalQuizzes.length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                    {portalQuizzes.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="assessment">Assessment</TabsTrigger>
               <TabsTrigger value="hair">Hair</TabsTrigger>
               <TabsTrigger value="subscription">Subscription</TabsTrigger>
               <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="biomarkers">Biomarkers</TabsTrigger>
+              <TabsTrigger value="biomarkers">Lab Results</TabsTrigger>
               <TabsTrigger value="billing">Billing</TabsTrigger>
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="quizzes" className="mt-4">
+              <MemberProgramQuizTabs
+                submissions={portalQuizzes}
+                memberGender={customer?.gender}
+              />
+            </TabsContent>
 
             {/* Assessment / Quiz Responses Tab */}
             <TabsContent value="assessment" className="space-y-4 mt-4">
@@ -1042,7 +1082,16 @@ export default function CustomerDetailPage() {
 
             <TabsContent value="biomarkers" className="mt-4">
               <Card>
-                <CardHeader><CardTitle className="text-lg flex items-center gap-2"><FlaskConical className="w-5 h-5" />Biomarkers</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FlaskConical className="w-5 h-5" />
+                    Lab Results
+                  </CardTitle>
+                  <CardDescription>
+                    Pathology and biomarker test values from completed blood work — not intake quiz answers.
+                    For in-portal quiz submissions, see the <span className="font-medium">Program Quizzes</span> tab.
+                  </CardDescription>
+                </CardHeader>
                 <CardContent>
                   {biomarkers.length > 0 ? biomarkers.map((b: Record<string, unknown>) => (
                     <div key={b.id as string} className="flex justify-between p-3 border rounded-lg mb-2">

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { BiomarkerHoneycomb } from "@/components/promo/BiomarkerHoneycomb";
+import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
 import {
   ArrowRight,
   Check,
@@ -736,254 +737,63 @@ function LabsPageContent() {
           </div>
         </section>
 
-        {/* Specialized Panels Section */}
+        {/* Organ areas — one annual membership */}
         <section id="specialized-panels" className="py-20 lg:py-28 bg-[#fdfbf7]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
+            <div className="text-center mb-10">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">
-                Specialized <span className="text-[#5c7a52] italic">health panels</span>
+                All organ areas, <span className="text-[#5c7a52] italic">one membership</span>
               </h2>
               <p className="mt-4 text-lg text-[#5c7a52] max-w-2xl mx-auto">
-                Targeted testing for specific health concerns. Each panel is designed by specialists to give you the most relevant insights.
+                {ORGAN_CARE_PUBLIC_OFFER.tagline}. No per-organ fees — heart, liver, kidney,
+                thyroid, hormones and metabolic insights together.
               </p>
             </div>
 
+            <div className="mx-auto mb-12 max-w-2xl rounded-3xl border-2 border-[#5c7a52]/30 bg-white p-8 text-center shadow-sm">
+              <p className="text-sm font-medium uppercase tracking-wide text-[#5c7a52]">
+                Organ & Metabolic Care
+              </p>
+              <p className="mt-2 font-serif text-4xl text-[#2c3628]">{ORGAN_CARE_PUBLIC_OFFER.priceLabel}</p>
+              <p className="mt-2 text-sm text-[#5c7a52]">{ORGAN_CARE_PUBLIC_OFFER.billingNote}</p>
+              <Link
+                href={ORGAN_CARE_PUBLIC_OFFER.checkoutPath}
+                className="btn-primary mt-6 inline-flex items-center gap-2"
+              >
+                Start membership
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* PCOS Panel - Featured */}
-              <div className="lg:col-span-1 bg-gradient-to-br from-rose-50 to-purple-50 rounded-3xl p-6 border-2 border-rose-200 relative overflow-hidden">
-                <div className="absolute top-4 right-4">
-                  <span className="px-3 py-1 bg-rose-500 text-white text-xs font-semibold rounded-full">Popular</span>
+              {[
+                { icon: Heart, color: "text-red-500", bg: "bg-red-100", title: "Heart", desc: "Lipids, inflammation and cardiovascular risk" },
+                { icon: Activity, color: "text-green-500", bg: "bg-green-100", title: "Liver", desc: "LFTs, fatty liver and metabolic liver markers" },
+                { icon: Droplets, color: "text-cyan-500", bg: "bg-cyan-100", title: "Kidney", desc: "eGFR, creatinine and renal monitoring" },
+                { icon: Flame, color: "text-orange-500", bg: "bg-orange-100", title: "Metabolic", desc: "Glucose, insulin resistance and weight markers" },
+                { icon: Zap, color: "text-purple-500", bg: "bg-purple-100", title: "Thyroid", desc: "TSH, T4/T3 and thyroid antibodies" },
+                { icon: Brain, color: "text-pink-500", bg: "bg-pink-100", title: "Hormones", desc: "Sex hormones, cortisol and stress axis" },
+              ].map((organ) => (
+                <div key={organ.title} className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                  <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${organ.bg}`}>
+                    <organ.icon className={`h-7 w-7 ${organ.color}`} />
+                  </div>
+                  <h3 className="font-serif text-xl text-gray-900">{organ.title}</h3>
+                  <p className="mt-2 text-sm text-gray-600">{organ.desc}</p>
+                  <p className="mt-4 text-xs font-medium uppercase tracking-wide text-[#5c7a52]">
+                    Included in Organ Care
+                  </p>
                 </div>
-                <div className="w-14 h-14 bg-gradient-to-br from-rose-500 to-purple-500 rounded-2xl flex items-center justify-center mb-4">
-                  <Droplets className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-serif text-gray-900 mb-2">PCOS & Hormone Panel</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Complete hormonal and metabolic assessment for PCOS and insulin resistance.
-                </p>
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-rose-500" />
-                    <span>Fasting Insulin & HOMA-IR</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-rose-500" />
-                    <span>Testosterone (Free & Total)</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-rose-500" />
-                    <span>DHEA-S, LH, FSH, SHBG</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-rose-500" />
-                    <span>HbA1c & Glucose</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-rose-500" />
-                    <span>Thyroid Function (TSH, T4)</span>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-3xl font-serif text-gray-900">$199</span>
-                  <span className="text-sm text-gray-500">one-time</span>
-                </div>
-                <Link
-                  href="/metabolic-care/pcos/book?panel=pcos"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-rose-600 text-white rounded-xl font-semibold hover:bg-rose-700 transition-colors"
-                >
-                  Book PCOS Panel
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {/* Heart Health Panel */}
-              <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-                <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mb-4">
-                  <Heart className="w-7 h-7 text-red-500" />
-                </div>
-                <h3 className="text-xl font-serif text-gray-900 mb-2">Heart Health Panel</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Cardiovascular risk assessment with standard lipid and inflammation markers.
-                </p>
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Complete Lipid Profile</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>hs-CRP & Homocysteine</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>HbA1c & Blood Pressure</span>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-3xl font-serif text-gray-900">$179</span>
-                  <span className="text-sm text-gray-500">one-time</span>
-                </div>
-                <Link
-                  href="/biomarker-intake?panel=heart"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#34412f] text-white rounded-xl font-semibold hover:bg-[#2c3628] transition-colors"
-                >
-                  Book Heart Panel
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {/* Metabolic Panel */}
-              <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-                <div className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center mb-4">
-                  <Flame className="w-7 h-7 text-orange-500" />
-                </div>
-                <h3 className="text-xl font-serif text-gray-900 mb-2">Metabolic Health Panel</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Insulin resistance, blood sugar control, and weight management markers.
-                </p>
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Fasting Glucose & HbA1c</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Fasting Insulin & HOMA-IR</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Lipid Panel</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Liver Function Tests</span>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-3xl font-serif text-gray-900">$149</span>
-                  <span className="text-sm text-gray-500">one-time</span>
-                </div>
-                <Link
-                  href="/biomarker-intake?panel=metabolic"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#34412f] text-white rounded-xl font-semibold hover:bg-[#2c3628] transition-colors"
-                >
-                  Book Metabolic Panel
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {/* Thyroid Panel */}
-              <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-                <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mb-4">
-                  <Zap className="w-7 h-7 text-purple-500" />
-                </div>
-                <h3 className="text-xl font-serif text-gray-900 mb-2">Thyroid Function Panel</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Complete thyroid assessment for energy, weight, and metabolism.
-                </p>
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>TSH, Free T4, Free T3</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Thyroid Antibodies</span>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-3xl font-serif text-gray-900">$129</span>
-                  <span className="text-sm text-gray-500">one-time</span>
-                </div>
-                <Link
-                  href="/biomarker-intake?panel=thyroid"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#34412f] text-white rounded-xl font-semibold hover:bg-[#2c3628] transition-colors"
-                >
-                  Book Thyroid Panel
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {/* Hormone Balance Panel */}
-              <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-                <div className="w-14 h-14 bg-pink-100 rounded-2xl flex items-center justify-center mb-4">
-                  <Brain className="w-7 h-7 text-pink-500" />
-                </div>
-                <h3 className="text-xl font-serif text-gray-900 mb-2">Hormone Balance Panel</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Sex hormones, stress markers, and overall hormonal health.
-                </p>
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Testosterone & Estrogen</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Cortisol & DHEA-S</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Progesterone & LH/FSH</span>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-3xl font-serif text-gray-900">$169</span>
-                  <span className="text-sm text-gray-500">one-time</span>
-                </div>
-                <Link
-                  href="/biomarker-intake?panel=hormones"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#34412f] text-white rounded-xl font-semibold hover:bg-[#2c3628] transition-colors"
-                >
-                  Book Hormone Panel
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {/* Liver Health Panel */}
-              <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-                <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mb-4">
-                  <Activity className="w-7 h-7 text-green-500" />
-                </div>
-                <h3 className="text-xl font-serif text-gray-900 mb-2">Liver Health Panel</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Fatty liver screening and liver function assessment.
-                </p>
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>ALT, AST, GGT</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Albumin & Bilirubin</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>FIB-4 Score</span>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-3xl font-serif text-gray-900">$119</span>
-                  <span className="text-sm text-gray-500">one-time</span>
-                </div>
-                <Link
-                  href="/biomarker-intake?panel=liver"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#34412f] text-white rounded-xl font-semibold hover:bg-[#2c3628] transition-colors"
-                >
-                  Book Liver Panel
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
+              ))}
             </div>
 
             <div className="mt-12 text-center">
-              <p className="text-gray-600 mb-4">Not sure which panel is right for you?</p>
+              <p className="text-gray-600 mb-4">Already a member?</p>
               <Link
-                href="/biomarker-intake"
+                href="/login"
                 className="inline-flex items-center gap-2 text-[#5c7a52] font-semibold hover:text-[#4a6243]"
               >
-                Take our assessment quiz
+                Sign in to your portal
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

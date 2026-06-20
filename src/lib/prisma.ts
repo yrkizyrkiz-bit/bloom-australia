@@ -19,19 +19,27 @@ function modelDelegateReady(client: PrismaClient, model: string): boolean {
   );
 }
 
-function hasCurrentBillingModels(client: PrismaClient): boolean {
-  return (
-    modelDelegateReady(client, "product") &&
-    modelDelegateReady(client, "memberSubscription") &&
-    modelDelegateReady(client, "billingPrice")
-  );
+const REQUIRED_PRISMA_MODELS = [
+  "product",
+  "billingPrice",
+  "memberSubscription",
+  "entitlement",
+] as const;
+
+function hasCurrentPrismaSchema(client: PrismaClient): boolean {
+  return REQUIRED_PRISMA_MODELS.every((model) => modelDelegateReady(client, model));
 }
 
 // Recreate client in dev when schema changes (hot reload keeps stale global singleton)
 let client = globalForPrisma.prisma ?? createPrismaClient();
-if (process.env.NODE_ENV !== "production" && !hasCurrentBillingModels(client)) {
+if (process.env.NODE_ENV !== "production" && !hasCurrentPrismaSchema(client)) {
   void client.$disconnect().catch(() => {});
   client = createPrismaClient();
+  if (!hasCurrentPrismaSchema(client)) {
+    console.warn(
+      "[prisma] Client missing billing/entitlement models — run `bun run db:generate` and restart the dev server"
+    );
+  }
 }
 
 export const prisma = client;

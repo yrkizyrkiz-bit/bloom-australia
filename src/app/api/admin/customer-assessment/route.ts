@@ -10,6 +10,7 @@ import {
 } from "@/lib/australia-timezone";
 import { buildAssessmentFromQuizData } from "@/lib/quiz-assessment";
 import { resolvePlanTierFromStrings } from "@/lib/billing/catalog";
+import { getLatestPortalQuizSubmissions } from "@/lib/portal-quiz-submissions";
 
 export async function GET(req: NextRequest) {
   try {
@@ -328,11 +329,27 @@ export async function GET(req: NextRequest) {
           }
         : null;
 
+    let portalQuizzes: Awaited<ReturnType<typeof getLatestPortalQuizSubmissions>> = [];
+    try {
+      portalQuizzes = await getLatestPortalQuizSubmissions(userId);
+    } catch (e) {
+      console.warn("[customer-assessment] PortalQuizSubmission lookup failed:", e);
+    }
+
     return NextResponse.json({
       assessment,
       orders,
       biomarkerPurchases,
       rawSurveyData,
+      portalQuizzes: portalQuizzes.map((q) => ({
+        id: q.id,
+        programKey: q.programKey,
+        answers: q.answers,
+        result: q.result,
+        intent: q.intent,
+        source: q.source,
+        submittedAt: q.submittedAt.toISOString(),
+      })),
       submittedAt:
         wmIntake?.completedAt?.toISOString() ||
         programMember?.createdAt?.toISOString() ||

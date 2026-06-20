@@ -30,6 +30,7 @@ import {
   isProgramEssentialSlug,
   type ProgramEssentialSlug,
 } from "@/lib/program-essential-panels";
+import { getWomensHealthSubcategory } from "@/lib/womens-health-biomarker-subcategories";
 import { Search, Filter, X, Loader2, Info, User, BookOpen, TestTubes, Bean, Droplets, Heart, Activity, Sparkles, Flame, LayoutGrid, Stethoscope } from "lucide-react";
 
 type FilterStatus = "all" | "optimal" | "normal" | "out_of_range" | "not_tested";
@@ -66,6 +67,7 @@ function BiomarkersPageContent() {
   const initialCategory = searchParams?.get("category") as BloodPanelCategoryKey | null;
   const initialView = searchParams?.get("view") === "program" ? "program" : "all";
   const programParam = searchParams?.get("program");
+  const womensHealthSubcategory = getWomensHealthSubcategory(searchParams?.get("subcategory"));
   const initialProgram: ProgramEssentialSlug =
     programParam && isProgramEssentialSlug(programParam)
       ? programParam
@@ -327,6 +329,9 @@ function BiomarkersPageContent() {
           onProgramChange={setSelectedProgram}
           rows={allBiomarkersWithResults}
           gender={gender}
+          womensHealthSubcategory={
+            selectedProgram === "WOMENS_HEALTH" ? womensHealthSubcategory : undefined
+          }
           onBiomarkerClick={handleBiomarkerClick}
         />
       ) : (

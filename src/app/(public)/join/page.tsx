@@ -18,6 +18,7 @@ import {
   JoinPaymentForm,
   PaymentFormLoading,
 } from "@/components/promo/JoinPaymentForm";
+import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
 
 const PROGRAMS = [
   { value: "kidney-health", label: "Kidney Health" },
@@ -91,6 +92,12 @@ function JoinPageContent() {
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [paymentReady, setPaymentReady] = useState(false);
   const [isCreatingPaymentIntent, setIsCreatingPaymentIntent] = useState(false);
+  const [organCarePriceAud, setOrganCarePriceAud] = useState(
+    ORGAN_CARE_PUBLIC_OFFER.priceAud
+  );
+  const [organCarePriceLabel, setOrganCarePriceLabel] = useState(
+    ORGAN_CARE_PUBLIC_OFFER.priceLabel
+  );
 
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
@@ -152,6 +159,20 @@ function JoinPageContent() {
 
     fetchData();
   }, [clinicToken, referralToken]);
+
+  useEffect(() => {
+    fetch("/api/public/organ-care-pricing")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.amountAud === "number") {
+          setOrganCarePriceAud(data.amountAud);
+        }
+        if (typeof data.priceLabel === "string") {
+          setOrganCarePriceLabel(data.priceLabel);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Create payment intent when form is validated
   const createPaymentIntent = async () => {
@@ -408,13 +429,15 @@ function JoinPageContent() {
 
             {/* Price */}
             <div className="bg-white rounded-xl p-4 border border-[#e6ebe3] inline-block">
+              <p className="text-xs font-medium uppercase tracking-wide text-[#5c7a52] mb-1">
+                Organ & Metabolic Care
+              </p>
               <span className="text-2xl font-bold text-[#34412f]">
-                $199
+                {organCarePriceLabel}
               </span>
-              <span className="text-[#5c7a52]">/year</span>
-              <span className="text-sm text-[#5c7a52] ml-2">
-                — cancel anytime
-              </span>
+              <p className="text-sm text-[#5c7a52] mt-1">
+                All organs included · billed annually
+              </p>
             </div>
           </section>
 
@@ -754,10 +777,13 @@ function JoinPageContent() {
               <div className="bg-[#fdfbf7] rounded-xl p-4 mb-4">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-[#34412f]">
-                    Sanative Health Membership
+                    Organ & Metabolic Care
                   </span>
-                  <span className="font-bold text-[#34412f]">$199/year</span>
+                  <span className="font-bold text-[#34412f]">{organCarePriceLabel}</span>
                 </div>
+                <p className="text-xs text-[#5c7a52] mt-2">
+                  Heart, liver, kidney, thyroid, hormones & metabolic — one membership
+                </p>
               </div>
 
               {/* What's Included (Collapsible) */}
@@ -786,7 +812,7 @@ function JoinPageContent() {
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-[#1D9E75]" />
-                      Organ health scores
+                      All organ health dashboards included
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-[#1D9E75]" />
@@ -852,7 +878,7 @@ function JoinPageContent() {
                   clientSecret={clientSecret}
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
-                  amount={199}
+                  amount={organCarePriceAud}
                   disabled={isSubmitting}
                 />
               ) : (

@@ -4,17 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  LayoutDashboard,
-  FlaskConical,
   History,
   Target,
   Scale,
+  Grid3X3,
 } from "lucide-react";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/dashboard/biomarkers", label: "Tests", icon: FlaskConical },
+  { href: MEMBER_PROGRAMS_HOME, label: "Home", icon: Grid3X3 },
   { href: "/dashboard/weight-management", label: "Weight", icon: Scale },
   { href: "/dashboard/goals", label: "Goals", icon: Target },
   { href: "/dashboard/reports", label: "Reports", icon: History },
@@ -34,7 +33,7 @@ export function MobileNav() {
       <div className="flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {
           const isActive = pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            (item.href !== MEMBER_PROGRAMS_HOME && pathname.startsWith(item.href));
 
           return (
             <Link

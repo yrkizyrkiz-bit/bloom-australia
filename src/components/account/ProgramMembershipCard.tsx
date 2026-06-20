@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreditCard, CheckCircle, Calendar, Scale, Loader2 } from "lucide-react";
 import { formatAud, type MembershipSummary } from "@/lib/membership-display";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
 type ProgramMembershipCardProps = {
   membership: MembershipSummary | null;
@@ -42,8 +43,8 @@ export function ProgramMembershipCard({ membership, loading }: ProgramMembership
           <CardDescription>No active program subscription on this account.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link href="/dashboard/explore">
-            <Button variant="outline">Explore programs</Button>
+          <Link href={MEMBER_PROGRAMS_HOME}>
+            <Button variant="outline">Browse programs</Button>
           </Link>
         </CardContent>
       </Card>
