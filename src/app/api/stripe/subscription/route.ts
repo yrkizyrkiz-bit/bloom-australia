@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { verify } from "jsonwebtoken";
 import { getPublicOrganCareAnnualPricing } from "@/lib/billing/portal-pricing";
-import { grantEntitlement } from "@/lib/membership/entitlement-service";
+import { activateOrganCarePublicMembership } from "@/lib/portal/organ-care-membership";
 import { ORGAN_CARE_CHECKOUT_DESCRIPTION } from "@/lib/programs/organ-care-public-offer";
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
@@ -378,85 +378,28 @@ export async function PUT(req: NextRequest) {
     }
 
     const userEmail = email || paymentIntent.metadata.email;
-    let user = await prisma.user.findUnique({ where: { email: userEmail.toLowerCase() } });
-
-    if (user) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          firstName: firstName || user.firstName,
-          lastName: lastName || user.lastName,
-          phone: phone || user.phone,
-          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : user.dateOfBirth,
-          address: address || user.address,
-          addressLine1: addressLine1 || user.addressLine1,
-          addressLine2: addressLine2 || user.addressLine2,
-          suburb: suburb || user.suburb,
-          state: state || user.state,
-          postcode: postcode || user.postcode,
-          subscriptionStatus: 'ACTIVE',
-          subscriptionTier: 'membership',
-          journeyStatus: 'ACTIVE',
-        },
-      });
-    } else {
-      user = await prisma.user.create({
-        data: {
-          email: userEmail.toLowerCase(),
-          firstName: firstName || '',
-          lastName: lastName || '',
-          phone: phone || null,
-          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-          address, addressLine1, addressLine2, suburb, state, postcode,
-          subscriptionStatus: 'ACTIVE',
-          subscriptionTier: 'membership',
-          journeyStatus: 'ACTIVE',
-          role: 'MEMBER',
-        },
-      });
-    }
-
-    const currentPeriodEnd = new Date();
-    currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
-
-    const pricing = await getPublicOrganCareAnnualPricing();
-    const amountAud = pricing.amountAud;
-
-    await prisma.membershipSubscription.upsert({
-      where: { userId: user.id },
-      update: {
-        stripeCustomerId: paymentIntent.customer as string,
-        status: 'ACTIVE',
-        startDate: new Date(),
-        currentPeriodEnd,
-        amount: amountAud,
-        currency: 'AUD',
-        billingCycle: 'yearly',
-        planName: 'Organ & Metabolic Care',
-      },
-      create: {
-        userId: user.id,
-        stripeCustomerId: paymentIntent.customer as string,
-        status: 'ACTIVE',
-        startDate: new Date(),
-        currentPeriodEnd,
-        amount: amountAud,
-        currency: 'AUD',
-        billingCycle: 'yearly',
-        planName: 'Organ & Metabolic Care',
-      },
+    const result = await activateOrganCarePublicMembership({
+      paymentIntentId,
+      customerId: paymentIntent.customer as string,
+      email: userEmail,
+      firstName,
+      lastName,
+      phone,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+      address,
+      addressLine1,
+      addressLine2,
+      suburb,
+      state,
+      postcode,
     });
 
-    await grantEntitlement({
-      userId: user.id,
-      type: 'SCOPE',
-      key: 'ORGAN_CARE',
-      status: 'ACTIVE',
-      source: 'SUBSCRIPTION',
-      notes: `Public organ care membership. PI ${paymentIntentId}`,
-    }).catch((err) => console.error("[organ_care_membership] entitlement grant failed:", err));
-
-    return NextResponse.json({ success: true, userId: user.id, email: user.email, subscriptionStatus: 'ACTIVE' });
+    return NextResponse.json({
+      success: true,
+      userId: result.userId,
+      email: result.email,
+      subscriptionStatus: "ACTIVE",
+    });
   } catch (error) {
     console.error("Error completing subscription:", error);
     return NextResponse.json({ error: "Failed to complete subscription" }, { status: 500 });

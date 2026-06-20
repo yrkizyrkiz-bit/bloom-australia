@@ -149,6 +149,27 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     return;
   }
 
+  if (paymentIntent.metadata?.type === "organ_care_membership") {
+    const { activateOrganCarePublicMembership } = await import(
+      "@/lib/portal/organ-care-membership"
+    );
+    const email = paymentIntent.metadata.email;
+    if (email) {
+      await activateOrganCarePublicMembership({
+        paymentIntentId: paymentIntent.id,
+        customerId: (paymentIntent.customer as string) || undefined,
+        email,
+        firstName: paymentIntent.metadata.firstName || undefined,
+        lastName: paymentIntent.metadata.lastName || undefined,
+        phone: paymentIntent.metadata.phone || undefined,
+        postcode: paymentIntent.metadata.postcode || undefined,
+      }).catch((err) =>
+        console.error("[webhook] organ_care_membership activation failed:", err)
+      );
+    }
+    return;
+  }
+
   const {
     type, discount, discountType, program, userId, customerEmail, consultationType,
     selectedPlan, firstMonthAmount, ongoingAmount, discountAmount: metaDiscountAmount,

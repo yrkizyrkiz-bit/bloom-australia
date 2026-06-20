@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { LiverHealthCalculator } from "@/components/promo/LiverHealthCalculator";
+import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
 import {
   ArrowRight,
   AlertTriangle,
@@ -739,7 +740,7 @@ export default function FattyLiverPage() {
 
             {/* GAP-026: Removed 'No commitment' - payment required */}
             <p className="mt-6 text-sm text-[#7e9a72]">
-              Free assessment · Refund if not suitable · Results in 48 hours
+              Free assessment · {ORGAN_CARE_PUBLIC_OFFER.priceLabel} organ care membership
             </p>
           </div>
         </section>
