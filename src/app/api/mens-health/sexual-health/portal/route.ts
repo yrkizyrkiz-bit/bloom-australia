@@ -168,7 +168,7 @@ export async function GET() {
       statusDescription = info.description;
     } else {
       phase = "awaiting_consultation";
-      statusLabel = booking?.status === "CONFIRMED" ? "Consultation booked" : "Awaiting consultation";
+      statusLabel = booking?.status === "BOOKING_CONFIRMED" ? "Consultation booked" : "Awaiting consultation";
       statusDescription = booking
         ? "Your doctor consultation is scheduled — we will confirm your treatment plan after the visit."
         : "Your subscription is active. Our care team will contact you to book your included consultation.";

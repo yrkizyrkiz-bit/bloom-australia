@@ -1,31 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  ArrowLeft, Pill, Calendar, Clock, CheckCircle2, AlertCircle,
-  ChevronRight, Plus, Package, Truck, RefreshCw, Bell,
-  Sparkles, Heart, Zap, Settings, History
+  ArrowLeft,
+  Pill,
+  CheckCircle2,
+  Package,
+  Truck,
+  Sparkles,
+  Heart,
+  Loader2,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
-
-interface Medication {
-  id: string;
-  name: string;
-  dosage: string;
-  frequency: string;
-  category: "hair" | "ed" | "vitality";
-  pillsRemaining: number;
-  totalPills: number;
-  lastTaken: string | null;
-  nextDose: string;
-  refillDate: string;
-}
 
 interface HairPortalTreatment {
   id: string;
@@ -48,413 +39,344 @@ interface HairPortalPrescription {
 
 interface HairPortalData {
   isHairMember: boolean;
-  status: {
-    hasActiveTreatment: boolean;
-    label: string;
-  };
   treatments: HairPortalTreatment[];
   prescriptions: HairPortalPrescription[];
 }
 
-const mockMedications: Medication[] = [
-  {
-    id: "1",
-    name: "Finasteride",
-    dosage: "1mg",
-    frequency: "Once daily",
-    category: "hair",
-    pillsRemaining: 22,
-    totalPills: 30,
-    lastTaken: new Date().toISOString(),
-    nextDose: "Tomorrow morning",
-    refillDate: "2024-04-15",
-  },
-  {
-    id: "2",
-    name: "Minoxidil",
-    dosage: "5%",
-    frequency: "Twice daily",
-    category: "hair",
-    pillsRemaining: 45,
-    totalPills: 60,
-    lastTaken: new Date().toISOString(),
-    nextDose: "Tonight",
-    refillDate: "2024-04-20",
-  },
-  {
-    id: "3",
-    name: "Sildenafil",
-    dosage: "50mg",
-    frequency: "As needed",
-    category: "ed",
-    pillsRemaining: 8,
-    totalPills: 10,
-    lastTaken: null,
-    nextDose: "As needed",
-    refillDate: "2024-04-25",
-  },
-  {
-    id: "4",
-    name: "Vitamin D3 + Zinc",
-    dosage: "4000 IU / 30mg",
-    frequency: "Once daily",
-    category: "vitality",
-    pillsRemaining: 55,
-    totalPills: 60,
-    lastTaken: new Date().toISOString(),
-    nextDose: "Tomorrow morning",
-    refillDate: "2024-05-01",
-  },
-];
+interface SexualHealthPortalData {
+  isMember: boolean;
+  status: {
+    phase: string;
+    label: string;
+    description: string;
+  };
+  prescription: {
+    id: string;
+    medicationName: string;
+    strength: string;
+    dosage: string;
+    frequency: string;
+    refillsRemaining: number;
+    label: string;
+    description: string;
+    nextRefillDate: string | null;
+    trackingNumber: string | null;
+  } | null;
+  treatment: {
+    id: string;
+    medicationName: string;
+    dosage: string;
+    frequency: string;
+  } | null;
+  canLogUse: boolean;
+  useStats: {
+    totalLogged: number;
+    effectiveRate: number | null;
+  };
+}
 
-const categoryConfig = {
-  hair: { label: "Hair Loss", icon: Sparkles, color: "violet" },
-  ed: { label: "Sexual Health", icon: Heart, color: "teal" },
-  vitality: { label: "Vitality", icon: Zap, color: "amber" },
-};
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function HairTreatmentSection({ data }: { data: HairPortalData }) {
+  const hairItems = data.treatments.length
+    ? data.treatments
+    : data.prescriptions.map((rx) => ({
+        id: rx.id,
+        medicationName: rx.medicationName,
+        dosage: rx.strength || rx.dosage,
+        frequency: rx.frequency,
+        nextDoseDate: null,
+        adherence: null,
+      }));
+
+  return (
+    <Card className="border-slate-200 dark:border-slate-800">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Sparkles className="h-5 w-5 text-violet-600" />
+            Hair Loss
+          </CardTitle>
+          <Link href="/dashboard/mens-health/hair-loss">
+            <Button variant="ghost" size="sm" className="text-violet-700">
+              Hub <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {hairItems.length ? (
+          hairItems.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950/20"
+            >
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-semibold">{item.medicationName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {item.dosage} · {item.frequency}
+                  </p>
+                </div>
+                <Badge className="w-fit bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                  Active
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Adherence</span>
+                  <span className="font-medium">
+                    {item.adherence != null ? `${item.adherence}%` : "Starts after dosing"}
+                  </span>
+                </div>
+                <Progress value={item.adherence ?? 0} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  {item.nextDoseDate
+                    ? `Next dose: ${formatDate(item.nextDoseDate)}`
+                    : "Dose schedule will appear after setup"}
+                </p>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
+            <Pill className="mx-auto mb-2 h-8 w-8" />
+            <p className="font-medium">No hair treatment prescribed yet</p>
+            <p className="mt-1 text-sm">
+              Your doctor-approved treatment will appear here after triage and approval.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SexualHealthTreatmentSection({ data }: { data: SexualHealthPortalData }) {
+  return (
+    <Card className="border-slate-200 dark:border-slate-800">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Heart className="h-5 w-5 text-teal-600" />
+            Sexual Health
+          </CardTitle>
+          <Link href="/dashboard/mens-health/sexual-health">
+            <Button variant="ghost" size="sm" className="text-teal-700">
+              Hub <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {data.treatment ? (
+          <div className="rounded-xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-900 dark:bg-teal-950/20">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="font-semibold">{data.treatment.medicationName}</p>
+                <p className="text-sm text-muted-foreground">
+                  {data.treatment.dosage} · {data.treatment.frequency}
+                </p>
+                {data.useStats.effectiveRate != null && (
+                  <p className="mt-2 text-xs text-teal-700">
+                    {data.useStats.effectiveRate}% effective in the last 30 days
+                  </p>
+                )}
+              </div>
+              {data.canLogUse && (
+                <Link href="/dashboard/mens-health/sexual-health/log" className="w-full sm:w-auto">
+                  <Button size="sm" className="w-full bg-teal-600 hover:bg-teal-700 sm:w-auto">
+                    <CheckCircle2 className="mr-1 h-4 w-4" /> Log use
+                  </Button>
+                </Link>
+              )}
+            </div>
+            {data.prescription?.nextRefillDate && (
+              <p className="mt-3 flex items-center gap-1 border-t border-teal-200 pt-3 text-xs text-muted-foreground">
+                <Package className="h-3 w-3" />
+                Next refill: {formatDate(data.prescription.nextRefillDate)}
+                {data.prescription.refillsRemaining > 0 &&
+                  ` · ${data.prescription.refillsRemaining} refills left`}
+              </p>
+            )}
+          </div>
+        ) : data.prescription ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="font-semibold">{data.prescription.medicationName}</p>
+                <p className="text-sm text-muted-foreground">
+                  {data.prescription.dosage} · {data.prescription.frequency}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">{data.prescription.description}</p>
+              </div>
+              <Badge variant="secondary" className="w-fit shrink-0">
+                {data.prescription.label}
+              </Badge>
+            </div>
+            {data.prescription.trackingNumber && (
+              <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
+                <Truck className="h-3 w-3" />
+                Tracking: {data.prescription.trackingNumber}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
+            <Pill className="mx-auto mb-2 h-8 w-8" />
+            <p className="font-medium">{data.status.label}</p>
+            <p className="mt-1 text-sm">{data.status.description}</p>
+            <Link href="/dashboard/mens-health/sexual-health" className="mt-4 inline-block">
+              <Button variant="outline" size="sm">
+                View program status
+              </Button>
+            </Link>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function TreatmentPage() {
-  const [medications, setMedications] = useState<Medication[]>(mockMedications);
-  const [selectedMed, setSelectedMed] = useState<Medication | null>(null);
-  const [showLog, setShowLog] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [hairPortalData, setHairPortalData] = useState<HairPortalData | null>(null);
+  const [sexualPortalData, setSexualPortalData] = useState<SexualHealthPortalData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    async function loadHairPortalData() {
+
+    async function loadPortalData() {
       try {
-        const res = await fetch("/api/hair-loss/portal");
-        if (!res.ok) return;
-        const json = await res.json();
-        if (!cancelled && json.isHairMember) {
-          setHairPortalData(json);
+        const [hairRes, sexualRes] = await Promise.all([
+          fetch("/api/hair-loss/portal"),
+          fetch("/api/mens-health/sexual-health/portal"),
+        ]);
+
+        if (!cancelled && hairRes.ok) {
+          const json = (await hairRes.json()) as HairPortalData;
+          if (json.isHairMember) setHairPortalData(json);
+        }
+
+        if (!cancelled && sexualRes.ok) {
+          const json = (await sexualRes.json()) as SexualHealthPortalData;
+          if (json.isMember) setSexualPortalData(json);
         }
       } catch (error) {
-        console.error("Hair treatment load error:", error);
+        console.error("Treatment portal load error:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
-    loadHairPortalData();
+
+    loadPortalData();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const logDose = (medId: string) => {
-    setMedications(prev => prev.map(med => {
-      if (med.id === medId) {
-        return {
-          ...med,
-          pillsRemaining: Math.max(0, med.pillsRemaining - 1),
-          lastTaken: new Date().toISOString(),
-        };
-      }
-      return med;
-    }));
-    toast.success("Dose logged! Keep up the great work.");
-    setShowLog(false);
-  };
+  const hairCount =
+    hairPortalData?.treatments.length ||
+    hairPortalData?.prescriptions.length ||
+    0;
+  const sexualCount = sexualPortalData?.treatment || sexualPortalData?.prescription ? 1 : 0;
+  const hasPrograms = Boolean(hairPortalData?.isHairMember || sexualPortalData?.isMember);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-AU', {
-      day: 'numeric',
-      month: 'short'
-    });
-  };
-
-  const getDaysUntilRefill = (refillDate: string) => {
-    const days = Math.ceil((new Date(refillDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    return days;
-  };
-
-  // Group medications by category
-  const groupedMeds = medications.reduce((acc, med) => {
-    if (!acc[med.category]) acc[med.category] = [];
-    acc[med.category].push(med);
-    return acc;
-  }, {} as Record<string, Medication[]>);
-
-  if (hairPortalData?.isHairMember) {
-    const hairItems = hairPortalData.treatments.length
-      ? hairPortalData.treatments
-      : hairPortalData.prescriptions.map((rx) => ({
-          id: rx.id,
-          medicationName: rx.medicationName,
-          dosage: rx.strength || rx.dosage,
-          frequency: rx.frequency,
-          nextDoseDate: null,
-          adherence: null,
-        }));
-
+  if (loading) {
     return (
-      <div className="space-y-6 pb-20 md:pb-6">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/mens-health/hair-loss">
-            <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Pill className="w-6 h-6 text-violet-600" />
-              Hair Treatments
-            </h1>
-            <p className="text-muted-foreground">Doctor-approved medications and refills</p>
-          </div>
-        </div>
-
-        <Card className="border-slate-200 dark:border-slate-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-violet-600" />
-              Hair Loss
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {hairItems.length ? hairItems.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="font-semibold">{item.medicationName}</p>
-                    <p className="text-sm text-muted-foreground">{item.dosage} • {item.frequency}</p>
-                  </div>
-                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                    Active
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Adherence</span>
-                    <span className="font-medium">
-                      {item.adherence != null ? `${item.adherence}%` : "Starts after dosing"}
-                    </span>
-                  </div>
-                  <Progress value={item.adherence ?? 0} className="h-2" />
-                  <p className="text-xs text-muted-foreground">
-                    {item.nextDoseDate
-                      ? `Next dose: ${formatDate(item.nextDoseDate)}`
-                      : "Dose schedule will appear after setup"}
-                  </p>
-                </div>
-              </div>
-            )) : (
-              <div className="p-6 rounded-xl border border-dashed text-center text-muted-foreground">
-                <Pill className="w-8 h-8 mx-auto mb-2" />
-                <p className="font-medium">No hair treatment prescribed yet</p>
-                <p className="text-sm mt-1">
-                  Your doctor-approved treatment will appear here after triage and approval.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex min-h-[40vh] items-center justify-center pb-20 md:pb-6">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard/mens-health">
-          <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <Link href="/dashboard/mens-health" className="self-start">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
         </Link>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Pill className="w-6 h-6 text-teal-600" />
+        <div className="min-w-0 flex-1">
+          <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
+            <Pill className="h-5 w-5 shrink-0 text-teal-600 sm:h-6 sm:w-6" />
             My Treatments
           </h1>
-          <p className="text-muted-foreground">Manage medications & refills</p>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            Doctor-approved medications across your programs
+          </p>
         </div>
-        <Button variant="outline" size="sm">
-          <History className="w-4 h-4 mr-2" /> History
-        </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="bg-gradient-to-br from-violet-500 to-purple-600 border-0 text-white">
-          <CardContent className="p-4 text-center">
-            <Sparkles className="w-5 h-5 mx-auto mb-1" />
-            <p className="text-xl font-bold">{groupedMeds.hair?.length || 0}</p>
-            <p className="text-xs text-white/80">Hair</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-slate-700 to-teal-800 border-0 text-white">
-          <CardContent className="p-4 text-center">
-            <Heart className="w-5 h-5 mx-auto mb-1" />
-            <p className="text-xl font-bold">{groupedMeds.ed?.length || 0}</p>
-            <p className="text-xs text-white/80">Sexual Health</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-amber-500 to-orange-600 border-0 text-white">
-          <CardContent className="p-4 text-center">
-            <Zap className="w-5 h-5 mx-auto mb-1" />
-            <p className="text-xl font-bold">{groupedMeds.vitality?.length || 0}</p>
-            <p className="text-xs text-white/80">Vitality</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Medications by Category */}
-      {Object.entries(groupedMeds).map(([category, meds]) => {
-        const config = categoryConfig[category as keyof typeof categoryConfig];
-        const CategoryIcon = config.icon;
-
-        return (
-          <Card key={category} className="border-slate-200 dark:border-slate-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CategoryIcon className={`w-5 h-5 text-${config.color}-600`} />
-                {config.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {meds.map((med) => {
-                const supplyPercent = (med.pillsRemaining / med.totalPills) * 100;
-                const daysUntilRefill = getDaysUntilRefill(med.refillDate);
-                const needsRefill = daysUntilRefill <= 7 || supplyPercent <= 20;
-
-                return (
-                  <div
-                    key={med.id}
-                    className={`p-4 rounded-xl border ${
-                      needsRefill
-                        ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900'
-                        : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold">{med.name}</p>
-                          {needsRefill && (
-                            <Badge className="bg-amber-500 text-xs">
-                              <AlertCircle className="w-3 h-3 mr-1" /> Low Supply
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{med.dosage} • {med.frequency}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        className="bg-teal-600 hover:bg-teal-700"
-                        onClick={() => {
-                          setSelectedMed(med);
-                          setShowLog(true);
-                        }}
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Log
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Supply remaining</span>
-                        <span className="font-medium">{med.pillsRemaining} / {med.totalPills}</span>
-                      </div>
-                      <Progress value={supplyPercent} className="h-2" />
-
-                      <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          <span>Next: {med.nextDose}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Package className="w-3 h-3 text-muted-foreground" />
-                          <span className={needsRefill ? 'text-amber-600 font-medium' : 'text-muted-foreground'}>
-                            Refill: {formatDate(med.refillDate)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        );
-      })}
-
-      {/* Refill Reminder */}
-      <Card className="bg-gradient-to-r from-teal-500 to-cyan-600 border-0 text-white">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                <Truck className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="font-semibold">Free Shipping</p>
-                <p className="text-sm text-teal-100">On all prescription refills</p>
-              </div>
-            </div>
-            <Button variant="secondary" size="sm">
-              <RefreshCw className="w-4 h-4 mr-2" /> Order Refill
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reminder Settings */}
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-slate-600" />
-              </div>
-              <div>
-                <p className="font-medium">Medication Reminders</p>
-                <p className="text-xs text-muted-foreground">Get notified when it&apos;s time</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm">
-              <Settings className="w-4 h-4 mr-2" /> Settings
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Log Dose Dialog */}
-      <Dialog open={showLog} onOpenChange={setShowLog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-teal-600" />
-              Log Dose
-            </DialogTitle>
-          </DialogHeader>
-          {selectedMed && (
-            <div className="space-y-4 pt-4">
-              <div className="p-4 rounded-xl bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900">
-                <p className="font-semibold text-lg">{selectedMed.name}</p>
-                <p className="text-muted-foreground">{selectedMed.dosage} • {selectedMed.frequency}</p>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                Logging this dose will update your supply count and track your adherence.
-              </p>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowLog(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 bg-teal-600 hover:bg-teal-700"
-                  onClick={() => logDose(selectedMed.id)}
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-2" /> Confirm
-                </Button>
-              </div>
-            </div>
+      {hasPrograms && (
+        <div
+          className={`grid gap-3 ${hairPortalData?.isHairMember && sexualPortalData?.isMember ? "grid-cols-2" : "grid-cols-1 sm:max-w-xs"}`}
+        >
+          {hairPortalData?.isHairMember && (
+            <Card className="border-0 bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+              <CardContent className="p-3 text-center sm:p-4">
+                <Sparkles className="mx-auto mb-1 h-5 w-5" />
+                <p className="text-xl font-bold">{hairCount}</p>
+                <p className="text-xs text-white/80">Hair</p>
+              </CardContent>
+            </Card>
           )}
-        </DialogContent>
-      </Dialog>
+          {sexualPortalData?.isMember && (
+            <Card className="border-0 bg-gradient-to-br from-slate-700 to-teal-800 text-white">
+              <CardContent className="p-3 text-center sm:p-4">
+                <Heart className="mx-auto mb-1 h-5 w-5" />
+                <p className="text-xl font-bold">{sexualCount}</p>
+                <p className="text-xs text-white/80">Sexual Health</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {hairPortalData?.isHairMember && <HairTreatmentSection data={hairPortalData} />}
+      {sexualPortalData?.isMember && <SexualHealthTreatmentSection data={sexualPortalData} />}
+
+      {!hasPrograms && (
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center">
+            <Pill className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+            <p className="font-medium">No active treatments yet</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              Enroll in a men&apos;s health program to see prescriptions and medication tracking here.
+            </p>
+            <Link href="/dashboard/mens-health" className="mt-4 inline-block">
+              <Button className="bg-teal-600 hover:bg-teal-700">Browse programs</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {hasPrograms && (
+        <Card className="border-0 bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20">
+                <Truck className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold">Discreet delivery</p>
+                <p className="text-sm text-teal-100">Plain packaging on prescription refills</p>
+              </div>
+            </div>
+            <Link href="/dashboard/mens-health/support" className="w-full sm:w-auto">
+              <Button variant="secondary" size="sm" className="w-full sm:w-auto">
+                Contact care team
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
