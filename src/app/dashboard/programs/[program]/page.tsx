@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -25,6 +25,7 @@ import {
 } from "@/lib/programs/quizzes/sexual-health-quiz";
 import { getPublicFunnelQuizSteps } from "@/lib/programs/quizzes/public-funnel-quizzes";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalContext } from "@/hooks/usePortalContext";
 import { PortalPaymentForm } from "@/components/portal/PortalPaymentForm";
 
 const PROGRAMS_HUB = "/dashboard/programs";
@@ -53,11 +54,29 @@ function getQuizSteps(
 
 export default function InPortalProgramPage() {
   const params = useParams<{ program: string }>();
+  const router = useRouter();
   const { user } = useAuth();
+  const { data: portal, isLoading: portalLoading } = usePortalContext();
   const programKey = useMemo(
     () => normalizeProgramKey(params?.program) as ProgramKey | null,
     [params?.program]
   );
+
+  const existingProgram = programKey ? portal?.membership?.programs?.[programKey] : null;
+  const shouldRedirectToDashboard =
+    Boolean(
+      existingProgram?.hasEntitlement &&
+        existingProgram.status !== "INACTIVE" &&
+        existingProgram.state !== "inactive"
+    );
+
+  useEffect(() => {
+    if (portalLoading || !programKey || !shouldRedirectToDashboard) return;
+    const card = PROGRAM_CARDS.find((c) => c.key === programKey);
+    if (card?.dashboardRoute) {
+      router.replace(card.dashboardRoute);
+    }
+  }, [portalLoading, programKey, shouldRedirectToDashboard, router]);
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -87,6 +106,14 @@ export default function InPortalProgramPage() {
         <Button asChild variant="outline" className="mt-6">
           <Link href={PROGRAMS_HUB}>Back to programs</Link>
         </Button>
+      </div>
+    );
+  }
+
+  if (portalLoading || shouldRedirectToDashboard) {
+    return (
+      <div className="mx-auto flex max-w-xl justify-center px-4 py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-[#5c7a52]" />
       </div>
     );
   }

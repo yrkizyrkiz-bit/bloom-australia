@@ -4,9 +4,11 @@ import { Suspense, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBiomarkerResults } from "@/hooks/useApi";
+import { useBiomarkerResults, useDashboardStats } from "@/hooks/useApi";
 import { BiomarkerCard } from "@/components/dashboard/BiomarkerCard";
 import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDialog";
+import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
+import { BiologicalAgeCard } from "@/components/dashboard/BiologicalAgeCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,20 +23,21 @@ import {
   type BloodPanelBiomarker,
   type Gender
 } from "@/data/bloodPanelConfig";
-import type { BiomarkerDefinition, BiomarkerResult, BiomarkerCategory } from "@/types";
+import type { BiomarkerDefinition, BiomarkerResult, HealthScore } from "@/types";
 import { BiomarkerProgramEssentialView } from "@/components/dashboard/BiomarkerProgramEssentialView";
+import { BiomarkerHistoryView } from "@/components/dashboard/BiomarkerHistoryView";
 import { UntestedBiomarkerCard } from "@/components/dashboard/UntestedBiomarkerCard";
-import { MedicareEligibilityLegend } from "@/components/dashboard/MedicareEligibilityLegend";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
+import { calculateAllHealthTestScores } from "@/lib/healthTestScoring";
 import {
   isProgramEssentialSlug,
   type ProgramEssentialSlug,
 } from "@/lib/program-essential-panels";
 import { getWomensHealthSubcategory } from "@/lib/womens-health-biomarker-subcategories";
-import { Search, Filter, X, Loader2, Info, User, BookOpen, TestTubes, Bean, Droplets, Heart, Activity, Sparkles, Flame, LayoutGrid, Stethoscope } from "lucide-react";
+import { Search, Filter, X, Loader2, Info, User, BookOpen, TestTubes, Bean, Droplets, Heart, Activity, Sparkles, Flame, LayoutGrid, Stethoscope, History } from "lucide-react";
 
 type FilterStatus = "all" | "optimal" | "normal" | "out_of_range" | "not_tested";
-type BiomarkerViewMode = "all" | "program";
+type BiomarkerViewMode = "all" | "program" | "history";
 
 // Organ-specific health test panels (mirrors the desktop nav dropdown), surfaced
 // on mobile where that dropdown is hidden.
@@ -65,7 +68,12 @@ export default function BiomarkersPage() {
 function BiomarkersPageContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams?.get("category") as BloodPanelCategoryKey | null;
-  const initialView = searchParams?.get("view") === "program" ? "program" : "all";
+  const initialView: BiomarkerViewMode =
+    searchParams?.get("view") === "program"
+      ? "program"
+      : searchParams?.get("view") === "history"
+        ? "history"
+        : "all";
   const programParam = searchParams?.get("program");
   const womensHealthSubcategory = getWomensHealthSubcategory(searchParams?.get("subcategory"));
   const initialProgram: ProgramEssentialSlug =
@@ -78,6 +86,7 @@ function BiomarkersPageContent() {
     latest: true,
     ensureDerived: true,
   });
+  const { data: dashboardData } = useDashboardStats();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<BloodPanelCategoryKey | null>(initialCategory);
@@ -92,6 +101,71 @@ function BiomarkersPageContent() {
 
   // Get user gender for gender-specific ranges
   const gender: Gender = user?.gender === "female" ? "female" : "male";
+
+  const healthScore: HealthScore = useMemo(() => {
+    const biomarkerResults: BiomarkerResult[] =
+      dashboardData?.biomarkerResults?.length
+        ? dashboardData.biomarkerResults.map((r: {
+            id: string;
+            biomarkerId: string;
+            value: number;
+            status?: string;
+            testedAt: string;
+          }) => ({
+            id: r.id,
+            biomarkerId: r.biomarkerId,
+            value: r.value,
+            status: (r.status?.toLowerCase() || "normal") as BiomarkerResult["status"],
+            testedAt: r.testedAt,
+          }))
+        : [];
+
+    const healthTestScores =
+      biomarkerResults.length > 0 ? calculateAllHealthTestScores(gender, biomarkerResults) : null;
+
+    if (healthTestScores) {
+      return {
+        overall: healthTestScores.overall,
+        biologicalAge: dashboardData?.biologicalAge?.biologicalAge ?? null,
+        chronologicalAge: dashboardData?.biologicalAge?.chronologicalAge ?? null,
+        categories: healthTestScores.categories.map((c) => ({
+          category: c.id,
+          score: c.score,
+          optimal: c.optimal,
+          normal: c.normal,
+          outOfRange: c.outOfRange,
+        })),
+        lastUpdated: healthTestScores.lastUpdated,
+      };
+    }
+
+    if (dashboardData?.healthScore) {
+      const hs = dashboardData.healthScore;
+      return {
+        overall: hs.overall || 0,
+        biologicalAge: hs.biologicalAge ?? dashboardData.biologicalAge?.biologicalAge ?? null,
+        chronologicalAge: hs.chronologicalAge ?? dashboardData.biologicalAge?.chronologicalAge ?? null,
+        categories: (hs.categoryScores || []).map(
+          (c: { category?: string; score?: number; optimal?: number; normal?: number; outOfRange?: number }) => ({
+            category: c.category || "",
+            score: c.score || 0,
+            optimal: c.optimal || 0,
+            normal: c.normal || 0,
+            outOfRange: c.outOfRange || 0,
+          })
+        ),
+        lastUpdated: hs.calculatedAt || new Date().toISOString(),
+      };
+    }
+
+    return {
+      overall: 0,
+      biologicalAge: dashboardData?.biologicalAge?.biologicalAge ?? null,
+      chronologicalAge: dashboardData?.biologicalAge?.chronologicalAge ?? null,
+      categories: [],
+      lastUpdated: new Date().toISOString(),
+    };
+  }, [dashboardData, gender]);
 
   // Transform API data to a lookup map by biomarkerId (derived values persisted server-side)
   const biomarkerResultsMap = useMemo(() => {
@@ -250,8 +324,8 @@ function BiomarkersPageContent() {
 
   const hasActiveFilters = searchQuery || selectedCategory || statusFilter !== "all";
 
-  // Loading state
-  if (isLoading) {
+  // Loading state (history tab loads its own data)
+  if (isLoading && viewMode !== "history") {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -263,7 +337,7 @@ function BiomarkersPageContent() {
   }
 
   // Error state
-  if (error) {
+  if (error && viewMode !== "history") {
     return (
       <Card className="border-red-200 bg-red-50/50">
         <CardContent className="py-12 text-center">
@@ -285,7 +359,9 @@ function BiomarkersPageContent() {
           <p className="text-muted-foreground mt-1">
             {viewMode === "program"
               ? "Essential monitoring panels by clinical program — toggle Weight, Hair, Men's or Women's"
-              : `View and explore all ${counts.totalInPanel} biomarkers across ${Object.keys(bloodPanelConfig).length} health categories`}
+              : viewMode === "history"
+                ? "View your test history and generate AI-powered health reports"
+                : `View and explore all ${counts.totalInPanel} biomarkers across ${Object.keys(bloodPanelConfig).length} health categories`}
           </p>
         </div>
         <Link
@@ -311,7 +387,7 @@ function BiomarkersPageContent() {
         value={viewMode}
         onValueChange={(v) => setViewMode(v as BiomarkerViewMode)}
       >
-        <TabsList className="grid w-full max-w-md grid-cols-2 h-auto p-1">
+        <TabsList className="grid w-full max-w-xl grid-cols-3 h-auto p-1">
           <TabsTrigger value="all" className="gap-2 text-sm py-2">
             <LayoutGrid className="w-4 h-4" />
             All biomarkers
@@ -319,6 +395,10 @@ function BiomarkersPageContent() {
           <TabsTrigger value="program" className="gap-2 text-sm py-2">
             <Stethoscope className="w-4 h-4" />
             By program
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2 text-sm py-2">
+            <History className="w-4 h-4" />
+            History
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -334,9 +414,14 @@ function BiomarkersPageContent() {
           }
           onBiomarkerClick={handleBiomarkerClick}
         />
+      ) : viewMode === "history" ? (
+        <BiomarkerHistoryView embedded />
       ) : (
         <>
-      <MedicareEligibilityLegend />
+      <div className="grid md:grid-cols-2 gap-6">
+        <HealthScoreCard healthScore={healthScore} />
+        <BiologicalAgeCard healthScore={healthScore} />
+      </div>
 
       {/* Health Tests quick access — mobile only (desktop uses the nav dropdown) */}
       <div className="md:hidden">

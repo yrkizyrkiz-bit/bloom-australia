@@ -37,6 +37,7 @@ export type EntitlementSignalsInput = {
   subscriptionStatus?: string | null;
   memberStatus?: string | null;
   journeyStatus?: string | null;
+  weightIntakePaymentStatus?: string | null;
   hasPaidWeightIntake?: boolean;
   memberProgram?: { isActive?: boolean | null } | null;
   programMembers?: Array<{ program?: string | null; membershipStatus?: string | null }>;
@@ -50,6 +51,30 @@ export type EntitlementSignalsInput = {
     } | null;
   }>;
 };
+
+/** Journey statuses where weight funnel payment is complete and program access should be granted. */
+export const PAID_WEIGHT_JOURNEY_STATUSES = new Set([
+  "CONSULTATION_PAID",
+  "PRE_TRIAGE_PENDING",
+  "PRE_TRIAGE_COMPLETE",
+  "AWAITING_DOCTOR_CALL",
+  "CONSULT_COMPLETED",
+  "AWAITING_DOCTOR_DECISION",
+  "APPROVED_PENDING_TESTS",
+  "TESTS_ORDERED",
+  "AWAITING_TESTS",
+  "RESULTS_RECEIVED",
+  "FINAL_DOCTOR_REVIEW",
+  "APPROVED",
+  "SCRIPT_WRITTEN",
+  "PHARMACY_PENDING",
+  "DISPENSING",
+  "SHIPPED",
+  "DELIVERED",
+  "ONBOARDING_PENDING",
+  "ONBOARDING_COMPLETE",
+  "ACTIVE",
+]);
 
 const STATUS_PRIORITY: Record<EntitlementStatusValue, number> = {
   ACTIVE: 3,
@@ -117,9 +142,25 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
   // 1) Legacy subscriptionTier -> program + scope
   const tier = input.subscriptionTier;
   const tierProgram = normalizeProgramKey(tier);
-  if (tierProgram) add("PROGRAM", tierProgram, subscriptionTierStatus(input.subscriptionStatus), "LEGACY_TIER");
+  const weightJourneyPaid =
+    Boolean(input.journeyStatus && PAID_WEIGHT_JOURNEY_STATUSES.has(input.journeyStatus)) ||
+    input.weightIntakePaymentStatus === "PAID" ||
+    Boolean(input.hasPaidWeightIntake);
+
+  if (tierProgram) {
+    let tierStatus = subscriptionTierStatus(input.subscriptionStatus);
+    // Recurring subscription not started yet — still grant WM access after funnel payment.
+    if (tierProgram === "WEIGHT_MANAGEMENT" && tierStatus === "INACTIVE" && weightJourneyPaid) {
+      tierStatus = "ACTIVE";
+    }
+    add("PROGRAM", tierProgram, tierStatus, "LEGACY_TIER");
+  }
   const tierScope = normalizeScopeKey(tier);
   if (tierScope) add("SCOPE", tierScope, subscriptionTierStatus(input.subscriptionStatus), "LEGACY_TIER");
+
+  if (weightJourneyPaid) {
+    add("PROGRAM", "WEIGHT_MANAGEMENT", "ACTIVE", "LEGACY_TIER");
+  }
 
   // Paid weight intake implies the weight program even before tier is set.
   if (input.hasPaidWeightIntake) {
@@ -134,7 +175,12 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
   // 3) ProgramMember rows
   for (const pm of input.programMembers || []) {
     const programKey = normalizeProgramKey(pm.program);
-    if (programKey) add("PROGRAM", programKey, programMemberStatus(pm.membershipStatus), "PROGRAM_MEMBER");
+    if (!programKey) continue;
+    let status = programMemberStatus(pm.membershipStatus);
+    if (programKey === "WEIGHT_MANAGEMENT" && weightJourneyPaid && status !== "INACTIVE") {
+      status = "ACTIVE";
+    }
+    add("PROGRAM", programKey, status, "PROGRAM_MEMBER");
   }
 
   // 4) MemberSubscription rows (product text -> program and/or scope)
@@ -213,11 +259,26 @@ async function loadSignals(userId: string): Promise<EntitlementSignalsInput | nu
     select: { program: true, membershipStatus: true },
   });
 
+  const weightIntake = await prisma.weightManagementIntake.findFirst({
+    where: { userId },
+    select: { paymentStatus: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const journey = user.journeyStatus;
+  const hasPaidWeightIntake =
+    user.subscriptionTier === "weight_management" ||
+    user.memberStatus === "MEMBER" ||
+    weightIntake?.paymentStatus === "PAID" ||
+    (journey != null && PAID_WEIGHT_JOURNEY_STATUSES.has(journey));
+
   return {
     subscriptionTier: user.subscriptionTier,
     subscriptionStatus: user.subscriptionStatus,
     memberStatus: user.memberStatus,
-    journeyStatus: user.journeyStatus,
+    journeyStatus: journey,
+    weightIntakePaymentStatus: weightIntake?.paymentStatus ?? null,
+    hasPaidWeightIntake,
     memberProgram: user.memberProgram,
     memberSubscriptions: user.memberSubscriptions,
     programMembers,

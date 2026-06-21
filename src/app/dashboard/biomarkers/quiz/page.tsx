@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalContext } from "@/hooks/usePortalContext";
 import {
   biomarkersQuizGenderLabel,
   biomarkersQuizMissingAnswers,
@@ -68,6 +70,17 @@ type BiomarkersPricing = {
 
 export default function BiomarkersQuizPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const { data: portal, isLoading: portalLoading } = usePortalContext();
+  const hasBiomarkersEntitlement = Boolean(
+    portal?.membership?.scopes?.BIOLOGICAL_CLOCK?.hasEntitlement
+  );
+
+  useEffect(() => {
+    if (portalLoading || !hasBiomarkersEntitlement) return;
+    const clockReady = portal?.membership?.biologicalClock?.state === "ready";
+    router.replace(clockReady ? "/dashboard/biological-age" : "/dashboard/biomarkers");
+  }, [portalLoading, hasBiomarkersEntitlement, portal?.membership?.biologicalClock?.state, router]);
 
   const [hydrated, setHydrated] = useState(false);
   const [resumeOffer, setResumeOffer] = useState<{
@@ -275,7 +288,7 @@ export default function BiomarkersQuizPage() {
       ? `$${checkoutTotalAud} due today`
       : "—";
 
-  if (!hydrated) {
+  if (!hydrated || portalLoading || hasBiomarkersEntitlement) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#5c7a52]" />

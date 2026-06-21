@@ -25,6 +25,33 @@ type TileCta = {
   state: EntitlementState;
 };
 
+/** Badge copy for tiles where the member already has access. */
+function getEnrollmentBadgeLabel(
+  hasEntitlement: boolean,
+  status: string | null | undefined,
+  state: EntitlementState
+): string | null {
+  if (!hasEntitlement || status === "INACTIVE" || state === "inactive") return null;
+  if (state === "pending_results" || status === "PENDING") {
+    return "Enrolled · awaiting results";
+  }
+  return "Enrolled";
+}
+
+function EnrolledBadge({ label, tone }: { label: string; tone: CardTone }) {
+  const colors = toneClasses(tone);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm",
+        colors.activeBadge
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
 function toneClasses(tone: CardTone) {
   return tone === "dark"
     ? {
@@ -53,7 +80,15 @@ function programTileCta(
 ): TileCta {
   const program = membership?.programs?.[card.key as ProgramKey];
 
-  if (!program?.hasEntitlement) {
+  if (!program?.hasEntitlement || program.state === "inactive" || program.status === "INACTIVE") {
+    if (program?.status === "INACTIVE" || program?.state === "inactive") {
+      return {
+        badgeLabel: "Paused",
+        ctaLabel: "Reactivate",
+        href: card.quizRoute,
+        state: "inactive",
+      };
+    }
     return {
       badgeLabel: null,
       ctaLabel: "Start quiz",
@@ -62,40 +97,15 @@ function programTileCta(
     };
   }
 
-  if (program.status === "INACTIVE" || program.state === "inactive") {
-    return {
-      badgeLabel: "Paused",
-      ctaLabel: "Reactivate",
-      href: card.quizRoute,
-      state: "inactive",
-    };
-  }
-
-  if (program.status === "PENDING") {
-    return {
-      badgeLabel: "Pending",
-      ctaLabel: "View status",
-      href: card.quizRoute,
-      state: "pending_results",
-    };
-  }
-
-  if (program.status === "ACTIVE") {
-    const ctaLabel =
-      program.state === "pending_results" ? "View status" : "Open program";
-    return {
-      badgeLabel: "Active",
-      ctaLabel,
-      href: card.dashboardRoute,
-      state: program.state,
-    };
-  }
-
   return {
-    badgeLabel: null,
-    ctaLabel: "Start quiz",
-    href: card.quizRoute,
-    state: "locked_upgrade",
+    badgeLabel: getEnrollmentBadgeLabel(
+      program.hasEntitlement,
+      program.status,
+      program.state
+    ),
+    ctaLabel: "Open program",
+    href: card.dashboardRoute,
+    state: program.state,
   };
 }
 
@@ -192,26 +202,43 @@ function BiomarkersHero({
   onNavigate?: () => void;
 }) {
   const clock = membership?.biologicalClock;
+  const hasBiomarkersEntitlement = Boolean(membership?.scopes?.BIOLOGICAL_CLOCK?.hasEntitlement);
   const isReady = clock?.state === "ready";
   const coverage = clock?.coverage;
-  const href = isReady ? BIOMARKERS_HERO.route : BIOMARKERS_HERO.biomarkersRoute;
+  const href = hasBiomarkersEntitlement
+    ? isReady
+      ? BIOMARKERS_HERO.route
+      : "/dashboard/biomarkers"
+    : BIOMARKERS_HERO.biomarkersRoute;
   const theme = BIOMARKERS_HERO.theme;
   const colors = toneClasses(theme.tone);
   const Icon = BIOMARKERS_HERO.icon;
+  const enrollmentBadge = getEnrollmentBadgeLabel(
+    hasBiomarkersEntitlement,
+    membership?.scopes?.BIOLOGICAL_CLOCK?.status,
+    clock?.state ?? "locked_upgrade"
+  );
 
   return (
-    <CleanCardShell href={href} theme={theme} onNavigate={onNavigate} className="min-h-[180px] flex-col justify-between sm:min-h-[200px] sm:flex-row sm:items-center">
+    <CleanCardShell href={href} theme={theme} onNavigate={onNavigate} className="relative min-h-[180px] flex-col justify-between sm:min-h-[200px] sm:flex-row sm:items-center">
+      {enrollmentBadge && (
+        <div className="absolute top-4 right-4 z-20">
+          <EnrolledBadge label={enrollmentBadge} tone={theme.tone} />
+        </div>
+      )}
       <div className="relative z-10 min-w-0 flex-1">
-        {theme.badge && (
-          <span
-            className={cn(
-              "mb-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
-              theme.badge.className
-            )}
-          >
-            {theme.badge.label}
-          </span>
-        )}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {theme.badge && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+                theme.badge.className
+              )}
+            >
+              {theme.badge.label}
+            </span>
+          )}
+        </div>
         <h2 className={cn("font-serif text-2xl leading-tight sm:text-3xl", colors.title)}>
           Get My{" "}
           <span className={colors.accent}>{BIOMARKERS_HERO.titleAccent}</span>
@@ -221,11 +248,17 @@ function BiomarkersHero({
           <p className={cn("mt-2 text-sm font-medium", colors.price)}>
             {isReady
               ? "Your biological age is ready to view"
-              : `${coverage.availableCount} of ${coverage.requiredCount} core markers ready`}
+              : hasBiomarkersEntitlement
+                ? "Your panel is active — results will appear here"
+                : `${coverage.availableCount} of ${coverage.requiredCount} core markers ready`}
           </p>
         )}
         <div className={cn("mt-4 inline-flex items-center gap-2 text-sm font-medium", colors.cta)}>
-          {isReady ? "View biological age" : "Get my biomarkers"}
+          {isReady
+            ? "View biological age"
+            : hasBiomarkersEntitlement
+              ? "View biomarkers"
+              : "Get my biomarkers"}
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </div>
       </div>
@@ -260,9 +293,14 @@ function ProgramTile({
   const colors = toneClasses(card.theme.tone);
 
   return (
-    <CleanCardShell href={cta.href} theme={card.theme} onNavigate={onNavigate} className="min-h-[220px] justify-between">
+    <CleanCardShell href={cta.href} theme={card.theme} onNavigate={onNavigate} className="relative min-h-[220px] justify-between">
+      {cta.badgeLabel && (
+        <div className="absolute top-4 right-4 z-20">
+          <EnrolledBadge label={cta.badgeLabel} tone={card.theme.tone} />
+        </div>
+      )}
       <div className="relative z-10">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2 pr-24">
           {card.theme.badge && (
             <span
               className={cn(
@@ -273,9 +311,9 @@ function ProgramTile({
               {card.theme.badge.label}
             </span>
           )}
-          {cta.badgeLabel && (
-            <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", colors.activeBadge)}>
-              {cta.badgeLabel}
+          {cta.badgeLabel === "Paused" && (
+            <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", colors.status)}>
+              Paused
             </span>
           )}
         </div>
@@ -315,7 +353,13 @@ function OrganCareTile({
 }) {
   const router = useRouter();
   const state = membership?.scopes?.ORGAN_CARE?.state ?? "locked_upgrade";
+  const organScope = membership?.scopes?.ORGAN_CARE;
   const entitled = state === "ready" || state === "partial" || state === "pending_results";
+  const enrollmentBadge = getEnrollmentBadgeLabel(
+    Boolean(organScope?.hasEntitlement),
+    organScope?.status,
+    state
+  );
   const theme = ORGAN_CARE_CARD.theme;
   const colors = toneClasses(theme.tone);
 
@@ -324,19 +368,26 @@ function OrganCareTile({
       href={entitled ? ORGAN_CARE_CARD.hubRoute : undefined}
       theme={theme}
       onNavigate={onNavigate}
-      className="min-h-[220px] justify-between"
+      className="relative min-h-[220px] justify-between"
     >
+      {enrollmentBadge && (
+        <div className="absolute top-4 right-4 z-20">
+          <EnrolledBadge label={enrollmentBadge} tone={theme.tone} />
+        </div>
+      )}
       <div className="relative z-10">
-        {theme.badge && (
-          <span
-            className={cn(
-              "mb-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
-              theme.badge.className
-            )}
-          >
-            {theme.badge.label}
-          </span>
-        )}
+        <div className="mb-3 flex flex-wrap items-center gap-2 pr-24">
+          {theme.badge && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+                theme.badge.className
+              )}
+            >
+              {theme.badge.label}
+            </span>
+          )}
+        </div>
         <h3 className={cn("font-serif text-xl leading-tight lg:text-2xl", colors.title)}>
           Organ &{" "}
           <span className={colors.accent}>{ORGAN_CARE_CARD.titleAccent}</span>

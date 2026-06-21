@@ -126,6 +126,16 @@ describe("computeDesiredEntitlements", () => {
     expect(find(desired, "SCOPE", "BIOLOGICAL_CLOCK")).toBeUndefined();
   });
 
+  it("paid weight journey grants active weight program despite inactive subscription", () => {
+    const desired = computeDesiredEntitlements({
+      subscriptionTier: "weight_management",
+      subscriptionStatus: "INACTIVE",
+      journeyStatus: "AWAITING_DOCTOR_DECISION",
+      weightIntakePaymentStatus: "PAID",
+    });
+    expect(find(desired, "PROGRAM", "WEIGHT_MANAGEMENT")?.status).toBe("ACTIVE");
+  });
+
   it("complete health subscription expands into component scopes", () => {
     const desired = computeDesiredEntitlements({
       memberSubscriptions: [
