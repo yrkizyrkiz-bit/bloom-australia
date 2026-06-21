@@ -109,7 +109,7 @@ const mockMedications: Medication[] = [
 
 const categoryConfig = {
   hair: { label: "Hair Loss", icon: Sparkles, color: "violet" },
-  ed: { label: "Sexual Health", icon: Heart, color: "rose" },
+  ed: { label: "Sexual Health", icon: Heart, color: "teal" },
   vitality: { label: "Vitality", icon: Zap, color: "amber" },
 };
 
@@ -280,7 +280,7 @@ export default function TreatmentPage() {
             <p className="text-xs text-white/80">Hair</p>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-rose-500 to-pink-600 border-0 text-white">
+        <Card className="bg-gradient-to-br from-slate-700 to-teal-800 border-0 text-white">
           <CardContent className="p-4 text-center">
             <Heart className="w-5 h-5 mx-auto mb-1" />
             <p className="text-xl font-bold">{groupedMeds.ed?.length || 0}</p>

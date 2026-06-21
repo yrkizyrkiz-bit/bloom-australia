@@ -43,18 +43,18 @@ export default function OrganCareDashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
+      <div className="flex items-start gap-2 sm:gap-3">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
           <Link href={MEMBER_PROGRAMS_HOME} aria-label="Back to programs">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <div>
-          <h1 className="font-serif text-2xl text-foreground">
+        <div className="min-w-0">
+          <h1 className="font-serif text-xl text-foreground sm:text-2xl">
             Organ & <span className="text-[#4a6243]">{ORGAN_CARE_CARD.titleAccent}</span>
           </h1>
-          <p className="text-sm text-muted-foreground">{ORGAN_CARE_CARD.tagline}</p>
+          <p className="text-xs text-muted-foreground sm:text-sm">{ORGAN_CARE_CARD.tagline}</p>
         </div>
       </div>
 

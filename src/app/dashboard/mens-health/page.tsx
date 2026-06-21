@@ -81,7 +81,7 @@ export default function MensHealthPage() {
       description: "Private, personalized care",
       icon: Heart,
       href: "/dashboard/mens-health/sexual-health",
-      gradient: "from-rose-500 to-pink-600",
+      gradient: "from-slate-700 to-teal-800",
       stats: { label: "Active", value: "Treatment" },
       image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=200&h=150&fit=crop"
     },

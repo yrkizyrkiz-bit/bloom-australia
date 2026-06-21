@@ -32,7 +32,7 @@ export function HealthScoreCard({ healthScore }: HealthScoreCardProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="bg-gradient-to-br from-primary to-primary/80 p-6 text-white">
+      <div className="bg-gradient-to-br from-primary to-primary/80 p-4 text-white sm:p-6">
         <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">
           Health Score
         </h3>
@@ -43,7 +43,7 @@ export function HealthScoreCard({ healthScore }: HealthScoreCardProps) {
       <CardContent className="pt-6 pb-8">
         <div className="flex flex-col items-center">
           {/* Circular Progress */}
-          <div className="relative w-48 h-48">
+          <div className="relative h-36 w-36 sm:h-48 sm:w-48">
             <svg className="w-full h-full" viewBox="0 0 200 200">
               {/* Background circle */}
               <circle
@@ -70,7 +70,7 @@ export function HealthScoreCard({ healthScore }: HealthScoreCardProps) {
             </svg>
             {/* Score text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`text-5xl font-serif font-bold ${getScoreColor(percentage)}`}>
+              <span className={`text-4xl font-serif font-bold sm:text-5xl ${getScoreColor(percentage)}`}>
                 {percentage}
               </span>
               <span className="text-sm text-muted-foreground mt-1">out of 100</span>

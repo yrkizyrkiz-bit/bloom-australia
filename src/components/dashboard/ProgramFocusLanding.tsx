@@ -32,7 +32,7 @@ export function ProgramFocusLanding({
   const entitled = state === "ready" || state === "partial" || state === "pending_results";
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-3xl px-0 py-4 sm:px-4 sm:py-8">
       <Link
         href="/dashboard"
         className="mb-6 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
@@ -47,15 +47,15 @@ export function ProgramFocusLanding({
       <p className="mb-8 max-w-2xl leading-relaxed text-gray-600">{intro}</p>
 
       {!entitled && (
-        <Card className="mb-8 border-emerald-100 bg-emerald-50">
-          <CardContent className="flex flex-col items-start gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+        <Card className="mb-6 border-emerald-100 bg-emerald-50 sm:mb-8">
+          <CardContent className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="min-w-0">
               <p className="font-medium text-gray-900">Unlock {title}</p>
               <p className="text-sm text-gray-600">
                 Take a short quiz and start your program from inside the portal.
               </p>
             </div>
-            <Button asChild className="bg-emerald-700 hover:bg-emerald-800">
+            <Button asChild className="w-full bg-emerald-700 hover:bg-emerald-800 sm:w-auto">
               <Link href={quizRoute}>Start quiz</Link>
             </Button>
           </CardContent>

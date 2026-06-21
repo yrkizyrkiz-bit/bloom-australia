@@ -14,7 +14,7 @@ export function BiologicalAgeCard({ healthScore }: BiologicalAgeCardProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="bg-gradient-to-br from-accent to-accent/80 p-6 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-br from-accent to-accent/80 p-4 text-white relative overflow-hidden sm:p-6">
         {/* Decorative blur */}
         <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
 
@@ -29,7 +29,7 @@ export function BiologicalAgeCard({ healthScore }: BiologicalAgeCardProps) {
         <div className="flex flex-col items-center">
           {/* Age Display */}
           <div className="text-center">
-            <span className="text-6xl font-serif font-bold text-foreground">
+            <span className="text-5xl font-serif font-bold text-foreground sm:text-6xl">
               {healthScore.biologicalAge}
             </span>
             <span className="text-lg text-muted-foreground ml-1">years</span>

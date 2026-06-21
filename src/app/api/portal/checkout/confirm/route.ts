@@ -58,8 +58,8 @@ export async function POST(request: Request) {
       programKey: activation.programKey,
       alreadyProcessed: activation.alreadyProcessed,
       message: programKey
-        ? `Subscription started. Your first billing period includes your ${PROGRAM_LABELS[programKey]} doctor consultation — our care team will book that shortly.`
-        : "Subscription payment received.",
+        ? `Welcome — your ${PROGRAM_LABELS[programKey]} subscription is active. Our care team will be in touch shortly to book your included consultation.`
+        : "Payment received — welcome aboard.",
     });
   } catch (error) {
     console.error("[portal/checkout/confirm]", error);

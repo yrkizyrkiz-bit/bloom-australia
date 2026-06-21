@@ -80,7 +80,7 @@ export default function InPortalProgramPage() {
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [done, setDone] = useState<string | null>(null);
+  const [paymentComplete, setPaymentComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string | null>(null);
@@ -179,29 +179,38 @@ export default function InPortalProgramPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Could not confirm payment");
-    setDone(
-      data.message ||
-        `Subscription started. Our care team will book your ${label} consultation — included in your first billing period.`
-    );
+    setPaymentComplete(true);
   };
 
-  if (done) {
+  if (paymentComplete) {
+    const firstName = user?.firstName?.trim();
     return (
-      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+      <div className="mx-auto max-w-xl px-4 py-12 text-center sm:py-16">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50">
           <CheckCircle2 className="h-8 w-8 text-emerald-700" />
         </div>
-        <h1 className="mb-2 font-serif text-2xl text-[#2c3628]">
-          {sexualHealth ? `${label} — subscription started` : `${label} — you're in`}
+        <h1 className="mb-3 font-serif text-2xl text-[#2c3628]">
+          {sexualHealth
+            ? firstName
+              ? `Welcome, ${firstName}`
+              : "Welcome to Sexual Health"
+            : `${label} — you're in`}
         </h1>
-        <p className="mx-auto max-w-md text-[#5c7a52]">{done}</p>
-        <p className="mx-auto mt-4 max-w-md text-sm text-[#5c7a52]">
-          Your first billing period includes your doctor consultation. Our care team will book that
-          shortly.
-        </p>
-        {sexualHealth && (
-          <p className="mx-auto mt-2 max-w-md text-sm text-[#5c7a52]">
-            Prescription treatment only begins if your doctor confirms it is safe and appropriate.
+        {sexualHealth ? (
+          <>
+            <p className="mx-auto max-w-md text-[#5c7a52] leading-relaxed">
+              You&apos;re all set — thank you for trusting us with your care. Your subscription
+              includes a private doctor consultation, and our care team will reach out shortly to
+              book a time that suits you.
+            </p>
+            <p className="mx-auto mt-4 max-w-md text-sm text-[#5c7a52]/90 leading-relaxed">
+              If treatment is recommended, your doctor will only prescribe after confirming
+              it&apos;s safe and right for you.
+            </p>
+          </>
+        ) : (
+          <p className="mx-auto max-w-md text-[#5c7a52] leading-relaxed">
+            Thank you for joining. Our care team will be in touch shortly to help you get started.
           </p>
         )}
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
@@ -219,7 +228,7 @@ export default function InPortalProgramPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-10">
+    <div className="mx-auto max-w-xl px-0 py-8 sm:px-4">
       <Link
         href={PROGRAMS_HUB}
         className="mb-6 inline-flex items-center gap-1 text-sm text-[#5c7a52] hover:text-[#34412f]"

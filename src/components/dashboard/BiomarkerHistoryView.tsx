@@ -302,24 +302,24 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
             View your test history and generate AI-powered health reports
           </p>
         )}
-        <div className="flex gap-2 shrink-0">
-          <Button variant="outline" size="icon" onClick={fetchBiomarkerHistory} title="Refresh data">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+          <Button variant="outline" size="icon" onClick={fetchBiomarkerHistory} title="Refresh data" className="shrink-0">
             <RefreshCw className="w-4 h-4" />
           </Button>
-          <Button variant="outline" onClick={() => setShowComparisonDialog(true)} className="gap-2">
+          <Button variant="outline" onClick={() => setShowComparisonDialog(true)} className="w-full gap-2 sm:w-auto">
             <ArrowLeftRight className="w-4 h-4" />
-            <span className="hidden sm:inline">Compare Tests</span>
+            Compare Tests
           </Button>
-          <Button onClick={handleGenerateReport} disabled={isGenerating} className="gap-2">
+          <Button onClick={handleGenerateReport} disabled={isGenerating} className="w-full gap-2 sm:w-auto">
             {isGenerating ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="hidden sm:inline">Generating...</span>
+                Generating...
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span className="hidden sm:inline">Generate AI Report</span>
+                Generate AI Report
               </>
             )}
           </Button>
@@ -327,40 +327,42 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
       </div>
 
       {statistics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
           <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-3xl font-bold text-primary">{statistics.totalBiomarkers}</p>
-              <p className="text-sm text-muted-foreground">Biomarkers Tracked</p>
+            <CardContent className="px-3 pt-4 pb-4 text-center sm:pt-6">
+              <p className="text-2xl font-bold text-primary sm:text-3xl">{statistics.totalBiomarkers}</p>
+              <p className="text-xs text-muted-foreground sm:text-sm">Biomarkers Tracked</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-3xl font-bold text-green-600">{statistics.improving}</p>
-              <p className="text-sm text-muted-foreground">Improving</p>
+            <CardContent className="px-3 pt-4 pb-4 text-center sm:pt-6">
+              <p className="text-2xl font-bold text-green-600 sm:text-3xl">{statistics.improving}</p>
+              <p className="text-xs text-muted-foreground sm:text-sm">Improving</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-3xl font-bold text-blue-600">{statistics.stable}</p>
-              <p className="text-sm text-muted-foreground">Stable</p>
+            <CardContent className="px-3 pt-4 pb-4 text-center sm:pt-6">
+              <p className="text-2xl font-bold text-blue-600 sm:text-3xl">{statistics.stable}</p>
+              <p className="text-xs text-muted-foreground sm:text-sm">Stable</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-3xl font-bold text-orange-600">{statistics.worsening}</p>
-              <p className="text-sm text-muted-foreground">Needs Attention</p>
+            <CardContent className="px-3 pt-4 pb-4 text-center sm:pt-6">
+              <p className="text-2xl font-bold text-orange-600 sm:text-3xl">{statistics.worsening}</p>
+              <p className="text-xs text-muted-foreground sm:text-sm">Needs Attention</p>
             </CardContent>
           </Card>
         </div>
       )}
 
       <Tabs defaultValue="history" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="history">Test History</TabsTrigger>
-          <TabsTrigger value="trends">Biomarker Trends</TabsTrigger>
-          <TabsTrigger value="reports">Generated Reports</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="inline-flex h-auto w-max min-w-full sm:min-w-0">
+            <TabsTrigger value="history" className="text-xs sm:text-sm">Test History</TabsTrigger>
+            <TabsTrigger value="trends" className="text-xs sm:text-sm">Biomarker Trends</TabsTrigger>
+            <TabsTrigger value="reports" className="text-xs sm:text-sm">Generated Reports</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="history" className="space-y-6">
           {testDates.map((testDate) => {
@@ -369,13 +371,13 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
             return (
               <Card key={testDate.date}>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Calendar className="w-5 h-5 text-primary" />
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                        <Calendar className="h-5 w-5 text-primary" />
                       </div>
-                      <div>
-                        <CardTitle className="text-lg">
+                      <div className="min-w-0">
+                        <CardTitle className="text-base sm:text-lg">
                           {new Date(testDate.date).toLocaleDateString("en-AU", {
                             day: "numeric",
                             month: "long",
@@ -387,7 +389,7 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                       <Badge className="bg-green-500/10 text-green-600">{testDate.optimal} optimal</Badge>
                       {testDate.outOfRange > 0 && (
                         <Badge className="bg-orange-500/10 text-orange-600">
@@ -478,7 +480,7 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
                   return (
                     <div
                       key={biomarkerTrend.biomarkerId}
-                      className="flex items-center justify-between p-4 rounded-lg border hover:border-primary/30 transition-colors cursor-pointer"
+                      className="flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:border-primary/30 cursor-pointer sm:flex-row sm:items-center sm:justify-between"
                       onClick={() => biomarkerDef && setSelectedHistoryBiomarker(biomarkerDef)}
                     >
                       <div className="flex items-center gap-4">
@@ -497,9 +499,9 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                         {biomarkerTrend.history.length > 1 && (
-                          <div className="w-24 h-10">
+                          <div className="h-10 w-24">
                             <MiniChart
                               history={biomarkerTrend.history.map((h) => ({
                                 id: h.date,

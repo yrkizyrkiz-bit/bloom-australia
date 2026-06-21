@@ -146,14 +146,14 @@ export function UnifiedHealthDashboard({ gender = "female" }: UnifiedHealthDashb
       {/* Overall Health Score Card */}
       <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-0 overflow-hidden">
         <CardContent className="pt-6">
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid gap-4 md:grid-cols-2 md:gap-6">
             <div>
               <p className="text-slate-400 text-sm mb-2">Your Overall Health Score</p>
               <div className="flex items-end gap-3 mb-4">
-                <span className="text-6xl font-bold">{overallScore}</span>
-                <span className="text-slate-400 text-xl mb-2">/100</span>
+                <span className="text-4xl font-bold sm:text-6xl">{overallScore}</span>
+                <span className="text-slate-400 text-lg mb-1 sm:text-xl sm:mb-2">/100</span>
               </div>
-              <div className="flex items-center gap-4 mb-4">
+              <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <div className="flex items-center gap-1.5">
                   <CheckCircle className="w-4 h-4 text-green-400" />
                   <span className="text-sm text-slate-300">{totalOptimal} optimal</span>
@@ -195,7 +195,7 @@ export function UnifiedHealthDashboard({ gender = "female" }: UnifiedHealthDashb
       </Card>
 
       {/* Health Score Visualization */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6">
         {/* Radar Chart */}
         <Card>
           <CardHeader className="pb-2">
@@ -255,7 +255,7 @@ export function UnifiedHealthDashboard({ gender = "female" }: UnifiedHealthDashb
       </div>
 
       {/* Individual Test Cards */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sortedTests.map(test => (
           <Link key={test.id} href={test.href}>
             <Card className={`h-full hover:shadow-lg transition-all cursor-pointer border-l-4`} style={{ borderLeftColor: test.color }}>
@@ -339,7 +339,7 @@ export function UnifiedHealthDashboard({ gender = "female" }: UnifiedHealthDashb
       )}
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-3 mb-3">

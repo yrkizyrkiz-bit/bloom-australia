@@ -349,7 +349,7 @@ function BiomarkersPageContent() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -387,17 +387,19 @@ function BiomarkersPageContent() {
         value={viewMode}
         onValueChange={(v) => setViewMode(v as BiomarkerViewMode)}
       >
-        <TabsList className="grid w-full max-w-xl grid-cols-3 h-auto p-1">
-          <TabsTrigger value="all" className="gap-2 text-sm py-2">
-            <LayoutGrid className="w-4 h-4" />
-            All biomarkers
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1">
+          <TabsTrigger value="all" className="gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm">
+            <LayoutGrid className="h-4 w-4 shrink-0" />
+            <span className="truncate sm:hidden">All</span>
+            <span className="hidden truncate sm:inline">All biomarkers</span>
           </TabsTrigger>
-          <TabsTrigger value="program" className="gap-2 text-sm py-2">
-            <Stethoscope className="w-4 h-4" />
-            By program
+          <TabsTrigger value="program" className="gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm">
+            <Stethoscope className="h-4 w-4 shrink-0" />
+            <span className="truncate sm:hidden">Program</span>
+            <span className="hidden truncate sm:inline">By program</span>
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2 text-sm py-2">
-            <History className="w-4 h-4" />
+          <TabsTrigger value="history" className="gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm">
+            <History className="h-4 w-4 shrink-0" />
             History
           </TabsTrigger>
         </TabsList>
@@ -418,7 +420,7 @@ function BiomarkersPageContent() {
         <BiomarkerHistoryView embedded />
       ) : (
         <>
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
         <HealthScoreCard healthScore={healthScore} />
         <BiologicalAgeCard healthScore={healthScore} />
       </div>

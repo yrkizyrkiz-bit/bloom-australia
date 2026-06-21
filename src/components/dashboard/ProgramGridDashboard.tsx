@@ -43,7 +43,7 @@ function EnrolledBadge({ label, tone }: { label: string; tone: CardTone }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm",
+        "inline-flex max-w-[9.5rem] items-center rounded-full px-2 py-1 text-[9px] font-bold uppercase leading-tight tracking-wide shadow-sm sm:max-w-none sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-wider",
         colors.activeBadge
       )}
     >
@@ -153,7 +153,7 @@ function CleanCardShell({
 }) {
   const router = useRouter();
   const classes = cn(
-    "group relative flex flex-col overflow-hidden rounded-3xl bg-gradient-to-br p-6 transition-transform duration-300 hover:scale-[1.02]",
+    "group relative flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br p-4 transition-transform duration-300 sm:rounded-3xl sm:p-6 md:hover:scale-[1.02]",
     theme.gradient,
     href && "cursor-pointer",
     className
@@ -221,23 +221,21 @@ function BiomarkersHero({
 
   return (
     <CleanCardShell href={href} theme={theme} onNavigate={onNavigate} className="relative min-h-[180px] flex-col justify-between sm:min-h-[200px] sm:flex-row sm:items-center">
-      {enrollmentBadge && (
-        <div className="absolute top-4 right-4 z-20">
-          <EnrolledBadge label={enrollmentBadge} tone={theme.tone} />
-        </div>
-      )}
       <div className="relative z-10 min-w-0 flex-1">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {theme.badge && (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
-                theme.badge.className
-              )}
-            >
-              {theme.badge.label}
-            </span>
-          )}
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {theme.badge && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+                  theme.badge.className
+                )}
+              >
+                {theme.badge.label}
+              </span>
+            )}
+          </div>
+          {enrollmentBadge && <EnrolledBadge label={enrollmentBadge} tone={theme.tone} />}
         </div>
         <h2 className={cn("font-serif text-2xl leading-tight sm:text-3xl", colors.title)}>
           Get My{" "}
@@ -293,28 +291,28 @@ function ProgramTile({
   const colors = toneClasses(card.theme.tone);
 
   return (
-    <CleanCardShell href={cta.href} theme={card.theme} onNavigate={onNavigate} className="relative min-h-[220px] justify-between">
-      {cta.badgeLabel && (
-        <div className="absolute top-4 right-4 z-20">
-          <EnrolledBadge label={cta.badgeLabel} tone={card.theme.tone} />
-        </div>
-      )}
+    <CleanCardShell href={cta.href} theme={card.theme} onNavigate={onNavigate} className="relative min-h-[200px] justify-between sm:min-h-[220px]">
       <div className="relative z-10">
-        <div className="mb-3 flex flex-wrap items-center gap-2 pr-24">
-          {card.theme.badge && (
-            <span
-              className={cn(
-                "inline-block rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
-                card.theme.badge.className
-              )}
-            >
-              {card.theme.badge.label}
-            </span>
-          )}
-          {cta.badgeLabel === "Paused" && (
-            <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", colors.status)}>
-              Paused
-            </span>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {card.theme.badge && (
+              <span
+                className={cn(
+                  "inline-block rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+                  card.theme.badge.className
+                )}
+              >
+                {card.theme.badge.label}
+              </span>
+            )}
+            {cta.badgeLabel === "Paused" && (
+              <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", colors.status)}>
+                Paused
+              </span>
+            )}
+          </div>
+          {cta.badgeLabel && cta.badgeLabel !== "Paused" && (
+            <EnrolledBadge label={cta.badgeLabel} tone={card.theme.tone} />
           )}
         </div>
         <h3 className={cn("font-serif text-xl leading-tight lg:text-2xl", colors.title)}>
@@ -368,25 +366,23 @@ function OrganCareTile({
       href={entitled ? ORGAN_CARE_CARD.hubRoute : undefined}
       theme={theme}
       onNavigate={onNavigate}
-      className="relative min-h-[220px] justify-between"
+      className="relative min-h-[200px] justify-between sm:min-h-[220px]"
     >
-      {enrollmentBadge && (
-        <div className="absolute top-4 right-4 z-20">
-          <EnrolledBadge label={enrollmentBadge} tone={theme.tone} />
-        </div>
-      )}
       <div className="relative z-10">
-        <div className="mb-3 flex flex-wrap items-center gap-2 pr-24">
-          {theme.badge && (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
-                theme.badge.className
-              )}
-            >
-              {theme.badge.label}
-            </span>
-          )}
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {theme.badge && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+                  theme.badge.className
+                )}
+              >
+                {theme.badge.label}
+              </span>
+            )}
+          </div>
+          {enrollmentBadge && <EnrolledBadge label={enrollmentBadge} tone={theme.tone} />}
         </div>
         <h3 className={cn("font-serif text-xl leading-tight lg:text-2xl", colors.title)}>
           Organ &{" "}
@@ -402,7 +398,7 @@ function OrganCareTile({
               {organ.label[0]}
             </div>
           ))}
-          <span className={cn("text-xs", colors.body)}>Liver, heart, kidney & more</span>
+          <span className={cn("hidden text-xs sm:inline", colors.body)}>Liver, heart, kidney & more</span>
         </div>
       </div>
 
@@ -416,7 +412,7 @@ function OrganCareTile({
               router.push(entitled ? organ.route : BIOMARKERS_HERO.biomarkersRoute);
             }}
             className={cn(
-              "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+              "min-h-9 rounded-full px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm",
               entitled
                 ? "bg-[#4a6243]/10 text-[#4a6243] hover:bg-[#4a6243]/20"
                 : "bg-white/60 text-[#5c7a52] hover:bg-white/80"
@@ -436,7 +432,7 @@ function SupplementsTile({ onNavigate }: { onNavigate?: () => void }) {
   const colors = toneClasses(theme.tone);
 
   return (
-    <CleanCardShell href={SUPPLEMENTS_CARD.route} theme={theme} onNavigate={onNavigate} className="min-h-[220px] justify-between">
+    <CleanCardShell href={SUPPLEMENTS_CARD.route} theme={theme} onNavigate={onNavigate} className="min-h-[200px] justify-between sm:min-h-[220px]">
       <div className="relative z-10">
         {theme.badge && (
           <span
@@ -476,12 +472,12 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
   const firstName = user?.firstName;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div className="text-center sm:text-left">
-        <span className="mb-3 inline-block rounded-full bg-[#e6ebe3] px-4 py-1.5 text-sm font-medium text-[#5c7a52]">
+        <span className="mb-3 inline-block rounded-full bg-[#e6ebe3] px-3 py-1.5 text-xs font-medium text-[#5c7a52] sm:px-4 sm:text-sm">
           Your programs
         </span>
-        <h1 className="font-serif text-3xl text-[#2c3628] sm:text-4xl">
+        <h1 className="font-serif text-2xl text-[#2c3628] sm:text-3xl md:text-4xl">
           {firstName ? (
             <>
               Welcome back, <span className="text-gradient italic">{firstName}</span>
@@ -497,7 +493,7 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
 
       <BiomarkersHero membership={membership} onNavigate={onNavigate} />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
         {cards.map((card) => (
           <ProgramTile key={card.key} card={card} membership={membership} onNavigate={onNavigate} />
         ))}
