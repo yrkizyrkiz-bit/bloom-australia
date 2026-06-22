@@ -481,7 +481,7 @@ export default function BiomarkersQuizPage() {
               onClick={goToPanelPicker}
               className="w-full bg-emerald-700 hover:bg-emerald-800"
             >
-              Choose your panel
+              Let&apos;s get you tested
             </Button>
             <Button variant="ghost" size="sm" className="mt-3 w-full text-[#5c7a52]" onClick={goBack}>
               Back

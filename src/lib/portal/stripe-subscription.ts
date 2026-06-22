@@ -90,6 +90,73 @@ export async function getOrCreateRecurringPrice(params: {
   return price.id;
 }
 
+type InvoicePaymentDetails = {
+  clientSecret: string;
+  paymentIntentId: string;
+};
+
+function paymentIntentIdFromClientSecret(clientSecret: string): string | null {
+  const [paymentIntentId] = clientSecret.split("_secret_");
+  return paymentIntentId || null;
+}
+
+/** Resolve PaymentIntent client secret from a subscription's first invoice (Basil + legacy APIs). */
+async function resolveInvoicePaymentDetails(
+  stripe: Stripe,
+  invoiceRef: string | Stripe.Invoice
+): Promise<InvoicePaymentDetails | null> {
+  type InvoiceWithPaymentFields = Stripe.Invoice & {
+    confirmation_secret?: { client_secret?: string | null } | null;
+    payment_intent?: Stripe.PaymentIntent | string | null;
+    payments?: {
+      data?: Array<{
+        payment?: {
+          payment_intent?: Stripe.PaymentIntent | string | null;
+        };
+      }>;
+    };
+  };
+
+  const invoice =
+    typeof invoiceRef === "string"
+      ? ((await stripe.invoices.retrieve(invoiceRef, {
+          expand: [
+            "confirmation_secret",
+            "payment_intent",
+            "payments.data.payment.payment_intent",
+          ],
+        })) as InvoiceWithPaymentFields)
+      : (invoiceRef as InvoiceWithPaymentFields);
+
+  const confirmationSecret = invoice.confirmation_secret?.client_secret;
+  if (confirmationSecret) {
+    const paymentIntentId = paymentIntentIdFromClientSecret(confirmationSecret);
+    if (paymentIntentId) {
+      return { clientSecret: confirmationSecret, paymentIntentId };
+    }
+  }
+
+  const piRaw = invoice.payment_intent;
+  const legacyPi =
+    typeof piRaw === "string" ? await stripe.paymentIntents.retrieve(piRaw) : piRaw;
+  if (legacyPi?.client_secret) {
+    return { clientSecret: legacyPi.client_secret, paymentIntentId: legacyPi.id };
+  }
+
+  for (const entry of invoice.payments?.data ?? []) {
+    const nestedPiRaw = entry.payment?.payment_intent;
+    const nestedPi =
+      typeof nestedPiRaw === "string"
+        ? await stripe.paymentIntents.retrieve(nestedPiRaw)
+        : nestedPiRaw;
+    if (nestedPi?.client_secret) {
+      return { clientSecret: nestedPi.client_secret, paymentIntentId: nestedPi.id };
+    }
+  }
+
+  return null;
+}
+
 export async function createIncompleteSubscription(params: {
   customerId: string;
   items: Array<{ priceId: string }>;
@@ -108,41 +175,26 @@ export async function createIncompleteSubscription(params: {
     items: params.items.map((i) => ({ price: i.priceId })),
     payment_behavior: "default_incomplete",
     payment_settings: { save_default_payment_method: "on_subscription" },
-    expand: ["latest_invoice"],
+    expand: ["latest_invoice.confirmation_secret"],
     metadata: params.metadata,
     description: params.description,
   });
 
   const latestInvoice = subscription.latest_invoice;
-  const invoiceId =
-    typeof latestInvoice === "string" ? latestInvoice : latestInvoice?.id;
-  if (!invoiceId) throw new Error("Could not initialise subscription payment");
+  if (!latestInvoice) throw new Error("Could not initialise subscription payment");
 
-  const invoice = await stripe.invoices.retrieve(invoiceId, {
-    expand: ["payment_intent"],
-  });
+  const payment = await resolveInvoicePaymentDetails(stripe, latestInvoice);
+  if (!payment) throw new Error("Could not initialise subscription payment");
 
-  type InvoiceWithPaymentIntent = Stripe.Invoice & {
-    payment_intent?: Stripe.PaymentIntent | string | null;
-  };
-  const piRaw = (invoice as InvoiceWithPaymentIntent).payment_intent;
-  const pi =
-    typeof piRaw === "string"
-      ? await stripe.paymentIntents.retrieve(piRaw)
-      : piRaw;
-  if (!pi?.client_secret) {
-    throw new Error("Could not initialise subscription payment");
-  }
-
-  await stripe.paymentIntents.update(pi.id, {
+  await stripe.paymentIntents.update(payment.paymentIntentId, {
     metadata: { ...params.metadata, subscriptionId: subscription.id },
     payment_method_types: ["card"],
   });
 
   return {
     subscriptionId: subscription.id,
-    clientSecret: pi.client_secret,
-    paymentIntentId: pi.id,
+    clientSecret: payment.clientSecret,
+    paymentIntentId: payment.paymentIntentId,
   };
 }
 
