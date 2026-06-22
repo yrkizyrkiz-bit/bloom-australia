@@ -186,9 +186,9 @@ export async function createIncompleteSubscription(params: {
   const payment = await resolveInvoicePaymentDetails(stripe, latestInvoice);
   if (!payment) throw new Error("Could not initialise subscription payment");
 
+  // Invoice-created PaymentIntents cannot have payment_method_types modified — metadata only.
   await stripe.paymentIntents.update(payment.paymentIntentId, {
     metadata: { ...params.metadata, subscriptionId: subscription.id },
-    payment_method_types: ["card"],
   });
 
   return {
