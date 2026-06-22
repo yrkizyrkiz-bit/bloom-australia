@@ -7,17 +7,11 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { UnifiedHealthDashboard } from "@/components/dashboard/UnifiedHealthDashboard";
+import { OrganMetabolicHealthPanels } from "@/components/dashboard/OrganMetabolicHealthPanels";
 import { Button } from "@/components/ui/button";
 import { ORGAN_CARE_CARD } from "@/lib/programs/catalog";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
-import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
-
-function isOrganCareEntitled(membership: DerivedMembershipEntitlements | undefined): boolean {
-  const scope = membership?.scopes?.ORGAN_CARE;
-  if (!scope?.hasEntitlement || scope.status === "INACTIVE") return false;
-  const state = scope.state ?? "locked_upgrade";
-  return state === "ready" || state === "partial" || state === "pending_results";
-}
+import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 
 /** Organ & Metabolic Care overview — unified scores across all six health categories. */
 export default function OrganCareDashboardPage() {
@@ -57,6 +51,8 @@ export default function OrganCareDashboardPage() {
           <p className="text-xs text-muted-foreground sm:text-sm">{ORGAN_CARE_CARD.tagline}</p>
         </div>
       </div>
+
+      <OrganMetabolicHealthPanels organCareEntitled />
 
       <UnifiedHealthDashboard gender={gender} />
     </div>

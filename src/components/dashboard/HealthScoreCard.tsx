@@ -1,20 +1,73 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
+import { Hourglass, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import type { EntitlementState } from "@/lib/membership/biomarker-readiness";
 import type { HealthScore } from "@/types";
 
 interface HealthScoreCardProps {
   healthScore: HealthScore;
+  /** When set, replaces the numeric score with a portal insight state. */
+  insightState?: EntitlementState | null;
 }
 
-export function HealthScoreCard({ healthScore }: HealthScoreCardProps) {
+export function HealthScoreCard({ healthScore, insightState }: HealthScoreCardProps) {
   const { percentage, strokeDashoffset } = useMemo(() => {
     const circumference = 2 * Math.PI * 85;
     const perc = healthScore.overall;
     const offset = circumference - (perc / 100) * circumference;
     return { percentage: perc, strokeDashoffset: offset };
   }, [healthScore.overall]);
+
+  if (insightState && insightState !== "ready") {
+    return (
+      <Card className="overflow-hidden">
+        <div className="bg-gradient-to-br from-primary to-primary/80 p-4 text-white sm:p-6">
+          <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">
+            Health Score
+          </h3>
+          <p className="mt-1 text-xs opacity-60">Whole-body wellness index</p>
+        </div>
+        <CardContent className="flex flex-col items-center px-6 pb-8 pt-10 text-center">
+          {insightState === "pending_results" ? (
+            <>
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50">
+                <Hourglass className="h-8 w-8 text-sky-600" />
+              </div>
+              <p className="text-lg font-medium text-foreground">Pending results</p>
+              <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+                Your lab results are being processed. Your Health Score will appear once biomarkers
+                are available.
+              </p>
+            </>
+          ) : insightState === "locked_upgrade" ? (
+            <>
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-50">
+                <Lock className="h-8 w-8 text-violet-600" />
+              </div>
+              <p className="text-lg font-medium text-foreground">Health Score</p>
+              <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+                Add Organ Care or a Complete Health plan to unlock your whole-body Health Score.
+              </p>
+              <Button asChild variant="outline" size="sm" className="mt-6">
+                <Link href="/dashboard/biomarkers/quiz">View options</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-medium text-foreground">Health Score unavailable</p>
+              <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+                More biomarker coverage is needed before your Health Score can be calculated.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-500";

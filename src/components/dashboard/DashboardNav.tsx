@@ -41,6 +41,7 @@ import {
   Grid3X3,
 } from "lucide-react";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 import { RealTimeNotificationBell } from "./RealTimeNotificationBell";
 
 const navItems = [
@@ -71,6 +72,7 @@ export function DashboardNav() {
   const { user, logout } = useAuth();
   const { data: portal } = usePortalContext();
   const biomarkersUnlocked = hasPortalFeature(portal, "biomarkerResults");
+  const organCareEntitled = isOrganCareEntitled(portal?.membership);
 
   const initials = user
     ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
@@ -179,16 +181,20 @@ export function DashboardNav() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48 rounded-xl border-[#e6ebe3] shadow-lg">
                 <DropdownMenuLabel className="text-xs text-[#5c7a52] font-medium">
-                  {biomarkersUnlocked ? "Organ-Specific Tests" : "Explore health panels"}
+                  {organCareEntitled
+                    ? biomarkersUnlocked
+                      ? "Organ-Specific Tests"
+                      : "Explore health panels"
+                    : "Add Organ Care to unlock"}
                 </DropdownMenuLabel>
                 {healthTests.map((test) => {
                   const isActive = pathname.startsWith(test.href);
-                  const href = test.href;
+                  const href = organCareEntitled ? test.href : "/dashboard/biomarkers/quiz";
                   return (
                     <DropdownMenuItem key={test.href} asChild>
                       <Link
                         href={href}
-                        className={`flex items-center gap-2 cursor-pointer rounded-lg ${isActive ? "bg-[#1D9E75]/10" : ""}`}
+                        className={`flex items-center gap-2 cursor-pointer rounded-lg ${isActive ? "bg-[#1D9E75]/10" : ""} ${!organCareEntitled ? "opacity-50" : ""}`}
                       >
                         <test.icon className={`w-4 h-4 ${test.color}`} />
                         {test.label}

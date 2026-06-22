@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBiomarkerResults, useDashboardStats } from "@/hooks/useApi";
+import { usePortalContext } from "@/hooks/usePortalContext";
 import { BiomarkerCard } from "@/components/dashboard/BiomarkerCard";
 import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDialog";
 import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
@@ -26,7 +27,10 @@ import {
 import type { BiomarkerDefinition, BiomarkerResult, HealthScore } from "@/types";
 import { BiomarkerProgramEssentialView } from "@/components/dashboard/BiomarkerProgramEssentialView";
 import { BiomarkerHistoryView } from "@/components/dashboard/BiomarkerHistoryView";
+import { OrganMetabolicHealthPanels } from "@/components/dashboard/OrganMetabolicHealthPanels";
 import { UntestedBiomarkerCard } from "@/components/dashboard/UntestedBiomarkerCard";
+import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
+import { resolveInsightDisplayState } from "@/lib/membership/insight-display";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 import { calculateAllHealthTestScores } from "@/lib/healthTestScoring";
 import {
@@ -34,22 +38,10 @@ import {
   type ProgramEssentialSlug,
 } from "@/lib/program-essential-panels";
 import { getWomensHealthSubcategory } from "@/lib/womens-health-biomarker-subcategories";
-import { Search, Filter, X, Loader2, Info, User, BookOpen, TestTubes, Bean, Droplets, Heart, Activity, Sparkles, Flame, LayoutGrid, Stethoscope, History } from "lucide-react";
+import { Search, Filter, X, Loader2, Info, User, BookOpen, LayoutGrid, Stethoscope, History } from "lucide-react";
 
 type FilterStatus = "all" | "optimal" | "normal" | "out_of_range" | "not_tested";
 type BiomarkerViewMode = "all" | "program" | "history";
-
-// Organ-specific health test panels (mirrors the desktop nav dropdown), surfaced
-// on mobile where that dropdown is hidden.
-const healthTestPanels = [
-  { href: "/dashboard/blood-panel", label: "Full Blood", icon: TestTubes, color: "#1D9E75" },
-  { href: "/dashboard/liver-test", label: "Liver", icon: Bean, color: "#65a30d" },
-  { href: "/dashboard/kidney-test", label: "Kidney", icon: Droplets, color: "#0891b2" },
-  { href: "/dashboard/heart-test", label: "Heart", icon: Heart, color: "#ef4444" },
-  { href: "/dashboard/thyroid-test", label: "Thyroid", icon: Activity, color: "#2563eb" },
-  { href: "/dashboard/hormone-test", label: "Hormones", icon: Sparkles, color: "#a855f7" },
-  { href: "/dashboard/metabolic-panel", label: "Metabolic", icon: Flame, color: "#f97316" },
-];
 
 export default function BiomarkersPage() {
   return (
@@ -82,6 +74,7 @@ function BiomarkersPageContent() {
       : "WEIGHT_MANAGEMENT";
 
   const { user } = useAuth();
+  const { data: portal } = usePortalContext();
   const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
     latest: true,
     ensureDerived: true,
@@ -310,6 +303,32 @@ function BiomarkersPageContent() {
     };
   }, [allBiomarkersWithResults, gender]);
 
+  const organCareEntitled = isOrganCareEntitled(portal?.membership);
+
+  const hasHealthScoreData =
+    healthScore.overall > 0 &&
+    healthScore.categories.some((c) => c.optimal + c.normal + c.outOfRange > 0);
+
+  const hasBiologicalAgeData =
+    healthScore.biologicalAge != null &&
+    healthScore.biologicalAge > 0 &&
+    healthScore.chronologicalAge != null &&
+    healthScore.chronologicalAge > 0;
+
+  const noResultsYet = counts.tested === 0;
+
+  const healthScoreInsightState = resolveInsightDisplayState(
+    portal?.membership?.scopes?.HEALTH_SCORE,
+    hasHealthScoreData,
+    { noResultsYet }
+  );
+
+  const biologicalAgeInsightState = resolveInsightDisplayState(
+    portal?.membership?.scopes?.BIOLOGICAL_CLOCK,
+    hasBiologicalAgeData,
+    { noResultsYet }
+  );
+
   const handleBiomarkerClick = (biomarkerDef: BiomarkerDefinition | undefined, result: BiomarkerResult | null, panelBiomarker?: BloodPanelBiomarker) => {
     if (biomarkerDef) {
       setSelectedBiomarker({ biomarker: biomarkerDef, result, panelBiomarker });
@@ -421,33 +440,11 @@ function BiomarkersPageContent() {
       ) : (
         <>
       <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
-        <HealthScoreCard healthScore={healthScore} />
-        <BiologicalAgeCard healthScore={healthScore} />
+        <HealthScoreCard healthScore={healthScore} insightState={healthScoreInsightState} />
+        <BiologicalAgeCard healthScore={healthScore} insightState={biologicalAgeInsightState} />
       </div>
 
-      {/* Health Tests quick access — mobile only (desktop uses the nav dropdown) */}
-      <div className="md:hidden">
-        <h2 className="text-sm font-medium text-foreground mb-2">Organ & Metabolic Health</h2>
-        <div className="overflow-x-auto pb-1">
-          <div className="flex w-max gap-2">
-            {healthTestPanels.map((t) => (
-              <Link key={t.href} href={t.href} className="shrink-0">
-                <div className="flex flex-col items-center justify-center gap-1.5 w-20 rounded-xl border border-border bg-card p-3 hover:shadow-md transition-shadow">
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${t.color}15` }}
-                  >
-                    <t.icon className="w-5 h-5" style={{ color: t.color }} />
-                  </div>
-                  <span className="text-[11px] text-center leading-tight text-muted-foreground">
-                    {t.label}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
+      <OrganMetabolicHealthPanels organCareEntitled={organCareEntitled} />
 
       {/* Summary Stats - Based on Your Test Results */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
