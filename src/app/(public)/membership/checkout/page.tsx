@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -227,7 +227,7 @@ function PaymentForm({
 }
 
 // ─── Main Checkout Page ────────────────────────────────────────────────────
-export default function MembershipCheckoutPage() {
+function MembershipCheckoutPageContent() {
   const searchParams = useSearchParams();
   const funnelSource = searchParams.get("source");
   const [step, setStep] = useState<Step>("verify");
@@ -1062,5 +1062,19 @@ export default function MembershipCheckoutPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function MembershipCheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        </div>
+      }
+    >
+      <MembershipCheckoutPageContent />
+    </Suspense>
   );
 }
