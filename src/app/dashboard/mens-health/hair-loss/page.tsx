@@ -1,16 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import Link from "next/link";
 import {
   ArrowLeft, Camera, TrendingUp, Pill, Calendar, ChevronRight,
-  Sparkles, Clock, CheckCircle2, AlertCircle, Play,
-  Lightbulb, Target, BarChart3, Loader2, Stethoscope
+  Sparkles, Clock, CheckCircle2, Play,
+  Lightbulb, Target, BarChart3, Loader2, Stethoscope, MessageCircle
 } from "lucide-react";
-import Link from "next/link";
+import {
+  ProgramJourneyShell,
+  getProgramJourneyGreeting,
+  type ProgramJourneyViewModel,
+} from "@/components/dashboard/ProgramJourneyShell";
+import { getJourneyStageMeta } from "@/lib/program-journey/stages";
 
 type HairPortalData = {
   user: {
@@ -118,6 +125,90 @@ export default function HairLossPage() {
 
   const progressData = data?.progress || emptyProgress;
   const hasActiveTreatment = data?.status.hasActiveTreatment || false;
+  const journeyStatus = data?.user.journeyStatus || "CONSULTATION_PAID";
+  const stageMeta = getJourneyStageMeta(journeyStatus);
+
+  const journeyView: ProgramJourneyViewModel = {
+    journeyStatus,
+    stageDescription: data?.status.label || stageMeta.stageDescription,
+    stage: stageMeta.stage,
+    isApproved: data?.status.isApproved || stageMeta.isApproved,
+    hasPrescription: (data?.prescriptions.length ?? 0) > 0,
+    consultation: data?.booking
+      ? {
+          date: data.booking.scheduledAt,
+          time: new Date(data.booking.scheduledAt).toLocaleTimeString("en-AU", {
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+          doctorName: data.booking.doctorName,
+        }
+      : undefined,
+  };
+
+  if (!hasActiveTreatment) {
+    return (
+      <div className="space-y-6 pb-20 md:pb-6">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/mens-health">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
+              <Sparkles className="h-6 w-6 text-violet-600" />
+              Hair Restoration
+            </h1>
+            <p className="text-muted-foreground">Track your progress & manage treatment</p>
+          </div>
+        </div>
+
+        <ProgramJourneyShell
+          programKey="HAIR_LOSS"
+          firstName={data?.user.firstName}
+          greeting={getProgramJourneyGreeting()}
+          journey={journeyView}
+        >
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">While you wait</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Link href="/dashboard/messages">
+                  <Card className="h-full cursor-pointer transition-shadow hover:shadow-md">
+                    <CardContent className="flex items-center gap-3 p-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100">
+                        <MessageCircle className="h-5 w-5 text-pink-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Message Care Team</p>
+                        <p className="text-xs text-muted-foreground">Ask questions</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Link href="/dashboard/mens-health/learn">
+                  <Card className="h-full cursor-pointer transition-shadow hover:shadow-md">
+                    <CardContent className="flex items-center gap-3 p-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100">
+                        <Play className="h-5 w-5 text-violet-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Learn about hair loss</p>
+                        <p className="text-xs text-muted-foreground">Get prepared</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </ProgramJourneyShell>
+      </div>
+    );
+  }
 
   // Treatment timeline milestones
   const milestones = [

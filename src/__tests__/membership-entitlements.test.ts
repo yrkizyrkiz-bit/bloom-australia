@@ -155,6 +155,17 @@ describe("computeDesiredEntitlements", () => {
     expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")?.status).toBe("ACTIVE");
   });
 
+  it("hair-only member does not receive weight management entitlement", () => {
+    const desired = computeDesiredEntitlements({
+      subscriptionTier: "hair_loss",
+      subscriptionStatus: "ACTIVE",
+      journeyStatus: "AWAITING_DOCTOR_DECISION",
+      programMembers: [{ program: "HAIR_LOSS", membershipStatus: "ACTIVE" }],
+    });
+    expect(find(desired, "PROGRAM", "HAIR_LOSS")?.status).toBe("ACTIVE");
+    expect(find(desired, "PROGRAM", "WEIGHT_MANAGEMENT")).toBeUndefined();
+  });
+
   it("cancelled subscription tier yields inactive program", () => {
     const desired = computeDesiredEntitlements({
       subscriptionTier: "weight_management",

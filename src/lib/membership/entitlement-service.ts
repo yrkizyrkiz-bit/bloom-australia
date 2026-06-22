@@ -14,6 +14,13 @@ import {
   type ProgramKey,
   type ScopeKey,
 } from "@/lib/membership/keys";
+import {
+  hasWeightProgramContext,
+  isWeightJourneyPaid,
+  PAID_WEIGHT_JOURNEY_STATUSES,
+} from "@/lib/membership/weight-access";
+
+export { PAID_WEIGHT_JOURNEY_STATUSES };
 
 export type EntitlementTypeValue = "PROGRAM" | "SCOPE";
 export type EntitlementStatusValue = "ACTIVE" | "PENDING" | "INACTIVE";
@@ -51,30 +58,6 @@ export type EntitlementSignalsInput = {
     } | null;
   }>;
 };
-
-/** Journey statuses where weight funnel payment is complete and program access should be granted. */
-export const PAID_WEIGHT_JOURNEY_STATUSES = new Set([
-  "CONSULTATION_PAID",
-  "PRE_TRIAGE_PENDING",
-  "PRE_TRIAGE_COMPLETE",
-  "AWAITING_DOCTOR_CALL",
-  "CONSULT_COMPLETED",
-  "AWAITING_DOCTOR_DECISION",
-  "APPROVED_PENDING_TESTS",
-  "TESTS_ORDERED",
-  "AWAITING_TESTS",
-  "RESULTS_RECEIVED",
-  "FINAL_DOCTOR_REVIEW",
-  "APPROVED",
-  "SCRIPT_WRITTEN",
-  "PHARMACY_PENDING",
-  "DISPENSING",
-  "SHIPPED",
-  "DELIVERED",
-  "ONBOARDING_PENDING",
-  "ONBOARDING_COMPLETE",
-  "ACTIVE",
-]);
 
 const STATUS_PRIORITY: Record<EntitlementStatusValue, number> = {
   ACTIVE: 3,
@@ -142,10 +125,7 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
   // 1) Legacy subscriptionTier -> program + scope
   const tier = input.subscriptionTier;
   const tierProgram = normalizeProgramKey(tier);
-  const weightJourneyPaid =
-    Boolean(input.journeyStatus && PAID_WEIGHT_JOURNEY_STATUSES.has(input.journeyStatus)) ||
-    input.weightIntakePaymentStatus === "PAID" ||
-    Boolean(input.hasPaidWeightIntake);
+  const weightJourneyPaid = isWeightJourneyPaid(input);
 
   if (tierProgram) {
     let tierStatus = subscriptionTierStatus(input.subscriptionStatus);
@@ -163,7 +143,7 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
   }
 
   // Paid weight intake implies the weight program even before tier is set.
-  if (input.hasPaidWeightIntake) {
+  if (input.hasPaidWeightIntake && hasWeightProgramContext(input)) {
     add("PROGRAM", "WEIGHT_MANAGEMENT", "ACTIVE", "LEGACY_TIER");
   }
 
@@ -266,11 +246,11 @@ async function loadSignals(userId: string): Promise<EntitlementSignalsInput | nu
   });
 
   const journey = user.journeyStatus;
+  const isWeightTier = normalizeProgramKey(user.subscriptionTier) === "WEIGHT_MANAGEMENT";
   const hasPaidWeightIntake =
-    user.subscriptionTier === "weight_management" ||
-    user.memberStatus === "MEMBER" ||
-    weightIntake?.paymentStatus === "PAID" ||
-    (journey != null && PAID_WEIGHT_JOURNEY_STATUSES.has(journey));
+    isWeightTier &&
+    (weightIntake?.paymentStatus === "PAID" ||
+      (journey != null && PAID_WEIGHT_JOURNEY_STATUSES.has(journey)));
 
   return {
     subscriptionTier: user.subscriptionTier,

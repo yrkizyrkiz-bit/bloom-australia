@@ -7,19 +7,14 @@ import {
   getAllEntitlements,
   syncEntitlementsFromSignals,
 } from "@/lib/membership/entitlement-service";
+import { PAID_WEIGHT_JOURNEY_STATUSES } from "@/lib/membership/weight-access";
+import { normalizeProgramKey } from "@/lib/membership/keys";
 import {
   deriveMembershipEntitlements,
   type EntitlementRecord,
 } from "@/lib/membership/entitlements";
 
-const PAID_JOURNEY_STATUSES = [
-  "CONSULTATION_PAID",
-  "PRE_TRIAGE_PENDING",
-  "PRE_TRIAGE_COMPLETE",
-  "AWAITING_DOCTOR_CALL",
-  "CONSULT_COMPLETED",
-  "AWAITING_DOCTOR_DECISION",
-] as const;
+const PAID_JOURNEY_STATUSES = Array.from(PAID_WEIGHT_JOURNEY_STATUSES);
 
 export async function GET() {
   try {
@@ -45,12 +40,10 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const isWeightTier = normalizeProgramKey(user.subscriptionTier) === "WEIGHT_MANAGEMENT";
     const hasPaidWeightIntake =
-      user.subscriptionTier === "weight_management" ||
-      user.memberStatus === "MEMBER" ||
-      PAID_JOURNEY_STATUSES.includes(
-        user.journeyStatus as (typeof PAID_JOURNEY_STATUSES)[number]
-      );
+      isWeightTier &&
+      PAID_JOURNEY_STATUSES.includes(user.journeyStatus || "");
 
     // Derive membership entitlements: reconcile persisted rows from current
     // signals (idempotent), then combine with biomarker coverage.

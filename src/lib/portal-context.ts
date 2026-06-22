@@ -4,6 +4,8 @@
  */
 
 import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
+import { normalizeProgramKey } from "@/lib/membership/keys";
+import { isProgramEntitled } from "@/lib/membership/program-access";
 
 export type PortalMode =
   | "PRE_PROGRAM"
@@ -61,7 +63,7 @@ const APPROVED_STATUSES = [...ACTIVATING_STATUSES, ...ACTIVE_JOURNEY_STATUSES] a
 
 const DECLINED_STATUSES = ["DECLINED", "REFUND_PENDING", "REFUNDED"] as const;
 
-const STAGE_DESCRIPTIONS: Record<string, string> = {
+export const STAGE_DESCRIPTIONS: Record<string, string> = {
   LEAD: "Starting your health journey",
   CONSENTED: "Consent received",
   SURVEY_COMPLETED: "Health assessment complete",
@@ -157,9 +159,9 @@ export function derivePortalContext(input: {
   }
 
   const hasWeightProgram =
-    input.subscriptionTier === "weight_management" ||
-    input.hasPaidWeightIntake ||
-    journeyStatus !== "LEAD";
+    isProgramEntitled(input.membership, "WEIGHT_MANAGEMENT") ||
+    (normalizeProgramKey(input.subscriptionTier) === "WEIGHT_MANAGEMENT" &&
+      Boolean(input.hasPaidWeightIntake));
 
   const features: PortalFeatures = {
     weightProgress: isActive,

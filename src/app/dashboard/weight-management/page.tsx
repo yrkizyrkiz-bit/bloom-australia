@@ -8,18 +8,20 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Scale, Target, TrendingDown, TrendingUp, Flame,
-  Apple, Dumbbell, Calendar, ChevronRight, Play,
+  Apple, Dumbbell, ChevronRight, Play,
   Settings, ChefHat, MessageCircle, Bookmark,
   Heart, Sparkles, Sun, Award, Lightbulb, Quote, Leaf, Brain, Footprints, Droplets, CalendarDays, Pill,
-  Clock, Phone, CheckCircle2, FileText, Truck, Package, AlertCircle, Beaker, User,
-  CreditCard, ListChecks,
+  Clock, CheckCircle2, AlertCircle, Beaker, User,
 } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ProgressChart } from "@/components/weight-management/ProgressChart";
 import { OnboardingFlow } from "@/components/weight-management/OnboardingFlow";
 import { ProgramTodayCard } from "@/components/program/ProgramTodayCard";
 import { ProgramBiomarkerStrip } from "@/components/program/ProgramBiomarkerStrip";
+import {
+  ProgramJourneyShell,
+  getProgramJourneyGreeting,
+} from "@/components/dashboard/ProgramJourneyShell";
 import { getRandomMotivation, getDailyTip, getDailyQuote } from "@/data/mealImages";
 
 // GAP-009: Journey status interface
@@ -91,88 +93,6 @@ const TIP_ICONS: Record<string, React.ElementType> = {
   mindset: Brain,
   wellness: Leaf,
 };
-
-// GAP-009: Timeline step configuration
-interface TimelineStep {
-  key: string;
-  label: string;
-  description: string;
-  icon: React.ElementType;
-}
-
-// UAT8-GAP-006: Updated timeline - blood tests are for monitoring, don't block
-// UAT9-GAP-009: Updated copy - "first month" instead of "consultation fee"
-const TIMELINE_STEPS: TimelineStep[] = [
-  { key: "payment", label: "Payment received", description: "Your first month program payment has been received", icon: CheckCircle2 },
-  { key: "consultation", label: "Doctor assessment", description: "Your doctor will call at your scheduled time", icon: Phone },
-  { key: "pending_tests", label: "Health monitoring", description: "Blood tests ordered for ongoing monitoring — your program continues", icon: Beaker },
-  { key: "results", label: "Results reviewed", description: "Your doctor reviews your health markers", icon: FileText },
-  { key: "approved", label: "Program approved", description: "Your care partner is preparing your onboarding", icon: CheckCircle2 },
-  { key: "script", label: "Treatment being prepared", description: "Your prescription is being prepared", icon: Package },
-  { key: "shipped", label: "Treatment shipped", description: "Your treatment is on its way", icon: Truck },
-  { key: "active", label: "Program active", description: "Track your progress and complete check-ins", icon: Sparkles },
-];
-
-// Map journey status to timeline step
-// UAT8-GAP-006: Tests don't block progress - user proceeds to approved
-function getTimelineProgress(journeyStatus: string, hasTestsTracking: boolean = false): { currentStep: number; steps: TimelineStep[] } {
-  const statusToStep: Record<string, number> = {
-    CONSULTATION_PAID: 0,
-    PRE_TRIAGE_PENDING: 0,
-    PRE_TRIAGE_COMPLETE: 1,
-    AWAITING_DOCTOR_CALL: 1,
-    CONSULT_COMPLETED: 1,
-    AWAITING_DOCTOR_DECISION: 1,
-    // UAT8-GAP-006: APPROVED_PENDING_TESTS now maps to approved (step 4) not blocking (step 2)
-    APPROVED_PENDING_TESTS: 4,
-    TESTS_ORDERED: 4,
-    AWAITING_TESTS: 4,
-    RESULTS_RECEIVED: 4,
-    FINAL_DOCTOR_REVIEW: 4,
-    APPROVED: 4,
-    NO_TREATMENT: 4,
-    SCRIPT_DRAFT: 5,
-    SCRIPT_WRITTEN: 5,
-    SCRIPT_SENT_TO_PHARMACY: 5,
-    PHARMACY_PENDING: 5,
-    DISPENSING: 5,
-    SHIPPED: 6,
-    DELIVERED: 7,
-    ONBOARDING_PENDING: 7,
-    ONBOARDING_COMPLETE: 7,
-    ACTIVE: 7,
-  };
-
-  const currentStep = statusToStep[journeyStatus] ?? 0;
-
-  // UAT8-GAP-006: Show blood tests step only if tests are being tracked
-  // but they don't block - patient proceeds regardless
-  const steps = hasTestsTracking
-    ? TIMELINE_STEPS
-    : TIMELINE_STEPS.filter(s => s.key !== "pending_tests" && s.key !== "results");
-
-  return { currentStep, steps };
-}
-
-function getConsultationCountdown(scheduledAt: string): string | null {
-  const target = new Date(scheduledAt).getTime();
-  const now = Date.now();
-  const diff = target - now;
-  if (diff <= 0) return null;
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  if (days > 0) return `${days} day${days === 1 ? "" : "s"}, ${hours} hr`;
-  if (hours > 0) return `${hours} hour${hours === 1 ? "" : "s"}`;
-  const mins = Math.floor(diff / (1000 * 60));
-  return `${mins} min`;
-}
-
-const PREP_CHECKLIST = [
-  "Find a quiet place with good phone reception",
-  "Have your ID and Medicare details nearby",
-  "List any medications and supplements you take",
-  "Note questions you want to ask your doctor",
-];
 
 export default function WeightManagementPage() {
   const { user } = useAuth();
@@ -355,285 +275,78 @@ export default function WeightManagementPage() {
   }
 
   // GAP-009: Status-aware pre-start dashboard
-  // UAT8-GAP-006: Show timeline view for non-active users, tests don't block
   if (journeyStatus && !journeyStatus.isActive) {
-    const { currentStep, steps } = getTimelineProgress(journeyStatus.journeyStatus, journeyStatus.hasTestsTracking);
-
     return (
-      <div className="space-y-6 pb-8">
-        {/* Personalized Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-600 p-6 text-white">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/3" />
-
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-1">
-              <Sun className="w-4 h-4 text-emerald-300" />
-              <p className="text-emerald-200 text-sm">{getGreeting()}</p>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-serif font-semibold mb-2">
-              {user?.firstName}
-            </h1>
-            <p className="text-emerald-100 text-sm">
-              {journeyStatus.stageDescription}
-            </p>
-          </div>
-        </div>
-
-        {/* Current Status Card */}
-        <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
-                {journeyStatus.stage === "consultation" ? (
-                  <Phone className="w-7 h-7 text-emerald-600" />
-                ) : journeyStatus.stage === "pending_tests" ? (
-                  <Beaker className="w-7 h-7 text-amber-600" />
-                ) : journeyStatus.stage === "approved" || journeyStatus.isApproved ? (
-                  <CheckCircle2 className="w-7 h-7 text-emerald-600" />
-                ) : journeyStatus.hasPrescription ? (
-                  <Package className="w-7 h-7 text-blue-600" />
-                ) : (
-                  <Clock className="w-7 h-7 text-emerald-600" />
-                )}
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg text-emerald-900 dark:text-emerald-100">
-                  {journeyStatus.stageDescription}
-                </h3>
-                {journeyStatus.consultation && journeyStatus.stage === "consultation" && (
-                  <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
-                    {journeyStatus.consultation.doctorName || "Your doctor"} will call you on{" "}
-                    <strong>{new Date(journeyStatus.consultation.date).toLocaleDateString()}</strong> at{" "}
-                    <strong>{journeyStatus.consultation.time}</strong>
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {journeyStatus.consultation && getConsultationCountdown(journeyStatus.consultation.date) && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
-          >
-            <Card className="border-amber-200 bg-amber-50/80">
-              <CardContent className="p-5 flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
-                  <Clock className="w-7 h-7 text-amber-700" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
-                    Consultation in
-                  </p>
-                  <p className="text-2xl font-semibold text-amber-950">
-                    {getConsultationCountdown(journeyStatus.consultation.date)}
-                  </p>
-                  <p className="text-sm text-amber-800/90 mt-1">
-                    {journeyStatus.consultation.doctorName || "Your doctor"} will call you — keep your phone nearby.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        <Card className="border-dashed hover:border-emerald-300 transition-colors">
-          <CardContent className="p-4">
-            <Link href="/dashboard/settings" className="flex items-center justify-between group">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <CreditCard className="w-5 h-5 text-emerald-700" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Account & billing</p>
-                  <p className="text-xs text-muted-foreground">View your plan, payment status & privacy</p>
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ListChecks className="w-5 h-5 text-emerald-600" />
-              Prepare for your doctor call
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {PREP_CHECKLIST.map((item, i) => (
-                <motion.li
-                  key={item}
-                  initial={{ opacity: 0, x: -6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  className="flex items-start gap-2 text-sm"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>{item}</span>
-                </motion.li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        {/* GAP-009: Status Timeline */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-600" />
-              Your Journey
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {steps.map((step, index) => {
-                const isComplete = index < currentStep;
-                const isCurrent = index === currentStep;
-
-                return (
-                  <motion.div
-                    key={step.key}
-                    layout
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.04 }}
-                    className="flex items-start gap-4"
-                  >
-                    <div className="flex flex-col items-center">
-                      <motion.div
-                        animate={isCurrent ? { scale: [1, 1.06, 1] } : {}}
-                        transition={{ repeat: isCurrent ? Infinity : 0, duration: 2 }}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        isComplete ? "bg-emerald-100 text-emerald-600" :
-                        isCurrent ? "bg-emerald-600 text-white ring-4 ring-emerald-200" :
-                        "bg-gray-100 text-gray-400"
-                      }`}>
-                        {isComplete ? (
-                          <CheckCircle2 className="w-5 h-5" />
-                        ) : (
-                          <step.icon className="w-5 h-5" />
-                        )}
-                      </motion.div>
-                      {index < steps.length - 1 && (
-                        <div className={`w-0.5 h-8 mt-2 ${
-                          isComplete ? "bg-emerald-300" : "bg-gray-200"
-                        }`} />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-4">
-                      <p className={`font-medium ${
-                        isComplete || isCurrent ? "text-foreground" : "text-muted-foreground"
-                      }`}>
-                        {step.label}
-                      </p>
-                      {(isComplete || isCurrent) && (
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                          {step.description}
-                        </p>
-                      )}
-                      {isCurrent && (
-                        <Badge className="mt-2 bg-emerald-600 animate-pulse">Current step</Badge>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* UAT8-GAP-006 + UAT9-GAP-009: Tests Tracking Info - approved with testing */}
+      <ProgramJourneyShell
+        programKey="WEIGHT_MANAGEMENT"
+        firstName={user?.firstName}
+        greeting={getGreeting()}
+        journey={{
+          journeyStatus: journeyStatus.journeyStatus,
+          stageDescription: journeyStatus.stageDescription,
+          stage: journeyStatus.stage,
+          isApproved: journeyStatus.isApproved,
+          hasPrescription: journeyStatus.hasPrescription,
+          hasTestsTracking: journeyStatus.hasTestsTracking,
+          consultation: journeyStatus.consultation
+            ? {
+                date: journeyStatus.consultation.date,
+                time: journeyStatus.consultation.time,
+                doctorName: journeyStatus.consultation.doctorName,
+              }
+            : undefined,
+        }}
+      >
         {journeyStatus.hasTestsTracking && journeyStatus.testsTrackingInfo && (
           <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
             <CardContent className="p-5">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-                  <Beaker className="w-6 h-6 text-blue-600" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50">
+                  <Beaker className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">Health monitoring in progress</h4>
-                    <Badge variant="outline" className="text-xs border-blue-300 text-blue-700">
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                      Health monitoring in progress
+                    </h4>
+                    <Badge variant="outline" className="border-blue-300 text-xs text-blue-700">
                       Approved with testing
                     </Badge>
                   </div>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                    {journeyStatus.testsTrackingInfo.message}. Your program is active — these tests help your doctor monitor your health markers.
+                  <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                    {journeyStatus.testsTrackingInfo.message}. Your program is active — these
+                    tests help your doctor monitor your health markers.
                   </p>
-                  {journeyStatus.testsTrackingInfo.tasks.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {journeyStatus.testsTrackingInfo.tasks.slice(0, 2).map((task) => (
-                        <div key={task.id} className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
-                          <Clock className="w-3 h-3" />
-                          <span>{task.subject}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <Link href="/dashboard/messages">
-                    <Button variant="outline" size="sm" className="mt-3 border-blue-300 text-blue-700">
-                      Contact Care Team
-                    </Button>
-                  </Link>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Meal Planning & Recipes - Available during waiting period */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ChefHat className="w-5 h-5 text-emerald-600" />
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ChefHat className="h-5 w-5 text-emerald-600" />
               Start Planning Your Meals
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="mb-4 text-sm text-muted-foreground">
               Get a head start on your health journey by planning nutritious meals.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <Link href="/dashboard/weight-management/meal-plan">
-                <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full border-emerald-200">
-                  <div className="relative h-20 overflow-hidden">
-                    <img
-                      src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=100&fit=crop"
-                      alt="Meal Plan"
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-emerald-600 to-transparent opacity-80" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <CalendarDays className="w-8 h-8 text-white drop-shadow-lg" />
-                    </div>
-                  </div>
+                <Card className="h-full cursor-pointer overflow-hidden border-emerald-200 transition-all hover:shadow-lg">
                   <CardContent className="p-3">
-                    <p className="font-semibold text-sm">Weekly Meal Plan</p>
+                    <p className="text-sm font-semibold">Weekly Meal Plan</p>
                     <p className="text-xs text-muted-foreground">Plan your week & shopping list</p>
                   </CardContent>
                 </Card>
               </Link>
               <Link href="/dashboard/weight-management/recipes">
-                <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full border-orange-200">
-                  <div className="relative h-20 overflow-hidden">
-                    <img
-                      src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=100&fit=crop"
-                      alt="Recipes"
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-orange-600 to-transparent opacity-80" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <ChefHat className="w-8 h-8 text-white drop-shadow-lg" />
-                    </div>
-                  </div>
+                <Card className="h-full cursor-pointer overflow-hidden border-orange-200 transition-all hover:shadow-lg">
                   <CardContent className="p-3">
-                    <p className="font-semibold text-sm">Recipes</p>
+                    <p className="text-sm font-semibold">Recipes</p>
                     <p className="text-xs text-muted-foreground">45+ healthy meals</p>
                   </CardContent>
                 </Card>
@@ -642,77 +355,27 @@ export default function WeightManagementPage() {
           </CardContent>
         </Card>
 
-        {/* Quick Links */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">While you wait</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              <Link href="/dashboard/messages">
-                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
-                      <MessageCircle className="w-5 h-5 text-pink-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">Message Care Team</p>
-                      <p className="text-xs text-muted-foreground">Ask questions</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-              <Link href="/dashboard/weight-management/learn">
-                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center">
-                      <Play className="w-5 h-5 text-violet-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">Learn</p>
-                      <p className="text-xs text-muted-foreground">Get prepared</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Treatment Link */}
         <Link href="/dashboard/weight-management/treatment">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-4 flex items-center justify-between">
+          <Card className="cursor-pointer transition-shadow hover:shadow-md">
+            <CardContent className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center">
-                  <Pill className="w-5 h-5 text-violet-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100">
+                  <Pill className="h-5 w-5 text-violet-600" />
                 </div>
                 <div>
                   <p className="font-medium">Treatment</p>
                   <p className="text-xs text-muted-foreground">
-                    {journeyStatus.hasPrescription ? "View treatment status" : "View treatment plan"}
+                    {journeyStatus.hasPrescription
+                      ? "View treatment status"
+                      : "View treatment plan"}
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </CardContent>
           </Card>
         </Link>
-
-        {/* Contact Info */}
-        <Card className="bg-muted/30">
-          <CardContent className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              Questions? Your care team is here to help.
-            </p>
-            <Link href="/dashboard/messages">
-              <Button variant="link" className="text-emerald-600 p-0 h-auto mt-1">
-                Send a message
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      </ProgramJourneyShell>
     );
   }
 
