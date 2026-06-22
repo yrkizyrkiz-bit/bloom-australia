@@ -416,6 +416,8 @@ export default function CustomerDetailPage() {
   const bookings = (assessmentData?.bookings as Array<Record<string, unknown>>) || [];
   const prescriptions = (assessmentData?.prescriptions as Array<Record<string, unknown>>) || [];
   const subscription = assessmentData?.subscription as {
+    program?: string;
+    programLabel?: string;
     id: string | null;
     planName: string;
     amount: number | null;
@@ -451,6 +453,17 @@ export default function CustomerDetailPage() {
       effectiveAt: string;
     }>;
   } | null;
+
+  type ProgramSubscriptionView = NonNullable<typeof subscription> & {
+    billingModel?: "program_first_month" | "annual_subscription";
+  };
+
+  const programSubscriptions: ProgramSubscriptionView[] =
+    (assessmentData?.programSubscriptions as ProgramSubscriptionView[] | undefined)?.length
+      ? (assessmentData!.programSubscriptions as ProgramSubscriptionView[])
+      : subscription
+        ? [subscription]
+        : [];
   const assessment = assessmentData?.assessment as AssessmentData | null;
   const rawSurveyData =
     (assessmentData?.rawSurveyData as Record<string, unknown> | null) || null;
@@ -1111,146 +1124,153 @@ export default function CustomerDetailPage() {
 
             {/* Subscription Tab */}
             <TabsContent value="subscription" className="space-y-4 mt-4">
-              {subscription || customer.subscriptionTier ? (
+              {programSubscriptions.length > 0 || customer.subscriptionTier ? (
                 <>
-                  <Card className="border-primary/20 bg-primary/5">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Package className="w-5 h-5 text-primary" />
-                        Program & Billing
-                      </CardTitle>
-                      <CardDescription>
-                        {subscription?.recurring?.label ||
-                          billingSummary?.recurring?.label ||
-                          "Billing status from intake and Stripe"}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-4 bg-white rounded-xl border">
-                          <p className="text-xs text-muted-foreground mb-1">Plan</p>
-                          <p className="text-lg font-bold text-primary">
-                            {displayPlanName}
-                          </p>
-                          {(subscription?.selectedPlan || billingSummary?.selectedPlan) && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Tier: {subscription?.selectedPlan || billingSummary?.selectedPlan}
+                  {programSubscriptions.map((programSub, index) => (
+                    <Card key={programSub.program || programSub.id || index} className="border-primary/20 bg-primary/5">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Package className="w-5 h-5 text-primary" />
+                          {programSub.programLabel || programSub.planName || "Program & Billing"}
+                        </CardTitle>
+                        <CardDescription>
+                          {programSub.recurring?.label || "Billing status from intake and Stripe"}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="p-4 bg-white rounded-xl border">
+                            <p className="text-xs text-muted-foreground mb-1">Plan</p>
+                            <p className="text-lg font-bold text-primary">
+                              {programSub.planName}
                             </p>
-                          )}
-                        </div>
-                        <div className="p-4 bg-white rounded-xl border">
-                          <p className="text-xs text-muted-foreground mb-1">Recurring</p>
-                          <p className="text-lg font-bold">
-                            {subscription?.amount != null
-                              ? `$${subscription.amount}`
-                              : billingSummary?.recurring?.amountAud != null
-                                ? `$${billingSummary.recurring.amountAud}`
-                                : "—"}
-                            {(subscription?.recurring?.billingLabel || billingSummary?.recurring?.billingLabel) && (
-                              <span className="text-sm font-normal text-muted-foreground">
-                                {" "}/ {(subscription?.recurring?.billingLabel || billingSummary?.recurring?.billingLabel)!.toLowerCase()}
-                              </span>
+                            {programSub.selectedPlan && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Tier: {programSub.selectedPlan}
+                              </p>
                             )}
-                          </p>
-                        </div>
-                        <div className="p-4 bg-white rounded-xl border">
-                          <p className="text-xs text-muted-foreground mb-1">Status</p>
-                          <Badge className={`text-sm ${
-                            subscription?.status === "ACTIVE" ? "bg-green-100 text-green-700" :
-                            subscription?.status === "PAST_DUE" ? "bg-red-100 text-red-700" :
-                            subscription?.status === "CANCELLED" ? "bg-gray-100 text-gray-700" :
-                            "bg-yellow-100 text-yellow-700"
-                          }`}>
-                            {subscription?.status || "PENDING"}
-                          </Badge>
-                        </div>
-                        <div className="p-4 bg-white rounded-xl border">
-                          <p className="text-xs text-muted-foreground mb-1">Paid till</p>
-                          <p className="text-lg font-bold">
-                            {subscription?.recurring?.paidTill || subscription?.currentPeriodEnd
-                              ? new Date(subscription.recurring?.paidTill || subscription.currentPeriodEnd!).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
-                              : "—"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <Separator className="my-4" />
-
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label className="text-muted-foreground">First month</Label>
-                          <div className="font-medium flex items-center gap-2 flex-wrap">
-                            <span>
-                              {subscription?.firstMonth?.amountAud != null
-                                ? `$${subscription.firstMonth.amountAud}`
-                                : billingSummary?.firstMonth?.amountAud != null
-                                  ? `$${billingSummary.firstMonth.amountAud}`
-                                  : "—"}
-                            </span>
-                            <Badge variant="outline">
-                              {subscription?.firstMonth?.status ||
-                                billingSummary?.firstMonth?.status ||
-                                "pending"}
+                          </div>
+                          <div className="p-4 bg-white rounded-xl border">
+                            <p className="text-xs text-muted-foreground mb-1">Recurring</p>
+                            <p className="text-lg font-bold">
+                              {programSub.amount != null ? `$${programSub.amount}` : "—"}
+                              {programSub.recurring?.billingLabel && (
+                                <span className="text-sm font-normal text-muted-foreground">
+                                  {" "}/ {programSub.recurring.billingLabel.toLowerCase()}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="p-4 bg-white rounded-xl border">
+                            <p className="text-xs text-muted-foreground mb-1">Status</p>
+                            <Badge className={`text-sm ${
+                              programSub.status === "ACTIVE" ? "bg-green-100 text-green-700" :
+                              programSub.status === "PAST_DUE" ? "bg-red-100 text-red-700" :
+                              programSub.status === "CANCELLED" ? "bg-gray-100 text-gray-700" :
+                              "bg-yellow-100 text-yellow-700"
+                            }`}>
+                              {programSub.status || "PENDING"}
                             </Badge>
                           </div>
-                          {subscription?.firstMonth?.paidAt && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Paid {new Date(subscription.firstMonth.paidAt).toLocaleDateString("en-AU")}
+                          <div className="p-4 bg-white rounded-xl border">
+                            <p className="text-xs text-muted-foreground mb-1">Paid till</p>
+                            <p className="text-lg font-bold">
+                              {programSub.recurring?.paidTill || programSub.currentPeriodEnd
+                                ? new Date(programSub.recurring?.paidTill || programSub.currentPeriodEnd!).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+                                : "—"}
                             </p>
-                          )}
+                          </div>
                         </div>
-                        <div>
-                          <Label className="text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            Billing period start
-                          </Label>
-                          <p className="font-medium">
-                            {subscription?.startDate
-                              ? new Date(subscription.startDate).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
-                              : "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <Label className="text-muted-foreground flex items-center gap-1">
-                            <CalendarClock className="w-3 h-3" />
-                            Next billing date
-                          </Label>
-                          <p className="font-medium">
-                            {subscription?.recurring?.nextBillingDate || subscription?.currentPeriodEnd
-                              ? new Date(subscription.recurring?.nextBillingDate || subscription.currentPeriodEnd!).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
-                              : "—"}
-                          </p>
-                        </div>
-                      </div>
 
-                      {subscription?.cancelledAt && (
-                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-sm text-red-700">
-                            <AlertCircle className="w-4 h-4 inline mr-1" />
-                            Cancelled on {new Date(subscription.cancelledAt).toLocaleDateString("en-AU")}
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                        <Separator className="my-4" />
 
-                  {subscription?.history && subscription.history.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div>
+                            <Label className="text-muted-foreground">
+                              {programSub.billingModel === "annual_subscription"
+                                ? "Annual payment"
+                                : "First month"}
+                            </Label>
+                            <div className="font-medium flex items-center gap-2 flex-wrap">
+                              <span>
+                                {programSub.firstMonth?.amountAud != null
+                                  ? `$${programSub.firstMonth.amountAud}`
+                                  : "—"}
+                              </span>
+                              <Badge variant="outline">
+                                {programSub.firstMonth?.status || "pending"}
+                              </Badge>
+                            </div>
+                            {programSub.firstMonth?.paidAt && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Paid {new Date(programSub.firstMonth.paidAt).toLocaleDateString("en-AU")}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Billing period start
+                            </Label>
+                            <p className="font-medium">
+                              {programSub.startDate
+                                ? new Date(programSub.startDate).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
+                                : "—"}
+                            </p>
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground flex items-center gap-1">
+                              <CalendarClock className="w-3 h-3" />
+                              Next billing date
+                            </Label>
+                            <p className="font-medium">
+                              {programSub.recurring?.nextBillingDate || programSub.currentPeriodEnd
+                                ? new Date(programSub.recurring?.nextBillingDate || programSub.currentPeriodEnd!).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
+                                : "—"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {programSub.cancelledAt && (
+                          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-sm text-red-700">
+                              <AlertCircle className="w-4 h-4 inline mr-1" />
+                              Cancelled on {new Date(programSub.cancelledAt).toLocaleDateString("en-AU")}
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {programSubscriptions.some((p) => p.history && p.history.length > 0) && (
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-lg">Plan history</CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-2">
-                        {subscription.history.map((h) => (
-                          <div key={h.id} className="text-sm border rounded-lg p-3">
-                            <p className="font-medium">
-                              {h.fromLabel ? `${h.fromLabel} → ${h.toLabel}` : h.toLabel}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {h.changeType.replace(/_/g, " ")} ·{" "}
-                              {new Date(h.effectiveAt).toLocaleDateString("en-AU")}
-                            </p>
-                          </div>
-                        ))}
+                      <CardContent className="space-y-4">
+                        {programSubscriptions.map((programSub) =>
+                          programSub.history && programSub.history.length > 0 ? (
+                            <div key={programSub.program || programSub.planName} className="space-y-2">
+                              {programSubscriptions.length > 1 && (
+                                <p className="text-sm font-medium text-muted-foreground">
+                                  {programSub.programLabel || programSub.planName}
+                                </p>
+                              )}
+                              {programSub.history.map((h) => (
+                                <div key={h.id} className="text-sm border rounded-lg p-3">
+                                  <p className="font-medium">
+                                    {h.fromLabel ? `${h.fromLabel} → ${h.toLabel}` : h.toLabel}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {h.changeType.replace(/_/g, " ")} ·{" "}
+                                    {new Date(h.effectiveAt).toLocaleDateString("en-AU")}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null
+                        )}
                       </CardContent>
                     </Card>
                   )}
@@ -1473,50 +1493,54 @@ export default function CustomerDetailPage() {
 
             {/* Billing / Payment History Tab */}
             <TabsContent value="billing" className="space-y-4 mt-4">
-              {(subscription || customer.subscriptionTier) && (
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Package className="w-5 h-5 text-primary" />
-                      Subscription snapshot
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Plan</p>
-                        <p className="font-semibold">{displayPlanName}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Recurring</p>
-                        <p className="font-semibold">
-                          {subscription?.amount != null ? `$${subscription.amount}` : "—"}
-                          {subscription?.recurring?.billingLabel
-                            ? ` / ${subscription.recurring.billingLabel.toLowerCase()}`
-                            : ""}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Paid till</p>
-                        <p className="font-semibold">
-                          {subscription?.recurring?.paidTill || subscription?.currentPeriodEnd
-                            ? new Date(
-                                subscription.recurring?.paidTill || subscription.currentPeriodEnd!
-                              ).toLocaleDateString("en-AU", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Status</p>
-                        <Badge variant="outline">{subscription?.status || "PENDING"}</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {programSubscriptions.length > 0 && (
+                <div className="space-y-4">
+                  {programSubscriptions.map((programSub, index) => (
+                    <Card key={programSub.program || programSub.id || index} className="border-primary/20 bg-primary/5">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Package className="w-5 h-5 text-primary" />
+                          {programSub.programLabel || programSub.planName || "Subscription snapshot"}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Plan</p>
+                            <p className="font-semibold">{programSub.planName}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Recurring</p>
+                            <p className="font-semibold">
+                              {programSub.amount != null ? `$${programSub.amount}` : "—"}
+                              {programSub.recurring?.billingLabel
+                                ? ` / ${programSub.recurring.billingLabel.toLowerCase()}`
+                                : ""}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Paid till</p>
+                            <p className="font-semibold">
+                              {programSub.recurring?.paidTill || programSub.currentPeriodEnd
+                                ? new Date(
+                                    programSub.recurring?.paidTill || programSub.currentPeriodEnd!
+                                  ).toLocaleDateString("en-AU", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
+                                : "—"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Status</p>
+                            <Badge variant="outline">{programSub.status || "PENDING"}</Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
 
               <Card>

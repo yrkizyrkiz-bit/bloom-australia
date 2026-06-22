@@ -28,7 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { ProgramMembershipCard } from "@/components/account/ProgramMembershipCard";
 import { MemberBillingPanel } from "@/components/account/MemberBillingPanel";
 import type { MembershipSummary } from "@/lib/membership-display";
-import type { MemberBillingSummary } from "@/lib/billing/member-billing-summary";
+import type { MemberBillingOverview } from "@/lib/billing/member-billing-summary";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -43,7 +43,7 @@ export default function SettingsPage() {
     gender: string;
   } | null>(null);
   const [membership, setMembership] = useState<MembershipSummary | null>(null);
-  const [billing, setBilling] = useState<MemberBillingSummary | null>(null);
+  const [billing, setBilling] = useState<MemberBillingOverview | null>(null);
   const [membershipLoading, setMembershipLoading] = useState(true);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [savingMarketing, setSavingMarketing] = useState(false);

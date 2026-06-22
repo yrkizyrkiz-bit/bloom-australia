@@ -272,12 +272,21 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    let billingOverview = null;
     let billingSummary = null;
+    let programSubscriptions: ReturnType<
+      typeof import("@/lib/billing/member-billing-summary").billingSummaryToAdminSubscription
+    >[] = [];
     try {
-      const { getMemberBillingSummary } = await import(
-        "@/lib/billing/member-billing-summary"
+      const {
+        getMemberBillingOverview,
+        billingSummaryToAdminSubscription,
+      } = await import("@/lib/billing/member-billing-summary");
+      billingOverview = await getMemberBillingOverview(userId);
+      billingSummary = billingOverview.programs[0] ?? null;
+      programSubscriptions = billingOverview.programs.map((program) =>
+        billingSummaryToAdminSubscription(program, membershipSubscription)
       );
-      billingSummary = await getMemberBillingSummary(userId);
     } catch (billingError) {
       console.error("Billing summary failed for customer assessment:", billingError);
     }
@@ -371,47 +380,12 @@ export async function GET(req: NextRequest) {
         duration: b.duration,
       })),
       billingSummary,
+      billingOverview,
+      programSubscriptions,
       // Legacy subscription shape for backward compatibility
-      subscription: billingSummary
-        ? {
-            id: billingSummary.subscription?.id || membershipSubscription?.id || null,
-            planName: billingSummary.planLabel,
-            amount: billingSummary.recurring.amountAud ?? membershipSubscription?.amount ?? null,
-            currency: "AUD",
-            billingCycle:
-              billingSummary.recurring.billingInterval?.toLowerCase() ||
-              membershipSubscription?.billingCycle ||
-              "monthly",
-            status:
-              billingSummary.subscription?.status ||
-              (billingSummary.firstMonth.status === "paid" &&
-              billingSummary.recurring.status === "pending_approval"
-                ? "PENDING_APPROVAL"
-                : membershipSubscription?.status || "INACTIVE"),
-            startDate:
-              billingSummary.subscription?.currentPeriodStart ||
-              membershipSubscription?.startDate?.toISOString() ||
-              null,
-            currentPeriodEnd:
-              billingSummary.recurring.paidTill ||
-              membershipSubscription?.currentPeriodEnd?.toISOString() ||
-              null,
-            cancelledAt: membershipSubscription?.cancelledAt?.toISOString() || null,
-            stripeCustomerId:
-              billingSummary.subscription?.stripeCustomerId ||
-              membershipSubscription?.stripeCustomerId ||
-              null,
-            stripeSubscriptionId:
-              billingSummary.subscription?.stripeSubscriptionId ||
-              membershipSubscription?.stripeSubscriptionId ||
-              null,
-            selectedPlan: billingSummary.selectedPlan,
-            firstMonth: billingSummary.firstMonth,
-            recurring: billingSummary.recurring,
-            availableCadences: billingSummary.availableCadences,
-            history: billingSummary.history,
-          }
-        : membershipSubscription
+      subscription:
+        programSubscriptions[0] ??
+        (membershipSubscription
           ? {
               id: membershipSubscription.id,
               planName: membershipSubscription.planName,
@@ -425,7 +399,7 @@ export async function GET(req: NextRequest) {
               stripeCustomerId: membershipSubscription.stripeCustomerId,
               stripeSubscriptionId: membershipSubscription.stripeSubscriptionId,
             }
-          : fallbackSubscription,
+          : fallbackSubscription),
     });
   } catch (error) {
     console.error("Error fetching customer assessment:", error);

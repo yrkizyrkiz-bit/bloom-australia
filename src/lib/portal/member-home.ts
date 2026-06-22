@@ -37,15 +37,6 @@ export function resolveProgramDashboardRoute(programKey: ProgramKey): string {
 export function resolveMemberHomePath(
   portal: PortalContextPayload | null | undefined
 ): string {
-  const primaryProgram = getPrimaryEnrolledProgramKey(portal?.membership);
-
-  if (
-    primaryProgram &&
-    (portal?.portalMode === "PRE_PROGRAM" || portal?.portalMode === "ACTIVATING")
-  ) {
-    return resolveProgramDashboardRoute(primaryProgram);
-  }
-
   if (portal?.features.biomarkerResults) {
     return MEMBER_HEALTH_OVERVIEW;
   }

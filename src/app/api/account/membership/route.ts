@@ -4,7 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   billingSummaryToMembershipSummary,
-  getMemberBillingSummary,
+  getMemberBillingOverview,
+  type MemberBillingSummary,
 } from "@/lib/billing/member-billing-summary";
 import { derivePortalContext } from "@/lib/portal-context";
 
@@ -47,16 +48,37 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const billingSummary = await getMemberBillingSummary(
+    const billingOverview = await getMemberBillingOverview(
       session.user.id,
       STAGE_DESCRIPTIONS[user.journeyStatus]
     );
 
-    if (!billingSummary) {
-      return NextResponse.json({ error: "Failed to load billing" }, { status: 500 });
-    }
+    const emptyBilling: MemberBillingSummary = {
+      program: "other",
+      programLabel: "Sanative Health",
+      billingModel: "program_first_month",
+      selectedPlan: null,
+      planLabel: "No active program",
+      firstMonth: { status: "pending", amountAud: null, paidAt: null },
+      recurring: {
+        status: "inactive",
+        label: "Not started",
+        amountAud: null,
+        billingInterval: null,
+        billingLabel: null,
+        nextBillingDate: null,
+        paidTill: null,
+      },
+      subscription: null,
+      availableCadences: [],
+      history: [],
+      journeyStatus: user.journeyStatus,
+      journeyLabel: STAGE_DESCRIPTIONS[user.journeyStatus] || user.journeyStatus,
+    };
 
-    const summary = billingSummaryToMembershipSummary(billingSummary);
+    const primaryBilling = billingOverview.programs[0] ?? emptyBilling;
+
+    const summary = billingSummaryToMembershipSummary(primaryBilling);
     const booking = user.consultationBookings[0];
     if (booking) {
       summary.consultation = {
@@ -74,10 +96,12 @@ export async function GET() {
     return NextResponse.json({
       ...summary,
       billing: {
-        ...billingSummary,
-        canRequestPrecisionUpgrade:
-          billingSummary.selectedPlan === "CORE" &&
-          billingSummary.program === "weight_management",
+        programs: billingOverview.programs,
+        journeyStatus: billingOverview.journeyStatus,
+        journeyLabel: billingOverview.journeyLabel,
+        canRequestPrecisionUpgrade: billingOverview.programs.some(
+          (p) => p.program === "weight_management" && p.selectedPlan === "CORE"
+        ),
       },
       marketingOptIn: user.marketingOptIn,
       portalMode: portal.portalMode,

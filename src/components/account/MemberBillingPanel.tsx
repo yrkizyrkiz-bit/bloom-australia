@@ -25,7 +25,10 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { formatAud } from "@/lib/membership-display";
-import type { MemberBillingSummary } from "@/lib/billing/member-billing-summary";
+import type {
+  MemberBillingOverview,
+  MemberBillingSummary,
+} from "@/lib/billing/member-billing-summary";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
 type InvoiceRow = {
@@ -45,19 +48,122 @@ const PROGRAM_SUPPORT_ROUTES: Record<string, string> = {
   mens_health_sexual: "/dashboard/mens-health/sexual-health",
   womens_health_vitality: "/dashboard/womens-health/vitality",
   womens_health_sexual: "/dashboard/womens-health/sexual-health",
+  biological_clock: "/dashboard/biological-age",
+  organ_care: "/dashboard/organ-care",
 };
 
-function hasProgramBilling(billing: MemberBillingSummary | null): boolean {
-  return Boolean(billing && billing.program !== "other");
+export type MemberBillingPanelData =
+  | MemberBillingOverview
+  | MemberBillingSummary
+  | null;
+
+function normalizeBillingOverview(
+  billing: MemberBillingPanelData
+): MemberBillingOverview | null {
+  if (!billing) return null;
+  if ("programs" in billing && Array.isArray(billing.programs)) {
+    return billing;
+  }
+  const summary = billing as MemberBillingSummary;
+  if (summary.program === "other") return null;
+  return {
+    programs: [summary],
+    journeyStatus: summary.journeyStatus,
+    journeyLabel: summary.journeyLabel,
+  };
 }
 
 type MemberBillingPanelProps = {
-  billing: MemberBillingSummary | null;
+  billing: MemberBillingPanelData;
   invoices?: InvoiceRow[];
   loading?: boolean;
   compact?: boolean;
   showUpgradeRequest?: boolean;
 };
+
+function ProgramSubscriptionCard({
+  billing,
+  compact,
+}: {
+  billing: MemberBillingSummary;
+  compact?: boolean;
+}) {
+  const isAnnual = billing.billingModel === "annual_subscription";
+  const supportHref =
+    PROGRAM_SUPPORT_ROUTES[billing.program] || "/dashboard/messages";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">{billing.programLabel}</CardTitle>
+        <CardDescription>{billing.recurring.label}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="rounded-lg border p-4">
+            <p className="text-xs text-muted-foreground">Plan</p>
+            <p className="font-semibold text-lg">{billing.planLabel}</p>
+          </div>
+          <div className="rounded-lg border p-4">
+            <p className="text-xs text-muted-foreground">Recurring</p>
+            <p className="font-semibold text-lg">
+              {billing.recurring.amountAud != null
+                ? formatAud(billing.recurring.amountAud)
+                : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {billing.recurring.billingLabel || "Monthly"}
+            </p>
+          </div>
+          <div className="rounded-lg border p-4">
+            <p className="text-xs text-muted-foreground">Status</p>
+            <Badge variant="outline" className="mt-1 capitalize">
+              {billing.recurring.status.replace(/_/g, " ")}
+            </Badge>
+          </div>
+          <div className="rounded-lg border p-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              Paid till
+            </p>
+            <p className="font-semibold">
+              {billing.recurring.paidTill
+                ? new Date(billing.recurring.paidTill).toLocaleDateString("en-AU", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "—"}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border p-4 bg-muted/30">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {isAnnual ? "Annual subscription" : "First month"}
+          </p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="font-medium">
+              {billing.firstMonth.amountAud != null
+                ? formatAud(billing.firstMonth.amountAud)
+                : "—"}
+            </p>
+            <Badge variant="outline">{billing.firstMonth.status}</Badge>
+          </div>
+        </div>
+
+        {!compact && (
+          <Link href={supportHref}>
+            <Button variant="outline" size="sm">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Contact care team
+            </Button>
+          </Link>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function MemberBillingPanel({
   billing,
@@ -69,6 +175,14 @@ export function MemberBillingPanel({
   const [portalLoading, setPortalLoading] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeRequested, setUpgradeRequested] = useState(false);
+
+  const overview = normalizeBillingOverview(billing);
+  const programs = overview?.programs ?? [];
+  const weightProgram = programs.find((p) => p.program === "weight_management");
+  const isPastDue = programs.some((p) => p.recurring.status === "past_due");
+  const canRequestPrecision =
+    showUpgradeRequest &&
+    weightProgram?.selectedPlan === "CORE";
 
   const openPortal = async () => {
     setPortalLoading(true);
@@ -116,7 +230,7 @@ export function MemberBillingPanel({
     );
   }
 
-  if (!hasProgramBilling(billing) || !billing) {
+  if (programs.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -134,14 +248,6 @@ export function MemberBillingPanel({
       </Card>
     );
   }
-
-  const isPastDue = billing.recurring.status === "past_due";
-  const canRequestPrecision =
-    showUpgradeRequest &&
-    billing.program === "weight_management" &&
-    billing.selectedPlan === "CORE";
-  const supportHref =
-    PROGRAM_SUPPORT_ROUTES[billing.program] || "/dashboard/messages";
 
   return (
     <div className="space-y-6">
@@ -167,65 +273,26 @@ export function MemberBillingPanel({
         </Card>
       )}
 
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">
+            {programs.length === 1 ? "Current subscription" : "Your subscriptions"}
+          </h2>
+          {programs.length > 1 && (
+            <Badge variant="secondary">{programs.length} programs</Badge>
+          )}
+        </div>
+        {programs.map((program) => (
+          <ProgramSubscriptionCard
+            key={program.program}
+            billing={program}
+            compact={compact}
+          />
+        ))}
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Current subscription</CardTitle>
-          <CardDescription>{billing.recurring.label}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground">Plan</p>
-              <p className="font-semibold text-lg">{billing.planLabel}</p>
-            </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground">Recurring</p>
-              <p className="font-semibold text-lg">
-                {billing.recurring.amountAud != null
-                  ? formatAud(billing.recurring.amountAud)
-                  : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {billing.recurring.billingLabel || "Monthly"}
-              </p>
-            </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground">Status</p>
-              <Badge variant="outline" className="mt-1 capitalize">
-                {billing.recurring.status.replace(/_/g, " ")}
-              </Badge>
-            </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                Paid till
-              </p>
-              <p className="font-semibold">
-                {billing.recurring.paidTill
-                  ? new Date(billing.recurring.paidTill).toLocaleDateString("en-AU", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "—"}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border p-4 bg-muted/30">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              First month
-            </p>
-            <div className="flex items-center justify-between mt-2">
-              <p className="font-medium">
-                {billing.firstMonth.amountAud != null
-                  ? formatAud(billing.firstMonth.amountAud)
-                  : "—"}
-              </p>
-              <Badge variant="outline">{billing.firstMonth.status}</Badge>
-            </div>
-          </div>
-
+        <CardContent className="pt-6">
           <div className="flex flex-wrap gap-2">
             <Button onClick={openPortal} disabled={portalLoading} variant="default">
               <CreditCard className="w-4 h-4 mr-2" />
@@ -239,17 +306,11 @@ export function MemberBillingPanel({
                 </Button>
               </Link>
             )}
-            <Link href={supportHref}>
-              <Button variant="outline">
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Contact care team
-              </Button>
-            </Link>
           </div>
         </CardContent>
       </Card>
 
-      {canRequestPrecision && !compact && (
+      {canRequestPrecision && !compact && weightProgram && (
         <Card className="border-violet-200 bg-gradient-to-br from-violet-50/80 to-white">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -266,7 +327,7 @@ export function MemberBillingPanel({
                 <p className="font-medium">Sanative Core</p>
                 <p className="text-muted-foreground mt-1">Your current plan</p>
                 <p className="font-semibold mt-2">
-                  {formatAud(billing.recurring.amountAud ?? 349)}/mo
+                  {formatAud(weightProgram.recurring.amountAud ?? 349)}/mo
                 </p>
               </div>
               <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-3">

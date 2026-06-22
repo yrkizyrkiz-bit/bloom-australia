@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MemberBillingPanel } from "@/components/account/MemberBillingPanel";
-import type { MemberBillingSummary } from "@/lib/billing/member-billing-summary";
+import type { MemberBillingOverview } from "@/lib/billing/member-billing-summary";
 import { ArrowLeft, CreditCard } from "lucide-react";
 
 type InvoiceRow = {
@@ -18,7 +18,7 @@ type InvoiceRow = {
 };
 
 export default function BillingPage() {
-  const [billing, setBilling] = useState<MemberBillingSummary | null>(null);
+  const [billing, setBilling] = useState<MemberBillingOverview | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
 
