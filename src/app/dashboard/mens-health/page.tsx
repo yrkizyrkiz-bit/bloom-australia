@@ -1,20 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalContext } from "@/hooks/usePortalContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
-  Sparkles, Heart, Zap, TrendingUp, ChevronRight, Play,
-  Settings, MessageCircle, Shield, Award, Lightbulb,
-  Sun, Moon, Pill, Calendar, Camera, Brain, Dumbbell,
-  Battery, Flame, Target, Clock, CheckCircle2
+  Sparkles, Heart, Zap, ChevronRight, Play,
+  Shield, Award, Lightbulb,
+  Sun, Pill, Camera, MessageCircle, CheckCircle2,
+  Battery, Flame, Target, Loader2
 } from "lucide-react";
 import Link from "next/link";
+import { MensHealthProgramModuleCard } from "@/components/dashboard/MensHealthProgramModuleCard";
+import { isProgramEntitled } from "@/lib/membership/program-access";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import {
+  loadVitalityCheckIns,
+  computeVitalityStreak,
+  getTodayVitalityCheckIn,
+  computeWeeklyEnergyAverage,
+} from "@/lib/mens-health/vitality-check-ins";
+import { cn } from "@/lib/utils";
 
-// Get time-based greeting
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -22,7 +31,6 @@ function getGreeting(): string {
   return "Good evening";
 }
 
-// Motivational messages
 const motivations = [
   "Taking charge of your health, one day at a time.",
   "Every healthy choice is a step toward your best self.",
@@ -31,63 +39,143 @@ const motivations = [
   "Real progress starts with showing up.",
 ];
 
-// Daily tips for men's health
 const dailyTips = [
-  { title: "Stay Hydrated", content: "Drinking 8 glasses of water daily supports overall vitality and hormone balance.", icon: "hydration" },
-  { title: "Quality Sleep", content: "Aim for 7-9 hours of sleep. It's crucial for testosterone production.", icon: "sleep" },
-  { title: "Stress Management", content: "High cortisol can impact your health goals. Try 10 minutes of daily meditation.", icon: "stress" },
-  { title: "Protein Intake", content: "Adequate protein supports muscle maintenance and overall vitality.", icon: "nutrition" },
-  { title: "Stay Active", content: "Regular exercise boosts energy, mood, and supports healthy hormone levels.", icon: "fitness" },
+  { title: "Stay Hydrated", content: "Drinking 8 glasses of water daily supports overall vitality and hormone balance." },
+  { title: "Quality Sleep", content: "Aim for 7-9 hours of sleep. It's crucial for testosterone production." },
+  { title: "Stress Management", content: "High cortisol can impact your health goals. Try 10 minutes of daily meditation." },
+  { title: "Protein Intake", content: "Adequate protein supports muscle maintenance and overall vitality." },
+  { title: "Stay Active", content: "Regular exercise boosts energy, mood, and supports healthy hormone levels." },
 ];
+
+type HairPortalSummary = {
+  status: { hasActiveTreatment: boolean; label: string };
+  progress: { currentDay: number };
+  treatments: Array<{ medicationName: string }>;
+  prescriptions: Array<{ medicationName: string; strength?: string; dosage?: string }>;
+};
+
+type SexualPortalSummary = {
+  status: { label: string };
+  treatment: { medicationName: string } | null;
+  prescription: { medicationName: string } | null;
+};
 
 export default function MensHealthPage() {
   const { user } = useAuth();
-  const [motivation, setMotivation] = useState("");
+  const { data: portal, isLoading: portalLoading } = usePortalContext();
+  const [motivation, setMotivation] = useState(motivations[0]);
   const [dailyTip, setDailyTip] = useState(dailyTips[0]);
+  const [hairData, setHairData] = useState<HairPortalSummary | null>(null);
+  const [sexualData, setSexualData] = useState<SexualPortalSummary | null>(null);
+  const [vitalityCheckIns, setVitalityCheckIns] = useState(loadVitalityCheckIns());
+  const [dataLoading, setDataLoading] = useState(true);
+
+  const hairEntitled = isProgramEntitled(portal?.membership, "HAIR_LOSS");
+  const vitalityEntitled = isProgramEntitled(portal?.membership, "MENS_HEALTH_VITALITY");
+  const sexualEntitled = isProgramEntitled(portal?.membership, "MENS_HEALTH_SEXUAL");
 
   useEffect(() => {
-    // Random motivation
     setMotivation(motivations[Math.floor(Math.random() * motivations.length)]);
-    // Daily tip based on day
     const dayIndex = new Date().getDate() % dailyTips.length;
     setDailyTip(dailyTips[dayIndex]);
+    setVitalityCheckIns(loadVitalityCheckIns());
   }, []);
 
-  // Main health modules
-  const healthModules = [
-    {
-      id: "hair-loss",
-      title: "Hair Restoration",
-      description: "Track progress & manage treatment",
-      icon: Sparkles,
-      href: "/dashboard/mens-health/hair-loss",
-      gradient: "from-violet-600 to-purple-700",
-      stats: { label: "Day 45", value: "Treatment" },
-      image: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=200&h=150&fit=crop"
-    },
-    {
-      id: "vitality",
-      title: "Daily Vitality",
-      description: "Energy, testosterone & wellness",
-      icon: Zap,
-      href: "/dashboard/mens-health/vitality",
-      gradient: "from-amber-500 to-orange-600",
-      stats: { label: "85%", value: "Energy" },
-      image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=150&fit=crop"
-    },
-    {
-      id: "sexual-health",
-      title: "Sexual Wellness",
-      description: "Private, personalized care",
-      icon: Heart,
-      href: "/dashboard/mens-health/sexual-health",
-      gradient: "from-slate-700 to-teal-800",
-      stats: { label: "Active", value: "Treatment" },
-      image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=200&h=150&fit=crop"
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
 
-  // Quick actions
+    async function loadProgramData() {
+      setDataLoading(true);
+      try {
+        const [hairRes, sexualRes] = await Promise.all([
+          hairEntitled ? fetch("/api/hair-loss/portal") : Promise.resolve(null),
+          sexualEntitled ? fetch("/api/mens-health/sexual-health/portal") : Promise.resolve(null),
+        ]);
+
+        if (!cancelled && hairRes?.ok) {
+          setHairData(await hairRes.json());
+        } else if (!cancelled) {
+          setHairData(null);
+        }
+
+        if (!cancelled && sexualRes?.ok) {
+          setSexualData(await sexualRes.json());
+        } else if (!cancelled) {
+          setSexualData(null);
+        }
+      } finally {
+        if (!cancelled) setDataLoading(false);
+      }
+    }
+
+    if (!portalLoading) {
+      loadProgramData();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hairEntitled, sexualEntitled, portalLoading]);
+
+  const todayVitality = getTodayVitalityCheckIn(vitalityCheckIns);
+  const vitalityStreak = computeVitalityStreak(vitalityCheckIns);
+  const weeklyEnergy = computeWeeklyEnergyAverage(vitalityCheckIns);
+  const activeProgramCount = [hairEntitled, vitalityEntitled, sexualEntitled].filter(Boolean).length;
+
+  const healthModules = useMemo(
+    () => [
+      {
+        id: "hair-loss",
+        title: "Hair Restoration",
+        description: "Track progress & manage treatment",
+        icon: Sparkles,
+        href: "/dashboard/mens-health/hair-loss",
+        gradient: "from-violet-600 to-purple-700",
+        entitled: hairEntitled,
+        stats: {
+          label: hairData?.status.hasActiveTreatment
+            ? `Day ${hairData.progress.currentDay}`
+            : hairData?.status.label ?? "Enrolled",
+          value: "Treatment",
+        },
+        image: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=200&h=150&fit=crop",
+      },
+      {
+        id: "vitality",
+        title: "Daily Vitality",
+        description: "Energy, testosterone & wellness",
+        icon: Zap,
+        href: "/dashboard/mens-health/vitality",
+        gradient: "from-amber-500 to-orange-600",
+        entitled: vitalityEntitled,
+        stats: {
+          label: todayVitality
+            ? `${todayVitality.energy}%`
+            : vitalityCheckIns.length > 0
+              ? `${weeklyEnergy}% avg`
+              : "Check in",
+          value: "Energy",
+        },
+        image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=150&fit=crop",
+      },
+      {
+        id: "sexual-health",
+        title: "Sexual Wellness",
+        description: "Private, personalized care",
+        icon: Heart,
+        href: "/dashboard/mens-health/sexual-health",
+        gradient: "from-slate-700 to-teal-800",
+        entitled: sexualEntitled,
+        stats: {
+          label: sexualData?.status.label ?? "Enrolled",
+          value: "Program",
+        },
+        image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=200&h=150&fit=crop",
+      },
+    ],
+    [hairEntitled, vitalityEntitled, sexualEntitled, hairData, sexualData, todayVitality, vitalityCheckIns.length, weeklyEnergy]
+  );
+
   const quickActions = [
     {
       label: "Log Progress",
@@ -95,6 +183,7 @@ export default function MensHealthPage() {
       icon: Camera,
       href: "/dashboard/mens-health/hair-loss/track",
       color: "bg-violet-600",
+      entitled: hairEntitled,
     },
     {
       label: "Check-in",
@@ -102,6 +191,7 @@ export default function MensHealthPage() {
       icon: CheckCircle2,
       href: "/dashboard/mens-health/vitality/check-in",
       color: "bg-amber-500",
+      entitled: vitalityEntitled,
     },
     {
       label: "Medication",
@@ -109,6 +199,7 @@ export default function MensHealthPage() {
       icon: Pill,
       href: "/dashboard/mens-health/treatment",
       color: "bg-teal-600",
+      entitled: hairEntitled || sexualEntitled || vitalityEntitled,
     },
     {
       label: "Care Team",
@@ -116,250 +207,333 @@ export default function MensHealthPage() {
       icon: MessageCircle,
       href: "/dashboard/mens-health/support",
       color: "bg-slate-600",
+      entitled: true,
     },
   ];
 
-  // Featured content
-  const featuredContent = [
-    {
-      title: "Understanding DHT",
-      description: "Learn how DHT affects hair loss",
-      duration: "5 min read",
-      category: "Hair Loss",
-      href: "/dashboard/mens-health/learn/dht",
-    },
-    {
-      title: "Testosterone & Energy",
-      description: "Natural ways to optimize levels",
-      duration: "7 min read",
-      category: "Vitality",
-      href: "/dashboard/mens-health/learn/testosterone",
-    },
-    {
-      title: "ED: Causes & Solutions",
-      description: "Evidence-based treatments",
-      duration: "6 min read",
-      category: "Sexual Health",
-      href: "/dashboard/mens-health/learn/ed-treatments",
-    },
-  ];
+  const treatmentItems = useMemo(() => {
+    const items: Array<{
+      id: string;
+      name: string;
+      program: string;
+      taken: boolean;
+      timeLabel?: string;
+      color: string;
+      icon: typeof Pill;
+    }> = [];
+
+    if (hairEntitled && hairData) {
+      const hairMeds = hairData.treatments.length
+        ? hairData.treatments
+        : hairData.prescriptions;
+      for (const med of hairMeds.slice(0, 1)) {
+        items.push({
+          id: `hair-${med.medicationName}`,
+          name: med.medicationName,
+          program: "Hair Loss Treatment",
+          taken: false,
+          color: "bg-violet-600",
+          icon: Pill,
+        });
+      }
+    }
+
+    if (sexualEntitled && sexualData?.treatment) {
+      items.push({
+        id: `sexual-${sexualData.treatment.medicationName}`,
+        name: sexualData.treatment.medicationName,
+        program: "Sexual Wellness",
+        taken: false,
+        color: "bg-teal-600",
+        icon: Heart,
+      });
+    } else if (sexualEntitled && sexualData?.prescription) {
+      items.push({
+        id: `sexual-${sexualData.prescription.medicationName}`,
+        name: sexualData.prescription.medicationName,
+        program: "Sexual Wellness",
+        taken: false,
+        color: "bg-teal-600",
+        icon: Heart,
+      });
+    }
+
+    return items;
+  }, [hairEntitled, sexualEntitled, hairData, sexualData]);
+
+  if (portalLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Personalized Header - Dark Masculine Theme */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 p-6 text-white">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-teal-500/10 rounded-full -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-cyan-500/10 rounded-full translate-y-1/2 -translate-x-1/3" />
+        <div className="absolute top-0 right-0 h-40 w-40 -translate-y-1/2 translate-x-1/3 rounded-full bg-teal-500/10" />
+        <div className="absolute bottom-0 left-0 h-32 w-32 translate-y-1/2 -translate-x-1/3 rounded-full bg-cyan-500/10" />
 
         <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-1">
-            <Sun className="w-4 h-4 text-teal-400" />
-            <p className="text-teal-300 text-sm">{getGreeting()}</p>
+          <div className="mb-1 flex items-center gap-2">
+            <Sun className="h-4 w-4 text-teal-400" />
+            <p className="text-sm text-teal-300">{getGreeting()}</p>
           </div>
-          <h1 className="text-2xl md:text-3xl font-serif font-semibold mb-2">
+          <h1 className="mb-2 font-serif text-2xl font-semibold md:text-3xl">
             {user?.firstName}
           </h1>
-          <p className="text-slate-300 text-sm">{motivation}</p>
+          <p className="text-sm text-slate-300">{motivation}</p>
 
-          {/* Quick Stats */}
-          <div className="flex items-center gap-6 mt-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/20 text-teal-300 text-sm">
-              <Shield className="w-4 h-4" />
-              <span>3 Active Programs</span>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full bg-teal-500/20 px-3 py-1.5 text-sm text-teal-300">
+              <Shield className="h-4 w-4" />
+              <span>
+                {activeProgramCount} Active Program{activeProgramCount === 1 ? "" : "s"}
+              </span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm">
-              <Flame className="w-4 h-4" />
-              <span>14 Day Streak</span>
-            </div>
+            {vitalityEntitled && vitalityStreak > 0 && (
+              <div className="flex items-center gap-2 rounded-full bg-amber-500/20 px-3 py-1.5 text-sm text-amber-300">
+                <Flame className="h-4 w-4" />
+                <span>{vitalityStreak} Day Streak</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Health Modules - Visual Cards */}
       <div>
-        <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-          <Target className="w-5 h-5 text-teal-600" />
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
+          <Target className="h-5 w-5 text-teal-600" />
           Your Programs
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {healthModules.map((module) => (
-            <Link key={module.id} href={module.href}>
-              <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full border-0 bg-slate-900">
-                <div className="relative h-32 overflow-hidden">
-                  <img
-                    src={module.image}
-                    alt={module.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300 opacity-60"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${module.gradient} opacity-80`} />
-                  <div className="absolute inset-0 flex flex-col justify-end p-4">
-                    <module.icon className="w-8 h-8 text-white mb-2 drop-shadow-lg" />
-                    <h3 className="text-white font-bold text-lg">{module.title}</h3>
-                    <p className="text-white/80 text-sm">{module.description}</p>
-                  </div>
-                  <Badge className="absolute top-3 right-3 bg-white/20 text-white border-0">
-                    {module.stats.label}
-                  </Badge>
-                </div>
-              </Card>
-            </Link>
+            <MensHealthProgramModuleCard
+              key={module.id}
+              module={module}
+              entitled={module.entitled}
+            />
           ))}
         </div>
+        {activeProgramCount === 0 && (
+          <Card className="mt-4 border-dashed">
+            <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+              <p className="font-medium">No men&apos;s health programs enrolled yet</p>
+              <p className="max-w-md text-sm text-muted-foreground">
+                Browse hair, vitality, and sexual wellness programs from your programs hub.
+              </p>
+              <Button asChild>
+                <Link href={MEMBER_PROGRAMS_HOME}>View programs</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Quick Actions Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {quickActions.map((action) => (
-          <Link key={action.label} href={action.href}>
-            <Card className="overflow-hidden hover:shadow-md transition-all cursor-pointer group h-full border-slate-200 dark:border-slate-800">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform`}>
-                  <action.icon className="w-6 h-6 text-white" />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {quickActions.map((action) => {
+          const content = (
+            <Card
+              className={cn(
+                "h-full overflow-hidden border-slate-200 transition-all dark:border-slate-800",
+                action.entitled ? "cursor-pointer hover:shadow-md" : "opacity-45 grayscale"
+              )}
+            >
+              <CardContent className="flex items-center gap-3 p-4">
+                <div
+                  className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-xl shadow-sm",
+                    action.color
+                  )}
+                >
+                  <action.icon className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm">{action.label}</p>
+                  <p className="text-sm font-semibold">{action.label}</p>
                   <p className="text-xs text-muted-foreground">{action.description}</p>
                 </div>
               </CardContent>
             </Card>
-          </Link>
-        ))}
+          );
+
+          if (action.entitled) {
+            return (
+              <Link key={action.label} href={action.href}>
+                {content}
+              </Link>
+            );
+          }
+
+          return (
+            <Link key={action.label} href={MEMBER_PROGRAMS_HOME} title="Join a program to unlock">
+              {content}
+            </Link>
+          );
+        })}
       </div>
 
-      {/* Today's Focus */}
-      <Card className="bg-gradient-to-r from-slate-50 to-teal-50 dark:from-slate-900 dark:to-teal-950/30 border-slate-200 dark:border-slate-800">
+      <Card className="border-slate-200 bg-gradient-to-r from-slate-50 to-teal-50 dark:border-slate-800 dark:from-slate-900 dark:to-teal-950/30">
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center shrink-0">
-              <Lightbulb className="w-6 h-6 text-teal-600" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/50">
+              <Lightbulb className="h-6 w-6 text-teal-600" />
             </div>
             <div className="flex-1">
-              <p className="text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1">Today&apos;s Tip</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                Today&apos;s Tip
+              </p>
               <p className="font-medium text-slate-900 dark:text-white">{dailyTip.title}</p>
-              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">{dailyTip.content}</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{dailyTip.content}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Treatment Overview */}
       <Card className="border-slate-200 dark:border-slate-800">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Pill className="w-5 h-5 text-teal-600" />
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Pill className="h-5 w-5 text-teal-600" />
               Today&apos;s Treatments
             </CardTitle>
-            <Link href="/dashboard/mens-health/treatment">
-              <Button variant="ghost" size="sm" className="text-teal-600">
-                View all <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
+            {(hairEntitled || sexualEntitled) && (
+              <Link href="/dashboard/mens-health/treatment">
+                <Button variant="ghost" size="sm" className="text-teal-600">
+                  View all <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </Link>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Sample treatments */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center">
-                <Pill className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Finasteride 1mg</p>
-                <p className="text-xs text-muted-foreground">Hair Loss Treatment</p>
-              </div>
+          {dataLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Taken
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
+          ) : treatmentItems.length > 0 ? (
+            treatmentItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${item.color}`}>
+                    <item.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.program}</p>
+                  </div>
+                </div>
+                <Badge variant="outline">
+                  {item.timeLabel ?? "Scheduled"}
+                </Badge>
               </div>
-              <div>
-                <p className="font-medium text-sm">Vitamin D3 + Zinc</p>
-                <p className="text-xs text-muted-foreground">Daily Vitality</p>
-              </div>
+            ))
+          ) : (
+            <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
+              <Pill className="mx-auto mb-2 h-8 w-8" />
+              <p className="font-medium">No treatments to show yet</p>
+              <p className="mt-1 text-sm">
+                {activeProgramCount > 0
+                  ? "Prescriptions will appear here once your doctor approves treatment."
+                  : "Enrol in a program to start your care pathway."}
+              </p>
+              {activeProgramCount === 0 && (
+                <Button asChild variant="outline" size="sm" className="mt-4">
+                  <Link href={MEMBER_PROGRAMS_HOME}>Join program</Link>
+                </Button>
+              )}
             </div>
-            <Badge variant="outline" className="border-amber-400 text-amber-600">
-              <Clock className="w-3 h-3 mr-1" /> 6:00 PM
-            </Badge>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Progress Overview */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="bg-gradient-to-br from-violet-500 to-purple-600 border-0 text-white">
-          <CardContent className="p-4 text-center">
-            <Sparkles className="w-6 h-6 mx-auto mb-2" />
-            <p className="text-2xl font-bold">45</p>
-            <p className="text-xs text-white/80">Days on Treatment</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-amber-500 to-orange-600 border-0 text-white">
-          <CardContent className="p-4 text-center">
-            <Battery className="w-6 h-6 mx-auto mb-2" />
-            <p className="text-2xl font-bold">85%</p>
-            <p className="text-xs text-white/80">Energy Level</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-teal-500 to-cyan-600 border-0 text-white">
-          <CardContent className="p-4 text-center">
-            <Award className="w-6 h-6 mx-auto mb-2" />
-            <p className="text-2xl font-bold">14</p>
-            <p className="text-xs text-white/80">Day Streak</p>
-          </CardContent>
-        </Card>
-      </div>
+      {(hairEntitled || vitalityEntitled) && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          {hairEntitled && (
+            <Card className="border-0 bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+              <CardContent className="p-4 text-center">
+                <Sparkles className="mx-auto mb-2 h-6 w-6" />
+                <p className="text-2xl font-bold">
+                  {hairData?.status.hasActiveTreatment ? hairData.progress.currentDay : "—"}
+                </p>
+                <p className="text-xs text-white/80">Days on Treatment</p>
+              </CardContent>
+            </Card>
+          )}
+          {vitalityEntitled && (
+            <>
+              <Card className="border-0 bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+                <CardContent className="p-4 text-center">
+                  <Battery className="mx-auto mb-2 h-6 w-6" />
+                  <p className="text-2xl font-bold">
+                    {todayVitality ? `${todayVitality.energy}%` : weeklyEnergy > 0 ? `${weeklyEnergy}%` : "—"}
+                  </p>
+                  <p className="text-xs text-white/80">Energy Level</p>
+                </CardContent>
+              </Card>
+              <Card className="border-0 bg-gradient-to-br from-teal-500 to-cyan-600 text-white">
+                <CardContent className="p-4 text-center">
+                  <Award className="mx-auto mb-2 h-6 w-6" />
+                  <p className="text-2xl font-bold">{vitalityStreak || "—"}</p>
+                  <p className="text-xs text-white/80">Day Streak</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Featured Content */}
       <Card className="border-slate-200 dark:border-slate-800">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Play className="w-5 h-5 text-teal-600" />
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Play className="h-5 w-5 text-teal-600" />
               Learn & Understand
             </CardTitle>
             <Link href="/dashboard/mens-health/learn">
               <Button variant="ghost" size="sm" className="text-teal-600">
-                See all <ChevronRight className="w-4 h-4 ml-1" />
+                See all <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             </Link>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {featuredContent.map((content, index) => (
-            <Link key={index} href={content.href}>
-              <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-                <div className="w-12 h-12 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                  <Play className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+          {[
+            { title: "Understanding DHT", description: "Learn how DHT affects hair loss", category: "Hair Loss", href: "/dashboard/mens-health/learn/dht" },
+            { title: "Testosterone & Energy", description: "Natural ways to optimize levels", category: "Vitality", href: "/dashboard/mens-health/learn/testosterone" },
+            { title: "ED: Causes & Solutions", description: "Evidence-based treatments", category: "Sexual Health", href: "/dashboard/mens-health/learn/ed-treatments" },
+          ].map((content) => (
+            <Link key={content.href} href={content.href}>
+              <div className="flex cursor-pointer items-center gap-4 rounded-xl bg-slate-50 p-3 transition-colors hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700">
+                  <Play className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{content.title}</p>
-                  <p className="text-xs text-muted-foreground truncate">{content.description}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{content.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">{content.description}</p>
                 </div>
-                <div className="text-right shrink-0">
-                  <Badge variant="secondary" className="text-xs">{content.category}</Badge>
-                  <p className="text-xs text-muted-foreground mt-1">{content.duration}</p>
-                </div>
+                <Badge variant="secondary" className="shrink-0 text-xs">
+                  {content.category}
+                </Badge>
               </div>
             </Link>
           ))}
         </CardContent>
       </Card>
 
-      {/* Discreet & Secure Banner */}
-      <Card className="bg-gradient-to-r from-slate-800 to-slate-900 border-0 text-white">
-        <CardContent className="p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-teal-500/20 flex items-center justify-center shrink-0">
-            <Shield className="w-6 h-6 text-teal-400" />
+      <Card className="border-0 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
+        <CardContent className="flex items-center gap-4 p-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-teal-500/20">
+            <Shield className="h-6 w-6 text-teal-400" />
           </div>
           <div className="flex-1">
             <p className="font-semibold">Private & Discreet</p>
-            <p className="text-sm text-slate-300">Your health data is encrypted and never shared. All packages ship in plain packaging.</p>
+            <p className="text-sm text-slate-300">
+              Your health data is encrypted and never shared. All packages ship in plain packaging.
+            </p>
           </div>
         </CardContent>
       </Card>

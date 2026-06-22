@@ -1,141 +1,210 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
 import {
-  ArrowLeft, Zap, Battery, Sun, Moon, Dumbbell, Brain,
-  Droplets, Utensils, Clock, ChevronRight, CheckCircle2,
-  TrendingUp, Flame, Target, Play, Sparkles, Heart, Shield
+  ArrowLeft, Zap, Sun, Moon, Dumbbell, Brain,
+  Droplets, Utensils, ChevronRight, CheckCircle2,
+  TrendingUp, Flame, Target, Play, Sparkles, Shield, Lock, Loader2
 } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
-
-interface DailyCheckIn {
-  date: string;
-  energy: number;
-  sleep: number;
-  stress: number;
-  mood: number;
-  exercise: boolean;
-  supplements: boolean;
-  hydration: number;
-}
+import { usePortalContext } from "@/hooks/usePortalContext";
+import { isProgramEntitled } from "@/lib/membership/program-access";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import {
+  loadVitalityCheckIns,
+  getTodayVitalityCheckIn,
+  computeVitalityStreak,
+  computeWeeklyEnergyAverage,
+  buildWeeklyEnergySeries,
+  countCompletedHabits,
+  type VitalityCheckIn,
+} from "@/lib/mens-health/vitality-check-ins";
 
 export default function VitalityPage() {
-  const [todayCheckIn, setTodayCheckIn] = useState<DailyCheckIn | null>(null);
-  const [checkIns, setCheckIns] = useState<DailyCheckIn[]>([]);
-  const [energyLevel, setEnergyLevel] = useState(70);
+  const { data: portal, isLoading: portalLoading } = usePortalContext();
+  const vitalityEntitled = isProgramEntitled(portal?.membership, "MENS_HEALTH_VITALITY");
 
-  // Load from localStorage
+  const [checkIns, setCheckIns] = useState<VitalityCheckIn[]>([]);
+  const [todayCheckIn, setTodayCheckIn] = useState<VitalityCheckIn | null>(null);
+
   useEffect(() => {
-    const saved = localStorage.getItem("vitalityCheckIns");
-    if (saved) {
-      const data = JSON.parse(saved);
-      setCheckIns(data);
-
-      // Check if today already has a check-in
-      const today = new Date().toDateString();
-      const todayData = data.find((c: DailyCheckIn) => new Date(c.date).toDateString() === today);
-      if (todayData) {
-        setTodayCheckIn(todayData);
-        setEnergyLevel(todayData.energy);
-      }
-    }
+    const saved = loadVitalityCheckIns();
+    setCheckIns(saved);
+    setTodayCheckIn(getTodayVitalityCheckIn(saved));
   }, []);
 
-  // Calculate weekly average
-  const weeklyAverage = checkIns.length > 0
-    ? Math.round(checkIns.slice(-7).reduce((sum, c) => sum + c.energy, 0) / Math.min(checkIns.length, 7))
-    : 0;
+  const energyLevel = todayCheckIn?.energy ?? 0;
+  const weeklyAverage = computeWeeklyEnergyAverage(checkIns);
+  const streak = computeVitalityStreak(checkIns);
+  const weeklyData = useMemo(() => buildWeeklyEnergySeries(checkIns), [checkIns]);
+  const habitsCompleted = countCompletedHabits(todayCheckIn);
+  const hasCheckInData = checkIns.length > 0;
 
-  // Streak calculation
-  const streak = checkIns.length > 0 ? Math.min(checkIns.length, 14) : 0;
+  const habits = useMemo(
+    () => [
+      {
+        id: "exercise",
+        label: "30min Exercise",
+        icon: Dumbbell,
+        completed: todayCheckIn?.exercise ?? false,
+        color: "text-blue-600",
+      },
+      {
+        id: "sleep",
+        label: "7+ hrs Sleep",
+        icon: Moon,
+        completed: (todayCheckIn?.sleep ?? 0) >= 7,
+        color: "text-indigo-600",
+      },
+      {
+        id: "hydration",
+        label: "8 Glasses Water",
+        icon: Droplets,
+        completed: (todayCheckIn?.hydration ?? 0) >= 8,
+        color: "text-cyan-600",
+      },
+      {
+        id: "nutrition",
+        label: "Balanced Mood",
+        icon: Utensils,
+        completed: (todayCheckIn?.mood ?? 0) >= 6,
+        color: "text-green-600",
+      },
+    ],
+    [todayCheckIn]
+  );
 
-  // Vitality supplements
-  const supplements = [
-    { name: "Vitamin D3", dosage: "4000 IU", time: "Morning", taken: true, benefit: "Immune & bone health" },
-    { name: "Zinc", dosage: "30mg", time: "Evening", taken: false, benefit: "Testosterone support" },
-    { name: "Magnesium", dosage: "400mg", time: "Evening", taken: false, benefit: "Sleep & recovery" },
-    { name: "Ashwagandha", dosage: "600mg", time: "Morning", taken: true, benefit: "Stress & energy" },
-  ];
+  if (portalLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      </div>
+    );
+  }
 
-  // Wellness habits
-  const habits = [
-    { id: "exercise", label: "30min Exercise", icon: Dumbbell, completed: true, color: "text-blue-600" },
-    { id: "sleep", label: "7+ hrs Sleep", icon: Moon, completed: true, color: "text-indigo-600" },
-    { id: "hydration", label: "8 Glasses Water", icon: Droplets, completed: false, color: "text-cyan-600" },
-    { id: "nutrition", label: "Balanced Meals", icon: Utensils, completed: true, color: "text-green-600" },
-  ];
+  if (!vitalityEntitled) {
+    return (
+      <div className="space-y-6 pb-20 md:pb-6">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/mens-health">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
+              <Zap className="h-6 w-6 text-amber-500" />
+              Daily Vitality
+            </h1>
+            <p className="text-muted-foreground">Energy, wellness & testosterone support</p>
+          </div>
+        </div>
 
-  // Weekly energy data for mini chart
-  const weeklyData = [65, 72, 68, 80, 75, 82, energyLevel];
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center px-6 py-12 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-50">
+              <Lock className="h-8 w-8 text-violet-600" />
+            </div>
+            <p className="text-lg font-medium">Daily Vitality is not active yet</p>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              Enrol in the Vitality program to track energy, habits, and wellness check-ins.
+            </p>
+            <Button asChild className="mt-6">
+              <Link href={MEMBER_PROGRAMS_HOME}>Join program</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/dashboard/mens-health">
-          <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Zap className="w-6 h-6 text-amber-500" />
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
+            <Zap className="h-6 w-6 text-amber-500" />
             Daily Vitality
           </h1>
           <p className="text-muted-foreground">Energy, wellness & testosterone support</p>
         </div>
       </div>
 
-      {/* Energy Score Card */}
-      <Card className="overflow-hidden bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 border-0 text-white">
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 text-white">
         <CardContent className="p-6">
-          <div className="flex items-start justify-between mb-6">
+          <div className="mb-6 flex items-start justify-between">
             <div>
-              <p className="text-amber-100 text-sm uppercase tracking-wider mb-1">Today&apos;s Energy</p>
-              <div className="flex items-end gap-2">
-                <p className="text-5xl font-bold">{energyLevel}</p>
-                <p className="text-xl text-amber-100 mb-1">/100</p>
-              </div>
+              <p className="mb-1 text-sm uppercase tracking-wider text-amber-100">
+                Today&apos;s Energy
+              </p>
+              {todayCheckIn ? (
+                <div className="flex items-end gap-2">
+                  <p className="text-5xl font-bold">{energyLevel}</p>
+                  <p className="mb-1 text-xl text-amber-100">/100</p>
+                </div>
+              ) : (
+                <p className="text-2xl font-semibold">No check-in yet</p>
+              )}
             </div>
             <div className="text-right">
-              <Badge className={`${energyLevel >= 70 ? 'bg-green-500/20 text-green-100' : 'bg-amber-500/20 text-amber-100'} border-0`}>
-                {energyLevel >= 80 ? 'Peak' : energyLevel >= 60 ? 'Good' : 'Building'}
-              </Badge>
-              <p className="text-amber-200 text-xs mt-2">
-                Weekly avg: {weeklyAverage}%
+              {todayCheckIn ? (
+                <Badge
+                  className={`border-0 ${
+                    energyLevel >= 70
+                      ? "bg-green-500/20 text-green-100"
+                      : "bg-amber-500/20 text-amber-100"
+                  }`}
+                >
+                  {energyLevel >= 80 ? "Peak" : energyLevel >= 60 ? "Good" : "Building"}
+                </Badge>
+              ) : (
+                <Badge className="border-0 bg-white/20 text-white">Pending</Badge>
+              )}
+              <p className="mt-2 text-xs text-amber-200">
+                Weekly avg: {hasCheckInData ? `${weeklyAverage}%` : "—"}
               </p>
             </div>
           </div>
 
-          {/* Energy Level Slider */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-amber-200 mb-2">
-              <span>Low</span>
-              <span>Optimal</span>
-              <span>Peak</span>
-            </div>
-            <div className="relative h-4 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white rounded-full transition-all"
-                style={{ width: `${energyLevel}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Mini Weekly Chart */}
-          <div className="flex items-end gap-1 h-12 mt-4">
-            {weeklyData.map((value, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center gap-1">
+          {todayCheckIn ? (
+            <div className="mb-4">
+              <div className="mb-2 flex justify-between text-xs text-amber-200">
+                <span>Low</span>
+                <span>Optimal</span>
+                <span>Peak</span>
+              </div>
+              <div className="relative h-4 overflow-hidden rounded-full bg-white/20">
                 <div
-                  className={`w-full rounded-t-sm ${index === weeklyData.length - 1 ? 'bg-white' : 'bg-white/40'}`}
-                  style={{ height: `${(value / 100) * 100}%` }}
+                  className="h-full rounded-full bg-white transition-all"
+                  style={{ width: `${energyLevel}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="mb-4 text-sm text-amber-100">
+              Complete your daily check-in to track energy and build your streak.
+            </p>
+          )}
+
+          <div className="mt-4 flex h-12 items-end gap-1">
+            {weeklyData.map((value, index) => (
+              <div key={index} className="flex flex-1 flex-col items-center gap-1">
+                <div
+                  className={`w-full rounded-t-sm ${
+                    value > 0 ? (index === weeklyData.length - 1 ? "bg-white" : "bg-white/40") : "bg-white/10"
+                  }`}
+                  style={{ height: value > 0 ? `${(value / 100) * 100}%` : "8%" }}
                 />
                 <span className="text-[10px] text-amber-200">
-                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}
+                  {["M", "T", "W", "T", "F", "S", "S"][index]}
                 </span>
               </div>
             ))}
@@ -143,17 +212,16 @@ export default function VitalityPage() {
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
         <Link href="/dashboard/mens-health/vitality/check-in">
-          <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-2 border-amber-200 dark:border-amber-900 hover:border-amber-400">
+          <Card className="cursor-pointer overflow-hidden border-2 border-amber-200 transition-all hover:border-amber-400 hover:shadow-lg dark:border-amber-900">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <CheckCircle2 className="w-6 h-6 text-white" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600">
+                  <CheckCircle2 className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="font-semibold">Check In</p>
+                  <p className="font-semibold">{todayCheckIn ? "Update check-in" : "Check in"}</p>
                   <p className="text-xs text-muted-foreground">Log today</p>
                 </div>
               </div>
@@ -161,11 +229,11 @@ export default function VitalityPage() {
           </Card>
         </Link>
         <Link href="/dashboard/mens-health/vitality/history">
-          <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-slate-200 dark:border-slate-800">
+          <Card className="cursor-pointer overflow-hidden border-slate-200 transition-all hover:shadow-lg dark:border-slate-800">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <TrendingUp className="w-6 h-6 text-slate-600 dark:text-slate-300" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+                  <TrendingUp className="h-6 w-6 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div>
                   <p className="font-semibold">Trends</p>
@@ -177,174 +245,159 @@ export default function VitalityPage() {
         </Link>
       </div>
 
-      {/* Stats Row */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="border-slate-200 dark:border-slate-800">
           <CardContent className="p-4 text-center">
-            <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
-            <p className="text-xl font-bold">{streak}</p>
+            <Flame className="mx-auto mb-1 h-5 w-5 text-orange-500" />
+            <p className="text-xl font-bold">{streak || "—"}</p>
             <p className="text-[10px] text-muted-foreground">Day Streak</p>
           </CardContent>
         </Card>
         <Card className="border-slate-200 dark:border-slate-800">
           <CardContent className="p-4 text-center">
-            <Target className="w-5 h-5 mx-auto mb-1 text-teal-500" />
-            <p className="text-xl font-bold">3/4</p>
+            <Target className="mx-auto mb-1 h-5 w-5 text-teal-500" />
+            <p className="text-xl font-bold">
+              {todayCheckIn ? `${habitsCompleted}/4` : "—"}
+            </p>
             <p className="text-[10px] text-muted-foreground">Habits Today</p>
           </CardContent>
         </Card>
         <Card className="border-slate-200 dark:border-slate-800">
           <CardContent className="p-4 text-center">
-            <Shield className="w-5 h-5 mx-auto mb-1 text-violet-500" />
-            <p className="text-xl font-bold">2/4</p>
-            <p className="text-[10px] text-muted-foreground">Supplements</p>
+            <Sun className="mx-auto mb-1 h-5 w-5 text-amber-500" />
+            <p className="text-xl font-bold">
+              {todayCheckIn ? `${todayCheckIn.sleep}h` : "—"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">Sleep</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Today's Supplements */}
       <Card className="border-slate-200 dark:border-slate-800">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Shield className="w-5 h-5 text-amber-500" />
-              Today&apos;s Supplements
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Shield className="h-5 w-5 text-amber-500" />
+              Prescribed Supplements
             </CardTitle>
             <Link href="/dashboard/mens-health/treatment">
               <Button variant="ghost" size="sm" className="text-amber-600">
-                Manage <ChevronRight className="w-4 h-4 ml-1" />
+                Manage <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             </Link>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {supplements.map((supplement, index) => (
-            <div
-              key={index}
-              className={`flex items-center justify-between p-3 rounded-xl border ${
-                supplement.taken
-                  ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
-                  : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  supplement.taken ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-700'
-                }`}>
-                  {supplement.taken ? (
-                    <CheckCircle2 className="w-5 h-5 text-white" />
-                  ) : (
-                    <Clock className="w-5 h-5 text-slate-500" />
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{supplement.name}</p>
-                  <p className="text-xs text-muted-foreground">{supplement.dosage} • {supplement.time}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <Badge variant={supplement.taken ? "default" : "outline"} className={supplement.taken ? "bg-green-600" : ""}>
-                  {supplement.taken ? "Taken" : supplement.time}
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Daily Habits */}
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-500" />
-            Daily Wellness Habits
-          </CardTitle>
-        </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3">
-            {habits.map((habit) => (
-              <div
-                key={habit.id}
-                className={`flex items-center gap-3 p-3 rounded-xl border ${
-                  habit.completed
-                    ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
-                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  habit.completed ? 'bg-green-100 dark:bg-green-900/50' : 'bg-slate-200 dark:bg-slate-800'
-                }`}>
-                  <habit.icon className={`w-5 h-5 ${habit.completed ? habit.color : 'text-slate-400'}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${habit.completed ? '' : 'text-muted-foreground'}`}>
-                    {habit.label}
-                  </p>
-                  {habit.completed && (
-                    <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
+            <Shield className="mx-auto mb-2 h-8 w-8" />
+            <p className="font-medium">No supplements prescribed yet</p>
+            <p className="mt-1 text-sm">
+              Doctor-approved supplements will appear here once your treatment plan is active.
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Testosterone Support Tips */}
-      <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-900">
+      <Card className="border-slate-200 dark:border-slate-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Sparkles className="h-5 w-5 text-amber-500" />
+            Daily Wellness Habits
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!todayCheckIn ? (
+            <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
+              <p className="font-medium">Complete a check-in to track habits</p>
+              <Link href="/dashboard/mens-health/vitality/check-in" className="mt-4 inline-block">
+                <Button size="sm">Start check-in</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {habits.map((habit) => (
+                <div
+                  key={habit.id}
+                  className={`flex items-center gap-3 rounded-xl border p-3 ${
+                    habit.completed
+                      ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20"
+                      : "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                  }`}
+                >
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                      habit.completed
+                        ? "bg-green-100 dark:bg-green-900/50"
+                        : "bg-slate-200 dark:bg-slate-800"
+                    }`}
+                  >
+                    <habit.icon
+                      className={`h-5 w-5 ${habit.completed ? habit.color : "text-slate-400"}`}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`truncate text-sm font-medium ${
+                        habit.completed ? "" : "text-muted-foreground"
+                      }`}
+                    >
+                      {habit.label}
+                    </p>
+                    {habit.completed && (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-green-500" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:border-amber-900 dark:from-amber-950/20 dark:to-orange-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
-              <Brain className="w-5 h-5 text-amber-600" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
+              <Brain className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="font-semibold text-sm text-amber-900 dark:text-amber-100">Optimize Naturally</p>
-              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                Compound exercises like squats and deadlifts can boost testosterone naturally. Aim for 3-4 strength sessions per week.
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                Optimize Naturally
+              </p>
+              <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                Compound exercises like squats and deadlifts can boost testosterone naturally.
+                Aim for 3-4 strength sessions per week.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Learn Section */}
       <Card className="border-slate-200 dark:border-slate-800">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Play className="w-5 h-5 text-amber-500" />
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Play className="h-5 w-5 text-amber-500" />
               Learn & Optimize
             </CardTitle>
             <Link href="/dashboard/mens-health/learn">
               <Button variant="ghost" size="sm" className="text-amber-600">
-                See all <ChevronRight className="w-4 h-4 ml-1" />
+                See all <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             </Link>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <Link href="/dashboard/mens-health/learn/testosterone">
-            <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-              <div className="w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
-                <Play className="w-5 h-5 text-amber-600" />
+            <div className="flex cursor-pointer items-center gap-4 rounded-xl bg-slate-50 p-3 transition-colors hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
+                <Play className="h-5 w-5 text-amber-600" />
               </div>
               <div className="flex-1">
-                <p className="font-medium text-sm">Natural Testosterone Optimization</p>
+                <p className="text-sm font-medium">Natural Testosterone Optimization</p>
                 <p className="text-xs text-muted-foreground">Evidence-based strategies</p>
               </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </div>
-          </Link>
-          <Link href="/dashboard/mens-health/learn/sleep-energy">
-            <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-              <div className="w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
-                <Play className="w-5 h-5 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-sm">Sleep & Energy Connection</p>
-                <p className="text-xs text-muted-foreground">Maximize recovery</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>
           </Link>
         </CardContent>
