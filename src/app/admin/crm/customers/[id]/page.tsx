@@ -19,7 +19,7 @@ import {
   Activity, Heart, Droplets, Flame, Scale, FileText, CreditCard, Clock,
   CheckCircle, AlertCircle, TrendingUp, TrendingDown, Plus, Zap, Shield, Sparkles, FlaskConical,
   ClipboardList, AlertTriangle, Target, Pill, Brain, Utensils, ExternalLink,
-  Receipt, RefreshCcw, DollarSign, CalendarClock, Package, Download, KeyRound
+  Receipt, RefreshCcw, DollarSign, CalendarClock, Package, Download, KeyRound, Ban
 } from "lucide-react";
 import {
   Dialog,
@@ -242,6 +242,12 @@ export default function CustomerDetailPage() {
   const [selectedCadenceId, setSelectedCadenceId] = useState("");
   const [portalLoading, setPortalLoading] = useState(false);
   const [tierUpgradeLoading, setTierUpgradeLoading] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelProgramSlug, setCancelProgramSlug] = useState("");
+  const [cancelProgramLabel, setCancelProgramLabel] = useState("");
+  const [cancelEffective, setCancelEffective] = useState<"period_end" | "immediate">("period_end");
+  const [cancelReason, setCancelReason] = useState("");
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [rescheduleBooking, setRescheduleBooking] = useState<Record<string, unknown> | null>(null);
   const [cancelBooking, setCancelBooking] = useState<Record<string, unknown> | null>(null);
@@ -456,7 +462,24 @@ export default function CustomerDetailPage() {
 
   type ProgramSubscriptionView = NonNullable<typeof subscription> & {
     billingModel?: "program_first_month" | "annual_subscription";
+    program?: string;
+    programLabel?: string;
   };
+
+  const openCancelDialog = (programSub: ProgramSubscriptionView) => {
+    setCancelProgramSlug(programSub.program || subscription?.program || "");
+    setCancelProgramLabel(
+      programSub.programLabel || programSub.planName || "Membership"
+    );
+    setCancelEffective("period_end");
+    setCancelReason("");
+    setCancelDialogOpen(true);
+  };
+
+  const isProgramCancellable = (programSub: ProgramSubscriptionView) =>
+    programSub.status !== "CANCELLED" &&
+    programSub.recurring?.status !== "cancelled" &&
+    programSub.program !== "other";
 
   const programSubscriptions: ProgramSubscriptionView[] =
     (assessmentData?.programSubscriptions as ProgramSubscriptionView[] | undefined)?.length
@@ -1239,6 +1262,20 @@ export default function CustomerDetailPage() {
                             </p>
                           </div>
                         )}
+
+                        {isProgramCancellable(programSub) && (
+                          <div className="mt-4 flex justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => openCancelDialog(programSub)}
+                            >
+                              <Ban className="w-4 h-4 mr-2" />
+                              Cancel membership
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -1292,6 +1329,20 @@ export default function CustomerDetailPage() {
                         <RefreshCcw className="w-4 h-4 mr-2" />
                         Change billing cadence
                       </Button>
+                      {programSubscriptions.some(isProgramCancellable) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => {
+                            const first = programSubscriptions.find(isProgramCancellable);
+                            if (first) openCancelDialog(first);
+                          }}
+                        >
+                          <Ban className="w-4 h-4 mr-2" />
+                          Cancel membership
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -1416,6 +1467,117 @@ export default function CustomerDetailPage() {
                       </Button>
                     </CardContent>
                   </Card>
+
+                  <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Cancel membership</DialogTitle>
+                        <DialogDescription>
+                          Process a member cancellation request. Access continues until the chosen effective date.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        {programSubscriptions.filter(isProgramCancellable).length > 1 && (
+                          <div className="space-y-2">
+                            <Label>Program</Label>
+                            <Select
+                              value={cancelProgramSlug}
+                              onValueChange={(slug) => {
+                                const match = programSubscriptions.find((p) => p.program === slug);
+                                setCancelProgramSlug(slug);
+                                setCancelProgramLabel(
+                                  match?.programLabel || match?.planName || "Membership"
+                                );
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select program" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {programSubscriptions.filter(isProgramCancellable).map((p) => (
+                                  <SelectItem key={p.program || p.planName} value={p.program || ""}>
+                                    {p.programLabel || p.planName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        {programSubscriptions.filter(isProgramCancellable).length <= 1 && (
+                          <div className="rounded-lg border p-3 bg-muted/40">
+                            <p className="text-sm font-medium">{cancelProgramLabel}</p>
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <Label>When should cancellation take effect?</Label>
+                          <Select
+                            value={cancelEffective}
+                            onValueChange={(v) =>
+                              setCancelEffective(v as "period_end" | "immediate")
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="period_end">
+                                End of billing period (recommended)
+                              </SelectItem>
+                              <SelectItem value="immediate">
+                                Immediately — revoke access now
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Cancellation reason / notes</Label>
+                          <Textarea
+                            placeholder="Member requested cancellation via phone/email..."
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
+                          Keep membership
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          disabled={!cancelProgramSlug || cancelLoading}
+                          onClick={async () => {
+                            setCancelLoading(true);
+                            try {
+                              const res = await fetch("/api/admin/billing/cancel-subscription", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  memberId: customer.id,
+                                  program: cancelProgramSlug,
+                                  effective: cancelEffective,
+                                  reason: cancelReason.trim() || undefined,
+                                }),
+                              });
+                              const data = await res.json().catch(() => ({}));
+                              if (!res.ok) {
+                                throw new Error(data.error || "Failed to cancel membership");
+                              }
+                              toast.success(data.message || "Membership cancelled");
+                              setCancelDialogOpen(false);
+                              fetchData();
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : "Failed to cancel");
+                            } finally {
+                              setCancelLoading(false);
+                            }
+                          }}
+                        >
+                          {cancelLoading ? "Cancelling..." : "Confirm cancellation"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
 
                   <Dialog open={changePlanOpen} onOpenChange={setChangePlanOpen}>
                     <DialogContent>

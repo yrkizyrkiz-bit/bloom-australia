@@ -74,6 +74,12 @@ export async function GET() {
       history: [],
       journeyStatus: user.journeyStatus,
       journeyLabel: STAGE_DESCRIPTIONS[user.journeyStatus] || user.journeyStatus,
+      subscriptionAccess: {
+        isActive: false,
+        isExpired: true,
+        expiresAt: null,
+        message: "No active subscription on this account.",
+      },
     };
 
     const primaryBilling = billingOverview.programs[0] ?? emptyBilling;

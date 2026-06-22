@@ -20,6 +20,8 @@ import {
   getConsultationCountdown,
   getTimelineProgress,
 } from "@/lib/program-journey/timeline";
+import { programSlugFromProgramKey } from "@/lib/billing/member-billing-summary";
+import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
 export type ProgramJourneyViewModel = {
   journeyStatus: string;
@@ -66,7 +68,8 @@ export function ProgramJourneyShell({
   });
 
   return (
-    <div className="space-y-6 pb-8">
+    <ProgramSubscriptionGate programSlug={programSlugFromProgramKey(programKey)}>
+      <div className="space-y-6 pb-8">
       <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${theme.headerGradient} p-6 text-white`}>
         <div className="absolute top-0 right-0 h-40 w-40 -translate-y-1/2 translate-x-1/3 rounded-full bg-white/5" />
         <div className="absolute bottom-0 left-0 h-32 w-32 translate-y-1/2 -translate-x-1/3 rounded-full bg-white/5" />
@@ -233,6 +236,7 @@ export function ProgramJourneyShell({
       </Card>
 
       {children}
-    </div>
+      </div>
+    </ProgramSubscriptionGate>
   );
 }

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { isProgramEntitled } from "@/lib/membership/program-access";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 import {
   loadVitalityCheckIns,
   getTodayVitalityCheckIn,
@@ -122,6 +123,7 @@ export default function VitalityPage() {
   }
 
   return (
+    <ProgramSubscriptionGate programSlug="mens_health_vitality">
     <div className="space-y-6 pb-20 md:pb-6">
       <div className="flex items-center gap-4">
         <Link href="/dashboard/mens-health">
@@ -403,5 +405,6 @@ export default function VitalityPage() {
         </CardContent>
       </Card>
     </div>
+    </ProgramSubscriptionGate>
   );
 }

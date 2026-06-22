@@ -8,6 +8,8 @@ import { usePortalContext } from "@/hooks/usePortalContext";
 import { PortalStateBadge } from "@/components/portal/PortalInsightState";
 import type { ProgramKey } from "@/lib/membership/keys";
 import type { EntitlementState } from "@/lib/membership/biomarker-readiness";
+import { programSlugFromProgramKey } from "@/lib/billing/member-billing-summary";
+import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
 export type ProgramFocusLandingProps = {
   programKey: ProgramKey;
@@ -32,6 +34,7 @@ export function ProgramFocusLanding({
   const entitled = state === "ready" || state === "partial" || state === "pending_results";
 
   return (
+    <ProgramSubscriptionGate programSlug={programSlugFromProgramKey(programKey)}>
     <div className="mx-auto max-w-3xl px-0 py-4 sm:px-4 sm:py-8">
       <Link
         href="/dashboard"
@@ -97,5 +100,6 @@ export function ProgramFocusLanding({
         </Card>
       </div>
     </div>
+    </ProgramSubscriptionGate>
   );
 }

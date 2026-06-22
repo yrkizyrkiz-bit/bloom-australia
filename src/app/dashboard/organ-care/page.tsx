@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ORGAN_CARE_CARD } from "@/lib/programs/catalog";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
+import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
 /** Organ & Metabolic Care overview — unified scores across all six health categories. */
 export default function OrganCareDashboardPage() {
@@ -37,6 +38,7 @@ export default function OrganCareDashboardPage() {
   }
 
   return (
+    <ProgramSubscriptionGate programSlug="organ_care">
     <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
       <div className="flex items-start gap-2 sm:gap-3">
         <Button variant="ghost" size="icon" asChild className="shrink-0">
@@ -56,5 +58,6 @@ export default function OrganCareDashboardPage() {
 
       <UnifiedHealthDashboard gender={gender} />
     </div>
+    </ProgramSubscriptionGate>
   );
 }

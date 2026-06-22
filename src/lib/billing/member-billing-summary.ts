@@ -18,6 +18,14 @@ import {
   type ProgramKey,
 } from "@/lib/membership/keys";
 import { getLatestPortalQuizSubmissions } from "@/lib/portal-quiz-submissions";
+import {
+  evaluateSubscriptionAccess,
+  resolveInvoiceForBilling,
+  resolveLatestPaidTill,
+  type BillableScopeKey,
+  type BillingInvoiceRow,
+  type SubscriptionAccessStatus,
+} from "./paid-till";
 
 export type BillingModel = "program_first_month" | "annual_subscription";
 
@@ -70,6 +78,7 @@ export type MemberBillingSummary = {
   }>;
   journeyStatus: string;
   journeyLabel: string;
+  subscriptionAccess: SubscriptionAccessStatus;
 };
 
 export type MemberBillingOverview = {
@@ -134,8 +143,6 @@ const PROGRAM_BILLING_PRIORITY: ProgramKey[] = [
   "WOMENS_HEALTH_VITALITY",
 ];
 
-type BillableScopeKey = "BIOLOGICAL_CLOCK" | "ORGAN_CARE";
-
 const SCOPE_SLUG: Record<BillableScopeKey, string> = {
   BIOLOGICAL_CLOCK: "biological_clock",
   ORGAN_CARE: "organ_care",
@@ -143,12 +150,7 @@ const SCOPE_SLUG: Record<BillableScopeKey, string> = {
 
 const SCOPE_BILLING_PRIORITY: BillableScopeKey[] = ["BIOLOGICAL_CLOCK", "ORGAN_CARE"];
 
-type InvoiceRow = {
-  stripeId: string | null;
-  description: string | null;
-  amount: number;
-  paidAt: Date | null;
-};
+type InvoiceRow = BillingInvoiceRow;
 
 function getPlanLabel(tier: "CORE" | "PRECISION" | null): string {
   if (tier === "PRECISION") return "Sanative Precision";
@@ -160,86 +162,15 @@ function programSlugFromKey(key: ProgramKey): string {
   return PROGRAM_SLUG[key];
 }
 
-function extractPaymentIntentId(notes: string | null | undefined): string | null {
-  if (!notes) return null;
-  const match = notes.match(/\bPI\s+(pi_[a-zA-Z0-9]+)/i);
-  return match?.[1] ?? null;
+export function programSlugFromProgramKey(key: ProgramKey): string {
+  return PROGRAM_SLUG[key];
 }
 
-function invoiceMatchesProgram(description: string | null | undefined, programKey: ProgramKey): boolean {
-  const text = (description || "").toLowerCase();
-  if (!text) return false;
-
-  switch (programKey) {
-    case "HAIR_LOSS":
-      return text.includes("hair");
-    case "WEIGHT_MANAGEMENT":
-      return (
-        text.includes("weight") ||
-        text.includes("sanative core") ||
-        text.includes("sanative precision")
-      );
-    case "MENS_HEALTH_VITALITY":
-    case "WOMENS_HEALTH_VITALITY":
-      return text.includes("vitality");
-    case "MENS_HEALTH_SEXUAL":
-    case "WOMENS_HEALTH_SEXUAL":
-      return text.includes("sexual");
-    default:
-      return false;
-  }
-}
-
-function invoiceMatchesScope(description: string | null | undefined, scopeKey: BillableScopeKey): boolean {
-  const text = (description || "").toLowerCase();
-  if (!text) return false;
-
-  switch (scopeKey) {
-    case "BIOLOGICAL_CLOCK":
-      return (
-        text.includes("biomarker") ||
-        text.includes("biological") ||
-        text.includes("essential panel") ||
-        text.includes("extended panel") ||
-        text.includes("comprehensive panel") ||
-        /\b(essential|extended|comprehensive)\b/.test(text)
-      );
-    case "ORGAN_CARE":
-      return text.includes("organ care") || text.includes("organ &") || text.includes("metabolic care");
-    default:
-      return false;
-  }
-}
-
-/** Prefer PaymentIntent id from entitlement notes; fall back to description matching. */
-function resolveInvoiceForBilling(
-  invoices: InvoiceRow[],
-  entitlement: { notes: string | null } | null | undefined,
-  matchers: { programKey?: ProgramKey; scopeKey?: BillableScopeKey }
-): InvoiceRow | undefined {
-  const paymentIntentId = extractPaymentIntentId(entitlement?.notes);
-  if (paymentIntentId) {
-    const byPaymentIntent = invoices.find((inv) => inv.stripeId === paymentIntentId);
-    if (byPaymentIntent) {
-      if (matchers.scopeKey && !invoiceMatchesScope(byPaymentIntent.description, matchers.scopeKey)) {
-        return undefined;
-      }
-      if (matchers.programKey && !invoiceMatchesProgram(byPaymentIntent.description, matchers.programKey)) {
-        return undefined;
-      }
-      return byPaymentIntent;
-    }
-  }
-
-  if (matchers.programKey) {
-    const programKey = matchers.programKey;
-    return invoices.find((inv) => invoiceMatchesProgram(inv.description, programKey));
-  }
-  if (matchers.scopeKey) {
-    const scopeKey = matchers.scopeKey;
-    return invoices.find((inv) => invoiceMatchesScope(inv.description, scopeKey));
-  }
-  return undefined;
+export function getBillingSummaryBySlug(
+  overview: MemberBillingOverview,
+  slug: string
+): MemberBillingSummary | undefined {
+  return overview.programs.find((program) => program.program === slug);
 }
 
 function parseBiomarkerTierFromNotes(notes: string | null | undefined): string | null {
@@ -560,6 +491,29 @@ async function buildProgramBillingSummary(
     product?.name ||
     (planTier ? getPlanLabel(planTier) : programLabel);
 
+  const resolvedInterval = billingInterval ?? "MONTHLY";
+  const paidTillDate = resolveLatestPaidTill({
+    billingInterval: resolvedInterval,
+    invoices: ctx.user.invoices,
+    entitlement,
+    matchers: { programKey },
+    stripePeriodEnd: memberSub?.currentPeriodEnd,
+    intakePaidAt:
+      programKey === "WEIGHT_MANAGEMENT" && ctx.intake?.paymentStatus === "PAID"
+        ? ctx.intake.paidAt ?? null
+        : null,
+  });
+  paidTill = paidTillDate?.toISOString() ?? paidTill;
+  nextBilling = paidTill ?? nextBilling;
+
+  const subscriptionAccess = evaluateSubscriptionAccess({
+    paidTill: paidTillDate,
+    recurringStatus,
+    memberSubStatus: memberSub?.status,
+    firstMonthPaid,
+    programLabel,
+  });
+
   return {
     program: programSlug,
     programLabel,
@@ -610,6 +564,7 @@ async function buildProgramBillingSummary(
     history,
     journeyStatus: ctx.user.journeyStatus,
     journeyLabel: ctx.stageDescription || ctx.user.journeyStatus,
+    subscriptionAccess,
   };
 }
 
@@ -700,7 +655,7 @@ async function buildScopeBillingSummary(
     memberSub?.currentPeriodEnd?.toISOString() ??
     legacyOrgan?.currentPeriodEnd?.toISOString() ??
     null;
-  const paidTill = nextBilling;
+  let paidTill: string | null = nextBilling;
 
   if (memberSub?.status === "ACTIVE" || legacyOrgan?.status === "ACTIVE") {
     recurringStatus = "active";
@@ -746,6 +701,25 @@ async function buildScopeBillingSummary(
   }));
 
   const planLabel = memberSub?.product.name || product?.name || programLabel;
+
+  const paidTillDate = resolveLatestPaidTill({
+    billingInterval,
+    invoices: ctx.user.invoices,
+    entitlement,
+    matchers: { scopeKey },
+    stripePeriodEnd: memberSub?.currentPeriodEnd,
+    legacyPeriodEnd: legacyOrgan?.currentPeriodEnd,
+  });
+  paidTill = paidTillDate?.toISOString() ?? paidTill;
+  nextBilling = paidTill ?? nextBilling;
+
+  const subscriptionAccess = evaluateSubscriptionAccess({
+    paidTill: paidTillDate,
+    recurringStatus,
+    memberSubStatus: memberSub?.status ?? legacyOrgan?.status,
+    firstMonthPaid: isPaid,
+    programLabel,
+  });
 
   return {
     program: programSlug,
@@ -798,6 +772,7 @@ async function buildScopeBillingSummary(
     history,
     journeyStatus: ctx.user.journeyStatus,
     journeyLabel: ctx.stageDescription || ctx.user.journeyStatus,
+    subscriptionAccess,
   };
 }
 
@@ -826,6 +801,12 @@ function emptyBillingSummary(
     history: [],
     journeyStatus,
     journeyLabel,
+    subscriptionAccess: {
+      isActive: false,
+      isExpired: true,
+      expiresAt: null,
+      message: "No active subscription on this account.",
+    },
   };
 }
 

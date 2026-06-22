@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PortalStateBadge } from "@/components/portal/PortalInsightState";
+import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import type { EntitlementState } from "@/lib/membership/biomarker-readiness";
 
@@ -152,6 +153,7 @@ export function MensSexualHealthDashboard() {
     : -1;
 
   return (
+    <ProgramSubscriptionGate programSlug="mens_health_sexual">
     <div className="space-y-6 pb-20 md:pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <Link href="/dashboard/mens-health" className="self-start">
@@ -513,5 +515,6 @@ export function MensSexualHealthDashboard() {
         </CardContent>
       </Card>
     </div>
+    </ProgramSubscriptionGate>
   );
 }
