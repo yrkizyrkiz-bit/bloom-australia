@@ -480,7 +480,6 @@ export default function HairAssessmentPage() {
         body: JSON.stringify({
           userId: userId || undefined,
           slotId: slot.slotId,
-          selectedPlan: "CORE",
           programType: "HAIR_LOSS",
           patientPhone: formData.phone || undefined,
           riskFlags: ["HAIR_LOSS_PROGRAM"],
@@ -532,7 +531,6 @@ export default function HairAssessmentPage() {
           bookingHoldId,
           paymentIntentId: paymentIntentId || "pi_hair_manual_confirmation",
           userId,
-          selectedPlan: "CORE",
           clientOrigin:
             typeof window !== "undefined" ? window.location.origin : undefined,
         }),

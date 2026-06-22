@@ -5,10 +5,12 @@ import {
   billingModelsAvailable,
   ensureBillingCatalog,
   findProductByPlanTier,
+  findProductByProgram,
   resolvePlanTierFromStrings,
 } from "./catalog";
 import { syncLegacyMembershipFromMemberSub } from "./sync-subscription";
 import type { BillingInterval } from "@prisma/client";
+import { normalizeProgramKey, PROGRAM_LABELS, type ProgramKey } from "@/lib/membership/keys";
 
 export type MemberBillingSummary = {
   program: string;
@@ -96,10 +98,122 @@ const APPROVED_JOURNEY = new Set([
   "ACTIVE",
 ]);
 
+const PROGRAM_SLUG: Record<ProgramKey, string> = {
+  WEIGHT_MANAGEMENT: "weight_management",
+  HAIR_LOSS: "hair_loss",
+  MENS_HEALTH_VITALITY: "mens_health_vitality",
+  MENS_HEALTH_SEXUAL: "mens_health_sexual",
+  WOMENS_HEALTH_VITALITY: "womens_health_vitality",
+  WOMENS_HEALTH_SEXUAL: "womens_health_sexual",
+};
+
+const BILLING_PROGRAMS = new Set(Object.values(PROGRAM_SLUG));
+
 function getPlanLabel(tier: "CORE" | "PRECISION" | null): string {
   if (tier === "PRECISION") return "Sanative Precision";
   if (tier === "CORE") return "Sanative Core";
-  return "Weight Management Program";
+  return "Program";
+}
+
+function programSlugFromKey(key: ProgramKey): string {
+  return PROGRAM_SLUG[key];
+}
+
+function invoiceMatchesProgram(description: string | null | undefined, programKey: ProgramKey): boolean {
+  const text = (description || "").toLowerCase();
+  if (!text) return false;
+
+  switch (programKey) {
+    case "HAIR_LOSS":
+      return text.includes("hair");
+    case "WEIGHT_MANAGEMENT":
+      return (
+        text.includes("weight") ||
+        text.includes("sanative core") ||
+        text.includes("sanative precision")
+      );
+    case "MENS_HEALTH_VITALITY":
+      return text.includes("vitality") && text.includes("men");
+    case "MENS_HEALTH_SEXUAL":
+      return text.includes("sexual") && text.includes("men");
+    case "WOMENS_HEALTH_VITALITY":
+      return text.includes("vitality") && text.includes("women");
+    case "WOMENS_HEALTH_SEXUAL":
+      return text.includes("sexual") && text.includes("women");
+    default:
+      return false;
+  }
+}
+
+type ResolvedBillingProgram = {
+  programKey: ProgramKey;
+  programSlug: string;
+  programLabel: string;
+  planTier: "CORE" | "PRECISION" | null;
+};
+
+function resolveBillingProgram(input: {
+  subscriptionTier?: string | null;
+  programMembers: Array<{ program?: string | null; intakeData?: unknown }>;
+  weightIntake?: {
+    selectedPlan?: string | null;
+    paymentStatus?: string | null;
+  } | null;
+}): ResolvedBillingProgram | null {
+  const programMember = input.programMembers[0];
+  const memberProgramKey = normalizeProgramKey(programMember?.program);
+  if (memberProgramKey) {
+    const planTier =
+      memberProgramKey === "WEIGHT_MANAGEMENT"
+        ? resolvePlanTierFromStrings({
+            selectedPlan:
+              (programMember?.intakeData as { selectedPlan?: string } | null)?.selectedPlan ??
+              input.weightIntake?.selectedPlan,
+            subscriptionTier: input.subscriptionTier,
+          })
+        : null;
+
+    return {
+      programKey: memberProgramKey,
+      programSlug: programSlugFromKey(memberProgramKey),
+      programLabel: PROGRAM_LABELS[memberProgramKey],
+      planTier,
+    };
+  }
+
+  const tierProgramKey = normalizeProgramKey(input.subscriptionTier);
+  if (tierProgramKey) {
+    const planTier =
+      tierProgramKey === "WEIGHT_MANAGEMENT"
+        ? resolvePlanTierFromStrings({
+            selectedPlan: input.weightIntake?.selectedPlan,
+            subscriptionTier: input.subscriptionTier,
+          })
+        : null;
+
+    return {
+      programKey: tierProgramKey,
+      programSlug: programSlugFromKey(tierProgramKey),
+      programLabel: PROGRAM_LABELS[tierProgramKey],
+      planTier,
+    };
+  }
+
+  if (input.weightIntake) {
+    const planTier = resolvePlanTierFromStrings({
+      selectedPlan: input.weightIntake.selectedPlan,
+      subscriptionTier: input.subscriptionTier,
+    });
+
+    return {
+      programKey: "WEIGHT_MANAGEMENT",
+      programSlug: "weight_management",
+      programLabel: PROGRAM_LABELS.WEIGHT_MANAGEMENT,
+      planTier,
+    };
+  }
+
+  return null;
 }
 
 export async function getMemberBillingSummary(
@@ -124,28 +238,54 @@ export async function getMemberBillingSummary(
           paidAt: true,
         },
       },
-      consultationBookings: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { selectedPlan: true },
-      },
       membershipSubscription: true,
       invoices: {
         where: { status: "PAID" },
         orderBy: { paidAt: "desc" },
-        take: 5,
+        take: 10,
       },
     },
   });
 
   if (!user) return null;
 
-  const intake = user.weightManagementIntakes[0];
-  const booking = user.consultationBookings[0];
-  const planTier = resolvePlanTierFromStrings({
-    selectedPlan: intake?.selectedPlan ?? booking?.selectedPlan,
-    subscriptionTier: user.subscriptionTier,
+  const programMembers = await prisma.programMember.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { program: true, intakeData: true, membershipStatus: true },
   });
+
+  const intake = user.weightManagementIntakes[0];
+  const resolved = resolveBillingProgram({
+    subscriptionTier: user.subscriptionTier,
+    programMembers,
+    weightIntake: intake,
+  });
+
+  if (!resolved) {
+    return {
+      program: "other",
+      programLabel: "Sanative Health",
+      selectedPlan: null,
+      planLabel: "No active program",
+      firstMonth: { status: "pending", amountAud: null, paidAt: null },
+      recurring: {
+        status: "inactive",
+        label: "Not started",
+        amountAud: null,
+        billingInterval: null,
+        billingLabel: null,
+        nextBillingDate: null,
+        paidTill: null,
+      },
+      subscription: null,
+      availableCadences: [],
+      history: [],
+      journeyStatus: user.journeyStatus,
+      journeyLabel: stageDescription || user.journeyStatus,
+    };
+  }
 
   if (user.membershipSubscription?.stripeSubscriptionId && billingModelsAvailable()) {
     const { backfillFromLegacyMembership } = await import("./sync-subscription");
@@ -153,55 +293,67 @@ export async function getMemberBillingSummary(
   }
 
   const memberSub = billingModelsAvailable()
-      ? await prisma.memberSubscription.findFirst({
-          where: { userId, product: { program: "WEIGHT_MANAGEMENT" } },
-          include: {
-            product: true,
-            billingPrice: true,
-            history: {
-              orderBy: { effectiveAt: "desc" },
-              take: 10,
-              include: {
-                fromBillingPrice: { include: { product: true } },
-                toBillingPrice: { include: { product: true } },
-              },
+    ? await prisma.memberSubscription.findFirst({
+        where: { userId, product: { program: resolved.programKey } },
+        include: {
+          product: true,
+          billingPrice: true,
+          history: {
+            orderBy: { effectiveAt: "desc" },
+            take: 10,
+            include: {
+              fromBillingPrice: { include: { product: true } },
+              toBillingPrice: { include: { product: true } },
             },
           },
-        })
-      : null;
+        },
+      })
+    : null;
 
-  const product = planTier ? await findProductByPlanTier(planTier) : null;
+  const product =
+    resolved.programKey === "WEIGHT_MANAGEMENT" && resolved.planTier
+      ? await findProductByPlanTier(resolved.planTier)
+      : await findProductByProgram(resolved.programKey);
 
-  const firstMonthInvoice = user.invoices.find((inv) =>
-    inv.description?.toLowerCase().includes("first month") ||
-    inv.description?.toLowerCase().includes("weight management")
-  ) || user.invoices[0];
+  const defaultRecurring = product?.billingPrices.find(
+    (p) => p.isDefault && !p.isFirstMonth && p.billingInterval !== "ONE_TIME"
+  );
+  const firstMonthCatalog = product?.billingPrices.find((p) => p.isFirstMonth);
+
+  const programInvoice = user.invoices.find((inv) =>
+    invoiceMatchesProgram(inv.description, resolved.programKey)
+  );
 
   const firstMonthPaid =
-    intake?.paymentStatus === "PAID" ||
-    !!firstMonthInvoice ||
-    PAID_JOURNEY.has(user.journeyStatus);
+    (resolved.programKey === "WEIGHT_MANAGEMENT" && intake?.paymentStatus === "PAID") ||
+    !!programInvoice ||
+    (PAID_JOURNEY.has(user.journeyStatus) && programMembers.length > 0);
 
   const firstMonthAmount =
-    intake?.paymentAmount != null
+    resolved.programKey === "WEIGHT_MANAGEMENT" && intake?.paymentAmount != null
       ? intake.paymentAmount / 100
-      : firstMonthInvoice?.amount ?? null;
+      : programInvoice?.amount ??
+        (firstMonthCatalog ? firstMonthCatalog.amountCents / 100 : null);
 
   const firstMonthPaidAt =
-    intake?.paidAt?.toISOString() ?? firstMonthInvoice?.paidAt?.toISOString() ?? null;
+    (resolved.programKey === "WEIGHT_MANAGEMENT" ? intake?.paidAt?.toISOString() : null) ??
+    programInvoice?.paidAt?.toISOString() ??
+    null;
 
   let recurringStatus: MemberBillingSummary["recurring"]["status"] = "inactive";
   let recurringLabel = "Not started";
-  let recurringAmount: number | null = product?.billingPrices.find(
-    (p) => p.isDefault
-  )?.amountCents
-    ? (product!.billingPrices.find((p) => p.isDefault)!.amountCents / 100)
-    : planTier === "PRECISION"
+  let recurringAmount: number | null = defaultRecurring
+    ? defaultRecurring.amountCents / 100
+    : resolved.planTier === "PRECISION"
       ? 499
-      : 349;
+      : resolved.programKey === "WEIGHT_MANAGEMENT"
+        ? 349
+        : null;
 
-  let billingInterval: BillingInterval | null = "MONTHLY";
-  let billingLabel: string | null = "Monthly";
+  let billingInterval: BillingInterval | null = defaultRecurring?.billingInterval ?? "MONTHLY";
+  let billingLabel: string | null = defaultRecurring
+    ? defaultRecurring.label || billingIntervalLabel(defaultRecurring.billingInterval)
+    : "Monthly";
   let nextBilling: string | null = null;
   let paidTill: string | null = null;
 
@@ -252,23 +404,36 @@ export async function getMemberBillingSummary(
         : null,
     toLabel: h.toBillingPrice
       ? `${h.toBillingPrice.product.name} — ${h.toBillingPrice.label || billingIntervalLabel(h.toBillingPrice.billingInterval)}`
-      : getPlanLabel((h.toPlanTier as "CORE" | "PRECISION") || planTier),
+      : getPlanLabel((h.toPlanTier as "CORE" | "PRECISION") || resolved.planTier),
     effectiveAt: h.effectiveAt.toISOString(),
     changedBy: h.changedBy,
   }));
 
+  const planLabel =
+    memberSub?.product.name ||
+    product?.name ||
+    (resolved.planTier ? getPlanLabel(resolved.planTier) : resolved.programLabel);
+
   return {
-    program: planTier || intake ? "weight_management" : "other",
-    programLabel: planTier || intake ? "Weight Management" : "Sanative Health",
-    selectedPlan: planTier,
-    planLabel: memberSub?.product.name || getPlanLabel(planTier),
+    program: resolved.programSlug,
+    programLabel: resolved.programLabel,
+    selectedPlan: resolved.planTier,
+    planLabel,
     firstMonth: {
       status: firstMonthPaid
         ? "paid"
         : intake?.paymentStatus === "UNPAID"
           ? "unpaid"
           : "pending",
-      amountAud: firstMonthAmount ?? (planTier === "PRECISION" ? 399 : planTier === "CORE" ? 249 : null),
+      amountAud:
+        firstMonthAmount ??
+        (resolved.planTier === "PRECISION"
+          ? 399
+          : resolved.planTier === "CORE"
+            ? 249
+            : firstMonthCatalog
+              ? firstMonthCatalog.amountCents / 100
+              : null),
       paidAt: firstMonthPaidAt,
     },
     recurring: {
@@ -301,17 +466,20 @@ export async function getMemberBillingSummary(
   };
 }
 
-export function billingSummaryToMembershipSummary(
-  summary: MemberBillingSummary
-) {
+export function billingSummaryToMembershipSummary(summary: MemberBillingSummary) {
   return {
-    program: summary.program === "weight_management" ? "weight_management" as const : "other" as const,
+    program: BILLING_PROGRAMS.has(summary.program)
+      ? (summary.program as typeof summary.program)
+      : ("other" as const),
     programLabel: summary.programLabel,
     planLabel: summary.planLabel,
     planTier: summary.selectedPlan,
     firstMonth: summary.firstMonth,
     recurring: {
-      status: summary.recurring.status === "past_due" ? "inactive" as const : summary.recurring.status,
+      status:
+        summary.recurring.status === "past_due"
+          ? ("inactive" as const)
+          : summary.recurring.status,
       label: summary.recurring.label,
       amountAud: summary.recurring.amountAud,
       billingCycle: summary.recurring.billingInterval

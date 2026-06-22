@@ -38,6 +38,19 @@ type InvoiceRow = {
   paidAt: string | null;
 };
 
+const PROGRAM_SUPPORT_ROUTES: Record<string, string> = {
+  weight_management: "/dashboard/weight-management/support",
+  hair_loss: "/dashboard/mens-health/hair-loss",
+  mens_health_vitality: "/dashboard/mens-health/vitality",
+  mens_health_sexual: "/dashboard/mens-health/sexual-health",
+  womens_health_vitality: "/dashboard/womens-health/vitality",
+  womens_health_sexual: "/dashboard/womens-health/sexual-health",
+};
+
+function hasProgramBilling(billing: MemberBillingSummary | null): boolean {
+  return Boolean(billing && billing.program !== "other");
+}
+
 type MemberBillingPanelProps = {
   billing: MemberBillingSummary | null;
   invoices?: InvoiceRow[];
@@ -103,7 +116,7 @@ export function MemberBillingPanel({
     );
   }
 
-  if (!billing || billing.program !== "weight_management") {
+  if (!hasProgramBilling(billing) || !billing) {
     return (
       <Card>
         <CardHeader>
@@ -124,7 +137,11 @@ export function MemberBillingPanel({
 
   const isPastDue = billing.recurring.status === "past_due";
   const canRequestPrecision =
-    showUpgradeRequest && billing.selectedPlan === "CORE";
+    showUpgradeRequest &&
+    billing.program === "weight_management" &&
+    billing.selectedPlan === "CORE";
+  const supportHref =
+    PROGRAM_SUPPORT_ROUTES[billing.program] || "/dashboard/messages";
 
   return (
     <div className="space-y-6">
@@ -222,7 +239,7 @@ export function MemberBillingPanel({
                 </Button>
               </Link>
             )}
-            <Link href="/dashboard/weight-management/support">
+            <Link href={supportHref}>
               <Button variant="outline">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Contact care team

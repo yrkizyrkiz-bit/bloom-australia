@@ -439,6 +439,27 @@ export async function findProductByPlanTier(planTier: "CORE" | "PRECISION") {
   });
 }
 
+/** Resolve catalog product for a clinical program (hair, vitality, organ care, etc.). */
+export async function findProductByProgram(program: string, planTier?: string | null) {
+  await ensureBillingCatalog();
+  if (!billingModelsAvailable()) return null;
+  return prisma.product.findFirst({
+    where: {
+      program,
+      isActive: true,
+      ...(planTier != null && planTier !== ""
+        ? { planTier }
+        : { OR: [{ planTier: null }, { planTier: "" }] }),
+    },
+    include: {
+      billingPrices: {
+        where: { isActive: true },
+        orderBy: [{ isFirstMonth: "desc" }, { amountCents: "asc" }],
+      },
+    },
+  });
+}
+
 export async function findBillingPriceByStripeId(stripePriceId: string) {
   await ensureBillingCatalog();
   if (!billingModelsAvailable()) return null;

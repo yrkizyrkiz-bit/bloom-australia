@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Sun,
@@ -12,8 +11,6 @@ import {
   Package,
   Calendar,
   ListChecks,
-  CreditCard,
-  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -142,25 +139,6 @@ export function ProgramJourneyShell({
             </Card>
           </motion.div>
         )}
-
-      <Card className="border-dashed transition-colors hover:border-emerald-300">
-        <CardContent className="p-4">
-          <Link href="/dashboard/settings" className="group flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 transition-transform group-hover:scale-105">
-                <CreditCard className="h-5 w-5 text-emerald-700" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Account & billing</p>
-                <p className="text-xs text-muted-foreground">
-                  View your plan, payment status & privacy
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader className="pb-2">

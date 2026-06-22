@@ -35,7 +35,7 @@ export interface HoldRequest {
   sessionId?: string;
   userId?: string;
   slotId: string;
-  selectedPlan: "CORE" | "PRECISION";
+  selectedPlan?: "CORE" | "PRECISION";
   programType?: "WEIGHT_MANAGEMENT" | "HAIR_LOSS";
   intakeId?: string;
   patientPhone?: string;
@@ -94,7 +94,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!selectedPlan || !["CORE", "PRECISION"].includes(selectedPlan)) {
+    if (!selectedPlan && programType === "WEIGHT_MANAGEMENT") {
+      return NextResponse.json(
+        { error: "Selected plan must be CORE or PRECISION" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      selectedPlan &&
+      programType === "WEIGHT_MANAGEMENT" &&
+      !["CORE", "PRECISION"].includes(selectedPlan)
+    ) {
       return NextResponse.json(
         { error: "Selected plan must be CORE or PRECISION" },
         { status: 400 }
@@ -219,7 +230,7 @@ export async function POST(req: NextRequest) {
         duration: 30,
         status: "SLOT_HELD",
         holdExpiresAt,
-        selectedPlan,
+        selectedPlan: programType === "WEIGHT_MANAGEMENT" ? selectedPlan : null,
         intakeId,
         // NO DOCTOR ASSIGNMENT - assigned during triage
         doctorId: null,
@@ -269,7 +280,7 @@ export async function POST(req: NextRequest) {
         timezone: TIMEZONE,
         appointmentType: "PHONE_CONSULT",
       },
-      selectedPlan,
+      selectedPlan: selectedPlan ?? "",
       doctorAssignmentNote: "Your doctor will be assigned by our care team before your consultation",
     };
 
