@@ -55,16 +55,18 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email and password are required");
         }
 
-        const email = credentials.email.toLowerCase();
+        const email = credentials.email.toLowerCase().trim();
 
-        // First, try to find a User
-        const user = await prisma.user.findUnique({
-          where: { email },
+        // First, try to find a User (case-insensitive for legacy mixed-case records)
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
         });
 
-        if (user && user.passwordHash) {
+        const storedHash = user?.passwordHash || user?.password;
+
+        if (user && storedHash) {
           console.log("[Auth] User found:", user.email, user.role);
-          const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+          const isValid = await bcrypt.compare(credentials.password, storedHash);
 
           if (isValid) {
             console.log("[Auth] User password valid, returning user");
