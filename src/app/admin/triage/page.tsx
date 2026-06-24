@@ -607,7 +607,7 @@ export default function TriageQueuePage() {
             </TabsTrigger>
             <TabsTrigger value="member_programs" className="flex items-center gap-1">
               <DollarSign className="w-4 h-4" />
-              Member Added Programs
+              Pre-Triage Queue
             </TabsTrigger>
             <TabsTrigger value="declined" className="flex items-center gap-1">
               <XCircle className="w-4 h-4" />
@@ -694,7 +694,7 @@ export default function TriageQueuePage() {
           ) : memberProgramItems.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
-                No in-portal program purchases awaiting consultation booking.
+                No pre-triage tasks awaiting care partner review.
               </CardContent>
             </Card>
           ) : (
@@ -713,10 +713,23 @@ export default function TriageQueuePage() {
                         {item.purchase.priceLabel ? ` · ${item.purchase.priceLabel}` : ""}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {item.purchase.source === "portal_biomarkers"
-                          ? "Biomarkers panel"
-                          : "Program upsell"}
+                        {item.purchase.source === "public_consult_booking"
+                          ? "Public assessment + booking"
+                          : item.purchase.source === "public_subscription"
+                            ? "Public subscription checkout"
+                          : item.purchase.source === "portal_biomarkers"
+                            ? "Biomarkers panel"
+                            : "In-portal program upsell"}
                         {item.purchase.panelTier ? ` · ${item.purchase.panelTier}` : ""}
+                        {item.booking?.scheduledAt
+                          ? ` · Consult ${new Date(item.booking.scheduledAt).toLocaleDateString("en-AU", {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}`
+                          : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

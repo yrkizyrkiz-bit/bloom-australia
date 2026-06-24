@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   TestTubes,
@@ -13,6 +14,7 @@ import {
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ORGAN_CARE_CARD } from "@/lib/programs/catalog";
 
 export type OrganMetabolicPanel = {
   href: string;
@@ -37,13 +39,16 @@ type OrganMetabolicHealthPanelsProps = {
   className?: string;
   /** When locked, link tiles to this upgrade path instead of panel routes. */
   upgradeHref?: string;
+  /** Optional action aligned top-right beside the organ icon row (e.g. Generate AI). */
+  trailingAction?: ReactNode;
 };
 
 export function OrganMetabolicHealthPanels({
   organCareEntitled,
   title = "Organ & Metabolic Health",
   className,
-  upgradeHref = "/dashboard/biomarkers/quiz",
+  upgradeHref = ORGAN_CARE_CARD.quizRoute,
+  trailingAction,
 }: OrganMetabolicHealthPanelsProps) {
   return (
     <div className={className}>
@@ -56,8 +61,9 @@ export function OrganMetabolicHealthPanels({
           </span>
         )}
       </div>
-      <div className="overflow-x-auto pb-1">
-        <div className="flex w-max gap-2">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1 overflow-x-auto pb-1">
+          <div className="flex w-max gap-2">
           {ORGAN_METABOLIC_HEALTH_PANELS.map((panel) => {
             const content = (
               <div
@@ -99,7 +105,9 @@ export function OrganMetabolicHealthPanels({
               </Link>
             );
           })}
+          </div>
         </div>
+        {trailingAction ? <div className="shrink-0 self-start pt-0.5">{trailingAction}</div> : null}
       </div>
       {!organCareEntitled && (
         <p className="mt-1.5 text-xs text-muted-foreground">

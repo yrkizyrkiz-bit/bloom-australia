@@ -141,7 +141,7 @@ async function handleWeightManagementPayment(body: {
   planId: string;
   billingType?: "one_time" | "subscription";
   selectedPlan?: "core" | "precision";
-  programType?: "weight_management" | "hair_loss";
+  programType?: "weight_management" | "hair_loss" | "mens_health" | "womens_health";
   planName?: string;
   firstMonthAmount?: number;
   ongoingMonthlyAmount?: number;
@@ -214,7 +214,15 @@ async function handleWeightManagementPayment(body: {
     planNameOverride ||
     (selectedPlan === 'precision' ? 'Sanative Precision' : selectedPlan === 'core' ? 'Sanative Core' : planDetails.name);
   const programLabel =
-    programType === "hair_loss" ? "Hair Loss" : "Weight Management";
+    programType === "weight_management"
+      ? "Weight Management"
+      : programType === "hair_loss"
+        ? "Hair Loss"
+        : programType === "mens_health"
+          ? "Men's Health"
+          : programType === "womens_health"
+            ? "Women's Health"
+            : "Weight Management";
 
   // Get or create Stripe customer
   let customerId: string;

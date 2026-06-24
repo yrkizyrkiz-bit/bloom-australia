@@ -27,6 +27,12 @@ import {
   Package,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
+import {
+  buildLoginRedirectUrl,
+  fetchExistingAccountFirstName,
+  submitPublicIntake,
+} from "@/lib/funnel/intake-response";
 
 // Types
 interface FormData {
@@ -173,6 +179,8 @@ export default function HairAssessmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
+  const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
   const [bookingHoldId, setBookingHoldId] = useState<string | null>(null);
   const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
@@ -349,90 +357,45 @@ export default function HairAssessmentPage() {
     }
   };
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
+  const handleUseDifferentEmail = () => {
+    setShowExistingAccountPrompt(false);
+    setExistingUserFirstName(null);
     setSubmissionError(null);
-
-    try {
-      // STEP 1: Send assessment data to portal — create patient record
-      const intakeResponse = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          programType: "HAIR_LOSS",
-          ...formData,
-        }),
-      });
-
-      if (!intakeResponse.ok) {
-        const err = await intakeResponse.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to create patient record. Please try again.");
-      }
-
-      const { userId: newUserId } = await intakeResponse.json();
-      setUserId(newUserId);
-
-      // STEP 2: Create Stripe PaymentIntent for $49 consultation fee
-      const stripeResponse = await fetch("/api/stripe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: 4900, // $49.00 AUD in cents
-          userId: newUserId,
-          program: "hair_loss",
-        }),
-      });
-
-      if (!stripeResponse.ok) {
-        throw new Error("Payment setup failed. Please try again.");
-      }
-
-      const { clientSecret } = await stripeResponse.json();
-
-      // STEP 3: Redirect to payment page with client secret
-      if (clientSecret) {
-        sessionStorage.setItem("paymentClientSecret", clientSecret);
-        sessionStorage.setItem("paymentUserId", newUserId);
-        sessionStorage.setItem("paymentProgram", "hair_loss");
-        window.location.href = `/payment?program=hair_loss`;
-      }
-
-      setStep(totalSteps);
-
-    } catch (error: unknown) {
-      console.error("Submission error:", error);
-      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
-      setSubmissionError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    updateFormData("email", "");
+    setStep(2);
+    window.scrollTo(0, 0);
   };
 
   const saveHairIntake = async (): Promise<boolean> => {
     setIsSubmitting(true);
     setSubmissionError(null);
+    setShowExistingAccountPrompt(false);
     try {
-      const response = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          programType: "HAIR_LOSS",
-          ...formData,
-          selectedPlan: "hair_care",
-          completedAt: new Date().toISOString(),
-        }),
+      const result = await submitPublicIntake({
+        programType: "HAIR_LOSS",
+        ...formData,
+        selectedPlan: "hair_care",
+        completedAt: new Date().toISOString(),
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.detail || "Could not save your details");
+      if (result.ok) {
+        setUserId(result.userId);
+        toast.success("Details saved", {
+          description: "Now choose your consultation time.",
+        });
+        return true;
       }
 
-      setUserId(data.userId);
-      toast.success("Details saved", {
-        description: "Now choose your consultation time.",
-      });
-      return true;
+      if (result.emailExists) {
+        const firstName = await fetchExistingAccountFirstName(formData.email);
+        setExistingUserFirstName(firstName);
+        setShowExistingAccountPrompt(true);
+        return false;
+      }
+
+      setSubmissionError(result.message);
+      toast.error("Could not save your details", { description: result.message });
+      return false;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong. Please try again.";
@@ -1352,101 +1315,7 @@ export default function HairAssessmentPage() {
     </div>
   );
 
-  const renderSuccess = () => (
-    <div className="text-center space-y-6">
-      <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center">
-        <Check className="w-10 h-10 text-white" />
-      </div>
-      <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
-        Great news — you're a good candidate
-      </h1>
-      <p className="text-[#5c7a52] max-w-md mx-auto">
-        Book your consultation below. Your practitioner will create a personalised plan, and treatment can arrive within days.
-      </p>
-
-      <div className="bg-white rounded-2xl p-6 border border-[#e6ebe3] text-left mt-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-[#5c7a52] flex items-center justify-center">
-            <Check className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-semibold text-[#2c3628]">Your consultation</span>
-        </div>
-
-        <div className="flex items-center gap-4 py-4 border-y border-[#e6ebe3]">
-          <div className="w-14 h-14 bg-gradient-to-br from-[#e6ebe3] to-[#cdd8c6] rounded-xl flex items-center justify-center">
-            <Leaf className="w-7 h-7 text-[#5c7a52]" />
-          </div>
-          <div className="flex-1">
-            <h4 className="font-medium text-[#2c3628]">Hair Health Consultation</h4>
-            <p className="text-sm text-[#7e9a72]">AHPRA-registered practitioner</p>
-          </div>
-          <span className="font-semibold text-[#2c3628]">$20</span>
-        </div>
-
-        <div className="pt-4 space-y-2.5 text-sm">
-          <p className="font-medium text-[#2c3628]">What you'll get:</p>
-          {[
-            "Tailored treatment recommendation",
-            "Express shipping, always free",
-            "Ongoing practitioner support",
-            "180-day satisfaction guarantee",
-          ].map((item) => (
-            <div key={item} className="flex items-center gap-2.5 text-[#5c7a52]">
-              <Check className="w-4 h-4 text-[#5c7a52] flex-shrink-0" />
-              <span>{item}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 pt-4 border-t border-[#e6ebe3] text-xs text-[#7e9a72]">
-          If treatment isn't right for you, we'll refund the consultation fee in full.
-        </div>
-      </div>
-
-      <div className="space-y-4 mt-6">
-        <div>
-          <label className="block text-sm font-medium text-[#2c3628] mb-2 text-left">
-            Mobile number
-          </label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => updateFormData("phone", e.target.value)}
-            className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
-            placeholder="04XX XXX XXX"
-          />
-          <p className="text-xs text-[#7e9a72] mt-2 text-left">
-            Your practitioner will call you on this number.
-          </p>
-        </div>
-
-        <p className="text-xs text-[#7e9a72] text-left">
-          By continuing, you agree to our{" "}
-          <Link href="/terms" className="underline">Terms</Link> and{" "}
-          <Link href="/privacy" className="underline">Privacy Policy</Link>.
-        </p>
-
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitting || !formData.phone}
-          className="w-full py-4 bg-[#5c7a52] text-white font-medium rounded-xl hover:bg-[#4a6343] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Booking...
-            </>
-          ) : (
-            <>
-              Book consultation — $20
-              <ArrowRight className="w-5 h-5" />
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  );
+  const isCheckoutLayout = step === checkoutStep;
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
@@ -1460,7 +1329,7 @@ export default function HairAssessmentPage() {
 
       {/* Header */}
       <header className="sticky top-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#e6ebe3]">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 py-4 flex items-center justify-between`}>
           <Link href="/" className="text-2xl font-serif text-[#34412f]">
             Sanative
           </Link>
@@ -1476,7 +1345,7 @@ export default function HairAssessmentPage() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-2xl mx-auto px-4 py-8 pb-32">
+      <main className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl px-4 sm:px-6" : "max-w-2xl px-4"} mx-auto py-8 pb-32`}>
         <div className="animate-fadeIn">
           {renderStep()}
         </div>
@@ -1560,6 +1429,13 @@ export default function HairAssessmentPage() {
           </div>
         </div>
       )}
+
+      <ExistingAccountPrompt
+        open={showExistingAccountPrompt}
+        firstName={existingUserFirstName}
+        loginHref={buildLoginRedirectUrl("/dashboard/mens-health/hair-loss")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+      />
 
       <style jsx>{`
         @keyframes fadeIn {

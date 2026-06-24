@@ -1,10 +1,12 @@
 import { PROGRAM_LABELS, SCOPE_LABELS, type ProgramKey, type ScopeKey } from "@/lib/membership/keys";
 import { getBiomarkersQuizQuestions, parseBiomarkersAnswer } from "@/lib/programs/quizzes/biomarkers-intake-quiz";
+import { getOrganCareQuizQuestions } from "@/lib/programs/quizzes/organ-care-intake-quiz";
 import { getPublicFunnelQuizSteps } from "@/lib/programs/quizzes/public-funnel-quizzes";
 import { getSexualHealthQuizSteps, isSexualHealthProgram } from "@/lib/programs/quizzes/sexual-health-quiz";
 import { GENERIC_PROGRAM_QUIZ } from "@/lib/programs/quizzes/generic-program-quiz";
 
 export const PORTAL_QUIZ_TAB_ORDER = [
+  "ORGAN_CARE",
   "BIOLOGICAL_CLOCK",
   "WEIGHT_MANAGEMENT",
   "HAIR_LOSS",
@@ -17,6 +19,7 @@ export const PORTAL_QUIZ_TAB_ORDER = [
 export type PortalQuizTabKey = (typeof PORTAL_QUIZ_TAB_ORDER)[number];
 
 export function portalQuizTabLabel(programKey: string): string {
+  if (programKey === "ORGAN_CARE") return "Organ & Metabolic Care";
   if (programKey === "BIOLOGICAL_CLOCK") return "Biomarkers Intake Quiz";
   if (programKey in PROGRAM_LABELS) {
     return PROGRAM_LABELS[programKey as ProgramKey];
@@ -28,6 +31,12 @@ export function portalQuizTabLabel(programKey: string): string {
 }
 
 function resolveQuizSteps(programKey: string, gender?: string | null, answers?: Record<string, unknown>) {
+  if (programKey === "ORGAN_CARE") {
+    return getOrganCareQuizQuestions(
+      gender,
+      answers as Record<string, string> | undefined
+    );
+  }
   if (programKey === "BIOLOGICAL_CLOCK") {
     return getBiomarkersQuizQuestions(
       gender,

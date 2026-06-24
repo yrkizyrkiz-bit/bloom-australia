@@ -3,6 +3,19 @@
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { scoreWomensHealth, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
+import {
+  UnifiedCheckoutScreen,
+  type UnifiedSlot,
+} from "@/components/checkout/UnifiedCheckoutScreen";
+import { resolveAustralianTimezone } from "@/lib/australia-timezone";
+import { WOMENS_CHECKOUT_PRICING } from "@/lib/funnel/public-consult-programs";
+import { toast } from "sonner";
+import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
+import {
+  buildLoginRedirectUrl,
+  fetchExistingAccountFirstName,
+  submitPublicIntake,
+} from "@/lib/funnel/intake-response";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, ArrowLeft, Check, X, Info, Heart, Stethoscope, MessageCircle, Package, AlertTriangle, Calendar, Clock, CreditCard, Loader2, Shield, Flame, Pill, Baby, Sparkles } from "lucide-react";
@@ -111,6 +124,9 @@ interface FormData {
   goals: string[];
   postcode: string;
   address: string;
+  consultationDate: string;
+  consultationTime: string;
+  selectedSlotId: string;
   selectedDate: Date | null;
   selectedTime: string;
 }
@@ -149,6 +165,7 @@ function WomensHealthAssessmentContent() {
     firstName: "", lastName: "", email: "", phone: "", dateOfBirth: "", category: preselectedCategory,
     primaryConcerns: [], symptomDuration: "", currentTreatments: [], medicalConditions: [],
     menstrualStatus: "", familyHistory: [], goals: [], postcode: "", address: "",
+    consultationDate: "", consultationTime: "", selectedSlotId: "",
     selectedDate: null, selectedTime: "",
   });
   const [showFAQ, setShowFAQ] = useState(false);
@@ -156,7 +173,18 @@ function WomensHealthAssessmentContent() {
   const [hasPreselectedCategory] = useState(!!preselectedCategory);
   const [userId, setUserId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
+  const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
+  const [bookingHoldId, setBookingHoldId] = useState<string | null>(null);
+  const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
+  const [holdCountdown, setHoldCountdown] = useState(0);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
+  const [creatingHold, setCreatingHold] = useState(false);
+  const [selectingSlotId, setSelectingSlotId] = useState<string | null>(null);
+  const [offerCountdown, setOfferCountdown] = useState(300);
+  const [portalMagicLink, setPortalMagicLink] = useState<string | null>(null);
 
   // Fetch biomarker campaigns on mount
   useEffect(() => {
@@ -168,10 +196,38 @@ function WomensHealthAssessmentContent() {
   const availableDates = useMemo(() => generateAvailableDates(14).filter(d => d.available).slice(0, 2), []);
   const timeSlotsForDates = useMemo(() => availableDates.map(d => ({ date: d.date, slots: generateTimeSlots(d.date) })), [availableDates]);
 
-  // Adjust total steps - skip category selection if preselected
-  // Steps: 0-12 assessment, 13 processing, 14 booking, 15 confirmation
-  const totalSteps = hasPreselectedCategory ? 14 : 15;
+  const checkoutStep = 15;
+  const thankYouStep = 16;
+  const totalSteps = thankYouStep;
   const progress = ((step + 1) / totalSteps) * 100;
+  const patientTimezone = resolveAustralianTimezone(null, formData.postcode);
+
+  useEffect(() => {
+    if (!holdExpiry) return;
+    const timer = setInterval(() => {
+      const remaining = Math.max(
+        0,
+        Math.floor((holdExpiry.getTime() - Date.now()) / 1000)
+      );
+      setHoldCountdown(remaining);
+      if (remaining === 0) {
+        setBookingHoldId(null);
+        updateFormData("consultationDate", "");
+        updateFormData("consultationTime", "");
+        updateFormData("selectedSlotId", "");
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [holdExpiry]);
+
+  useEffect(() => {
+    if (offerCountdown > 0 && step >= checkoutStep) {
+      const timer = setInterval(() => {
+        setOfferCountdown((c) => Math.max(0, c - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [checkoutStep, offerCountdown, step]);
 
   // Get category display info
   const selectedCategoryInfo = healthCategories.find(c => c.id === formData.category);
@@ -218,7 +274,10 @@ function WomensHealthAssessmentContent() {
       case 11: return formData.familyHistory.length > 0;
       case 12: return formData.goals.length > 0;
       case 13: return true; // Processing/analysis step - auto-proceeds
-      case 14: return formData.phone && formData.postcode.length === 4 && formData.selectedDate && formData.selectedTime;
+      case 14: return formData.phone && formData.postcode.length === 4 && formData.address.trim();
+      case checkoutStep:
+      case thankYouStep:
+        return true;
       default: return true;
     }
   };
@@ -247,63 +306,180 @@ function WomensHealthAssessmentContent() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleUseDifferentEmail = () => {
+    setShowExistingAccountPrompt(false);
+    setExistingUserFirstName(null);
+    setSubmissionError(null);
+    updateFormData("email", "");
+    setStep(2);
+    window.scrollTo(0, 0);
+  };
+
+  const saveWomensIntake = async (): Promise<boolean> => {
     setIsProcessing(true);
     setSubmissionError(null);
-
+    setShowExistingAccountPrompt(false);
     try {
-      // STEP 1: Send assessment data to portal — create patient record
-      const intakeResponse = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          programType: "WOMENS_HEALTH",
-          ...formData,
-          selectedDate: formData.selectedDate?.toISOString(),
-        }),
+      const result = await submitPublicIntake({
+        programType: "WOMENS_HEALTH",
+        ...formData,
+        selectedDate: formData.selectedDate?.toISOString(),
       });
 
-      if (!intakeResponse.ok) {
-        const err = await intakeResponse.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to create patient record. Please try again.");
+      if (result.ok) {
+        setUserId(result.userId);
+        toast.success("Details saved", {
+          description: "Now choose your consultation time.",
+        });
+        return true;
       }
 
-      const { userId: newUserId } = await intakeResponse.json();
-      setUserId(newUserId);
-
-      // STEP 2: Create Stripe PaymentIntent for $49 consultation fee
-      const stripeResponse = await fetch("/api/stripe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: 4900, // $49.00 AUD in cents
-          userId: newUserId,
-          program: "womens_health",
-        }),
-      });
-
-      if (!stripeResponse.ok) {
-        throw new Error("Payment setup failed. Please try again.");
+      if (result.emailExists) {
+        const firstName = await fetchExistingAccountFirstName(formData.email);
+        setExistingUserFirstName(firstName);
+        setShowExistingAccountPrompt(true);
+        return false;
       }
 
-      const { clientSecret } = await stripeResponse.json();
-
-      // STEP 3: Redirect to payment page with client secret
-      if (clientSecret) {
-        sessionStorage.setItem("paymentClientSecret", clientSecret);
-        sessionStorage.setItem("paymentUserId", newUserId);
-        sessionStorage.setItem("paymentProgram", "womens_health");
-        window.location.href = `/payment?program=womens_health`;
-      }
-
-      setStep(totalSteps);
-
-    } catch (error: unknown) {
-      console.error("Submission error:", error);
-      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      setSubmissionError(result.message);
+      toast.error("Could not save your details", { description: result.message });
+      return false;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Something went wrong. Please try again.";
       setSubmissionError(message);
+      toast.error("Could not save your details", { description: message });
+      return false;
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const formatSlotDate = (isoString: string) =>
+    new Date(isoString).toLocaleDateString("en-AU", {
+      timeZone: patientTimezone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+
+  const formatSlotTime = (isoString: string) =>
+    new Date(isoString).toLocaleTimeString("en-AU", {
+      timeZone: patientTimezone,
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+  const handleSlotSelection = async (slot: UnifiedSlot) => {
+    if (slot.availabilityStatus === "BOOKED" || creatingHold) return;
+    if (formData.selectedSlotId === slot.slotId) return;
+
+    const previousHoldId = bookingHoldId;
+    const previousSlotId = formData.selectedSlotId;
+    setCreatingHold(true);
+    setSelectingSlotId(slot.slotId);
+    setSlotsError(null);
+
+    try {
+      updateFormData("selectedSlotId", slot.slotId);
+      updateFormData("consultationDate", formatSlotDate(slot.startTime));
+      updateFormData("consultationTime", formatSlotTime(slot.startTime));
+
+      const response = await fetch("/api/bookings/hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId || undefined,
+          slotId: slot.slotId,
+          programType: "WOMENS_HEALTH",
+          patientPhone: formData.phone || undefined,
+          riskFlags: ["WOMENS_HEALTH_PROGRAM"],
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reserve this time");
+      }
+
+      setBookingHoldId(data.bookingHoldId);
+      setHoldExpiry(new Date(data.holdExpiryTime));
+      setSlotsRefreshKey((k) => k + 1);
+
+      if (previousHoldId && previousHoldId !== data.bookingHoldId) {
+        fetch(`/api/bookings/hold?holdId=${previousHoldId}`, {
+          method: "DELETE",
+        }).catch(() => {});
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to reserve this time";
+      setSlotsError(message);
+      updateFormData("selectedSlotId", previousSlotId);
+      if (!previousSlotId) {
+        updateFormData("consultationDate", "");
+        updateFormData("consultationTime", "");
+      }
+      setBookingHoldId(previousHoldId);
+      toast.error("Could not reserve this slot", { description: message });
+    } finally {
+      setCreatingHold(false);
+      setSelectingSlotId(null);
+    }
+  };
+
+  const handleCheckoutPaymentSuccess = async (paymentIntentId?: string) => {
+    if (!bookingHoldId) {
+      setStep(thankYouStep);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/bookings/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingHoldId,
+          paymentIntentId: paymentIntentId || "pi_womens_manual_confirmation",
+          userId,
+          clientOrigin:
+            typeof window !== "undefined" ? window.location.origin : undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        if (data.magicLink) setPortalMagicLink(data.magicLink);
+        toast.success("Booking confirmed", {
+          description: `Your consultation is scheduled for ${formData.consultationDate} at ${formData.consultationTime}`,
+        });
+      } else {
+        toast.success("Payment successful", {
+          description: data.error || "Your consultation will be confirmed shortly.",
+        });
+      }
+    } catch (error) {
+      console.error("[Womens Assessment] Booking confirmation error:", error);
+      toast.success("Payment successful", {
+        description: "Your consultation will be confirmed shortly.",
+      });
+    } finally {
+      setBookingHoldId(null);
+      setHoldExpiry(null);
+      setStep(thankYouStep);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handleCheckoutPaymentError = (error: string) => {
+    toast.error("Payment failed", { description: error });
+  };
+
+  const handleContinueToCheckout = async () => {
+    const saved = await saveWomensIntake();
+    if (saved) {
+      setStep(checkoutStep);
+      window.scrollTo(0, 0);
     }
   };
 
@@ -542,10 +718,10 @@ function WomensHealthAssessmentContent() {
                 </div>
                 <div>
                   <p className="font-semibold text-[#2c3628] mb-1">
-                    Consultation fee credited to treatment
+                    ${WOMENS_CHECKOUT_PRICING.dueToday} first month — consultation included
                   </p>
                   <p className="text-sm text-[#5c7a52]">
-                    Your $149 consultation fee is fully deductible from any treatment plan you choose to proceed with.
+                    Book your doctor consultation and start your program for ${WOMENS_CHECKOUT_PRICING.dueToday} today, then ${WOMENS_CHECKOUT_PRICING.ongoingPrice}/mo after your first month.
                   </p>
                 </div>
               </div>
@@ -565,8 +741,8 @@ function WomensHealthAssessmentContent() {
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-serif text-[#2c3628]">$149</span>
-                <p className="text-xs text-[#7e9a72]">one-time</p>
+                <span className="text-2xl font-serif text-[#2c3628]">${WOMENS_CHECKOUT_PRICING.dueToday}</span>
+                <p className="text-xs text-[#7e9a72]">first month</p>
               </div>
             </div>
 
@@ -586,74 +762,90 @@ function WomensHealthAssessmentContent() {
           </div>
 
           <div className="bg-white rounded-2xl p-6 border border-[#f8e1e1]">
-            <h3 className="font-semibold text-[#2c3628] mb-4 flex items-center gap-2"><Calendar className="w-5 h-5 text-[#c17a58]" />Select appointment time</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {timeSlotsForDates.map((ds, i) => (
-                <div key={i} className="space-y-3">
-                  <div className="text-center p-3 bg-gradient-to-br from-[#f8e1e1] to-[#fce4d8] rounded-xl">
-                    <p className="text-sm font-medium text-[#c17a58]">{ds.date.toLocaleDateString("en-AU", { weekday: "short" })}</p>
-                    <p className="text-lg font-serif text-[#2c3628]">{ds.date.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}</p>
-                  </div>
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {ds.slots.filter(s => s.available).slice(0, 6).map(s => {
-                      const sel = formData.selectedDate?.toDateString() === ds.date.toDateString() && formData.selectedTime === s.time;
-                      return <button key={s.time} type="button" onClick={() => { updateFormData("selectedDate", ds.date); updateFormData("selectedTime", s.time); }} className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${sel ? "bg-[#c17a58] text-white" : "bg-[#fdf8f6] text-[#2c3628] hover:bg-[#f8e1e1]"}`}>{s.time}</button>;
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {formData.selectedDate && formData.selectedTime && <div className="mt-4 p-3 bg-[#fef4f0] rounded-xl flex items-center gap-2"><Clock className="w-4 h-4 text-[#c17a58]" /><span className="text-sm text-[#2c3628]">{formatDate(formData.selectedDate)} at {formData.selectedTime}</span></div>}
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 border border-[#f8e1e1]">
             <h3 className="font-semibold text-[#2c3628] mb-4">Contact & Delivery</h3>
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div><label className="block text-sm font-medium text-[#2c3628] mb-2">Mobile</label><input type="tel" value={formData.phone} onChange={e => updateFormData("phone", e.target.value)} className="w-full px-4 py-3 rounded-xl border border-[#f8e1e1] focus:border-[#c17a58] outline-none bg-white" placeholder="04XX XXX XXX" /></div>
               <div><label className="block text-sm font-medium text-[#2c3628] mb-2">Postcode</label><input type="text" maxLength={4} value={formData.postcode} onChange={e => updateFormData("postcode", e.target.value.replace(/\D/g, ""))} className="w-full px-4 py-3 rounded-xl border border-[#f8e1e1] focus:border-[#c17a58] outline-none bg-white" placeholder="2000" /></div>
             </div>
             <div><label className="block text-sm font-medium text-[#2c3628] mb-2">Delivery address</label><input type="text" value={formData.address} onChange={e => updateFormData("address", e.target.value)} className="w-full px-4 py-3 rounded-xl border border-[#f8e1e1] focus:border-[#c17a58] outline-none bg-white" placeholder="Street address" /></div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 border border-[#f8e1e1]">
-            <h3 className="font-semibold text-[#2c3628] mb-4 flex items-center gap-2"><CreditCard className="w-5 h-5 text-[#c17a58]" />Payment</h3>
-            <div className="flex justify-between py-3 border-b border-[#f8e1e1]"><span className="text-[#5c7a52]">Consultation fee</span><span className="font-semibold text-[#2c3628]">$149.00</span></div>
-            {/* GAP-024: Removed unsupported rebate claim */}
-            <div className="flex gap-4 mt-4 text-xs text-[#7e9a72]"><div className="flex items-center gap-1"><Shield className="w-4 h-4" />Secure</div><div className="flex items-center gap-1"><Check className="w-4 h-4" />Check with your insurer</div></div>
-            <p className="text-xs text-[#7e9a72] mt-4">By continuing, you agree to our <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.</p>
-            <button type="button" onClick={handleSubmit} disabled={isProcessing || !canProceed()} className="w-full mt-4 py-4 bg-[#c17a58] text-white font-medium rounded-xl hover:bg-[#a86548] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {isProcessing ? <><Loader2 className="w-5 h-5 animate-spin" />Processing...</> : <>Book & Pay $149<ArrowRight className="w-5 h-5" /></>}
+            {submissionError && <p className="text-sm text-red-600 mt-3">{submissionError}</p>}
+            <button type="button" onClick={handleContinueToCheckout} disabled={isProcessing || !canProceed()} className="w-full mt-6 py-4 bg-[#c17a58] text-white font-medium rounded-xl hover:bg-[#a86548] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {isProcessing ? <><Loader2 className="w-5 h-5 animate-spin" />Saving...</> : <>Continue to book consultation<ArrowRight className="w-5 h-5" /></>}
             </button>
           </div>
         </div>
       );
 
-      default:
-        // Final step: Show biomarker snapshot
-        const risks = scoreWomensHealth(formData as unknown as Record<string, unknown>, campaigns);
+      case 15:
         return (
-          <BiomarkerSnapshot
-            risks={risks}
-            primaryProgram="Women's Health Program"
-            primaryPrice="$149/mo"
-            firstName={formData.firstName}
-            onPrimary={handleSubmit}
-            onLabs={() => window.location.href = '/labs'}
+          <UnifiedCheckoutScreen
+            formData={{
+              consultationDate: formData.consultationDate,
+              consultationTime: formData.consultationTime,
+              selectedSlotId: formData.selectedSlotId,
+              email: formData.email,
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+            }}
+            userId={userId}
+            bookingHoldId={bookingHoldId}
+            holdCountdown={holdCountdown}
+            offerCountdown={offerCountdown}
+            slotsError={slotsError}
+            slotsRefreshKey={slotsRefreshKey}
+            creatingHold={creatingHold}
+            selectingSlotId={selectingSlotId}
+            onSlotSelect={handleSlotSelection}
+            onSlotsError={setSlotsError}
+            onPaymentSuccess={handleCheckoutPaymentSuccess}
+            onPaymentError={handleCheckoutPaymentError}
+            patientTimezone={patientTimezone}
+            pricing={WOMENS_CHECKOUT_PRICING}
+            valueProps={[
+              "Doctor-led women's health assessment",
+              "Treatment if clinically prescribed",
+              "Care team support in your portal",
+            ]}
+            programType="womens_health"
           />
         );
+
+      case 16:
+        return (
+          <div className="text-center space-y-6">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#c17a58] to-[#a86548] rounded-2xl flex items-center justify-center">
+              <Check className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">You&apos;re booked in</h1>
+            <p className="text-[#5c7a52] max-w-md mx-auto">
+              Your assessment is with our care team for triage. A doctor will review your suitability before treatment is prescribed.
+            </p>
+            {portalMagicLink && (
+              <a href={portalMagicLink} className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#c17a58] text-white rounded-xl">
+                Go to portal
+                <ArrowRight className="w-5 h-5" />
+              </a>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
+
+  const isCheckoutLayout = step === checkoutStep;
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
       <div className="fixed top-0 left-0 right-0 h-1 bg-[#f8e1e1] z-50"><div className="h-full bg-[#c17a58] transition-all duration-500" style={{ width: `${progress}%` }} /></div>
       <header className="sticky top-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#f8e1e1]">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 py-4 flex items-center justify-between`}>
           <Link href="/" className="text-2xl font-serif text-[#34412f]">Sanative</Link>
           <button type="button" onClick={() => setShowFAQ(true)} className="flex items-center gap-1.5 text-sm text-[#c17a58]"><Info className="w-4 h-4" />Help</button>
         </div>
       </header>
-      <main className="max-w-2xl mx-auto px-4 py-8 pb-32">{renderStep()}</main>
+      <main className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl px-4 sm:px-6" : "max-w-2xl px-4"} mx-auto py-8 pb-32`}>{renderStep()}</main>
       {step < 13 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#f8e1e1] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
@@ -675,6 +867,14 @@ function WomensHealthAssessmentContent() {
           </div>
         </div>
       )}
+      <ExistingAccountPrompt
+        open={showExistingAccountPrompt}
+        firstName={existingUserFirstName}
+        loginHref={buildLoginRedirectUrl("/dashboard")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+        accentClass="bg-[#c17a58]"
+        accentHoverClass="hover:bg-[#a86548]"
+      />
     </div>
   );
 }

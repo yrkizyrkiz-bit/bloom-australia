@@ -41,6 +41,7 @@ import {
   Grid3X3,
 } from "lucide-react";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { ORGAN_CARE_CARD } from "@/lib/programs/catalog";
 import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 import { RealTimeNotificationBell } from "./RealTimeNotificationBell";
 
@@ -189,7 +190,7 @@ export function DashboardNav() {
                 </DropdownMenuLabel>
                 {healthTests.map((test) => {
                   const isActive = pathname.startsWith(test.href);
-                  const href = organCareEntitled ? test.href : "/dashboard/biomarkers/quiz";
+                  const href = organCareEntitled ? test.href : ORGAN_CARE_CARD.quizRoute;
                   return (
                     <DropdownMenuItem key={test.href} asChild>
                       <Link

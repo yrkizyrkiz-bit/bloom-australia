@@ -35,7 +35,7 @@ export function MemberProgramQuizTabs({
           <ClipboardList className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
           <p className="text-muted-foreground">No in-portal program quizzes yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Quiz answers from the member portal appear here (not under Lab Results).
+            Quiz answers from the member portal and public website assessments appear here.
           </p>
         </CardContent>
       </Card>

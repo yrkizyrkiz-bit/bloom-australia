@@ -623,7 +623,7 @@ export interface UnifiedCheckoutScreenProps {
   pricing?: UnifiedCheckoutPricing;
   valueProps?: string[];
   trustBadges?: typeof TRUST_BADGES;
-  programType?: "weight_management" | "hair_loss";
+  programType?: "weight_management" | "hair_loss" | "mens_health" | "womens_health";
 }
 
 const PAYMENT_FORM_ID = "wm-unified-checkout-payment";
@@ -917,7 +917,7 @@ function PaymentBlock({
   formData: UnifiedCheckoutFormData;
   bookingHoldId: string | null;
   pricing: UnifiedCheckoutPricing;
-  programType: "weight_management" | "hair_loss";
+  programType: "weight_management" | "hair_loss" | "mens_health" | "womens_health";
   onPaymentSuccess: (paymentIntentId?: string) => void;
   onPaymentError: (error: string) => void;
   onReadyChange: (ready: boolean) => void;

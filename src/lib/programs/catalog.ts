@@ -148,6 +148,7 @@ export const ORGAN_CARE_CARD = {
   tagline: "Heart, liver, kidney, thyroid, hormones & metabolic health — one membership",
   priceHint: "$499/year · all organs",
   hubRoute: "/dashboard/organ-care",
+  quizRoute: "/dashboard/organ-care/quiz",
   theme: {
     gradient: "from-[#cdd8c6] to-[#a8bb9e]",
     tone: "light" as CardTone,
@@ -160,6 +161,13 @@ export const ORGAN_CARE_CARD = {
     { label: "Heart", route: "/dashboard/heart-test", dot: "bg-red-400" },
     { label: "Kidney", route: "/dashboard/kidney-test", dot: "bg-sky-400" },
   ],
+  /** Overlapping preview circles — matches public BentoHero biomarkers card (L · K · H). */
+  organPreview: [
+    { letter: "L", label: "Liver", dot: "bg-green-500" },
+    { letter: "K", label: "Kidney", dot: "bg-sky-400" },
+    { letter: "H", label: "Heart", dot: "bg-red-400" },
+  ],
+  organPreviewCaption: "Liver, Kidney, Heart & more",
 } as const;
 
 export const SUPPLEMENTS_CARD = {
@@ -194,7 +202,32 @@ export const BIOMARKERS_HERO = {
   },
 } as const;
 
-export function getProgramCardsForGender(gender?: string | null): DashboardProgramCard[] {
-  const g = (gender || "").toLowerCase() === "female" ? "female" : "male";
-  return PROGRAM_CARDS.filter((card) => card.gender === "all" || card.gender === g);
+export type ProgramCardFilterOptions = {
+  subscriptionTier?: string | null;
+  entitledProgramKeys?: ProgramKey[];
+};
+
+export function getProgramCardsForGender(
+  gender?: string | null,
+  options?: ProgramCardFilterOptions
+): DashboardProgramCard[] {
+  const rawGender = (gender || "").toLowerCase();
+  const tier = (options?.subscriptionTier || "").toLowerCase();
+  const entitled = new Set(options?.entitledProgramKeys ?? []);
+
+  let preferredGender: "male" | "female" | null = null;
+  if (rawGender === "female") preferredGender = "female";
+  else if (rawGender === "male") preferredGender = "male";
+  else if (tier.includes("womens")) preferredGender = "female";
+  else if (tier.includes("mens") || tier.includes("hair")) preferredGender = "male";
+
+  return PROGRAM_CARDS.filter((card) => {
+    if (card.gender === "all") return true;
+    if (entitled.has(card.key)) return true;
+    if (preferredGender === "female" && card.gender === "female") return true;
+    if (preferredGender === "male" && card.gender === "male") return true;
+    // Prefer-not-to-say without tier: show both program families rather than defaulting to men's only.
+    if (!preferredGender) return card.gender === "male" || card.gender === "female";
+    return false;
+  });
 }

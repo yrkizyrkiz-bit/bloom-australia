@@ -8,8 +8,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     <NextAuthSessionProvider
       // Refetch session every 5 minutes to keep it fresh
       refetchInterval={5 * 60}
-      // Refetch session when window regains focus
-      refetchOnWindowFocus={true}
+      // Avoid noisy session refetch errors while the dev server is recompiling
+      refetchOnWindowFocus={process.env.NODE_ENV === "production"}
     >
       {children}
     </NextAuthSessionProvider>

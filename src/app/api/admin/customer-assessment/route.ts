@@ -11,6 +11,7 @@ import {
 import { buildAssessmentFromQuizData } from "@/lib/quiz-assessment";
 import { resolvePlanTierFromStrings } from "@/lib/billing/catalog";
 import { getLatestPortalQuizSubmissions } from "@/lib/portal-quiz-submissions";
+import { ensurePublicFunnelQuizOnMember } from "@/lib/portal/public-funnel-quiz-submission";
 
 export async function GET(req: NextRequest) {
   try {
@@ -340,6 +341,13 @@ export async function GET(req: NextRequest) {
 
     let portalQuizzes: Awaited<ReturnType<typeof getLatestPortalQuizSubmissions>> = [];
     try {
+      if (programMember?.intakeData) {
+        await ensurePublicFunnelQuizOnMember({
+          userId,
+          program: programMember.program,
+          intakeData: programMember.intakeData as Record<string, unknown>,
+        });
+      }
       portalQuizzes = await getLatestPortalQuizSubmissions(userId);
     } catch (e) {
       console.warn("[customer-assessment] PortalQuizSubmission lookup failed:", e);

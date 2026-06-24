@@ -7,6 +7,12 @@ import {
   ORGAN_CARE_PUBLIC_OFFER,
   ORGAN_CARE_CHECKOUT_PREFILL_KEY,
 } from "@/lib/programs/organ-care-public-offer";
+import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
+import {
+  buildLoginRedirectUrl,
+  fetchExistingAccountFirstName,
+  submitPublicIntake,
+} from "@/lib/funnel/intake-response";
 
 interface FormData {
   firstName: string;
@@ -160,6 +166,8 @@ export default function FattyLiverAssessmentPage() {
   const [formData, setFormData] = useState<FormData>(INITIAL_DATA);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
+  const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
 
   const updateField = (field: keyof FormData, value: string | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -224,30 +232,34 @@ export default function FattyLiverAssessmentPage() {
     }
   };
 
+  const handleUseDifferentEmail = () => {
+    setShowExistingAccountPrompt(false);
+    setExistingUserFirstName(null);
+    setError(null);
+    updateField("email", "");
+    setCurrentStep(1);
+    window.scrollTo(0, 0);
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
+    setShowExistingAccountPrompt(false);
 
     try {
-      const response = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          programType: "FATTY_LIVER",
-          ...formData,
-        }),
+      const result = await submitPublicIntake({
+        programType: "FATTY_LIVER",
+        ...formData,
       });
 
-      const data = await response.json();
-
-      if (data.userId) {
-        localStorage.setItem("intakeUserId", data.userId);
+      if (result.ok) {
+        localStorage.setItem("intakeUserId", result.userId);
         localStorage.setItem("intakeProgram", "fatty_liver");
         localStorage.setItem(
           ORGAN_CARE_CHECKOUT_PREFILL_KEY,
           JSON.stringify({
             source: "fatty-liver",
-            userId: data.userId,
+            userId: result.userId,
             email: formData.email,
             firstName: formData.firstName,
             lastName: formData.lastName,
@@ -258,11 +270,17 @@ export default function FattyLiverAssessmentPage() {
         );
 
         router.push(`${ORGAN_CARE_PUBLIC_OFFER.checkoutPath}?source=fatty-liver`);
-      } else if (data.code === "EMAIL_EXISTS" || data.existing) {
-        setError("An account with this email already exists. Please log in.");
-      } else {
-        setError(data.error || "Something went wrong. Please try again.");
+        return;
       }
+
+      if (result.emailExists) {
+        const firstName = await fetchExistingAccountFirstName(formData.email);
+        setExistingUserFirstName(firstName);
+        setShowExistingAccountPrompt(true);
+        return;
+      }
+
+      setError(result.message);
     } catch (err) {
       console.error("Submission error:", err);
       setError("Network error. Please check your connection and try again.");
@@ -1001,6 +1019,15 @@ export default function FattyLiverAssessmentPage() {
           )}
         </div>
       </div>
+
+      <ExistingAccountPrompt
+        open={showExistingAccountPrompt}
+        firstName={existingUserFirstName}
+        loginHref={buildLoginRedirectUrl("/dashboard/organ-care")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+        accentClass="bg-[#c17a32]"
+        accentHoverClass="hover:bg-[#a86628]"
+      />
     </div>
   );
 }

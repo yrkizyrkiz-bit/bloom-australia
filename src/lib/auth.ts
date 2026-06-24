@@ -1,9 +1,25 @@
 import { NextAuthOptions } from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "./prisma";
 import { verifyMagicLoginToken } from "./magic-link";
+
+function getNextAuthSecret(): string | undefined {
+  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "development") {
+    return "dev-nextauth-secret-not-for-production";
+  }
+  return undefined;
+}
+
+const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") === true;
+
+function authDebug(...args: unknown[]) {
+  if (process.env.NEXTAUTH_DEBUG === "true") {
+    console.log(...args);
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   // Note: Don't use adapter with credentials provider - it causes session issues
@@ -17,7 +33,7 @@ export const authOptions: NextAuthOptions = {
         magicToken: { label: "Magic Token", type: "text" },
       },
       async authorize(credentials) {
-        console.log("[Auth] Authorize called with email:", credentials?.email);
+        authDebug("[Auth] Authorize called with email:", credentials?.email);
 
         // Magic link sign-in (valid token, no password required)
         if (credentials?.magicToken) {
@@ -51,7 +67,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!credentials?.email || !credentials?.password) {
-          console.log("[Auth] Missing credentials");
+          authDebug("[Auth] Missing credentials");
           throw new Error("Email and password are required");
         }
 
@@ -65,11 +81,11 @@ export const authOptions: NextAuthOptions = {
         const storedHash = user?.passwordHash || user?.password;
 
         if (user && storedHash) {
-          console.log("[Auth] User found:", user.email, user.role);
+          authDebug("[Auth] User found:", user.email, user.role);
           const isValid = await bcrypt.compare(credentials.password, storedHash);
 
           if (isValid) {
-            console.log("[Auth] User password valid, returning user");
+            authDebug("[Auth] User password valid, returning user");
             return {
               id: user.id,
               email: user.email,
@@ -90,7 +106,7 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (clinic && clinic.passwordHash) {
-          console.log("[Auth] Clinic found:", clinic.name, clinic.leadGpName);
+          authDebug("[Auth] Clinic found:", clinic.name, clinic.leadGpName);
           const isValid = await bcrypt.compare(credentials.password, clinic.passwordHash);
 
           if (isValid) {
@@ -98,7 +114,7 @@ export const authOptions: NextAuthOptions = {
               throw new Error("This clinic account is not active");
             }
 
-            console.log("[Auth] Clinic password valid, returning GP user");
+            authDebug("[Auth] Clinic password valid, returning GP user");
             return {
               id: clinic.id,
               email: clinic.leadGpEmail,
@@ -115,7 +131,7 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
-        console.log("[Auth] No valid user or clinic found");
+        authDebug("[Auth] No valid user or clinic found");
         throw new Error("Invalid email or password");
       },
     }),
@@ -126,59 +142,67 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user, trigger }) {
-      console.log("[Auth] JWT callback, user present:", !!user, "trigger:", trigger);
+      authDebug("[Auth] JWT callback, user present:", !!user, "trigger:", trigger);
 
-      // Initial sign in - set token from user object
-      if (user) {
-        token.id = user.id;
-        token.role = (user as { role?: string }).role || "MEMBER";
-        token.firstName = (user as { firstName?: string }).firstName || "";
-        token.lastName = (user as { lastName?: string }).lastName || "";
-        token.gender = (user as { gender?: string }).gender || "OTHER";
-        token.dateOfBirth = (user as { dateOfBirth?: string | null }).dateOfBirth || null;
-        // GP-specific fields
-        token.clinicName = (user as { clinicName?: string }).clinicName || null;
-        token.clinicId = (user as { clinicId?: string }).clinicId || null;
-      }
-
-      // Session update triggered - fetch fresh data from database
-      if (trigger === "update" && token.id) {
-        console.log("[Auth] Refreshing user data from database...");
-        const freshUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: {
-            firstName: true,
-            lastName: true,
-            role: true,
-            gender: true,
-            dateOfBirth: true,
-          },
-        });
-
-        if (freshUser) {
-          console.log("[Auth] Updated user data:", freshUser.firstName, freshUser.lastName);
-          token.firstName = freshUser.firstName;
-          token.lastName = freshUser.lastName;
-          token.role = freshUser.role;
-          token.gender = freshUser.gender;
-          token.dateOfBirth = freshUser.dateOfBirth?.toISOString() || null;
+      try {
+        // Initial sign in - set token from user object
+        if (user) {
+          token.id = user.id;
+          token.role = (user as { role?: string }).role || "MEMBER";
+          token.firstName = (user as { firstName?: string }).firstName || "";
+          token.lastName = (user as { lastName?: string }).lastName || "";
+          token.gender = (user as { gender?: string }).gender || "OTHER";
+          token.dateOfBirth = (user as { dateOfBirth?: string | null }).dateOfBirth || null;
+          // GP-specific fields
+          token.clinicName = (user as { clinicName?: string }).clinicName || null;
+          token.clinicId = (user as { clinicId?: string }).clinicId || null;
         }
+
+        // Session update triggered - fetch fresh data from database
+        if (trigger === "update" && token.id && token.role !== "GP") {
+          authDebug("[Auth] Refreshing user data from database...");
+          const freshUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: {
+              firstName: true,
+              lastName: true,
+              role: true,
+              gender: true,
+              dateOfBirth: true,
+            },
+          });
+
+          if (freshUser) {
+            authDebug("[Auth] Updated user data:", freshUser.firstName, freshUser.lastName);
+            token.firstName = freshUser.firstName;
+            token.lastName = freshUser.lastName;
+            token.role = freshUser.role;
+            token.gender = freshUser.gender;
+            token.dateOfBirth = freshUser.dateOfBirth?.toISOString() || null;
+          }
+        }
+      } catch (error) {
+        console.error("[Auth] JWT callback failed:", error);
       }
 
       return token;
     },
     async session({ session, token }) {
-      console.log("[Auth] Session callback, token id:", token.id);
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.firstName = token.firstName as string;
-        session.user.lastName = token.lastName as string;
-        session.user.gender = token.gender as string;
-        session.user.dateOfBirth = token.dateOfBirth as string | null;
-        // GP-specific fields
-        session.user.clinicName = token.clinicName as string | null;
-        session.user.clinicId = token.clinicId as string | null;
+      authDebug("[Auth] Session callback, token id:", token.id);
+      try {
+        if (session.user) {
+          session.user.id = token.id as string;
+          session.user.role = token.role as string;
+          session.user.firstName = token.firstName as string;
+          session.user.lastName = token.lastName as string;
+          session.user.gender = token.gender as string;
+          session.user.dateOfBirth = token.dateOfBirth as string | null;
+          // GP-specific fields
+          session.user.clinicName = token.clinicName as string | null;
+          session.user.clinicId = token.clinicId as string | null;
+        }
+      } catch (error) {
+        console.error("[Auth] Session callback failed:", error);
       }
       return session;
     },
@@ -187,11 +211,10 @@ export const authOptions: NextAuthOptions = {
     signIn: "/",
     error: "/",
   },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: true, // Enable debug for troubleshooting
-  // Use secure cookies in production (HTTPS) for iframe compatibility
-  // In development (HTTP), use lax cookies
-  ...(process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https")
+  secret: getNextAuthSecret(),
+  debug: process.env.NEXTAUTH_DEBUG === "true",
+  // Secure cookies only when served over HTTPS (iframe / cross-site embeds)
+  ...(useSecureCookies
     ? {
         cookies: {
           sessionToken: {

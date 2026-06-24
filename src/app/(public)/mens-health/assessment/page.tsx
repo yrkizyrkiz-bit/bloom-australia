@@ -3,6 +3,19 @@
 import { useState, Suspense, useEffect } from "react";
 import { scoreMensHealth, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
+import {
+  UnifiedCheckoutScreen,
+  type UnifiedSlot,
+} from "@/components/checkout/UnifiedCheckoutScreen";
+import { resolveAustralianTimezone } from "@/lib/australia-timezone";
+import { MENS_CHECKOUT_PRICING } from "@/lib/funnel/public-consult-programs";
+import { toast } from "sonner";
+import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
+import {
+  buildLoginRedirectUrl,
+  fetchExistingAccountFirstName,
+  submitPublicIntake,
+} from "@/lib/funnel/intake-response";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -46,6 +59,9 @@ interface FormData {
   treatmentGoal: string;
   otherConcerns: string[];
   postcode: string;
+  consultationDate: string;
+  consultationTime: string;
+  selectedSlotId: string;
   discountCode: string;
   confirmedAccurate: boolean;
   agreedToTerms: boolean;
@@ -184,6 +200,9 @@ function AssessmentContent() {
     treatmentGoal: "",
     otherConcerns: [],
     postcode: "",
+    consultationDate: "",
+    consultationTime: "",
+    selectedSlotId: "",
     discountCode: "",
     confirmedAccurate: false,
     agreedToTerms: false,
@@ -199,7 +218,18 @@ function AssessmentContent() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
+  const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
+  const [bookingHoldId, setBookingHoldId] = useState<string | null>(null);
+  const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
+  const [holdCountdown, setHoldCountdown] = useState(0);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
+  const [creatingHold, setCreatingHold] = useState(false);
+  const [selectingSlotId, setSelectingSlotId] = useState<string | null>(null);
+  const [offerCountdown, setOfferCountdown] = useState(300);
+  const [portalMagicLink, setPortalMagicLink] = useState<string | null>(null);
 
   // Fetch biomarker campaigns on mount
   useEffect(() => {
@@ -224,17 +254,48 @@ function AssessmentContent() {
     cardName: false,
   });
 
-  // Updated total steps: 0-intro, 1-name, 2-email, 3-dob, 4-health-intro, 5-14 health questions, 15-other concerns, 16-phone/postcode, 17-confirm details, 18-payment
-  const totalSteps = 19;
+  const snapshotStep = 18;
+  const checkoutStep = 19;
+  const thankYouStep = 20;
+  const totalSteps = thankYouStep;
   const progress = Math.min(((step + 1) / totalSteps) * 100, 100);
+  const patientTimezone = resolveAustralianTimezone(null, formData.postcode);
+
+  useEffect(() => {
+    if (!holdExpiry) return;
+    const timer = setInterval(() => {
+      const remaining = Math.max(
+        0,
+        Math.floor((holdExpiry.getTime() - Date.now()) / 1000)
+      );
+      setHoldCountdown(remaining);
+      if (remaining === 0) {
+        setBookingHoldId(null);
+        updateFormData("consultationDate", "");
+        updateFormData("consultationTime", "");
+        updateFormData("selectedSlotId", "");
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [holdExpiry]);
+
+  useEffect(() => {
+    if (offerCountdown > 0 && step >= checkoutStep) {
+      const timer = setInterval(() => {
+        setOfferCountdown((c) => Math.max(0, c - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [checkoutStep, offerCountdown, step]);
 
   // Get current phase for progress indicator
   const getPhase = () => {
     if (step <= 3) return 1; // Personal Info
     if (step <= 15) return 2; // Health Assessment
     if (step === 16) return 2; // Contact details (still part of assessment)
-    if (step === 17) return 3; // Confirm & Review
-    if (step === 18) return 4; // Submit & Pay
+    if (step === 17) return 3;
+    if (step === snapshotStep || step === checkoutStep) return 4;
+    if (step === thankYouStep) return 4;
     return 4;
   };
 
@@ -342,42 +403,6 @@ function AssessmentContent() {
     setCardErrors(prev => ({ ...prev, [field]: error }));
   };
 
-  const isCardValid = (): boolean => {
-    return (
-      !validateCardNumber(formData.cardNumber) &&
-      !validateExpiry(formData.cardExpiry) &&
-      !validateCvc(formData.cardCvc) &&
-      !validateCardName(formData.cardName)
-    );
-  };
-
-  // Apple Pay handler
-  const handleApplePay = async () => {
-    setIsApplePayLoading(true);
-    // Simulate Apple Pay processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsApplePayLoading(false);
-    // In a real implementation, this would trigger the Apple Pay flow
-    handleSubmit();
-  };
-
-  // Google Pay handler
-  const handleGooglePay = async () => {
-    setIsGooglePayLoading(true);
-    // Simulate Google Pay processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsGooglePayLoading(false);
-    // In a real implementation, this would trigger the Google Pay flow
-    handleSubmit();
-  };
-
-  // Auto-populate card name when reaching payment step
-  useEffect(() => {
-    if (step === 18 && !formData.cardName && formData.firstName && formData.lastName) {
-      setFormData(prev => ({ ...prev, cardName: `${prev.firstName} ${prev.lastName}` }));
-    }
-  }, [step, formData.cardName, formData.firstName, formData.lastName]);
-
   const updateFormData = (field: keyof FormData, value: string | string[] | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -451,7 +476,10 @@ function AssessmentContent() {
       case 15: return formData.otherConcerns.length > 0;
       case 16: return formData.phone.length >= 10 && formData.postcode.length >= 4;
       case 17: return formData.confirmedAccurate;
-      case 18: return formData.agreedToTerms;
+      case snapshotStep:
+      case checkoutStep:
+      case thankYouStep:
+        return true;
       default: return true;
     }
   };
@@ -470,67 +498,184 @@ function AssessmentContent() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleUseDifferentEmail = () => {
+    setShowExistingAccountPrompt(false);
+    setExistingUserFirstName(null);
+    setSubmissionError(null);
+    updateFormData("email", "");
+    updateFormData("confirmEmail", "");
+    setStep(2);
+    window.scrollTo(0, 0);
+  };
+
+  const saveMensIntake = async (): Promise<boolean> => {
     setIsSubmitting(true);
     setSubmissionError(null);
-
+    setShowExistingAccountPrompt(false);
     try {
-      // STEP 1: Send assessment data to portal — create patient record
-      const intakeResponse = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          programType: "MENS_HEALTH",
-          ...formData,
-          // Remove card fields from submission (PCI compliance)
-          cardNumber: undefined,
-          cardExpiry: undefined,
-          cardCvc: undefined,
-          cardName: undefined,
-        }),
+      const result = await submitPublicIntake({
+        programType: "MENS_HEALTH",
+        ...formData,
+        cardNumber: undefined,
+        cardExpiry: undefined,
+        cardCvc: undefined,
+        cardName: undefined,
       });
 
-      if (!intakeResponse.ok) {
-        const err = await intakeResponse.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to create patient record. Please try again.");
+      if (result.ok) {
+        setUserId(result.userId);
+        toast.success("Details saved", {
+          description: "Now choose your consultation time.",
+        });
+        return true;
       }
 
-      const { userId: newUserId } = await intakeResponse.json();
-      setUserId(newUserId);
-
-      // STEP 2: Create Stripe PaymentIntent for $49 consultation fee
-      const stripeResponse = await fetch("/api/stripe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: 4900, // $49.00 AUD in cents
-          userId: newUserId,
-          program: "mens_health",
-        }),
-      });
-
-      if (!stripeResponse.ok) {
-        throw new Error("Payment setup failed. Please try again.");
+      if (result.emailExists) {
+        const firstName = await fetchExistingAccountFirstName(formData.email);
+        setExistingUserFirstName(firstName);
+        setShowExistingAccountPrompt(true);
+        return false;
       }
 
-      const { clientSecret } = await stripeResponse.json();
-
-      // STEP 3: Redirect to payment page with client secret
-      if (clientSecret) {
-        sessionStorage.setItem("paymentClientSecret", clientSecret);
-        sessionStorage.setItem("paymentUserId", newUserId);
-        sessionStorage.setItem("paymentProgram", "mens_health");
-        window.location.href = `/payment?program=mens_health`;
-      }
-
-      setStep(totalSteps);
-
-    } catch (error: unknown) {
-      console.error("Submission error:", error);
-      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      setSubmissionError(result.message);
+      toast.error("Could not save your details", { description: result.message });
+      return false;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Something went wrong. Please try again.";
       setSubmissionError(message);
+      toast.error("Could not save your details", { description: message });
+      return false;
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const formatSlotDate = (isoString: string) =>
+    new Date(isoString).toLocaleDateString("en-AU", {
+      timeZone: patientTimezone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+
+  const formatSlotTime = (isoString: string) =>
+    new Date(isoString).toLocaleTimeString("en-AU", {
+      timeZone: patientTimezone,
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+  const handleSlotSelection = async (slot: UnifiedSlot) => {
+    if (slot.availabilityStatus === "BOOKED" || creatingHold) return;
+    if (formData.selectedSlotId === slot.slotId) return;
+
+    const previousHoldId = bookingHoldId;
+    const previousSlotId = formData.selectedSlotId;
+    setCreatingHold(true);
+    setSelectingSlotId(slot.slotId);
+    setSlotsError(null);
+
+    try {
+      updateFormData("selectedSlotId", slot.slotId);
+      updateFormData("consultationDate", formatSlotDate(slot.startTime));
+      updateFormData("consultationTime", formatSlotTime(slot.startTime));
+
+      const response = await fetch("/api/bookings/hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId || undefined,
+          slotId: slot.slotId,
+          programType: "MENS_HEALTH",
+          patientPhone: formData.phone || undefined,
+          riskFlags: ["MENS_HEALTH_PROGRAM"],
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reserve this time");
+      }
+
+      setBookingHoldId(data.bookingHoldId);
+      setHoldExpiry(new Date(data.holdExpiryTime));
+      setSlotsRefreshKey((k) => k + 1);
+
+      if (previousHoldId && previousHoldId !== data.bookingHoldId) {
+        fetch(`/api/bookings/hold?holdId=${previousHoldId}`, {
+          method: "DELETE",
+        }).catch(() => {});
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to reserve this time";
+      setSlotsError(message);
+      updateFormData("selectedSlotId", previousSlotId);
+      if (!previousSlotId) {
+        updateFormData("consultationDate", "");
+        updateFormData("consultationTime", "");
+      }
+      setBookingHoldId(previousHoldId);
+      toast.error("Could not reserve this slot", { description: message });
+    } finally {
+      setCreatingHold(false);
+      setSelectingSlotId(null);
+    }
+  };
+
+  const handleCheckoutPaymentSuccess = async (paymentIntentId?: string) => {
+    if (!bookingHoldId) {
+      setStep(thankYouStep);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/bookings/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingHoldId,
+          paymentIntentId: paymentIntentId || "pi_mens_manual_confirmation",
+          userId,
+          clientOrigin:
+            typeof window !== "undefined" ? window.location.origin : undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        if (data.magicLink) setPortalMagicLink(data.magicLink);
+        toast.success("Booking confirmed", {
+          description: `Your consultation is scheduled for ${formData.consultationDate} at ${formData.consultationTime}`,
+        });
+      } else {
+        toast.success("Payment successful", {
+          description: data.error || "Your consultation will be confirmed shortly.",
+        });
+      }
+    } catch (error) {
+      console.error("[Mens Assessment] Booking confirmation error:", error);
+      toast.success("Payment successful", {
+        description: "Your consultation will be confirmed shortly.",
+      });
+    } finally {
+      setBookingHoldId(null);
+      setHoldExpiry(null);
+      setStep(thankYouStep);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handleCheckoutPaymentError = (error: string) => {
+    toast.error("Payment failed", { description: error });
+  };
+
+  const handleSnapshotContinue = async () => {
+    const saved = await saveMensIntake();
+    if (saved) {
+      setStep(checkoutStep);
+      window.scrollTo(0, 0);
     }
   };
 
@@ -987,311 +1132,97 @@ function AssessmentContent() {
           </div>
         );
 
-      case 18:
-        return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Complete your booking</h1>
-              <p className="mt-3 text-[#5c7a52]">Review your details and complete payment</p>
-            </div>
-
-            {/* Patient Summary */}
-            <div className="bg-white rounded-2xl border border-[#e6ebe3] overflow-hidden">
-              <div className="p-5 border-b border-[#e6ebe3] bg-[#f4f7f2]">
-                <h3 className="font-semibold text-[#2c3628] flex items-center gap-2">
-                  <User className="w-4 h-4" /> Patient Summary
-                </h3>
-              </div>
-              <div className="p-5 space-y-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-[#7e9a72] mb-1">Full Name</label>
-                    <p className="text-[#2c3628] font-medium">{formData.firstName} {formData.lastName}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[#7e9a72] mb-1">Date of Birth</label>
-                    <p className="text-[#2c3628] font-medium">{formData.dateOfBirth}</p>
-                  </div>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-[#7e9a72] mb-1">Email</label>
-                    <p className="text-[#2c3628] font-medium truncate">{formData.email}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[#7e9a72] mb-1">Mobile</label>
-                    <p className="text-[#2c3628] font-medium">{formData.phone}</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-[#7e9a72] mb-1">Postcode</label>
-                  <p className="text-[#2c3628] font-medium">{formData.postcode}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Consultation summary */}
-            <div className="bg-white rounded-2xl border border-[#e6ebe3] overflow-hidden">
-              <div className="p-5 border-b border-[#e6ebe3]">
-                <h3 className="font-semibold text-[#2c3628]">Order summary</h3>
-              </div>
-              <div className="p-5">
-                <div className="flex items-center gap-4 pb-4 border-b border-[#e6ebe3]">
-                  <div className="w-14 h-14 bg-gradient-to-br from-[#e6ebe3] to-[#cdd8c6] rounded-xl flex items-center justify-center">
-                    <Heart className="w-7 h-7 text-[#5c7a52]" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-[#2c3628]">Energy & Vitality Consultation</h4>
-                    <p className="text-sm text-[#7e9a72]">AHPRA-registered doctor review</p>
-                  </div>
-                  <div className="text-right">
-                    {discountApplied && <p className="text-sm text-[#7e9a72] line-through">$49</p>}
-                    <p className="font-semibold text-[#2c3628]">${finalPrice}</p>
-                  </div>
-                </div>
-                <div className="pt-4 space-y-2 text-sm">
-                  {["Personalised vitality plan", "Biomarker guidance if clinically appropriate", "Doctor review and recommendations", "Ongoing support"].map((item) => (
-                    <div key={item} className="flex items-center gap-2 text-[#5c7a52]">
-                      <Check className="w-4 h-4 flex-shrink-0" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Discount code */}
-            <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5">
-              <h3 className="font-semibold text-[#2c3628] mb-3 flex items-center gap-2">
-                <Tag className="w-4 h-4" /> Discount code
-              </h3>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={formData.discountCode}
-                  onChange={(e) => updateFormData("discountCode", e.target.value.toUpperCase())}
-                  className="flex-1 px-4 py-3 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white uppercase"
-                  placeholder="Enter code"
-                />
-                <button
-                  type="button"
-                  onClick={applyDiscount}
-                  className="px-6 py-3 rounded-xl border-2 border-[#5c7a52] text-[#5c7a52] font-medium hover:bg-[#5c7a52]/10 transition-colors"
-                >
-                  Apply
-                </button>
-              </div>
-              {discountApplied && (
-                <div className="mt-3 px-4 py-2 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-green-700 text-sm">
-                  <Check className="w-4 h-4" />
-                  Discount applied! You've saved ${discountAmount}
-                </div>
-              )}
-            </div>
-
-            {/* Payment methods */}
-            <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5 space-y-4">
-              <h3 className="font-semibold text-[#2c3628] flex items-center gap-2">
-                <CreditCard className="w-4 h-4" /> Payment method
-              </h3>
-
-              {/* Apple Pay button */}
-              <button
-                type="button"
-                className={`w-full py-4 bg-black text-white font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-gray-900 transition-colors ${isApplePayLoading ? "opacity-60 cursor-wait" : ""}`}
-                onClick={handleApplePay}
-                disabled={isApplePayLoading}
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                </svg>
-                {isApplePayLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>Pay with Apple Pay</>
-                )}
-              </button>
-
-              {/* Google Pay button */}
-              <button
-                type="button"
-                className={`w-full py-4 bg-white border-2 border-[#e6ebe3] text-[#2c3628] font-medium rounded-xl flex items-center justify-center gap-2 hover:border-[#cdd8c6] transition-colors ${isGooglePayLoading ? "opacity-60 cursor-wait" : ""}`}
-                onClick={handleGooglePay}
-                disabled={isGooglePayLoading}
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                {isGooglePayLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-[#5c7a52]/30 border-t-[#5c7a52] rounded-full animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>Pay with Google Pay</>
-                )}
-              </button>
-
-              <div className="relative flex items-center gap-4 my-4">
-                <div className="flex-1 h-px bg-[#e6ebe3]" />
-                <span className="text-sm text-[#7e9a72]">or pay with card</span>
-                <div className="flex-1 h-px bg-[#e6ebe3]" />
-              </div>
-
-              {/* Card payment form - Stripe style */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#2c3628] mb-2">Card number</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      className={`w-full px-4 py-4 pr-24 rounded-xl border ${cardErrors.cardNumber && touchedFields.cardNumber ? "border-red-400 focus:border-red-500 focus:ring-red-500/20" : "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-[#5c7a52]/20"} outline-none transition-all bg-white`}
-                      placeholder="1234 5678 9012 3456"
-                      value={formData.cardNumber}
-                      onChange={e => handleCardFieldChange("cardNumber", e.target.value)}
-                      onBlur={() => handleCardFieldBlur("cardNumber")}
-                      maxLength={19}
-                      inputMode="numeric"
-                      autoComplete="cc-number"
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <svg className="w-8 h-5" viewBox="0 0 32 20" fill="none">
-                        <rect width="32" height="20" rx="2" fill="#1A1F71"/>
-                        <path d="M12.5 14.5L14.5 6H17L15 14.5H12.5Z" fill="white"/>
-                        <path d="M21.5 6.2C21 6 20.2 5.8 19.2 5.8C16.7 5.8 15 7.1 15 8.9C15 10.3 16.2 11 17.2 11.4C18.2 11.8 18.5 12.1 18.5 12.5C18.5 13.1 17.8 13.4 17.1 13.4C16.1 13.4 15.6 13.2 14.8 12.9L14.5 12.8L14.2 14.7C14.8 15 15.8 15.2 16.9 15.2C19.6 15.2 21.2 13.9 21.2 12C21.2 10.9 20.5 10.1 19 9.5C18.1 9.1 17.5 8.8 17.5 8.4C17.5 8 17.9 7.6 18.8 7.6C19.6 7.6 20.2 7.8 20.6 8L20.9 8.1L21.5 6.2Z" fill="white"/>
-                      </svg>
-                      <svg className="w-8 h-5" viewBox="0 0 32 20" fill="none">
-                        <rect width="32" height="20" rx="2" fill="#EB001B" fillOpacity="0.1"/>
-                        <circle cx="12" cy="10" r="6" fill="#EB001B"/>
-                        <circle cx="20" cy="10" r="6" fill="#F79E1B"/>
-                        <path d="M16 5.5C17.3 6.6 18 8.2 18 10C18 11.8 17.3 13.4 16 14.5C14.7 13.4 14 11.8 14 10C14 8.2 14.7 6.6 16 5.5Z" fill="#FF5F00"/>
-                      </svg>
-                    </div>
-                  </div>
-                  {cardErrors.cardNumber && touchedFields.cardNumber && (
-                    <p className="text-xs text-red-600 mt-2">{cardErrors.cardNumber}</p>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#2c3628] mb-2">Expiry</label>
-                    <input
-                      type="text"
-                      className={`w-full px-4 py-4 rounded-xl border ${cardErrors.cardExpiry && touchedFields.cardExpiry ? "border-red-400 focus:border-red-500 focus:ring-red-500/20" : "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-[#5c7a52]/20"} outline-none transition-all bg-white`}
-                      placeholder="MM / YY"
-                      value={formData.cardExpiry}
-                      onChange={e => handleCardFieldChange("cardExpiry", e.target.value)}
-                      onBlur={() => handleCardFieldBlur("cardExpiry")}
-                      maxLength={7}
-                      inputMode="numeric"
-                      autoComplete="cc-exp"
-                    />
-                    {cardErrors.cardExpiry && touchedFields.cardExpiry && (
-                      <p className="text-xs text-red-600 mt-2">{cardErrors.cardExpiry}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#2c3628] mb-2">CVC</label>
-                    <input
-                      type="text"
-                      className={`w-full px-4 py-4 rounded-xl border ${cardErrors.cardCvc && touchedFields.cardCvc ? "border-red-400 focus:border-red-500 focus:ring-red-500/20" : "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-[#5c7a52]/20"} outline-none transition-all bg-white`}
-                      placeholder="123"
-                      value={formData.cardCvc}
-                      onChange={e => handleCardFieldChange("cardCvc", e.target.value)}
-                      onBlur={() => handleCardFieldBlur("cardCvc")}
-                      maxLength={4}
-                      inputMode="numeric"
-                      autoComplete="cc-csc"
-                    />
-                    {cardErrors.cardCvc && touchedFields.cardCvc && (
-                      <p className="text-xs text-red-600 mt-2">{cardErrors.cardCvc}</p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#2c3628] mb-2">Name on card</label>
-                  <input
-                    type="text"
-                    className={`w-full px-4 py-4 rounded-xl border ${cardErrors.cardName && touchedFields.cardName ? "border-red-400 focus:border-red-500 focus:ring-red-500/20" : "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-[#5c7a52]/20"} outline-none transition-all bg-white`}
-                    placeholder="Full name as shown on card"
-                    value={formData.cardName}
-                    onChange={e => handleCardFieldChange("cardName", e.target.value)}
-                    onBlur={() => handleCardFieldBlur("cardName")}
-                    autoComplete="cc-name"
-                  />
-                  {cardErrors.cardName && touchedFields.cardName && (
-                    <p className="text-xs text-red-600 mt-2">{cardErrors.cardName}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Secure payment badge */}
-            <div className="flex items-center justify-center gap-2 text-[#7e9a72] text-sm">
-              <Shield className="w-4 h-4" />
-              <span>Secured by 256-bit SSL encryption</span>
-            </div>
-
-            {/* Terms agreement */}
-            <button
-              type="button"
-              onClick={() => updateFormData("agreedToTerms", !formData.agreedToTerms)}
-              className={`w-full py-4 px-5 rounded-xl border-2 text-left flex items-start gap-3 transition-all ${formData.agreedToTerms ? "border-[#5c7a52] bg-[#5c7a52]/10" : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"}`}
-            >
-              <div className={`w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${formData.agreedToTerms ? "border-[#5c7a52] bg-[#5c7a52]" : "border-[#cdd8c6]"}`}>
-                {formData.agreedToTerms && <Check className="w-4 h-4 text-white" />}
-              </div>
-              <span className="text-sm text-[#5c7a52]">
-                By clicking below you confirm you have read and agree to our{" "}
-                <Link href="/terms" className="underline text-[#2c3628]">Terms & Conditions</Link> and{" "}
-                <Link href="/privacy" className="underline text-[#2c3628]">Privacy Policy</Link>.
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSubmitting || !formData.agreedToTerms}
-              className="w-full py-4 bg-[#5c7a52] text-white font-medium rounded-xl hover:bg-[#4a6343] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>Confirm ${finalPrice} payment</>
-              )}
-            </button>
-
-            <p className="text-center text-xs text-[#7e9a72]">
-              You will be refunded if you are not eligible for treatment
-            </p>
-          </div>
-        );
-
-      // Success step
-      default:
-        // Final step: Show biomarker snapshot
+      case 18: {
         const risks = scoreMensHealth(formData as unknown as Record<string, unknown>, campaigns);
         return (
           <BiomarkerSnapshot
             risks={risks}
             primaryProgram="Men's Health Program"
-            primaryPrice="from $89/mo"
+            primaryPrice="$49 first month"
             firstName={formData.firstName}
-            onPrimary={handleSubmit}
+            onPrimary={handleSnapshotContinue}
             onLabs={() => window.location.href = '/labs'}
           />
         );
+      }
+
+      case 19:
+        return (
+          <UnifiedCheckoutScreen
+            formData={{
+              consultationDate: formData.consultationDate,
+              consultationTime: formData.consultationTime,
+              selectedSlotId: formData.selectedSlotId,
+              email: formData.email,
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+            }}
+            userId={userId}
+            bookingHoldId={bookingHoldId}
+            holdCountdown={holdCountdown}
+            offerCountdown={offerCountdown}
+            slotsError={slotsError}
+            slotsRefreshKey={slotsRefreshKey}
+            creatingHold={creatingHold}
+            selectingSlotId={selectingSlotId}
+            onSlotSelect={handleSlotSelection}
+            onSlotsError={setSlotsError}
+            onPaymentSuccess={handleCheckoutPaymentSuccess}
+            onPaymentError={handleCheckoutPaymentError}
+            patientTimezone={patientTimezone}
+            pricing={MENS_CHECKOUT_PRICING}
+            valueProps={[
+              "Doctor-led men's health assessment",
+              "Treatment if clinically prescribed",
+              "Care team support in your portal",
+            ]}
+            programType="mens_health"
+          />
+        );
+
+      case 20:
+        return (
+          <div className="text-center space-y-6">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center">
+              <Check className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
+              You&apos;re booked in
+            </h1>
+            <p className="text-[#5c7a52] max-w-md mx-auto">
+              Your assessment is with our care team for triage. A doctor will review your suitability before treatment is prescribed.
+            </p>
+            <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5 text-left space-y-3">
+              <p className="font-semibold text-[#2c3628]">What happens next</p>
+              {[
+                "Care team triage for men's health",
+                "Doctor consultation at your selected time",
+                "Program access in your portal if clinically appropriate",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-2 text-sm text-[#5c7a52]">
+                  <Check className="w-4 h-4" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            {portalMagicLink && (
+              <a
+                href={portalMagicLink}
+                className="btn-primary inline-flex items-center justify-center gap-2"
+              >
+                Go to portal
+                <ArrowRight className="w-5 h-5" />
+              </a>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
+
+  const isCheckoutLayout = step === checkoutStep;
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
@@ -1302,23 +1233,23 @@ function AssessmentContent() {
 
       {/* Header */}
       <header className="sticky top-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#e6ebe3]">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 py-4 flex items-center justify-between`}>
           <Link href="/mens-health" className="text-2xl font-serif text-[#34412f]">bloom</Link>
           <button type="button" onClick={() => setShowFAQ(true)} className="flex items-center gap-1.5 text-sm text-[#5c7a52] hover:text-[#34412f] transition-colors">
             <Info className="w-4 h-4" /><span>Help</span>
           </button>
         </div>
         {/* Step Progress Indicator - shown after intro step */}
-        {step > 0 && step < totalSteps && <ProgressStepIndicator />}
+        {step > 0 && step < thankYouStep && <ProgressStepIndicator />}
       </header>
 
       {/* Main content */}
-      <main className="max-w-2xl mx-auto px-4 py-8 pb-32">
+      <main className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl px-4 sm:px-6" : "max-w-2xl px-4"} mx-auto py-8 pb-32`}>
         <div className="animate-fadeIn">{renderStep()}</div>
       </main>
 
       {/* Bottom navigation */}
-      {step < totalSteps && step !== 18 && (
+      {step < totalSteps && step !== checkoutStep && step !== thankYouStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
             {step > 0 && (
@@ -1350,6 +1281,13 @@ function AssessmentContent() {
           </div>
         </div>
       )}
+
+      <ExistingAccountPrompt
+        open={showExistingAccountPrompt}
+        firstName={existingUserFirstName}
+        loginHref={buildLoginRedirectUrl("/dashboard")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+      />
 
       <style jsx>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

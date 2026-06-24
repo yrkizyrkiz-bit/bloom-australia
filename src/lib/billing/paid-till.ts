@@ -40,11 +40,29 @@ export function invoiceMatchesProgram(
         text.includes("sanative precision")
       );
     case "MENS_HEALTH_VITALITY":
+      return (
+        text.includes("vitality") ||
+        text.includes("men's health") ||
+        text.includes("mens health")
+      );
     case "WOMENS_HEALTH_VITALITY":
-      return text.includes("vitality");
+      return (
+        text.includes("vitality") ||
+        text.includes("women's health") ||
+        text.includes("womens health")
+      );
     case "MENS_HEALTH_SEXUAL":
+      return (
+        text.includes("sexual") ||
+        text.includes("men's health") ||
+        text.includes("mens health")
+      );
     case "WOMENS_HEALTH_SEXUAL":
-      return text.includes("sexual");
+      return (
+        text.includes("sexual") ||
+        text.includes("women's health") ||
+        text.includes("womens health")
+      );
     default:
       return false;
   }

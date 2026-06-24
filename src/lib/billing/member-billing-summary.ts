@@ -18,6 +18,7 @@ import {
   type ProgramKey,
 } from "@/lib/membership/keys";
 import { getLatestPortalQuizSubmissions } from "@/lib/portal-quiz-submissions";
+import { resolveProgramMemberProgramKey } from "@/lib/membership/entitlement-service";
 import {
   evaluateSubscriptionAccess,
   resolveInvoiceForBilling,
@@ -227,8 +228,17 @@ function discoverScopeBillingKeys(input: {
   return SCOPE_BILLING_PRIORITY.filter((key) => keys.has(key));
 }
 
+function findProgramMemberForKey(
+  programMembers: BillingBuildContext["programMembers"],
+  programKey: ProgramKey
+) {
+  return programMembers.find(
+    (pm) => resolveProgramMemberProgramKey(pm) === programKey
+  );
+}
+
 function discoverBillingProgramKeys(input: {
-  programMembers: Array<{ program?: string | null }>;
+  programMembers: Array<{ program?: string | null; intakeData?: unknown }>;
   entitlements: Array<{ key: string; status: string }>;
   memberSubs: Array<{ product: { program: string } }>;
   hasWeightIntake: boolean;
@@ -236,7 +246,7 @@ function discoverBillingProgramKeys(input: {
   const keys = new Set<ProgramKey>();
 
   for (const pm of input.programMembers) {
-    const key = normalizeProgramKey(pm.program);
+    const key = resolveProgramMemberProgramKey(pm);
     if (key) keys.add(key);
   }
 
@@ -360,9 +370,7 @@ async function buildProgramBillingSummary(
 ): Promise<MemberBillingSummary> {
   const programSlug = programSlugFromKey(programKey);
   const programLabel = PROGRAM_LABELS[programKey];
-  const programMember = ctx.programMembers.find(
-    (pm) => normalizeProgramKey(pm.program) === programKey
-  );
+  const programMember = findProgramMemberForKey(ctx.programMembers, programKey);
   const entitlement = ctx.programEntitlements.find(
     (e) => e.key === programKey && e.status !== "INACTIVE"
   );
@@ -398,6 +406,9 @@ async function buildProgramBillingSummary(
     (programKey === "WEIGHT_MANAGEMENT" && ctx.intake?.paymentStatus === "PAID") ||
     !!programInvoice ||
     (isPortalPurchase && entitlement?.status === "ACTIVE") ||
+    (!!entitlement &&
+      entitlement.status !== "INACTIVE" &&
+      PAID_JOURNEY.has(ctx.user.journeyStatus)) ||
     (!isPortalPurchase &&
       !!programMember &&
       PAID_JOURNEY.has(ctx.user.journeyStatus));

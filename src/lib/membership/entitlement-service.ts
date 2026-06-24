@@ -15,6 +15,10 @@ import {
   type ScopeKey,
 } from "@/lib/membership/keys";
 import {
+  resolveMensHealthCanonicalKey,
+  resolveWomensHealthCanonicalKey,
+} from "@/lib/funnel/public-consult-programs";
+import {
   hasWeightProgramContext,
   isWeightJourneyPaid,
   PAID_WEIGHT_JOURNEY_STATUSES,
@@ -47,7 +51,11 @@ export type EntitlementSignalsInput = {
   weightIntakePaymentStatus?: string | null;
   hasPaidWeightIntake?: boolean;
   memberProgram?: { isActive?: boolean | null } | null;
-  programMembers?: Array<{ program?: string | null; membershipStatus?: string | null }>;
+  programMembers?: Array<{
+    program?: string | null;
+    membershipStatus?: string | null;
+    intakeData?: Record<string, unknown> | null;
+  }>;
   memberSubscriptions?: Array<{
     status?: string | null;
     product?: {
@@ -95,6 +103,62 @@ function programMemberStatus(status?: string | null): EntitlementStatusValue {
   return "PENDING";
 }
 
+type ProgramMemberSignal = NonNullable<EntitlementSignalsInput["programMembers"]>[number];
+
+/** Resolve canonical program key from intake (sexual vs vitality focus). */
+export function resolveProgramMemberProgramKey(
+  pm: ProgramMemberSignal
+): ProgramKey | null {
+  const intake = pm.intakeData ?? {};
+  const canonicalRaw =
+    typeof intake.canonicalProgramKey === "string" ? intake.canonicalProgramKey : null;
+  if (canonicalRaw) {
+    const canonical = normalizeProgramKey(canonicalRaw);
+    if (canonical) return canonical;
+  }
+
+  const program = (pm.program || "").toUpperCase();
+  if (program === "MENS_HEALTH") {
+    const concern = typeof intake.concern === "string" ? intake.concern : "";
+    if (concern) return resolveMensHealthCanonicalKey(concern);
+  }
+  if (program === "WOMENS_HEALTH") {
+    const category = typeof intake.category === "string" ? intake.category : "";
+    const primaryConcerns = Array.isArray(intake.primaryConcerns)
+      ? (intake.primaryConcerns as string[])
+      : [];
+    if (category || primaryConcerns.length > 0) {
+      return resolveWomensHealthCanonicalKey(category, primaryConcerns);
+    }
+  }
+
+  return normalizeProgramKey(pm.program);
+}
+
+function resolveLegacyTierProgramKey(
+  tier: string | null | undefined,
+  programMembers: ProgramMemberSignal[] | undefined
+): ProgramKey | null {
+  const tierProgram = normalizeProgramKey(tier);
+  if (!tierProgram) return null;
+
+  const members = programMembers || [];
+  if (tierProgram === "MENS_HEALTH_VITALITY") {
+    for (const pm of members) {
+      const key = resolveProgramMemberProgramKey(pm);
+      if (key?.startsWith("MENS_HEALTH_")) return key;
+    }
+  }
+  if (tierProgram === "WOMENS_HEALTH_VITALITY") {
+    for (const pm of members) {
+      const key = resolveProgramMemberProgramKey(pm);
+      if (key?.startsWith("WOMENS_HEALTH_")) return key;
+    }
+  }
+
+  return tierProgram;
+}
+
 /**
  * Pure reconciliation of legacy signals into the canonical desired entitlement set.
  * Same (type,key) seen from multiple sources keeps the strongest status.
@@ -124,7 +188,7 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
 
   // 1) Legacy subscriptionTier -> program + scope
   const tier = input.subscriptionTier;
-  const tierProgram = normalizeProgramKey(tier);
+  const tierProgram = resolveLegacyTierProgramKey(tier, input.programMembers);
   const weightJourneyPaid = isWeightJourneyPaid(input);
 
   if (tierProgram) {
@@ -154,7 +218,7 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
 
   // 3) ProgramMember rows
   for (const pm of input.programMembers || []) {
-    const programKey = normalizeProgramKey(pm.program);
+    const programKey = resolveProgramMemberProgramKey(pm);
     if (!programKey) continue;
     let status = programMemberStatus(pm.membershipStatus);
     if (programKey === "WEIGHT_MANAGEMENT" && weightJourneyPaid && status !== "INACTIVE") {
@@ -236,7 +300,7 @@ async function loadSignals(userId: string): Promise<EntitlementSignalsInput | nu
 
   const programMembers = await prisma.programMember.findMany({
     where: { userId },
-    select: { program: true, membershipStatus: true },
+    select: { program: true, membershipStatus: true, intakeData: true },
   });
 
   const weightIntake = await prisma.weightManagementIntake.findFirst({

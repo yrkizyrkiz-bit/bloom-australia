@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { sendEmail } from "@/lib/email";
 import { resolveAustralianTimezone } from "@/lib/australia-timezone";
+import { genderForIntakeProgram, mapGenderInput } from "@/lib/funnel/program-gender";
+import {
+  resolveMensHealthCanonicalKey,
+  resolveWomensHealthCanonicalKey,
+} from "@/lib/funnel/public-consult-programs";
 
 // ─── Program type definitions ─────────────────────────────────────────────────
 
@@ -55,6 +61,25 @@ const PROGRAM_CONFIG: Record<ProgramType, {
     consultationAmount:     4900,
   },
 };
+
+function buildIntakePayload(
+  programType: ProgramType,
+  data: Record<string, unknown>
+): Prisma.InputJsonValue {
+  const payload = { ...data };
+  if (programType === "MENS_HEALTH") {
+    payload.canonicalProgramKey = resolveMensHealthCanonicalKey(
+      (data.concern as string) || ""
+    );
+  }
+  if (programType === "WOMENS_HEALTH") {
+    payload.canonicalProgramKey = resolveWomensHealthCanonicalKey(
+      (data.category as string) || "",
+      (data.primaryConcerns as string[]) || []
+    );
+  }
+  return payload as Prisma.InputJsonValue;
+}
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
@@ -165,7 +190,13 @@ export async function POST(req: NextRequest) {
       // Previously only WeightManagementIntake was updated, leaving User with
       // minimal data (missing lastName, phone, DOB, gender, address)
       // ═══════════════════════════════════════════════════════════════════════
-      if (hasNewQuizData) {
+      const shouldUpdateUserDetails =
+        hasNewQuizData ||
+        programType === "WOMENS_HEALTH" ||
+        programType === "MENS_HEALTH" ||
+        programType === "HAIR_LOSS";
+
+      if (shouldUpdateUserDetails) {
         try {
           const userUpdateData: Record<string, unknown> = {};
 
@@ -173,7 +204,18 @@ export async function POST(req: NextRequest) {
           if (data.lastName) userUpdateData.lastName = data.lastName.trim();
           if (data.phone) userUpdateData.phone = data.phone.trim();
           if (data.dateOfBirth) userUpdateData.dateOfBirth = parseDOB(data.dateOfBirth);
-          if (data.gender) userUpdateData.gender = mapGender(data.gender);
+          if (
+            programType === "WOMENS_HEALTH" ||
+            programType === "MENS_HEALTH" ||
+            programType === "HAIR_LOSS"
+          ) {
+            userUpdateData.gender = genderForIntakeProgram(
+              programType,
+              data.gender as string | undefined
+            );
+          } else if (data.gender) {
+            userUpdateData.gender = mapGenderInput(data.gender);
+          }
 
           // Address fields from shipping step
           if (data.streetAddress) userUpdateData.addressLine1 = data.streetAddress.trim();
@@ -287,7 +329,10 @@ export async function POST(req: NextRequest) {
             if (existingProgramMember) {
               // Merge existing intakeData with new full quiz data
               const existingIntakeData = (existingProgramMember.intakeData as Record<string, unknown>) || {};
-              const mergedIntakeData = { ...existingIntakeData, ...fullQuizData };
+              const mergedIntakeData = buildIntakePayload(programType, {
+                ...existingIntakeData,
+                ...fullQuizData,
+              });
 
               await prisma.programMember.update({
                 where: { email: existing.email },
@@ -339,7 +384,7 @@ export async function POST(req: NextRequest) {
         email:            data.email?.toLowerCase().trim(),
         phone:            data.phone?.trim(),
         dateOfBirth:      data.dateOfBirth ? parseDOB(data.dateOfBirth) : undefined,
-        gender:           mapGender(data.gender || ""),
+        gender:           genderForIntakeProgram(programType, data.gender as string | undefined),
         postcode:         data.postcode?.trim(),
         // Address fields from shipping info step
         addressLine1:     data.streetAddress?.trim(),
@@ -391,7 +436,7 @@ export async function POST(req: NextRequest) {
           mobile:           data.phone?.trim() || "",
           dob:              data.dateOfBirth ? parseDOB(data.dateOfBirth) : new Date(),
           program:          programType,
-          intakeData:       data, // Store full survey data as JSON
+          intakeData:       buildIntakePayload(programType, data),
           membershipStatus: "PENDING", // GAP-008: Not ACTIVE until activation criteria met
           membershipStart:  new Date(),
           membershipEnd:    membershipEnd,
@@ -850,13 +895,6 @@ function parseDOB(dob: string): Date {
     return new Date(`${year}-${month?.padStart(2, "0")}-${day?.padStart(2, "0")}`);
   }
   return new Date(dob);
-}
-
-function mapGender(gender: string): "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY" {
-  const g = gender.toLowerCase();
-  if (g === "female" || g === "woman") return "FEMALE";
-  if (g === "male" || g === "man") return "MALE";
-  return "PREFER_NOT_TO_SAY";
 }
 
 function generateReferralCode(email: string): string {

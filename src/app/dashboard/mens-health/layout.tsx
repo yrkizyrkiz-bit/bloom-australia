@@ -6,6 +6,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalContext } from "@/hooks/usePortalContext";
+import { isProgramEntitled } from "@/lib/membership/program-access";
 import {
   Home, TrendingUp, Pill, HelpCircle, Settings, Plus,
   Sparkles, Heart, Zap, ShieldCheck, Loader2
@@ -44,16 +46,27 @@ export default function MensHealthLayout({
   const pathname = usePathname() || "";
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  const { data: portal, isLoading: portalLoading } = usePortalContext();
 
-  // Redirect non-male users to dashboard
+  const hasMensHealthEntitlement =
+    isProgramEntitled(portal?.membership, "MENS_HEALTH_SEXUAL") ||
+    isProgramEntitled(portal?.membership, "MENS_HEALTH_VITALITY") ||
+    isProgramEntitled(portal?.membership, "HAIR_LOSS");
+
+  // Redirect users who are not male and have no men's health program access.
   useEffect(() => {
-    if (!isLoading && user && user.gender?.toLowerCase() !== "male") {
+    if (isLoading || portalLoading) return;
+    if (!user) return;
+
+    const gender = user.gender?.toLowerCase();
+    const isMale = gender === "male";
+    if (!isMale && !hasMensHealthEntitlement) {
       router.push("/dashboard");
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, portalLoading, hasMensHealthEntitlement, router]);
 
-  // Show loading while checking auth
-  if (isLoading) {
+  // Show loading while checking auth / entitlements
+  if (isLoading || portalLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
@@ -61,8 +74,10 @@ export default function MensHealthLayout({
     );
   }
 
-  // Don't render for non-male users (redirect will happen)
-  if (user && user.gender?.toLowerCase() !== "male") {
+  // Don't render for users blocked by the gender gate (redirect will happen)
+  const gender = user?.gender?.toLowerCase();
+  const isMale = gender === "male";
+  if (user && !isMale && !hasMensHealthEntitlement) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-teal-600" />

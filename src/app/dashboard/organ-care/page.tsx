@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { UnifiedHealthDashboard } from "@/components/dashboard/UnifiedHealthDashboard";
 import { OrganMetabolicHealthPanels } from "@/components/dashboard/OrganMetabolicHealthPanels";
+import { OrganCareAIReportDialog } from "@/components/dashboard/OrganCareAIReportDialog";
 import { Button } from "@/components/ui/button";
 import { ORGAN_CARE_CARD } from "@/lib/programs/catalog";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
@@ -21,11 +22,12 @@ export default function OrganCareDashboardPage() {
   const { data: portal, isLoading } = usePortalContext();
   const gender = (user?.gender === "male" ? "male" : "female") as "male" | "female";
   const entitled = isOrganCareEntitled(portal?.membership);
+  const [showAIReport, setShowAIReport] = useState(false);
 
   useEffect(() => {
     if (isLoading) return;
     if (!entitled) {
-      router.replace(MEMBER_PROGRAMS_HOME);
+      router.replace(ORGAN_CARE_CARD.quizRoute);
     }
   }, [isLoading, entitled, router]);
 
@@ -54,9 +56,31 @@ export default function OrganCareDashboardPage() {
         </div>
       </div>
 
-      <OrganMetabolicHealthPanels organCareEntitled />
+      <OrganMetabolicHealthPanels
+        organCareEntitled
+        trailingAction={
+          <Button
+            onClick={() => setShowAIReport(true)}
+            size="sm"
+            className="gap-2 rounded-full px-4 shadow-sm"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">Generate AI Report</span>
+            <span className="sm:hidden">AI Report</span>
+          </Button>
+        }
+      />
 
-      <UnifiedHealthDashboard gender={gender} />
+      <UnifiedHealthDashboard gender={gender} hideAiQuickAction />
+
+      {user?.id ? (
+        <OrganCareAIReportDialog
+          userId={user.id}
+          userName={user.firstName || "Member"}
+          open={showAIReport}
+          onOpenChange={setShowAIReport}
+        />
+      ) : null}
     </div>
     </ProgramSubscriptionGate>
   );

@@ -267,6 +267,38 @@ export async function resolveOrganCarePrice(
   return row;
 }
 
+export async function resolveOrganCareCheckoutQuote(
+  organCareTerm: OrganCareBillingTerm,
+  addBiomarkers: boolean,
+  panelTier: BiomarkersPanelTier = "essential"
+) {
+  const organ = await resolveOrganCarePrice(organCareTerm);
+  let panel: BillingPriceRow | null = null;
+  if (addBiomarkers) {
+    panel = await getBiomarkersPanelPrice(panelTier);
+    if (!panel) throw new Error(`No annual pricing for biomarkers panel: ${panelTier}`);
+  }
+
+  const totalCents = organ.amountCents + (panel?.amountCents ?? 0);
+  const organLabel = formatRecurringPriceLabel(organ.amountCents, organ.billingInterval);
+  const panelLabel = panel
+    ? formatRecurringPriceLabel(panel.amountCents, panel.billingInterval)
+    : null;
+
+  return {
+    organCareTerm,
+    organ,
+    panelTier: addBiomarkers ? panelTier : null,
+    panel,
+    addBiomarkers,
+    totalAud: totalCents / 100,
+    priceLabel: panelLabel
+      ? `${formatAudFromCents(totalCents)} due today (${organLabel} organ care + ${panelLabel} biomarkers)`
+      : organLabel,
+    dueTodayLabel: formatAudFromCents(totalCents),
+  };
+}
+
 export async function resolveBiomarkersCheckoutQuote(
   panelTier: BiomarkersPanelTier,
   addOrganCare: boolean,

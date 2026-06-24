@@ -148,11 +148,30 @@ describe("computeDesiredEntitlements", () => {
     expect(find(desired, "SCOPE", "HEALTH_SCORE")?.status).toBe("ACTIVE");
   });
 
-  it("program member maps men's health to vitality focus", () => {
+  it("program member maps men's health to vitality focus when no concern", () => {
     const desired = computeDesiredEntitlements({
       programMembers: [{ program: "MENS_HEALTH", membershipStatus: "ACTIVE" }],
     });
     expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")?.status).toBe("ACTIVE");
+  });
+
+  it("program member maps men's health PE concern to sexual health focus", () => {
+    const desired = computeDesiredEntitlements({
+      subscriptionTier: "mens_health",
+      subscriptionStatus: "INACTIVE",
+      programMembers: [
+        {
+          program: "MENS_HEALTH",
+          membershipStatus: "PENDING",
+          intakeData: {
+            canonicalProgramKey: "MENS_HEALTH_SEXUAL",
+            concern: "premature-ejaculation",
+          },
+        },
+      ],
+    });
+    expect(find(desired, "PROGRAM", "MENS_HEALTH_SEXUAL")?.status).toBe("PENDING");
+    expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")).toBeUndefined();
   });
 
   it("hair-only member does not receive weight management entitlement", () => {

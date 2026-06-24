@@ -112,6 +112,15 @@ export const ORGAN_CARE_UPSELL_META = {
     "All organ dashboards — heart, liver, kidney, thyroid, hormones and metabolic health — in one annual membership",
 } as const;
 
+/** Upsell copy when biomarkers panel is offered alongside organ care checkout. */
+export const BIOMARKERS_UPSELL_META = {
+  name: "Get My Biomarkers",
+  headline: "Complete insight with a full biomarker panel",
+  description:
+    "Add an annual biomarker panel for biological age, deeper organ markers and a doctor-led testing plan — Medicare-eligible tests ordered where clinically indicated.",
+  badge: "Recommended for complete picture",
+} as const;
+
 export function isProgramBillingTerm(value: string): value is ProgramBillingTerm {
   return value === "1m" || value === "3m" || value === "6m" || value === "12m";
 }

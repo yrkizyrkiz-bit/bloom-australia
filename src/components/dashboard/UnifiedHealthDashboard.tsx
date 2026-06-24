@@ -79,9 +79,14 @@ const healthTestsWithIcons = sharedHealthTestsConfig.map(test => ({
 
 interface UnifiedHealthDashboardProps {
   gender?: "male" | "female";
+  /** Hide the AI report quick-action card (shown in organ care header instead). */
+  hideAiQuickAction?: boolean;
 }
 
-export function UnifiedHealthDashboard({ gender = "female" }: UnifiedHealthDashboardProps) {
+export function UnifiedHealthDashboard({
+  gender = "female",
+  hideAiQuickAction = false,
+}: UnifiedHealthDashboardProps) {
   // Fetch real biomarker data from API
   const { data: dashboardData, isLoading } = useDashboardStats();
 
@@ -339,25 +344,31 @@ export function UnifiedHealthDashboard({ gender = "female" }: UnifiedHealthDashb
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary" />
+      <div
+        className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${
+          hideAiQuickAction ? "md:grid-cols-3" : "md:grid-cols-4"
+        }`}
+      >
+        {!hideAiQuickAction && (
+          <Card>
+            <CardContent className="pt-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-medium">AI Health Insights</h4>
+                  <p className="text-xs text-muted-foreground">Get personalized recommendations</p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-medium">AI Health Insights</h4>
-                <p className="text-xs text-muted-foreground">Get personalized recommendations</p>
-              </div>
-            </div>
-            <Link href="/dashboard/reports">
-              <Button variant="outline" size="sm" className="w-full">
-                View AI Report <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+              <Link href="/dashboard/reports">
+                <Button variant="outline" size="sm" className="w-full">
+                  View AI Report <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardContent className="pt-5">

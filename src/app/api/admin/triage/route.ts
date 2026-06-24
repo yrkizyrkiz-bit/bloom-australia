@@ -13,7 +13,6 @@ import {
   buildMedicalNotesFromQuiz,
 } from "@/lib/quiz-assessment";
 
-// Contraindications that require immediate escalation
 const SERIOUS_CONTRAINDICATIONS = [
   "eating_disorder",
   "pregnancy",
@@ -25,6 +24,13 @@ const SERIOUS_CONTRAINDICATIONS = [
   "severe_kidney_disease",
   "severe_liver_disease",
   "gallbladder_disease",
+];
+
+const CLINICAL_PROGRAM_TIERS = [
+  "weight_management",
+  "mens_health",
+  "womens_health",
+  "hair_loss",
 ];
 
 // GET /api/admin/triage - Fetch triage queue
@@ -52,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const whereClause: Record<string, unknown> = {
-      subscriptionTier: "weight_management",
+      subscriptionTier: { in: CLINICAL_PROGRAM_TIERS },
       journeyStatus: {
         in: statusGroups[status] || [status],
       },
@@ -170,20 +176,27 @@ export async function GET(request: NextRequest) {
     });
 
     const patientIds = patients.map((p) => p.id);
-    const intakes = patientIds.length
-      ? await prisma.weightManagementIntake.findMany({
-          where: { userId: { in: patientIds } },
-          orderBy: { createdAt: "desc" },
-          select: {
-            userId: true,
-            quizData: true,
-            selectedPlan: true,
-            paymentStatus: true,
-            paymentAmount: true,
-            paidAt: true,
-          },
-        })
-      : [];
+    const [intakes, programMembers] = patientIds.length
+      ? await Promise.all([
+          prisma.weightManagementIntake.findMany({
+            where: { userId: { in: patientIds } },
+            orderBy: { createdAt: "desc" },
+            select: {
+              userId: true,
+              quizData: true,
+              selectedPlan: true,
+              paymentStatus: true,
+              paymentAmount: true,
+              paidAt: true,
+            },
+          }),
+          prisma.programMember.findMany({
+            where: { userId: { in: patientIds } },
+            select: { userId: true, program: true, intakeData: true },
+          }),
+        ])
+      : [[], []];
+
     const intakeByUser = new Map<string, (typeof intakes)[0]>();
     for (const intake of intakes) {
       if (!intakeByUser.has(intake.userId)) {
@@ -191,10 +204,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const programMemberByUser = new Map<string, (typeof programMembers)[0]>();
+    for (const pm of programMembers) {
+      if (!pm.userId) continue;
+      if (!programMemberByUser.has(pm.userId)) {
+        programMemberByUser.set(pm.userId, pm);
+      }
+    }
+
     // Transform patient data with computed fields
     const patientsWithMetrics = patients.map((patient) => {
       const intake = intakeByUser.get(patient.id);
-      const quizData = (intake?.quizData as Record<string, unknown>) || null;
+      const programMember = programMemberByUser.get(patient.id);
+      const quizData =
+        (intake?.quizData as Record<string, unknown> | null) ||
+        (programMember?.intakeData as Record<string, unknown> | null) ||
+        null;
 
       const weight = patient.weightLogs[0]?.weight || patient.weightGoals[0]?.startWeight;
       const heightFromQuiz = quizData?.height ? Number(quizData.height) : null;
@@ -276,9 +301,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Get global stats (counts across all statuses for the header badges)
-    const allWMPatients = await prisma.user.findMany({
+    const allClinicalPatients = await prisma.user.findMany({
       where: {
-        subscriptionTier: "weight_management",
+        subscriptionTier: { in: CLINICAL_PROGRAM_TIERS },
         journeyStatus: {
           in: ["PRE_TRIAGE_PENDING", "AWAITING_DOCTOR_DECISION", "PRE_TRIAGE_COMPLETE", "APPROVED_PENDING_TESTS", "DECLINED"],
         },
@@ -290,12 +315,12 @@ export async function GET(request: NextRequest) {
     });
 
     const stats = {
-      pendingTriage: allWMPatients.filter((p) => p.journeyStatus === "PRE_TRIAGE_PENDING").length,
-      awaitingApproval: allWMPatients.filter((p) => p.journeyStatus === "AWAITING_DOCTOR_DECISION" || p.journeyStatus === "PRE_TRIAGE_COMPLETE").length,
+      pendingTriage: allClinicalPatients.filter((p) => p.journeyStatus === "PRE_TRIAGE_PENDING").length,
+      awaitingApproval: allClinicalPatients.filter((p) => p.journeyStatus === "AWAITING_DOCTOR_DECISION" || p.journeyStatus === "PRE_TRIAGE_COMPLETE").length,
       highRisk: patientsWithMetrics.filter((p) => (p.triageScore || 0) >= 70).length,
       withContraindications: patientsWithMetrics.filter((p) => p.hasContraindications).length,
-      pendingTests: allWMPatients.filter((p) => p.journeyStatus === "APPROVED_PENDING_TESTS").length,
-      declined: allWMPatients.filter((p) => p.journeyStatus === "DECLINED").length,
+      pendingTests: allClinicalPatients.filter((p) => p.journeyStatus === "APPROVED_PENDING_TESTS").length,
+      declined: allClinicalPatients.filter((p) => p.journeyStatus === "DECLINED").length,
     };
 
     return NextResponse.json({

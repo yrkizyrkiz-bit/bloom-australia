@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export type PortalPurchaseTriagePayload = {
-  source: "portal_upsell" | "portal_biomarkers";
+  source: "portal_upsell" | "portal_biomarkers" | "portal_organ_care";
   userId: string;
   paymentIntentId: string;
   programKey?: string;

@@ -30,7 +30,7 @@ const getStripe = () => {
 interface PaymentFormProps {
   userId: string;
   selectedPlan: "core" | "precision";
-  programType?: "weight_management" | "hair_loss";
+  programType?: "weight_management" | "hair_loss" | "mens_health" | "womens_health";
   planName?: string;
   firstMonthAmount: number;
   ongoingMonthlyAmount: number;

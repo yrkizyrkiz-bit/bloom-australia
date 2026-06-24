@@ -36,7 +36,7 @@ export interface HoldRequest {
   userId?: string;
   slotId: string;
   selectedPlan?: "CORE" | "PRECISION";
-  programType?: "WEIGHT_MANAGEMENT" | "HAIR_LOSS";
+  programType?: "WEIGHT_MANAGEMENT" | "HAIR_LOSS" | "MENS_HEALTH" | "WOMENS_HEALTH";
   intakeId?: string;
   patientPhone?: string;
   patientBmi?: number;
@@ -216,8 +216,13 @@ export async function POST(req: NextRequest) {
     const endTime = new Date(scheduledAt);
     endTime.setMinutes(endTime.getMinutes() + 30);
 
-    const programLabel =
-      programType === "HAIR_LOSS" ? "Hair Loss Program" : "Weight Management Program";
+    const programLabels: Record<string, string> = {
+      HAIR_LOSS: "Hair Loss Program",
+      MENS_HEALTH: "Men's Health Program",
+      WOMENS_HEALTH: "Women's Health Program",
+      WEIGHT_MANAGEMENT: "Weight Management Program",
+    };
+    const programLabel = programLabels[programType] ?? "Weight Management Program";
 
     // UNIFIED CALENDAR: Create booking WITHOUT doctor assignment
     // Doctor will be assigned during triage by care partner

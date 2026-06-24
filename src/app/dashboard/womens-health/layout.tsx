@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalContext } from "@/hooks/usePortalContext";
+import { isProgramEntitled } from "@/lib/membership/program-access";
 import {
   Activity,
   BarChart3,
@@ -49,14 +51,34 @@ export default function WomensHealthLayout({
   const pathname = usePathname() || "";
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  const { data: portal, isLoading: portalLoading } = usePortalContext();
+
+  const hasWomensHealthEntitlement =
+    isProgramEntitled(portal?.membership, "WOMENS_HEALTH_SEXUAL") ||
+    isProgramEntitled(portal?.membership, "WOMENS_HEALTH_VITALITY");
 
   useEffect(() => {
-    if (!isLoading && user && user.gender?.toLowerCase() !== "female") {
+    if (isLoading || portalLoading) return;
+    if (!user) return;
+
+    const gender = user.gender?.toLowerCase();
+    const isFemale = gender === "female";
+    if (!isFemale && !hasWomensHealthEntitlement) {
       router.push("/dashboard");
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, portalLoading, hasWomensHealthEntitlement, router]);
 
-  if (isLoading || (user && user.gender?.toLowerCase() !== "female")) {
+  if (isLoading || portalLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-rose-600" />
+      </div>
+    );
+  }
+
+  const gender = user?.gender?.toLowerCase();
+  const isFemale = gender === "female";
+  if (user && !isFemale && !hasWomensHealthEntitlement) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-rose-600" />

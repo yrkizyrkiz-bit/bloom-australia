@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getPublicOrganCareAnnualPricing } from "@/lib/billing/portal-pricing";
 import { grantEntitlement } from "@/lib/membership/entitlement-service";
+import { createOnboardingPreTriageTask } from "@/lib/funnel/program-pre-triage";
+import { recordPortalPaymentInvoice } from "@/lib/portal/purchase-invoice";
 
 export type ActivateOrganCareMembershipInput = {
   paymentIntentId: string;
@@ -110,6 +112,24 @@ export async function activateOrganCarePublicMembership(
     notes: `Public organ care membership. PI ${input.paymentIntentId}`,
   }).catch((err) =>
     console.error("[organ_care_membership] entitlement grant failed:", err)
+  );
+
+  await recordPortalPaymentInvoice({
+    userId: user.id,
+    paymentIntentId: input.paymentIntentId,
+    amountAud,
+    description: "Organ & Metabolic Care — annual membership",
+  }).catch((err) =>
+    console.error("[organ_care_membership] invoice record failed:", err)
+  );
+
+  await createOnboardingPreTriageTask({
+    userId: user.id,
+    programLabel: "Organ & Metabolic Care",
+    programSlug: "organ_care",
+    paymentIntentId: input.paymentIntentId,
+  }).catch((err) =>
+    console.error("[organ_care_membership] triage enqueue failed:", err)
   );
 
   return { userId: user.id, email: user.email };

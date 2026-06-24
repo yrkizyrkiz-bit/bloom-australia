@@ -14,10 +14,17 @@ import {
   WM_POST_CHECKOUT_PATH,
 } from "@/lib/portal-context";
 import {
+  genderForPublicConsultSlug,
+  genderForSubscriptionTier,
+} from "@/lib/funnel/program-gender";
+import {
   CLINIC_TIMEZONE,
   getTimezoneAbbreviation,
   isSameTimezone,
 } from "@/lib/australia-timezone";
+import { resolvePublicConsultProgramFromContext } from "@/lib/funnel/public-consult-programs";
+import { createProgramPreTriageTask } from "@/lib/funnel/program-pre-triage";
+import { savePublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
 export interface ConfirmRequest {
@@ -548,101 +555,6 @@ async function syncWeightManagementIntakeAfterPayment(
   return intake.id;
 }
 
-// GAP-026: Create durable pre-triage task for care partner
-async function createPreTriageTask(
-  userId: string,
-  bookingId: string,
-  patientName: string,
-  scheduledAt: Date,
-  intakeId?: string | null
-): Promise<void> {
-  console.log(`[TASK] Pre-triage task created for patient ${patientName}:`, {
-    userId,
-    bookingId,
-    scheduledAt: scheduledAt.toISOString(),
-  });
-
-  // Calculate due date: 24 hours before consultation
-  const dueDate = new Date(scheduledAt);
-  dueDate.setHours(dueDate.getHours() - 24);
-
-  // Find available care partner (simple round-robin for now)
-  let assignedOwnerId: string | null = null;
-  try {
-    const carePartners = await prisma.user.findMany({
-      where: { role: "CARE_PARTNER" },
-      select: { id: true },
-    });
-    if (carePartners.length > 0) {
-      // Simple assignment - pick first one (could be improved with load balancing)
-      assignedOwnerId = carePartners[0].id;
-    }
-  } catch (e) {
-    console.error("Failed to find care partner:", e);
-  }
-
-  try {
-    // GAP-026: Create durable task record
-    await prisma.preTriageTask.create({
-      data: {
-        patientId: userId,
-        intakeId: intakeId || null,
-        bookingId,
-        assignedOwnerId,
-        dueDate,
-        status: "PENDING",
-        // Initial checklist - all false
-        quizComplete: false,
-        phoneConfirmed: false,
-        appointmentConfirmed: false,
-        medicationsChecked: false,
-        allergiesChecked: false,
-        riskFlagsChecked: false,
-        bmiChecked: false,
-        briefAttached: false,
-        readyForDoctor: false,
-      },
-    });
-
-    const existingPatient = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { assignedCarePartnerId: true },
-    });
-    const carePartnerId =
-      existingPatient?.assignedCarePartnerId ?? assignedOwnerId;
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        journeyStatus: "PRE_TRIAGE_PENDING",
-        memberStatus: "MEMBER",
-        ...(carePartnerId ? { assignedCarePartnerId: carePartnerId } : {}),
-      },
-    });
-
-    // Create notification for assigned care partner
-    if (assignedOwnerId) {
-      await prisma.notification.create({
-        data: {
-          userId: assignedOwnerId,
-          type: "INFO",
-          title: "New Pre-Triage Task",
-          message: `New consultation booking for ${patientName} on ${scheduledAt.toLocaleDateString("en-AU", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            hour: "numeric",
-            minute: "2-digit",
-          })}. Pre-triage assessment required before doctor call.`,
-          isRead: false,
-        },
-      });
-    }
-  } catch (e) {
-    console.error("Failed to create pre-triage task:", e);
-  }
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body: ConfirmRequest = await req.json();
@@ -823,10 +735,11 @@ export async function POST(req: NextRequest) {
       ? `${baseUrl}/admin/doctor-brief/${bookingUserId}`
       : null;
 
-    const isHairLossProgram =
-      user?.subscriptionTier === "hair_loss" ||
-      booking.notes?.toLowerCase().includes("hair loss");
-    const programLabel = isHairLossProgram ? "Hair Loss" : "Weight Management";
+    const consultProgram = resolvePublicConsultProgramFromContext({
+      subscriptionTier: user?.subscriptionTier,
+      bookingNotes: booking.notes,
+    });
+    const programLabel = consultProgram.label;
 
     // GAP-013: Create calendar event with all required fields
     const calendarTitle = `Sanative ${programLabel} Phone Consult — ${patientName}`;
@@ -1005,9 +918,11 @@ export async function POST(req: NextRequest) {
         if (!existingInvoice) {
           // Determine amount based on plan
           const planSelected = selectedPlan || updatedBooking.selectedPlan;
-          const amount = isHairLossProgram
-            ? 49
-            : planSelected?.toUpperCase() === "PRECISION" ? 399 : 249; // First month discounted prices
+          const amount = consultProgram.isWeightManagement
+            ? planSelected?.toUpperCase() === "PRECISION"
+              ? 399
+              : 249
+            : consultProgram.firstMonthAud;
 
           await prisma.invoice.create({
             data: {
@@ -1018,9 +933,9 @@ export async function POST(req: NextRequest) {
               status: "PAID",
               paidAt: new Date(),
               paymentMethod: "card",
-              description: isHairLossProgram
-                ? "Hair Loss - First Month (Hair Care Plan)"
-                : `Weight Management - First Month (${planSelected || "Core"} Plan)`,
+              description: consultProgram.isWeightManagement
+                ? `Weight Management - First Month (${planSelected || "Core"} Plan)`
+                : consultProgram.invoiceDescription,
             },
           });
           console.log(`[Booking Confirm] Created fallback invoice for user ${bookingUserId}`);
@@ -1035,13 +950,18 @@ export async function POST(req: NextRequest) {
         console.log(`[Booking Confirm] Payment recorded. Subscription will be created after doctor approval.`);
 
         // Update user's journey status - payment received, pending doctor review
+        const programGender =
+          genderForPublicConsultSlug(consultProgram.slug) ??
+          genderForSubscriptionTier(consultProgram.subscriptionTier);
+
         await prisma.user.update({
           where: { id: bookingUserId },
           data: {
-            subscriptionTier: isHairLossProgram ? "hair_loss" : "weight_management",
+            subscriptionTier: consultProgram.subscriptionTier,
             subscriptionStatus: "INACTIVE", // UAT8-GAP-004: Remains INACTIVE until doctor approval
             journeyStatus: "CONSULTATION_PAID", // Payment received, awaiting consultation
             memberStatus: "MEMBER",
+            ...(programGender ? { gender: programGender } : {}),
           },
         });
       } catch (fallbackError) {
@@ -1051,21 +971,42 @@ export async function POST(req: NextRequest) {
     }
 
     if (bookingUserId) {
-      const intakeId = await syncWeightManagementIntakeAfterPayment(
-        bookingUserId,
-        booking.id,
-        paymentIntentId,
-        booking.scheduledAt,
-        selectedPlan || updatedBooking.selectedPlan
-      );
+      let intakeId: string | null = booking.intakeId;
+      if (consultProgram.isWeightManagement) {
+        intakeId = await syncWeightManagementIntakeAfterPayment(
+          bookingUserId,
+          booking.id,
+          paymentIntentId,
+          booking.scheduledAt,
+          selectedPlan || updatedBooking.selectedPlan
+        );
+      }
 
-      await createPreTriageTask(
-        bookingUserId,
-        booking.id,
+      await createProgramPreTriageTask({
+        userId: bookingUserId,
+        bookingId: booking.id,
         patientName,
-        booking.scheduledAt,
-        intakeId || booking.intakeId
-      );
+        scheduledAt: booking.scheduledAt,
+        intakeId: intakeId || booking.intakeId,
+        program: consultProgram,
+      });
+
+      if (!consultProgram.isWeightManagement) {
+        const programMember = await prisma.programMember.findFirst({
+          where: { userId: bookingUserId },
+          select: { program: true, intakeData: true },
+          orderBy: { createdAt: "desc" },
+        });
+        if (programMember?.intakeData) {
+          await savePublicFunnelQuizFromIntake({
+            userId: bookingUserId,
+            program: programMember.program,
+            intakeData: programMember.intakeData as Record<string, unknown>,
+          }).catch((err) => {
+            console.error("[bookings/confirm] public funnel quiz save failed:", err);
+          });
+        }
+      }
     }
 
     const patientTimezone = user?.timezone ?? CLINIC_TIMEZONE;

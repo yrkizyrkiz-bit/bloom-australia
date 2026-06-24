@@ -29,6 +29,58 @@ export async function GET(request: Request) {
     const programKey = normalizeProgramKey(searchParams.get("programKey") ?? "");
     const panelTier = searchParams.get("panelTier");
     const biomarkers = searchParams.get("biomarkers") === "true";
+    const organCare = searchParams.get("organCare") === "true";
+
+    if (organCare) {
+      const organOptions = await getOrganCarePricingOptions();
+      const tiers = await Promise.all(
+        (["essential", "extended", "comprehensive"] as const).map(async (tier) => {
+          const price = await getBiomarkersPanelPrice(tier);
+          return {
+            ...BIOMARKERS_PANEL_META[tier],
+            priceLabel: price ? `$${price.amountAud}/yr` : null,
+            amountAud: price?.amountAud ?? null,
+            billingPriceId: price?.id ?? null,
+          };
+        })
+      );
+      return NextResponse.json({
+        organCare: {
+          ...ORGAN_CARE_UPSELL_META,
+          options: [
+            organOptions.monthly
+              ? {
+                  term: "monthly" as const,
+                  label: "Monthly",
+                  priceLabel: formatRecurringPriceLabel(
+                    organOptions.monthly.amountCents,
+                    organOptions.monthly.billingInterval
+                  ),
+                  amountAud: organOptions.monthly.amountAud,
+                  billingPriceId: organOptions.monthly.id,
+                  promo: null,
+                }
+              : null,
+            organOptions.annual
+              ? {
+                  term: "annual" as const,
+                  label: "Annual",
+                  priceLabel: formatRecurringPriceLabel(
+                    organOptions.annual.amountCents,
+                    organOptions.annual.billingInterval
+                  ),
+                  amountAud: organOptions.annual.amountAud,
+                  billingPriceId: organOptions.annual.id,
+                  promo: "Best value",
+                }
+              : null,
+          ].filter(Boolean),
+        },
+        biomarkersUpsell: {
+          panels: tiers,
+        },
+      });
+    }
 
     if (biomarkers) {
       const tiers = await Promise.all(
