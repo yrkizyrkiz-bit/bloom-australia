@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,8 +50,16 @@ import {
   TrendingUp,
   Sparkles,
   AlertCircle,
+  Download,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PathologyReferralDialog } from "@/components/admin/PathologyReferralDialog";
+import { PathologyReferralFormFields } from "@/components/admin/pathology/PathologyReferralFormFields";
+import {
+  usePathologyReferralForm,
+  type PathologyReferralPatientInput,
+} from "@/components/admin/pathology/usePathologyReferralForm";
 import { format, isToday, isTomorrow, isPast, formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
@@ -110,6 +118,7 @@ interface PatientBrief {
     age: number | null;
     gender: string;
     address: string;
+    dateOfBirth: string | null;
   };
   status: {
     journeyStatus: string;
@@ -316,8 +325,6 @@ export default function DoctorDashboardPage() {
   const [safeNextStepGuidance, setSafeNextStepGuidance] = useState("");
   const [carePartnerFollowUpRequired, setCarePartnerFollowUpRequired] = useState(true);
   const [gpReferralSuggested, setGpReferralSuggested] = useState(false);
-  const [testsRequired, setTestsRequired] = useState<string[]>([]);
-  const [reasonForTests, setReasonForTests] = useState("");
   const [treatmentMustWaitForResults, setTreatmentMustWaitForResults] = useState(true);
   const [testFollowUpTimeframe, setTestFollowUpTimeframe] = useState("2 weeks");
 
@@ -325,6 +332,31 @@ export default function DoctorDashboardPage() {
   const [onboardingNotes, setOnboardingNotes] = useState("");
   const [activateProgramOnComplete, setActivateProgramOnComplete] = useState(true);
   const [processingOnboarding, setProcessingOnboarding] = useState(false);
+  const [showPathologyReferral, setShowPathologyReferral] = useState(false);
+
+  const pendingTestsPatient = useMemo<PathologyReferralPatientInput>(
+    () => ({
+      id: selectedConsultation?.patient.id ?? "",
+      fullName: selectedConsultation?.patient.fullName ?? "",
+      email: selectedConsultation?.patient.email ?? "",
+      dateOfBirth: selectedConsultation?.patient.dateOfBirth ?? patientBrief?.patient.dateOfBirth ?? null,
+      address: patientBrief?.patient.address ?? "",
+      phone: selectedConsultation?.patient.phone ?? patientBrief?.patient.phone ?? null,
+      gender: selectedConsultation?.patient.gender ?? patientBrief?.patient.gender ?? null,
+      subscriptionTier:
+        selectedConsultation?.selectedPlan ?? patientBrief?.status.selectedPlan ?? null,
+    }),
+    [selectedConsultation, patientBrief]
+  );
+
+  const pendingTestsReferralForm = usePathologyReferralForm({
+    patient: pendingTestsPatient,
+    consultationId: selectedConsultation?.id,
+    active:
+      showDecisionDialog &&
+      decisionType === "APPROVED_PENDING_TESTS" &&
+      Boolean(selectedConsultation?.patient.id),
+  });
 
   useEffect(() => {
     fetchConsultations();
@@ -529,15 +561,30 @@ export default function DoctorDashboardPage() {
     setSafeNextStepGuidance("");
     setCarePartnerFollowUpRequired(true);
     setGpReferralSuggested(false);
-    setTestsRequired([]);
-    setReasonForTests("");
     setTreatmentMustWaitForResults(true);
     setTestFollowUpTimeframe("2 weeks");
     setShowDecisionDialog(true);
   };
 
+  const handleGeneratePendingTestsReferral = async () => {
+    await pendingTestsReferralForm.generateReferral();
+  };
+
   const submitDecision = async () => {
     if (!selectedConsultation || !decisionType) return;
+
+    if (decisionType === "APPROVED_PENDING_TESTS") {
+      if (!pendingTestsReferralForm.hasTestsSelected) {
+        toast.error("Select at least one program panel or additional test");
+        return;
+      }
+      const reasonForTests = pendingTestsReferralForm.getResolvedIndication();
+      if (!reasonForTests) {
+        toast.error("Clinical indication / reason for tests is required");
+        return;
+      }
+    }
+
     setProcessing(true);
     try {
       const payload: Record<string, unknown> = {
@@ -574,8 +621,8 @@ export default function DoctorDashboardPage() {
         payload.carePartnerFollowUpRequired = carePartnerFollowUpRequired;
         payload.gpReferralSuggested = gpReferralSuggested;
       } else if (decisionType === "APPROVED_PENDING_TESTS") {
-        payload.testsRequired = testsRequired;
-        payload.reasonForTests = reasonForTests;
+        payload.testsRequired = pendingTestsReferralForm.getTestsRequiredIds();
+        payload.reasonForTests = pendingTestsReferralForm.getResolvedIndication();
         payload.treatmentMustWaitForResults = treatmentMustWaitForResults;
         payload.testFollowUpTimeframe = testFollowUpTimeframe;
       }
@@ -753,7 +800,7 @@ export default function DoctorDashboardPage() {
                           <div className="flex items-center gap-2 mt-2">{getRiskBadge(patientBrief.riskAssessment.riskLevel)}<Badge variant="outline">Triage: {patientBrief.status.triageScore || "N/A"}</Badge></div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
+                      <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center sm:flex-wrap">
                         <Button variant="outline" size="sm" asChild>
                           <Link href={patientBrief.urls.memberProfile}>
                             <User className="w-4 h-4 mr-2" />
@@ -765,6 +812,14 @@ export default function DoctorDashboardPage() {
                             <FileText className="w-4 h-4 mr-2" />
                             Full Brief
                           </Link>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowPathologyReferral(true)}
+                        >
+                          <FlaskConical className="w-4 h-4 mr-2" />
+                          Pathology Referral
                         </Button>
                         {selectedConsultation.patientPhone && (
                           <Button variant="outline" size="sm" asChild>
@@ -1148,17 +1203,44 @@ export default function DoctorDashboardPage() {
       </div>
 
       <Dialog open={showDecisionDialog} onOpenChange={setShowDecisionDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent
+          className={
+            decisionType === "APPROVED_PENDING_TESTS"
+              ? "max-w-2xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden sm:max-w-2xl"
+              : "max-w-2xl max-h-[90vh] overflow-y-auto"
+          }
+        >
+          <DialogHeader
+            className={
+              decisionType === "APPROVED_PENDING_TESTS"
+                ? "px-6 pt-6 pb-3 shrink-0 border-b"
+                : undefined
+            }
+          >
             <DialogTitle>
               {decisionType === "APPROVED" && "Approve Patient"}
               {decisionType === "APPROVED_NO_TREATMENT" && "Approve Patient (No Treatment)"}
               {decisionType === "DECLINED" && "Decline Patient"}
-              {decisionType === "APPROVED_PENDING_TESTS" && "Approve Pending Tests"}
+              {decisionType === "APPROVED_PENDING_TESTS" && (
+                <span className="flex items-center gap-2">
+                  <FlaskConical className="w-5 h-5 text-amber-600" />
+                  Approve Pending Tests
+                </span>
+              )}
             </DialogTitle>
-            <DialogDescription>Complete the required fields below.</DialogDescription>
+            <DialogDescription>
+              {decisionType === "APPROVED_PENDING_TESTS"
+                ? `Generate the pathology referral PDF (and email if needed) before submitting the approval for ${selectedConsultation?.patient.fullName ?? "this patient"}.`
+                : "Complete the required fields below."}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6 py-4">
+          <div
+            className={
+              decisionType === "APPROVED_PENDING_TESTS"
+                ? "flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-6"
+                : "space-y-6 py-4"
+            }
+          >
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Checkbox id="consultationCompleted" checked={consultationCompleted} onCheckedChange={(c) => setConsultationCompleted(c === true)} />
@@ -1296,46 +1378,87 @@ export default function DoctorDashboardPage() {
               </div>
             )}
 
-            {decisionType === "APPROVED_PENDING_TESTS" && decisionOptions && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Tests Required *</Label>
-                  <div className="grid grid-cols-2 gap-2 max-h-[180px] overflow-y-auto p-2 border rounded-lg">
-                    {decisionOptions.bloodTests.map((t) => (
-                      <div key={t.id} className="flex items-start space-x-2">
-                        <Checkbox id={`test-${t.id}`} checked={testsRequired.includes(t.id)} onCheckedChange={(c) => { if (c) setTestsRequired([...testsRequired, t.id]); else setTestsRequired(testsRequired.filter(x => x !== t.id)); }} />
-                        <Label htmlFor={`test-${t.id}`} className="text-sm cursor-pointer"><span className="font-medium">{t.name}</span><span className="text-xs text-slate-500 block">{t.description}</span></Label>
+            {decisionType === "APPROVED_PENDING_TESTS" && (
+              <>
+                <PathologyReferralFormFields
+                  form={pendingTestsReferralForm}
+                  idPrefix="pending-tests-"
+                />
+                <section className="rounded-lg border p-4 space-y-4">
+                  <h3 className="text-sm font-semibold">4. Approval workflow</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Follow-up timeframe</Label>
+                      <Select value={testFollowUpTimeframe} onValueChange={setTestFollowUpTimeframe}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1 week">1 week</SelectItem>
+                          <SelectItem value="2 weeks">2 weeks</SelectItem>
+                          <SelectItem value="3 weeks">3 weeks</SelectItem>
+                          <SelectItem value="4 weeks">4 weeks</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-end">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="waitResults"
+                          checked={treatmentMustWaitForResults}
+                          onCheckedChange={(c) => setTreatmentMustWaitForResults(c === true)}
+                        />
+                        <Label htmlFor="waitResults" className="text-sm">
+                          Must wait for results before treatment
+                        </Label>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Reason for Tests *</Label>
-                  <Textarea value={reasonForTests} onChange={(e) => setReasonForTests(e.target.value)} placeholder="Why tests are needed..." rows={3} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Follow-up Timeframe</Label>
-                    <Select value={testFollowUpTimeframe} onValueChange={setTestFollowUpTimeframe}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1 week">1 week</SelectItem>
-                        <SelectItem value="2 weeks">2 weeks</SelectItem>
-                        <SelectItem value="3 weeks">3 weeks</SelectItem>
-                        <SelectItem value="4 weeks">4 weeks</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-end">
-                    <div className="flex items-center space-x-2"><Checkbox id="waitResults" checked={treatmentMustWaitForResults} onCheckedChange={(c) => setTreatmentMustWaitForResults(c === true)} /><Label htmlFor="waitResults" className="text-sm">Must wait for results</Label></div>
-                  </div>
-                </div>
-              </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use &quot;Generate PDF &amp; email&quot; below to preview and send the referral
+                    before final approval. Submit only when you are ready to complete the decision.
+                  </p>
+                </section>
+              </>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDecisionDialog(false)}>Cancel</Button>
-            <Button onClick={submitDecision} disabled={processing || !consultationCompleted || !clinicalNotes} className={
+          <DialogFooter
+            className={
+              decisionType === "APPROVED_PENDING_TESTS"
+                ? "gap-2 flex-col sm:flex-row px-6 py-4 border-t bg-white shrink-0"
+                : undefined
+            }
+          >
+            <Button variant="outline" onClick={() => setShowDecisionDialog(false)}>
+              Cancel
+            </Button>
+            {decisionType === "APPROVED_PENDING_TESTS" && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleGeneratePendingTestsReferral}
+                disabled={pendingTestsReferralForm.submitting || processing}
+              >
+                {pendingTestsReferralForm.submitting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : pendingTestsReferralForm.emailToPatient ? (
+                  <Mail className="w-4 h-4 mr-2" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                {pendingTestsReferralForm.emailToPatient
+                  ? "Generate PDF & email patient"
+                  : "Generate & download PDF"}
+              </Button>
+            )}
+            <Button
+              onClick={submitDecision}
+              disabled={
+                processing ||
+                !consultationCompleted ||
+                !clinicalNotes ||
+                (decisionType === "APPROVED_PENDING_TESTS" &&
+                  !pendingTestsReferralForm.hasTestsSelected)
+              }
+              className={
               decisionType === "APPROVED" ? "bg-green-600 hover:bg-green-700" :
               decisionType === "APPROVED_NO_TREATMENT" ? "bg-blue-600 hover:bg-blue-700" :
               decisionType === "DECLINED" ? "bg-red-600 hover:bg-red-700" :
@@ -1350,6 +1473,24 @@ export default function DoctorDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {patientBrief && selectedConsultation && (
+        <PathologyReferralDialog
+          open={showPathologyReferral}
+          onOpenChange={setShowPathologyReferral}
+          patient={{
+            id: patientBrief.patient.id,
+            fullName: patientBrief.patient.fullName,
+            email: patientBrief.patient.email,
+            dateOfBirth: patientBrief.patient.dateOfBirth,
+            address: patientBrief.patient.address,
+            phone: patientBrief.patient.phone,
+            gender: patientBrief.patient.gender,
+            subscriptionTier: patientBrief.status.selectedPlan,
+          }}
+          consultationId={selectedConsultation.id}
+        />
+      )}
     </div>
   );
 }

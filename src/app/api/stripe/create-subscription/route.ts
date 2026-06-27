@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
+import { requireDoctorOrAdmin } from "@/lib/auth/require-clinical-staff";
 
 // GAP-015: Create ongoing subscription after doctor approval
 // This is called after the doctor approves the patient
@@ -40,6 +41,11 @@ interface CreateSubscriptionRequest {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireDoctorOrAdmin();
+    if ("error" in auth) {
+      return auth.error;
+    }
+
     const stripe = getStripeClient();
     const body: CreateSubscriptionRequest = await req.json();
     const { userId, selectedPlan, startDate, firstPaymentIntentId } = body;
@@ -218,6 +224,11 @@ export async function POST(req: NextRequest) {
 // GET endpoint to check subscription status
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireDoctorOrAdmin();
+    if ("error" in auth) {
+      return auth.error;
+    }
+
     const stripe = getStripeClient();
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
@@ -294,6 +305,11 @@ export async function GET(req: NextRequest) {
 // DELETE endpoint to cancel subscription (for declined patients)
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await requireDoctorOrAdmin();
+    if ("error" in auth) {
+      return auth.error;
+    }
+
     const stripe = getStripeClient();
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");

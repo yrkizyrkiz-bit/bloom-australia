@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { assertCronAuthorized } from "@/lib/security/cron-auth";
 
 // GET /api/cron/churn-scoring
 // Protected by: Authorization: Bearer {CRON_SECRET}
 // Schedule: Every Sunday at 10am UTC (8pm AEST)
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const cronAuth = assertCronAuthorized(request);
+    if (cronAuth) {
+      return cronAuth;
     }
 
     const now = new Date();

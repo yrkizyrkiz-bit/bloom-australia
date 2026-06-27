@@ -18,8 +18,8 @@ const explanations: ExplanationBlock[] = [
   },
   {
     icon: Dna,
-    title: "Personalised treatment",
-    description: "Treatment is tailored based on your symptoms, health profile, medical history and progress over time, with biomarker testing used where appropriate to provide additional insight.",
+    title: "Personalised care plan",
+    description: "Your plan is tailored based on your symptoms, health profile, medical history and progress over time, with biomarker testing used where appropriate to provide additional insight.",
   },
   {
     icon: TrendingUp,
@@ -84,12 +84,12 @@ export function WhyThisWorksSection() {
               <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-sm rounded-2xl p-5 shadow-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-[#7e9a72] uppercase tracking-wider">Clinical Evidence</p>
-                    <p className="text-2xl font-serif text-[#2c3628]">Prescription Weight Management</p>
+                    <p className="text-xs text-[#7e9a72] uppercase tracking-wider">Doctor-led care</p>
+                    <p className="text-2xl font-serif text-[#2c3628]">Metabolic Health</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-3xl font-serif text-[#5c7a52]">15%<sup className="text-sm">*</sup></p>
-                    <p className="text-xs text-[#7e9a72]">avg. weight loss</p>
+                    <p className="text-3xl font-serif text-[#5c7a52]">1:1</p>
+                    <p className="text-xs text-[#7e9a72]">clinical support</p>
                   </div>
                 </div>
               </div>
@@ -153,7 +153,7 @@ export function WhyThisWorksSection() {
 
             {/* Disclaimer */}
             <p className="text-xs text-[#a8bb9e] italic">
-              Treatment is prescribed only if appropriate following a clinical assessment. Results may vary.
+              Care plans are developed only when clinically appropriate following assessment. Results may vary.
             </p>
           </div>
         </div>

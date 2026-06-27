@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,8 @@ const TIP_ICONS: Record<string, React.ElementType> = {
 
 export default function WeightManagementPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const isPostCheckout = searchParams.get("onboarding") === "post-checkout";
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [checkInStatus, setCheckInStatus] = useState<CheckInStatus | null>(null);
   const [journeyStatus, setJourneyStatus] = useState<JourneyStatusData | null>(null);
@@ -120,64 +123,38 @@ export default function WeightManagementPage() {
   }, []);
 
   useEffect(() => {
-    // Set a random motivation message
     setMotivation(getRandomMotivation("greeting"));
-
-    // Get daily tip and quote
     setDailyTip(getDailyTip());
     setDailyQuote(getDailyQuote());
 
     const init = async () => {
       try {
-        // GAP-009: Fetch journey status first to determine what to show
-        const journeyRes = await fetch("/api/weight-management/journey-status");
-        if (journeyRes.ok) {
-          const journeyData = await journeyRes.json();
-          setJourneyStatus(journeyData);
-
-          const shouldShowOnboarding =
-            journeyData.journeyStatus === "ONBOARDING_PENDING" ||
-            journeyData.journeyStatus === "ONBOARDING_COMPLETE" ||
-            journeyData.journeyStatus === "ACTIVE";
-
-          // Check onboarding status (show onboarding wizard even before full ACTIVE)
-          if (shouldShowOnboarding) {
-            const prefRes = await fetch("/api/weight-management/preferences");
-            if (prefRes.ok) {
-              const prefs = await prefRes.json();
-              if (!prefs.hasCompletedOnboarding) {
-                setShowOnboarding(true);
-              }
-            }
-          }
-
-          // Only fetch full progress data if user is ACTIVE
-          if (journeyData.isActive) {
-            // Check-in status
-            const checkInRes = await fetch(
-              "/api/weight-management/check-in?limit=1"
-            );
-            if (checkInRes.ok) {
-              const data = await checkInRes.json();
-              setCheckInStatus(data);
-            }
-
-            // Fetch progress data (this will also flip `loading` off)
-            await fetchProgress();
-          } else {
-            setLoading(false);
-          }
-        } else {
+        const res = await fetch("/api/weight-management/home");
+        if (!res.ok) {
           setLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+        setJourneyStatus(data.journeyStatus);
+        if (data.showOnboarding) {
+          setShowOnboarding(true);
+        }
+        if (data.checkInStatus) {
+          setCheckInStatus(data.checkInStatus);
+        }
+        if (data.progress) {
+          setProgress(data.progress);
         }
       } catch (error) {
         console.error("Error initializing:", error);
+      } finally {
         setLoading(false);
       }
     };
 
-    init();
-  }, [fetchProgress]);
+    void init();
+  }, []);
 
   // Quick Action Cards - friendly descriptions
   const quickActions = [
@@ -263,7 +240,22 @@ export default function WeightManagementPage() {
     { label: "Settings", icon: Settings, href: "/dashboard/weight-management/settings", color: "text-slate-600" },
   ];
 
-  if (loading) {
+  if (loading && !journeyStatus) {
+    if (isPostCheckout) {
+      return (
+        <ProgramJourneyShell
+          programKey="WEIGHT_MANAGEMENT"
+          firstName={user?.firstName}
+          greeting={getGreeting()}
+          journey={{
+            journeyStatus: "LEAD",
+            stage: "pre-consultation",
+            stageDescription: "Your consultation is booked — we are preparing your program home",
+          }}
+        />
+      );
+    }
+
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">

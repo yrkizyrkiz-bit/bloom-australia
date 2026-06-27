@@ -17,8 +17,8 @@ export function HowItWorksSection() {
     {
       number: "03",
       icon: Package,
-      title: "Receive your treatment",
-      description: "Your prescription is filled by an Australian pharmacy and delivered discreetly to your door.",
+      title: "Care plan if appropriate",
+      description: "Where clinically appropriate, your doctor may include items dispensed by an Australian-registered pharmacy.",
     },
     {
       number: "04",
@@ -73,10 +73,10 @@ export function HowItWorksSection() {
         {/* GAP-019: Removed star rating - health service advertising risk */}
         <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {[
-            { value: "50,000+", label: "Australians helped" },
+            { value: "80+", label: "Biomarkers available" },
             { value: "100%", label: "AHPRA-registered" },
             { value: "100%", label: "Australian doctors" },
-            { value: "2-3 days", label: "Average delivery" },
+            { value: "24hrs", label: "Typical doctor response" },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
               <p className="text-3xl lg:text-4xl font-serif text-[#34412f]">

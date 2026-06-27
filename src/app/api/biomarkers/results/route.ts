@@ -4,6 +4,10 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { persistDerivedBiomarkersForUser } from "@/lib/persist-derived-biomarkers";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
+import {
+  calculateBiomarkerStatus,
+  type BiomarkerDefForStatus,
+} from "@/lib/biomarker-status";
 import type { BiomarkerStatus, Prisma } from "@prisma/client";
 
 type BiomarkerResultWithDef = Prisma.BiomarkerResultGetPayload<{
@@ -25,21 +29,8 @@ interface BiomarkerResultInput {
   biomarkerId: string;
   value: number;
   testedAt?: string;
-  status?: string;
   notes?: string | null;
 }
-
-interface BiomarkerRangeJson {
-  low: number;
-  optimal_low: number;
-  optimal_high: number;
-  high: number;
-}
-
-type BiomarkerDefForStatus = {
-  maleRanges: unknown;
-  femaleRanges: unknown;
-};
 
 // GET /api/biomarkers/results - Get user's biomarker results
 export async function GET(request: NextRequest) {
@@ -148,35 +139,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching biomarker results:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
-
-// Helper function to calculate biomarker status based on ranges
-function calculateStatus(
-  value: number,
-  biomarkerDef: BiomarkerDefForStatus | null | undefined,
-  gender: string
-): BiomarkerStatus {
-  if (!biomarkerDef) return "NORMAL";
-
-  const ranges = gender === "FEMALE" ? biomarkerDef.femaleRanges : biomarkerDef.maleRanges;
-  if (!ranges) return "NORMAL";
-
-  // Parse ranges (stored as JSON)
-  const rangeData = typeof ranges === "string"
-    ? (JSON.parse(ranges) as BiomarkerRangeJson)
-    : (ranges as BiomarkerRangeJson);
-
-  const { low, optimal_low, optimal_high, high } = rangeData;
-
-  if (value >= optimal_low && value <= optimal_high) {
-    return "OPTIMAL";
-  } else if (value >= low && value <= high) {
-    return "NORMAL";
-  } else if (value < low * 0.8 || value > high * 1.2) {
-    return "CRITICAL";
-  } else {
-    return "OUT_OF_RANGE";
   }
 }
 
@@ -296,9 +258,11 @@ export async function POST(request: NextRequest) {
     const createdResults = await prisma.$transaction(
       newResults.map((result) => {
         const biomarkerDef = biomarkerDefMap.get(result.biomarkerId);
-        const calculatedStatus: BiomarkerStatus = result.status
-          ? (result.status.toUpperCase() as BiomarkerStatus)
-          : calculateStatus(result.value, biomarkerDef, user.gender);
+        const calculatedStatus: BiomarkerStatus = calculateBiomarkerStatus(
+          result.value,
+          biomarkerDef as BiomarkerDefForStatus | undefined,
+          user.gender
+        );
 
         return prisma.biomarkerResult.create({
           data: {

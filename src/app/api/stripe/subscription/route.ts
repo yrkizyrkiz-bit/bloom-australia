@@ -5,6 +5,21 @@ import { verify } from "jsonwebtoken";
 import { getPublicOrganCareAnnualPricing } from "@/lib/billing/portal-pricing";
 import { activateOrganCarePublicMembership } from "@/lib/portal/organ-care-membership";
 import { ORGAN_CARE_CHECKOUT_DESCRIPTION } from "@/lib/programs/organ-care-public-offer";
+import {
+  assertUserEligibleForCheckout,
+  validateActiveBookingHold,
+} from "@/lib/stripe/route-guards";
+import { rejectMismatchedBodyUserId } from "@/lib/security/session-user-id";
+import {
+  type CheckoutProgramType,
+  resolveFirstMonthCheckoutCharge,
+} from "@/lib/stripe/plan-pricing";
+import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
+import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
+import {
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
 let stripeClient: Stripe | null = null;
@@ -24,100 +39,23 @@ const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'sanative-secret-key';
 // Membership price ID
 const MEMBERSHIP_PRICE_ID = process.env.STRIPE_MEMBERSHIP_PRICE_ID || 'price_membership_yearly';
 
-// ============================================
-// WEIGHT MANAGEMENT STRIPE PRICE IDS
-// ============================================
-// These should be set in your environment variables after creating
-// the products/prices in Stripe Dashboard.
-//
-// Required Stripe Products to Create:
-// 1. "Sanative Core - First Month" - $249 AUD (one-time)
-// 2. "Sanative Core - Monthly" - $349 AUD (recurring monthly)
-// 3. "Sanative Precision - First Month" - $399 AUD (one-time)
-// 4. "Sanative Precision - Monthly" - $499 AUD (recurring monthly)
-// ============================================
-
-const STRIPE_WM_PRICES = {
-  CORE_FIRST_MONTH: process.env.STRIPE_WM_CORE_FIRST_MONTH_PRICE_ID,
-  CORE_MONTHLY: process.env.STRIPE_WM_CORE_MONTHLY_PRICE_ID,
-  PRECISION_FIRST_MONTH: process.env.STRIPE_WM_PRECISION_FIRST_MONTH_PRICE_ID,
-  PRECISION_MONTHLY: process.env.STRIPE_WM_PRECISION_MONTHLY_PRICE_ID,
-};
-
-// Weight Management Price IDs - NEW TWO-PLAN STRUCTURE
-const WM_PRICES: Record<string, {
-  amount: number;
-  name: string;
-  duration: string;
-  firstMonthAmount?: number;
-  ongoingAmount?: number;
-  discount?: number;
-  stripePriceId?: string;
-  stripeOngoingPriceId?: string;
-}> = {
-  // NEW: Sanative Core Plan
-  sanative_core_first_month: {
-    amount: 24900, // $249 first month
-    name: "Sanative Core - First Month",
-    duration: "first_month",
-    firstMonthAmount: 24900,
-    ongoingAmount: 34900,
-    discount: 10000, // $100 off
-    stripePriceId: STRIPE_WM_PRICES.CORE_FIRST_MONTH,
-    stripeOngoingPriceId: STRIPE_WM_PRICES.CORE_MONTHLY,
-  },
-  sanative_core_monthly: {
-    amount: 34900, // $349/month ongoing
-    name: "Sanative Core - Monthly",
-    duration: "monthly",
-    stripePriceId: STRIPE_WM_PRICES.CORE_MONTHLY,
-  },
-  // NEW: Sanative Precision Plan
-  sanative_precision_first_month: {
-    amount: 39900, // $399 first month
-    name: "Sanative Precision - First Month",
-    duration: "first_month",
-    firstMonthAmount: 39900,
-    ongoingAmount: 49900,
-    discount: 10000, // $100 off
-    stripePriceId: STRIPE_WM_PRICES.PRECISION_FIRST_MONTH,
-    stripeOngoingPriceId: STRIPE_WM_PRICES.PRECISION_MONTHLY,
-  },
-  sanative_precision_monthly: {
-    amount: 49900, // $499/month ongoing
-    name: "Sanative Precision - Monthly",
-    duration: "monthly",
-    stripePriceId: STRIPE_WM_PRICES.PRECISION_MONTHLY,
-  },
-  // GAP-016: Legacy plans REMOVED - no longer accessible
-  // Only Sanative Core ($249/$349) and Sanative Precision ($399/$499) are valid
-  //
-  // Simple core/precision lookup (for quiz checkout)
-  core: {
-    amount: 24900,
-    name: "Sanative Core",
-    duration: "first_month",
-    firstMonthAmount: 24900,
-    ongoingAmount: 34900,
-    discount: 10000,
-    stripePriceId: STRIPE_WM_PRICES.CORE_FIRST_MONTH,
-    stripeOngoingPriceId: STRIPE_WM_PRICES.CORE_MONTHLY,
-  },
-  precision: {
-    amount: 39900,
-    name: "Sanative Precision",
-    duration: "first_month",
-    firstMonthAmount: 39900,
-    ongoingAmount: 49900,
-    discount: 10000,
-    stripePriceId: STRIPE_WM_PRICES.PRECISION_FIRST_MONTH,
-    stripeOngoingPriceId: STRIPE_WM_PRICES.PRECISION_MONTHLY,
-  },
-};
-
 export async function POST(req: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      req,
+      "stripe-subscription:ip",
+      RATE_LIMITS.checkoutIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const body = await req.json();
+
+    const userIdMismatch = await rejectMismatchedBodyUserId(body.userId);
+    if (userIdMismatch) {
+      return userIdMismatch;
+    }
 
     // Check if this is a weight management plan purchase
     if (body.userId && body.planId) {
@@ -139,13 +77,7 @@ export async function POST(req: NextRequest) {
 async function handleWeightManagementPayment(body: {
   userId: string;
   planId: string;
-  billingType?: "one_time" | "subscription";
-  selectedPlan?: "core" | "precision";
-  programType?: "weight_management" | "hair_loss" | "mens_health" | "womens_health";
-  planName?: string;
-  firstMonthAmount?: number;
-  ongoingMonthlyAmount?: number;
-  discountAmount?: number;
+  programType?: CheckoutProgramType;
   consultationDate?: string;
   consultationTime?: string;
   customerEmail?: string;
@@ -158,12 +90,7 @@ async function handleWeightManagementPayment(body: {
   const {
     userId,
     planId,
-    selectedPlan,
     programType = "weight_management",
-    planName: planNameOverride,
-    firstMonthAmount,
-    ongoingMonthlyAmount,
-    discountAmount,
     consultationDate,
     consultationTime,
     customerEmail,
@@ -181,38 +108,47 @@ async function handleWeightManagementPayment(body: {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  // Allow payment for users in quiz flow (LEAD or later) OR already approved users
-  // GAP-007: Using valid JourneyStatus values only
-  const allowedStatuses = ['LEAD', 'CONSENTED', 'SURVEY_COMPLETED', 'CONSULTATION_BOOKING_STARTED', 'CONSULTATION_BOOKED', 'PRE_TRIAGE_PENDING', 'AWAITING_DOCTOR_DECISION', 'APPROVED', 'ACTIVE'];
-  const isApproved = user.approvalStatus === "APPROVED";
-  const isInQuizFlow = user.journeyStatus && allowedStatuses.includes(user.journeyStatus);
-
-  if (!isApproved && !isInQuizFlow) {
-    return NextResponse.json({ error: "Please complete the assessment first" }, { status: 403 });
+  const eligibility = await assertUserEligibleForCheckout(userId);
+  if ("error" in eligibility) {
+    return eligibility.error;
   }
 
-  // GAP-016: Block legacy pricing paths - only allow core and precision
-  const validPlanIds = ['core', 'precision', 'sanative_core_first_month', 'sanative_precision_first_month'];
-  const effectivePlanId = selectedPlan || planId;
+  // Unified checkout (WM funnel) always sends bookingHoldId — validate it when present
+  if (bookingHoldId || intakeId) {
+    if (!bookingHoldId) {
+      return NextResponse.json(
+        { error: "A valid booking hold is required before payment" },
+        { status: 400 }
+      );
+    }
 
-  if (!validPlanIds.includes(effectivePlanId)) {
-    console.warn(`[STRIPE] Blocked legacy plan access attempt: ${effectivePlanId}`);
+    const holdCheck = await validateActiveBookingHold(bookingHoldId, userId);
+    if ("error" in holdCheck) {
+      return holdCheck.error;
+    }
+  }
+
+  // Server-owned pricing — client amounts are ignored
+  const chargeDetails = resolveFirstMonthCheckoutCharge(programType, planId);
+  if (!chargeDetails) {
+    console.warn(`[STRIPE] Blocked invalid plan access attempt: ${planId}`);
     return NextResponse.json({
       error: "This pricing option is no longer available. Please select Sanative Core or Sanative Precision.",
       validPlans: ["core", "precision"],
     }, { status: 400 });
   }
 
-  const planDetails = WM_PRICES[effectivePlanId];
-  if (!planDetails) {
-    return NextResponse.json({ error: "Invalid plan selected" }, { status: 400 });
-  }
+  const {
+    amountCents: chargeAmount,
+    planName,
+    selectedPlan,
+    effectivePlanId,
+    ongoingAmountCents,
+    discountCents,
+    stripePriceId,
+    stripeOngoingPriceId,
+  } = chargeDetails;
 
-  // Use provided amounts or defaults from plan
-  const chargeAmount = firstMonthAmount ? firstMonthAmount : planDetails.amount;
-  const planName =
-    planNameOverride ||
-    (selectedPlan === 'precision' ? 'Sanative Precision' : selectedPlan === 'core' ? 'Sanative Core' : planDetails.name);
   const programLabel =
     programType === "weight_management"
       ? "Weight Management"
@@ -252,14 +188,14 @@ async function handleWeightManagementPayment(body: {
       userId: user.id,
       customerEmail: customerEmail || user.email,
       customerName: customerName || `${user.firstName} ${user.lastName}`.trim(),
-      selectedPlan: selectedPlan || effectivePlanId,
-      firstMonthAmount: String(firstMonthAmount || planDetails.firstMonthAmount || 0),
-      ongoingAmount: String(ongoingMonthlyAmount || planDetails.ongoingAmount || 0),
-      discountAmount: String(discountAmount || planDetails.discount || 0),
+      selectedPlan,
+      firstMonthAmount: String(chargeAmount),
+      ongoingAmount: String(ongoingAmountCents),
+      discountAmount: String(discountCents),
       consultationDate: consultationDate || '',
       consultationTime: consultationTime || '',
-      stripePriceId: planDetails.stripePriceId || '',
-      stripeOngoingPriceId: planDetails.stripeOngoingPriceId || '',
+      stripePriceId: stripePriceId || '',
+      stripeOngoingPriceId: stripeOngoingPriceId || '',
       // GAP-004: Include booking and intake tracking
       bookingHoldId: bookingHoldId || '',
       intakeId: intakeId || '',
@@ -276,9 +212,9 @@ async function handleWeightManagementPayment(body: {
     amount: chargeAmount,
     currency: 'aud',
     planName,
-    ongoingAmount: ongoingMonthlyAmount || planDetails.ongoingAmount,
-    stripePriceId: planDetails.stripePriceId,
-    stripeOngoingPriceId: planDetails.stripeOngoingPriceId,
+    ongoingAmount: ongoingAmountCents,
+    stripePriceId,
+    stripeOngoingPriceId,
   });
 }
 
@@ -369,9 +305,18 @@ async function handleMembershipSubscription(body: {
 // PUT handler for completing subscription
 export async function PUT(req: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      req,
+      "stripe-subscription:ip",
+      RATE_LIMITS.checkoutIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const stripe = getStripeClient();
     const body = await req.json();
-    const { paymentIntentId, sessionToken, firstName, lastName, email, phone, dateOfBirth, address, addressLine1, addressLine2, suburb, state, postcode } = body;
+    const { paymentIntentId, consentRecordId, sessionToken, firstName, lastName, email, phone, dateOfBirth, address, addressLine1, addressLine2, suburb, state, postcode } = body;
 
     let tokenData: { contact: string; type: string; verified: boolean; userId: string | null };
     try {
@@ -380,16 +325,30 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
     }
 
+    const userEmail = email || tokenData.contact;
+    const consentVerification = await requirePrePaymentConsent({
+      consentRecordId,
+      userId: tokenData.userId ?? undefined,
+      email: userEmail,
+    });
+
+    if (!consentVerification.ok) {
+      return NextResponse.json(
+        { error: consentVerification.error },
+        { status: consentVerification.status }
+      );
+    }
+
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     if (paymentIntent.status !== 'succeeded') {
       return NextResponse.json({ error: "Payment not completed" }, { status: 400 });
     }
 
-    const userEmail = email || paymentIntent.metadata.email;
+    const resolvedEmail = email || paymentIntent.metadata.email || userEmail;
     const result = await activateOrganCarePublicMembership({
       paymentIntentId,
       customerId: paymentIntent.customer as string,
-      email: userEmail,
+      email: resolvedEmail,
       firstName,
       lastName,
       phone,

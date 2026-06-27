@@ -39,7 +39,7 @@ export function WomensHealthHero() {
             </h1>
 
             <p className="mt-6 text-lg lg:text-xl text-[#5c7a52] leading-relaxed">
-              From hormonal balance to menopause care, our experienced doctors provide personalised treatment plans designed specifically for women. Telehealth consultations from the comfort of your home.
+              From hormonal balance to menopause care, our AHPRA-registered doctors provide personalised assessment and care plans. Treatment options are discussed privately if clinically appropriate.
             </p>
 
             {/* Trust indicators */}
@@ -88,15 +88,15 @@ export function WomensHealthHero() {
               {[
                 {
                   title: "Menopause",
-                  desc: "Symptom relief & HRT",
+                  desc: "Symptom relief & support",
                   color: "from-[#f8e1e1] to-[#fce4d8]",
-                  href: "/womens-health/menopause"
+                  href: "/womens-health/assessment?category=menopause"
                 },
                 {
-                  title: "HRT",
-                  desc: "Hormone therapy",
+                  title: "Hormone care",
+                  desc: "Menopause & hormone health",
                   color: "from-[#e8d5e8] to-[#f0e4f0]",
-                  href: "/womens-health/hrt"
+                  href: "/womens-health/assessment?category=hrt"
                 },
                 {
                   title: "Contraception",
@@ -130,19 +130,12 @@ export function WomensHealthHero() {
               ))}
             </div>
 
-            {/* Floating testimonial */}
+            {/* Assessment-first care note */}
             <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl p-4 shadow-xl border border-[#f8e1e1] max-w-[240px]">
-              <div className="flex gap-1 mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} className="w-4 h-4 text-[#c17a58] fill-current" viewBox="0 0 20 20">
-                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                  </svg>
-                ))}
-              </div>
-              <p className="text-sm text-[#5c7a52] italic">
-                "Finally found doctors who truly understand women's health needs."
+              <p className="text-sm text-[#5c7a52] leading-relaxed">
+                Your doctor reviews your assessment and discusses what is clinically appropriate for you.
               </p>
-              <p className="text-xs text-[#7e9a72] mt-2">— Sarah M., Sydney</p>
+              <p className="text-xs text-[#7e9a72] mt-2">Doctor-led care</p>
             </div>
           </div>
         </div>

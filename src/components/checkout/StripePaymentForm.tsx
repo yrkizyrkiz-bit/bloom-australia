@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import {
+  ensurePrePaymentConsentRecorded,
+  paymentSourcePage,
+} from "@/lib/legal/ensure-pre-payment-consent";
+import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import {
   Elements,
   CardElement,
@@ -26,6 +32,29 @@ const getStripe = () => {
   }
   return stripePromise;
 };
+
+type StripeFieldChangeEvent = {
+  complete: boolean;
+  empty: boolean;
+  error?: { message?: string };
+};
+
+function friendlyCardError(message: string, empty = false): string {
+  const lower = message.toLowerCase();
+  if (empty || lower.includes("card number is incomplete")) {
+    return "Please enter your card number";
+  }
+  if (lower.includes("expiration") && lower.includes("incomplete")) {
+    return "Please enter your card expiry date";
+  }
+  if (
+    lower.includes("security code is incomplete") ||
+    (lower.includes("cvc") && lower.includes("incomplete"))
+  ) {
+    return "Please enter your card CVC";
+  }
+  return message;
+}
 
 interface PaymentFormProps {
   userId: string;
@@ -55,7 +84,7 @@ interface PaymentFormProps {
   showEmbeddedSubmit?: boolean;
   submitLabel?: string;
   submitDisabled?: boolean;
-  onSuccess: (paymentIntentId?: string) => void;
+  onSuccess: (result: CheckoutPaymentSuccess) => void;
   onError: (error: string) => void;
 }
 
@@ -66,6 +95,8 @@ function CheckoutForm({
   amount,
   planName,
   clientSecret,
+  customerEmail,
+  userId,
   embedded,
   formId,
   onReadyChange,
@@ -74,12 +105,16 @@ function CheckoutForm({
   showEmbeddedSubmit,
   submitLabel,
   submitDisabled,
+  consentChecked,
+  onConsentCheckedChange,
 }: {
-  onSuccess: (paymentIntentId?: string) => void;
+  onSuccess: (result: CheckoutPaymentSuccess) => void;
   onError: (error: string) => void;
   amount: number;
   planName: string;
   clientSecret: string;
+  customerEmail?: string;
+  userId?: string;
   embedded?: boolean;
   formId?: string;
   onReadyChange?: (ready: boolean) => void;
@@ -88,26 +123,36 @@ function CheckoutForm({
   showEmbeddedSubmit?: boolean;
   submitLabel?: string;
   submitDisabled?: boolean;
+  consentChecked: boolean;
+  onConsentCheckedChange: (checked: boolean) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [cardNumberReady, setCardNumberReady] = useState(false);
-  const [cardExpiryReady, setCardExpiryReady] = useState(false);
-  const [cardCvcReady, setCardCvcReady] = useState(false);
-  const [singleCardReady, setSingleCardReady] = useState(false);
+  const [cardFieldsComplete, setCardFieldsComplete] = useState({
+    number: false,
+    expiry: false,
+    cvc: false,
+  });
+  const [singleCardComplete, setSingleCardComplete] = useState(false);
 
   const allFieldsReady = splitCardFields
-    ? cardNumberReady && cardExpiryReady && cardCvcReady
-    : singleCardReady;
+    ? cardFieldsComplete.number && cardFieldsComplete.expiry && cardFieldsComplete.cvc
+    : singleCardComplete;
+  const checkoutReady = allFieldsReady && consentChecked;
 
   useEffect(() => {
-    onReadyChange?.(allFieldsReady);
-  }, [allFieldsReady, onReadyChange]);
+    onReadyChange?.(checkoutReady);
+  }, [checkoutReady, onReadyChange]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!consentChecked) {
+      setErrorMessage("Please accept the terms before completing payment.");
+      return;
+    }
 
     if (!stripe || !elements) {
       setErrorMessage("Payment form is still loading. Please wait...");
@@ -122,9 +167,50 @@ function CheckoutForm({
       return;
     }
 
+    if (splitCardFields) {
+      if (!cardFieldsComplete.number) {
+        const msg = "Please enter your card number";
+        setErrorMessage(msg);
+        onError(msg);
+        return;
+      }
+      if (!cardFieldsComplete.expiry) {
+        const msg = "Please enter your card expiry date";
+        setErrorMessage(msg);
+        onError(msg);
+        return;
+      }
+      if (!cardFieldsComplete.cvc) {
+        const msg = "Please enter your card CVC";
+        setErrorMessage(msg);
+        onError(msg);
+        return;
+      }
+    } else if (!singleCardComplete) {
+      const msg = "Please enter your card number";
+      setErrorMessage(msg);
+      onError(msg);
+      return;
+    }
+
     setIsProcessing(true);
     onProcessingChange?.(true);
     setErrorMessage(null);
+
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      email: customerEmail,
+      userId,
+    });
+
+    if (!consentResult.ok) {
+      setErrorMessage(consentResult.error);
+      onError(consentResult.error);
+      setIsProcessing(false);
+      onProcessingChange?.(false);
+      return;
+    }
 
     try {
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
@@ -134,19 +220,26 @@ function CheckoutForm({
       });
 
       if (error) {
-        const errorMsg = error.message || "Payment failed. Please try again.";
+        const errorMsg = friendlyCardError(error.message || "Payment failed. Please try again.");
         setErrorMessage(errorMsg);
         onError(errorMsg);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
-        onSuccess(paymentIntent.id);
+        onSuccess({
+          paymentIntentId: paymentIntent.id,
+          consentRecordId: consentResult.consentRecordId,
+        });
       } else if (paymentIntent && paymentIntent.status === "requires_action") {
         // Handle 3D Secure
         const { error: confirmError, paymentIntent: confirmedIntent } = await stripe.confirmCardPayment(clientSecret);
         if (confirmError) {
-          setErrorMessage(confirmError.message || "Authentication failed.");
-          onError(confirmError.message || "Authentication failed.");
+          const msg = friendlyCardError(confirmError.message || "Authentication failed.");
+          setErrorMessage(msg);
+          onError(msg);
         } else if (confirmedIntent?.status === "succeeded") {
-          onSuccess(confirmedIntent.id);
+          onSuccess({
+            paymentIntentId: confirmedIntent.id,
+            consentRecordId: consentResult.consentRecordId,
+          });
         }
       } else {
         const statusMsg = `Payment status: ${paymentIntent?.status || 'unknown'}`;
@@ -185,13 +278,20 @@ function CheckoutForm({
   const fieldBoxClass =
     "border border-[#e6ebe3] rounded-lg px-3 py-3 focus-within:border-[#5c7a52] focus-within:ring-1 focus-within:ring-[#5c7a52]/20 transition-colors bg-white";
 
-  const onFieldChange = (event: { error?: { message?: string } }) => {
-    if (event.error) {
-      setErrorMessage(event.error.message || "Card error");
-    } else {
-      setErrorMessage(null);
-    }
-  };
+  const onFieldChange =
+    (field?: "number" | "expiry" | "cvc") => (event: StripeFieldChangeEvent) => {
+      if (field) {
+        setCardFieldsComplete((prev) => ({ ...prev, [field]: event.complete }));
+      } else {
+        setSingleCardComplete(event.complete);
+      }
+
+      if (event.error) {
+        setErrorMessage(friendlyCardError(event.error.message || "Card error", event.empty));
+      } else {
+        setErrorMessage(null);
+      }
+    };
 
   return (
     <form id={formId} onSubmit={handleSubmit} className={embedded ? "space-y-3" : "space-y-5"}>
@@ -213,8 +313,7 @@ function CheckoutForm({
               <div className={fieldBoxClass}>
                 <CardNumberElement
                   options={cardStyle}
-                  onReady={() => setCardNumberReady(true)}
-                  onChange={onFieldChange}
+                  onChange={onFieldChange("number")}
                 />
               </div>
             </div>
@@ -226,8 +325,7 @@ function CheckoutForm({
                 <div className={fieldBoxClass}>
                   <CardExpiryElement
                     options={cardStyle}
-                    onReady={() => setCardExpiryReady(true)}
-                    onChange={onFieldChange}
+                    onChange={onFieldChange("expiry")}
                   />
                 </div>
               </div>
@@ -238,8 +336,7 @@ function CheckoutForm({
                 <div className={fieldBoxClass}>
                   <CardCvcElement
                     options={cardStyle}
-                    onReady={() => setCardCvcReady(true)}
-                    onChange={onFieldChange}
+                    onChange={onFieldChange("cvc")}
                   />
                 </div>
               </div>
@@ -249,18 +346,24 @@ function CheckoutForm({
           <div className="border-2 border-[#e6ebe3] rounded-xl p-4 focus-within:border-[#5c7a52] transition-colors bg-white">
             <CardElement
               options={cardStyle}
-              onReady={() => setSingleCardReady(true)}
-              onChange={onFieldChange}
+              onChange={onFieldChange()}
             />
           </div>
         )}
 
-        {!embedded && (
+        {!embedded && process.env.NODE_ENV !== "production" && (
           <p className="text-xs text-[#7e9a72] mt-3">
             Test card: 4242 4242 4242 4242 · Any future date · Any CVC
           </p>
         )}
       </div>
+
+      <PrePaymentConsentCheckbox
+        checked={consentChecked}
+        onCheckedChange={onConsentCheckedChange}
+        disabled={isProcessing}
+        className={embedded ? "mt-1" : "mt-2"}
+      />
 
       {/* Error Message */}
       {errorMessage && (
@@ -282,7 +385,13 @@ function CheckoutForm({
       {embedded && showEmbeddedSubmit && (
         <button
           type="submit"
-          disabled={!stripe || !elements || !allFieldsReady || isProcessing || submitDisabled}
+          disabled={
+            !stripe ||
+            !elements ||
+            !checkoutReady ||
+            isProcessing ||
+            submitDisabled
+          }
           className="w-full py-3.5 bg-[#2c3628] hover:bg-[#34412f] text-white font-semibold rounded-full text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isProcessing ? (
@@ -322,7 +431,7 @@ function CheckoutForm({
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={!stripe || !elements || isProcessing}
+            disabled={!stripe || !elements || !checkoutReady || isProcessing}
             className="w-full py-4 bg-[#2c3628] hover:bg-[#34412f] active:bg-[#1a1f17] text-white font-semibold rounded-full text-base sm:text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 touch-manipulation"
           >
             {isProcessing ? (
@@ -337,13 +446,6 @@ function CheckoutForm({
               </>
             )}
           </button>
-
-          {/* Refund Policy */}
-          <p className="text-center text-xs text-[#7e9a72]">
-            By completing payment, you agree to our{" "}
-            <a href="/terms" className="underline">terms of service</a>.
-            Full refund if treatment is not clinically appropriate.
-          </p>
         </>
       )}
     </form>
@@ -384,17 +486,21 @@ export function StripePaymentForm({
   const [useTestMode, setUseTestMode] = useState(false);
   const [isProcessingTest, setIsProcessingTest] = useState(false);
   const [paymentIntentHoldId, setPaymentIntentHoldId] = useState<string | null>(null);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [refreshingIntent, setRefreshingIntent] = useState(false);
 
   const planName =
     planNameOverride ||
     (selectedPlan === "precision" ? "Sanative Precision" : "Sanative Core");
   const amount = firstMonthAmount;
 
-  // Check if we're in a preview/iframe environment
-  const isPreviewEnvironment = typeof window !== 'undefined' &&
-    (window.location.hostname.includes('preview.same-app.com') ||
-     window.location.hostname.includes('localhost') ||
-     window.self !== window.top);
+  // Check if we're in a preview/iframe environment (dev only — never in production)
+  const isPreviewEnvironment =
+    process.env.NODE_ENV !== "production" &&
+    typeof window !== "undefined" &&
+    (window.location.hostname.includes("preview.same-app.com") ||
+      window.location.hostname.includes("localhost") ||
+      window.self !== window.top);
 
   // Track if we've already created a payment intent to prevent duplicate calls
   const [hasCreatedIntent, setHasCreatedIntent] = useState(false);
@@ -403,31 +509,65 @@ export function StripePaymentForm({
     setClientSecret(null);
     setHasCreatedIntent(false);
     setPaymentIntentHoldId(null);
+    setConsentChecked(false);
     setLoadError(null);
     setIsLoading(false);
+    setRefreshingIntent(false);
+    onReadyChange?.(false);
+  }, [onReadyChange]);
+
+  const refreshPaymentIntentForHold = useCallback(() => {
+    setHasCreatedIntent(false);
+    setPaymentIntentHoldId(null);
+    setLoadError(null);
+    setRefreshingIntent(true);
     onReadyChange?.(false);
   }, [onReadyChange]);
 
   // Handle test mode payment simulation
   const handleTestPayment = async () => {
-    setIsProcessingTest(true);
-
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Call success with a test payment intent ID
-    onSuccess(`pi_test_${Date.now()}`);
-    setIsProcessingTest(false);
-  };
-
-  const createPaymentIntent = useCallback(async () => {
-    if (!userId) {
-      setLoadError("User session not found. Please go back and try again.");
-      setIsLoading(false);
+    if (!consentChecked) {
+      onError("Please accept the terms before completing payment.");
       return;
     }
 
-    setIsLoading(true);
+    setIsProcessingTest(true);
+
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      email: customerEmail,
+      userId,
+    });
+
+    if (!consentResult.ok) {
+      onError(consentResult.error);
+      setIsProcessingTest(false);
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    onSuccess({
+      paymentIntentId: `pi_test_${Date.now()}`,
+      consentRecordId: consentResult.consentRecordId,
+    });
+    setIsProcessingTest(false);
+  };
+
+  const createPaymentIntent = useCallback(async (options?: { soft?: boolean }) => {
+    if (!userId) {
+      setLoadError("User session not found. Please go back and try again.");
+      setIsLoading(false);
+      setRefreshingIntent(false);
+      return;
+    }
+
+    if (options?.soft) {
+      setRefreshingIntent(true);
+    } else {
+      setIsLoading(true);
+    }
     setLoadError(null);
 
     try {
@@ -438,13 +578,7 @@ export function StripePaymentForm({
         body: JSON.stringify({
           userId,
           planId: selectedPlan,
-          billingType: "one_time",
-          selectedPlan,
           programType,
-          planName,
-          firstMonthAmount,
-          ongoingMonthlyAmount,
-          discountAmount,
           consultationDate,
           consultationTime,
           customerEmail,
@@ -476,8 +610,9 @@ export function StripePaymentForm({
       onError(message);
     } finally {
       setIsLoading(false);
+      setRefreshingIntent(false);
     }
-  }, [userId, selectedPlan, firstMonthAmount, ongoingMonthlyAmount, discountAmount, consultationDate, consultationTime, customerEmail, customerName, bookingHoldId, intakeId, onError]);
+  }, [userId, selectedPlan, consultationDate, consultationTime, customerEmail, customerName, bookingHoldId, intakeId, programType, onError]);
 
   // Create or refresh payment intent when slot hold changes
   useEffect(() => {
@@ -490,7 +625,11 @@ export function StripePaymentForm({
       return;
     }
 
-    createPaymentIntent();
+    const softRefresh = Boolean(clientSecret);
+    if (softRefresh) {
+      refreshPaymentIntentForHold();
+    }
+    createPaymentIntent({ soft: softRefresh });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, userId, bookingHoldId]);
 
@@ -531,8 +670,8 @@ export function StripePaymentForm({
     return null;
   }
 
-  // Loading state
-  if (isLoading) {
+  // Loading state — only block UI before first payment form render
+  if (isLoading && !clientSecret) {
     return (
       <div className={`${embedded ? "" : "bg-white rounded-2xl border border-[#e6ebe3]"} p-6 flex flex-col items-center justify-center min-h-[120px]`}>
         <div className="w-10 h-10 border-4 border-[#5c7a52]/20 border-t-[#5c7a52] rounded-full animate-spin mb-4" />
@@ -609,9 +748,16 @@ export function StripePaymentForm({
             <p className="text-2xl font-bold text-[#2c3628]">${(amount / 100).toFixed(0)} AUD</p>
           </div>
 
+          <PrePaymentConsentCheckbox
+            checked={consentChecked}
+            onCheckedChange={setConsentChecked}
+            disabled={isProcessingTest}
+            className="mb-4"
+          />
+
           <button
             onClick={handleTestPayment}
-            disabled={isProcessingTest}
+            disabled={isProcessingTest || !consentChecked}
             className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-full transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isProcessingTest ? (
@@ -655,13 +801,15 @@ export function StripePaymentForm({
 
   return (
     <div className="space-y-5">
-      <Elements key={bookingHoldId ?? clientSecret} stripe={stripeInstance} options={elementsOptions}>
+      <Elements key={clientSecret} stripe={stripeInstance} options={elementsOptions}>
         <CheckoutForm
           onSuccess={onSuccess}
           onError={onError}
           amount={amount}
           planName={planName}
           clientSecret={clientSecret}
+          customerEmail={customerEmail}
+          userId={userId}
           embedded={embedded}
           formId={formId}
           onReadyChange={onReadyChange}
@@ -669,9 +817,15 @@ export function StripePaymentForm({
           splitCardFields={splitCardFields}
           showEmbeddedSubmit={showEmbeddedSubmit}
           submitLabel={submitLabel}
-          submitDisabled={submitDisabled}
+          submitDisabled={submitDisabled || refreshingIntent}
+          consentChecked={consentChecked}
+          onConsentCheckedChange={setConsentChecked}
         />
       </Elements>
+
+      {refreshingIntent && (
+        <p className="text-xs text-[#7e9a72] text-center">Updating payment for your new time slot…</p>
+      )}
 
       {/* Test mode fallback for preview environment */}
       {isPreviewEnvironment && (

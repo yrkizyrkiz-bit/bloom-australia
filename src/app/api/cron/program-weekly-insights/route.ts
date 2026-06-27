@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateWeeklyInsight } from "@/lib/program/weekly-insight";
 import { evaluateBiomarkerFlags, applyBiomarkerEscalations } from "@/lib/program/biomarker-rules";
+import { assertCronAuthorized } from "@/lib/security/cron-auth";
 
 /** Weekly Claude insights + Precision biomarker rule pass. */
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const cronAuth = assertCronAuthorized(request);
+    if (cronAuth) {
+      return cronAuth;
     }
 
     const programs = await prisma.memberProgram.findMany({

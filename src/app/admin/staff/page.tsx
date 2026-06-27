@@ -122,20 +122,11 @@ export default function StaffManagementPage() {
   }, []);
 
   const [accessError, setAccessError] = useState<string | null>(null);
-  const [sessionDebug, setSessionDebug] = useState<Record<string, unknown> | null>(null);
 
   const fetchStaff = async () => {
     try {
       setLoading(true);
       setAccessError(null);
-
-      // Also fetch session debug info
-      const debugRes = await fetch("/api/admin/debug-session");
-      if (debugRes.ok) {
-        const debugData = await debugRes.json();
-        setSessionDebug(debugData);
-        console.log("[Staff Page] Session debug:", debugData);
-      }
 
       const res = await fetch("/api/admin/staff");
       console.log("[Staff Page] API response status:", res.status);
@@ -385,19 +376,15 @@ export default function StaffManagementPage() {
               <p className="text-sm text-slate-400 mb-6">
                 Only users with the ADMIN role can manage staff accounts.
               </p>
-              {sessionDebug && (
-                <div className="text-left bg-slate-100 rounded-lg p-4 mb-6 text-xs font-mono">
-                  <p className="font-bold mb-2">Session Debug:</p>
-                  <pre className="overflow-auto">{JSON.stringify(sessionDebug, null, 2)}</pre>
-                </div>
-              )}
               <div className="space-y-3">
                 <Button asChild>
                   <a href="/admin">Back to Dashboard</a>
                 </Button>
-                <p className="text-xs text-slate-400">
-                  If you believe you should have access, try logging out and logging back in as admin@sanative.com.au
-                </p>
+                {process.env.NODE_ENV !== "production" && (
+                  <p className="text-xs text-slate-400">
+                    If you believe you should have access, try logging out and logging back in with an admin account.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

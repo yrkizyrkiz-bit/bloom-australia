@@ -25,7 +25,7 @@ export function CategoryGrid() {
               </p>
             </div>
             <div className="flex items-center gap-2 text-white mt-6">
-              <span className="text-sm font-medium">Find your treatment</span>
+              <span className="text-sm font-medium">Start assessment</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
             {/* Decorative pill */}
@@ -49,7 +49,7 @@ export function CategoryGrid() {
                 Grow fuller <span className="text-[#5c7a52]">hair</span>
               </h3>
               <p className="text-[#4a6243] text-sm mt-2">
-                Clinically proven treatments for hair regrowth
+                Doctor-led hair health assessment and care planning
               </p>
             </div>
             <div className="flex items-center gap-2 text-[#34412f] mt-4">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
 // Program routes by subscription tier
@@ -77,7 +77,9 @@ function MagicLoginContent() {
         });
 
         if (result?.ok) {
-          router.push(resolveRedirectPath(data.subscriptionTier, searchParams));
+          // Ensure the session cookie is readable before navigating to the dashboard.
+          await getSession();
+          router.replace(resolveRedirectPath(data.subscriptionTier, searchParams));
         } else {
           setStatus("error");
           setError("Failed to sign in. Please try again.");
@@ -119,7 +121,8 @@ function MagicLoginContent() {
         });
 
         if (result?.ok) {
-          router.push(resolveRedirectPath(subscriptionTier, searchParams));
+          await getSession();
+          router.replace(resolveRedirectPath(subscriptionTier, searchParams));
         } else {
           setStatus("error");
           setError("Failed to sign in. Please try logging in manually.");

@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const role = searchParams.get("role") || "";
     const memberStatus = searchParams.get("memberStatus") || "";
+    const lite = searchParams.get("lite") === "1";
 
     const where = {
       ...(search && {
@@ -53,13 +54,17 @@ export async function GET(request: NextRequest) {
           gender: true,
           createdAt: true,
           dateOfBirth: true,
-          _count: {
-            select: {
-              biomarkerResults: true,
-              healthGoals: true,
-              labReports: true,
-            },
-          },
+          ...(lite
+            ? {}
+            : {
+                _count: {
+                  select: {
+                    biomarkerResults: true,
+                    healthGoals: true,
+                    labReports: true,
+                  },
+                },
+              }),
         },
         skip: (page - 1) * limit,
         take: limit,

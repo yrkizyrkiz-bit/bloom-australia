@@ -9,6 +9,11 @@ import { Check, Loader2, AlertCircle, Sparkles, Clock, Shield } from "lucide-rea
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { toast } from "sonner";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import {
+  ensurePrePaymentConsentRecorded,
+  paymentSourcePage,
+} from "@/lib/legal/ensure-pre-payment-consent";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
@@ -302,6 +307,7 @@ function CheckoutForm({ userId, planId }: { userId: string; planId: string }) {
   const elements = useElements();
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -314,6 +320,18 @@ function CheckoutForm({ userId, planId }: { userId: string; planId: string }) {
     setProcessing(true);
     setError(null);
 
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      userId,
+    });
+
+    if (!consentResult.ok) {
+      setError(consentResult.error);
+      setProcessing(false);
+      return;
+    }
+
     const { error: submitError } = await elements.submit();
     if (submitError) {
       setError(submitError.message || "Payment failed");
@@ -324,7 +342,7 @@ function CheckoutForm({ userId, planId }: { userId: string; planId: string }) {
     const { error: confirmError } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/payment/success?program=weight_management&userId=${userId}&plan=${planId}`,
+        return_url: `${window.location.origin}/payment/success?program=weight_management&userId=${userId}&plan=${planId}&consentRecordId=${consentResult.consentRecordId}`,
       },
     });
 
@@ -338,6 +356,13 @@ function CheckoutForm({ userId, planId }: { userId: string; planId: string }) {
     <form onSubmit={handleSubmit}>
       <PaymentElement className="mb-6" />
 
+      <PrePaymentConsentCheckbox
+        checked={consentChecked}
+        onCheckedChange={setConsentChecked}
+        disabled={processing}
+        className="mb-4"
+      />
+
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
@@ -347,7 +372,7 @@ function CheckoutForm({ userId, planId }: { userId: string; planId: string }) {
       <Button
         type="submit"
         className="w-full bg-emerald-600 hover:bg-emerald-700"
-        disabled={!stripe || processing}
+        disabled={!stripe || processing || !consentChecked}
       >
         {processing ? (
           <>

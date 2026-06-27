@@ -19,6 +19,7 @@ import {
   Timer,
 } from "lucide-react";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
+import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import {
   CLINIC_TIMEZONE,
   formatDateInTimezone,
@@ -124,7 +125,7 @@ const TRUST_BADGES = [
 
 const VALUE_PROPS = [
   "Doctor-led assessment",
-  "Treatment if clinically prescribed",
+  "Ongoing care coordination",
   "Biomarker monitoring",
 ];
 
@@ -278,7 +279,7 @@ function OrderSummaryCard({
             <p className="text-sm font-medium text-[#2c3628] truncate">
               {hasSlot && formData.consultationDate
                 ? `${formData.consultationDate} · ${formData.consultationTime}`
-                : "Select a time on the left"}
+                : "Select a time"}
             </p>
           </div>
           {hasSlot && holdCountdown > 0 && (
@@ -317,7 +318,7 @@ interface ConsultationPickerProps {
   hasSelectedSlot?: boolean;
 }
 
-function ConsultationPicker({
+export function ConsultationPicker({
   groupedSlots,
   formData,
   loadingSlots,
@@ -616,7 +617,7 @@ export interface UnifiedCheckoutScreenProps {
   selectingSlotId: string | null;
   onSlotSelect: (slot: UnifiedSlot) => void;
   onSlotsError: (error: string | null) => void;
-  onPaymentSuccess: (paymentIntentId?: string) => void;
+  onPaymentSuccess: (result: CheckoutPaymentSuccess) => void;
   onPaymentError: (error: string) => void;
   /** Patient IANA timezone for display (from profile address) */
   patientTimezone?: string;
@@ -652,6 +653,7 @@ export function UnifiedCheckoutScreen({
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [stripeReady, setStripeReady] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<UnifiedSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
   const [dayWindowOffset, setDayWindowOffset] = useState(0);
@@ -709,8 +711,20 @@ export function UnifiedCheckoutScreen({
   }, [dayWindowOffset, slotsRefreshKey, patientTimezone]);
 
   useEffect(() => {
-    setStripeReady(false);
-  }, [bookingHoldId, formData.selectedSlotId]);
+    if (!formData.selectedSlotId) {
+      setStripeReady(false);
+    }
+  }, [formData.selectedSlotId]);
+
+  const handlePaymentError = (error: string) => {
+    setPaymentError(error);
+    onPaymentError(error);
+  };
+
+  const handlePaymentSuccess = (result: CheckoutPaymentSuccess) => {
+    setPaymentError(null);
+    onPaymentSuccess(result);
+  };
 
   const groupedSlots = useMemo(
     () => groupSlotsByDay(availableSlots, patientTimezone),
@@ -772,8 +786,10 @@ export function UnifiedCheckoutScreen({
     formData,
     bookingHoldId,
     pricing,
-    onPaymentSuccess,
-    onPaymentError,
+    paymentError,
+    onDismissPaymentError: () => setPaymentError(null),
+    onPaymentSuccess: handlePaymentSuccess,
+    onPaymentError: handlePaymentError,
     onReadyChange: setStripeReady,
     onProcessingChange: setPaymentProcessing,
     programType,
@@ -901,6 +917,8 @@ function PaymentBlock({
   bookingHoldId,
   pricing,
   programType,
+  paymentError,
+  onDismissPaymentError,
   onPaymentSuccess,
   onPaymentError,
   onReadyChange,
@@ -918,7 +936,9 @@ function PaymentBlock({
   bookingHoldId: string | null;
   pricing: UnifiedCheckoutPricing;
   programType: "weight_management" | "hair_loss" | "mens_health" | "womens_health";
-  onPaymentSuccess: (paymentIntentId?: string) => void;
+  paymentError?: string | null;
+  onDismissPaymentError?: () => void;
+  onPaymentSuccess: (result: CheckoutPaymentSuccess) => void;
   onPaymentError: (error: string) => void;
   onReadyChange: (ready: boolean) => void;
   onProcessingChange: (processing: boolean) => void;
@@ -956,7 +976,20 @@ function PaymentBlock({
           <p className="text-xs text-[#7e9a72]">Preparing account...</p>
         </div>
       ) : (
-        <StripePaymentForm
+        <>
+          {paymentError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <p>{paymentError}</p>
+              <button
+                type="button"
+                onClick={onDismissPaymentError}
+                className="mt-1 text-xs text-red-600 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+          <StripePaymentForm
           userId={userId}
           selectedPlan="core"
           programType={programType}
@@ -981,6 +1014,7 @@ function PaymentBlock({
           onSuccess={onPaymentSuccess}
           onError={onPaymentError}
         />
+        </>
       )}
 
       {!inPanel && (

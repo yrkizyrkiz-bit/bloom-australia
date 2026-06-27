@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { blockDevOnlyRouteInProduction } from "@/lib/security/environment";
 
 const READ_ROLES = ["ADMIN", "SUPER_ADMIN", "CARE_PARTNER", "DOCTOR"];
 const WRITE_ROLES = ["ADMIN", "SUPER_ADMIN"];
@@ -16,6 +17,11 @@ const DEFAULT_SCHEDULE = [
 // POST /api/admin/doctor-roster/seed - Seed default availability for all doctors
 export async function POST(req: NextRequest) {
   try {
+    const blocked = blockDevOnlyRouteInProduction();
+    if (blocked) {
+      return blocked;
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id || !WRITE_ROLES.includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -150,6 +156,11 @@ export async function POST(req: NextRequest) {
 // GET /api/admin/doctor-roster/seed - Get seed status and suggestions
 export async function GET(req: NextRequest) {
   try {
+    const blocked = blockDevOnlyRouteInProduction();
+    if (blocked) {
+      return blocked;
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id || !READ_ROLES.includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

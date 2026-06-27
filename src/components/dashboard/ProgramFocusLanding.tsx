@@ -8,7 +8,7 @@ import { usePortalContext } from "@/hooks/usePortalContext";
 import { PortalStateBadge } from "@/components/portal/PortalInsightState";
 import type { ProgramKey } from "@/lib/membership/keys";
 import type { EntitlementState } from "@/lib/membership/biomarker-readiness";
-import { programSlugFromProgramKey } from "@/lib/billing/member-billing-summary";
+import { programSlugFromProgramKey } from "@/lib/billing/program-slugs";
 import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
 export type ProgramFocusLandingProps = {

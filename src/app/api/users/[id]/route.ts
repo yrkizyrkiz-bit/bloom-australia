@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Allow user to view their own profile, or admin/care partner/doctor to view any profile
     const allowedRoles = ["ADMIN", "CARE_PARTNER", "DOCTOR"];
     if (id !== session.user.id && !allowedRoles.includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const user = await prisma.user.findUnique({
@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Allow user to edit their own profile, or admin/care partner/doctor to edit customer profiles
     const allowedRoles = ["ADMIN", "CARE_PARTNER", "DOCTOR"];
     if (id !== session.user.id && !allowedRoles.includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();

@@ -1,9 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import Stripe from "stripe";
+import { requireDoctorOrAdmin } from "@/lib/auth/require-clinical-staff";
+import { recordSecurityAudit } from "@/lib/security/audit-log";
+import type { SecurityActionType } from "@/lib/security/audit-log";
+import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
+import { verifyOrganCareMembershipBookingPayment } from "@/lib/stripe/verify-organ-care-booking-payment";
+
+async function auditDoctorDecision(
+  request: NextRequest,
+  auth: { userId: string; role: string },
+  patientId: string,
+  decision: string
+) {
+  const actionType: SecurityActionType =
+    decision === "DECLINED" ? "decline" : "approve";
+  await recordSecurityAudit({
+    req: request,
+    actorUserId: auth.userId,
+    actorRole: auth.role,
+    route: "/api/admin/doctor/decision",
+    patientId,
+    actionType,
+    details: { decision },
+  });
+}
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
 let stripeClient: Stripe | null = null;
@@ -66,22 +88,13 @@ const DECLINE_REASONS = {
   incomplete_info: "Insufficient information for decision",
 };
 
-// Blood test options
-const BLOOD_TEST_OPTIONS = {
-  hba1c: { name: "HbA1c", description: "Glycated hemoglobin", reason: "Assess diabetes risk/control" },
-  fasting_glucose: { name: "Fasting Glucose", description: "Fasting blood glucose", reason: "Assess insulin resistance" },
-  fasting_insulin: { name: "Fasting Insulin", description: "Fasting insulin level", reason: "Calculate HOMA-IR" },
-  lipid_panel: { name: "Lipid Panel", description: "Total cholesterol, LDL, HDL, triglycerides", reason: "Cardiovascular risk assessment" },
-  liver_function: { name: "Liver Function", description: "ALT, AST, GGT, ALP, bilirubin", reason: "Assess liver health/fatty liver" },
-  kidney_function: { name: "Kidney Function", description: "eGFR, creatinine, urea", reason: "Assess renal function before medication" },
-  thyroid: { name: "Thyroid Panel", description: "TSH, Free T4, Free T3", reason: "Rule out thyroid dysfunction" },
-  full_blood_count: { name: "Full Blood Count", description: "CBC with differential", reason: "General health screening" },
-  iron_studies: { name: "Iron Studies", description: "Ferritin, iron, TIBC", reason: "Assess iron status" },
-  vitamin_d: { name: "Vitamin D", description: "25-OH Vitamin D", reason: "Check vitamin D status" },
-  cortisol: { name: "Cortisol", description: "Morning cortisol", reason: "Rule out Cushing's" },
-};
+import { BLOOD_TEST_CATALOG } from "@/lib/pathology/blood-test-catalog";
 
-// ─── GAP-005: Create ongoing subscription after doctor approval ───────────────
+const DECISIONS_REQUIRING_VERIFIED_FIRST_MONTH_PAYMENT = new Set([
+  "APPROVED",
+  "APPROVED_NO_TREATMENT",
+  "APPROVED_PENDING_TESTS",
+]);
 // This creates the recurring monthly subscription ($349/$499) starting 30 days after first payment
 // First month was already charged via PaymentIntent at checkout
 async function createOngoingSubscription(
@@ -239,10 +252,11 @@ async function createOngoingSubscription(
 // POST /api/admin/doctor/decision - Submit doctor decision
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !["ADMIN", "DOCTOR"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireDoctorOrAdmin();
+    if ("error" in auth) {
+      return auth.error;
     }
+    const session = auth.session;
 
     const stripe = getStripeClient();
     const body = await request.json();
@@ -342,12 +356,66 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Consultation not found" }, { status: 404 });
     }
 
-    // GAP-005: Determine the selected plan (CORE or PRECISION)
-    const selectedPlan: "CORE" | "PRECISION" =
-      consultation.selectedPlan?.toUpperCase() === "PRECISION" ? "PRECISION" : "CORE";
+    // GAP-005: Determine the selected plan (CORE or PRECISION) after payment verification
+    let verifiedWmPlan: "CORE" | "PRECISION" | null = null;
 
     const doctorName = `Dr. ${session.user.firstName || ""} ${session.user.lastName || ""}`.trim();
     const dashboardUrl = `${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/dashboard/weight-management`;
+
+    if (DECISIONS_REQUIRING_VERIFIED_FIRST_MONTH_PAYMENT.has(decision)) {
+      if (!consultation.paymentIntentId) {
+        return NextResponse.json(
+          { error: "No first-month payment on record for this consultation" },
+          { status: 400 }
+        );
+      }
+
+      if (consultation.userId && consultation.userId !== userId) {
+        return NextResponse.json(
+          { error: "Consultation does not belong to this user" },
+          { status: 403 }
+        );
+      }
+
+      const isOrganCareBooking = (consultation.notes || "").includes("Organ & Metabolic Care");
+
+      if (isOrganCareBooking) {
+        const organCareResult = await verifyOrganCareMembershipBookingPayment({
+          paymentIntentId: consultation.paymentIntentId,
+          userId,
+          bookingHoldId: consultationId,
+        });
+        if (!organCareResult.ok) {
+          return NextResponse.json(
+            { error: organCareResult.error },
+            { status: organCareResult.status }
+          );
+        }
+      } else {
+        const paymentVerification = await verifyFirstMonthPaymentForBooking({
+          paymentIntentId: consultation.paymentIntentId,
+          userId,
+          consultationId,
+          bookingHoldId: consultationId,
+          selectedPlan: consultation.selectedPlan,
+        });
+
+        if ("error" in paymentVerification) {
+          return NextResponse.json(
+            { error: paymentVerification.error },
+            { status: paymentVerification.status }
+          );
+        }
+
+        if (paymentVerification.normalizedPlan) {
+          verifiedWmPlan = paymentVerification.normalizedPlan;
+        }
+      }
+    }
+
+    const selectedPlan: "CORE" | "PRECISION" =
+      verifiedWmPlan ??
+      (consultation.selectedPlan?.toUpperCase() === "PRECISION" ? "PRECISION" : "CORE");
 
     // Handle decision based on type
     switch (decision as DecisionType) {
@@ -676,6 +744,8 @@ Welcome call / onboarding walkthrough:
           console.error("[Doctor Decision] Failed to create activity log:", logError);
         }
 
+        await auditDoctorDecision(request, auth, userId, decision);
+
         return NextResponse.json({
           success: true,
           decision: "APPROVED",
@@ -855,6 +925,8 @@ Tasks:
             },
           },
         });
+
+        await auditDoctorDecision(request, auth, userId, decision);
 
         return NextResponse.json({
           success: true,
@@ -1049,6 +1121,8 @@ Please contact patient to provide support and guidance.`,
           },
         });
 
+        await auditDoctorDecision(request, auth, userId, decision);
+
         return NextResponse.json({
           success: true,
           decision: "DECLINED",
@@ -1079,7 +1153,7 @@ Please contact patient to provide support and guidance.`,
         }
 
         const testsList = (testsRequired as string[]).map((testId: string) => {
-          const test = BLOOD_TEST_OPTIONS[testId as keyof typeof BLOOD_TEST_OPTIONS];
+          const test = BLOOD_TEST_CATALOG[testId];
           return test ? `${test.name}: ${test.description}` : testId;
         });
 
@@ -1461,6 +1535,8 @@ Tasks:
           },
         });
 
+        await auditDoctorDecision(request, auth, userId, decision);
+
         return NextResponse.json({
           success: true,
           decision: "APPROVED_WITH_TESTS",
@@ -1495,9 +1571,9 @@ Tasks:
 // GET /api/admin/doctor/decision - Get decision options
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !["ADMIN", "DOCTOR"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireDoctorOrAdmin();
+    if ("error" in auth) {
+      return auth.error;
     }
 
     return NextResponse.json({
@@ -1507,7 +1583,7 @@ export async function GET() {
         id,
         text,
       })),
-      bloodTests: Object.entries(BLOOD_TEST_OPTIONS).map(([id, test]) => ({
+      bloodTests: Object.entries(BLOOD_TEST_CATALOG).map(([id, test]) => ({
         id,
         name: test.name,
         description: test.description,

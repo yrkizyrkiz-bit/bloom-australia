@@ -99,7 +99,7 @@ function MembersPageContent() {
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/users?role=MEMBER&limit=100");
+      const response = await fetch("/api/users?role=MEMBER&limit=100&lite=1");
       if (!response.ok) throw new Error("Failed to fetch members");
       const data = await response.json();
       setCustomers(

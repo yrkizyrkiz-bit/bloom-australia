@@ -100,7 +100,7 @@ export default function CommunicationsPage() {
         }
 
         // Fetch customers
-        const customersRes = await fetch("/api/users?role=MEMBER&limit=100");
+        const customersRes = await fetch("/api/users?role=MEMBER&limit=100&lite=1");
         if (customersRes.ok) {
           const data = await customersRes.json();
           setCustomers(data.users || []);

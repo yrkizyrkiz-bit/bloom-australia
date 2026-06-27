@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   History,
   Target,
-  Scale,
   Grid3X3,
 } from "lucide-react";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
@@ -14,7 +13,6 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: MEMBER_PROGRAMS_HOME, label: "Home", icon: Grid3X3 },
-  { href: "/dashboard/weight-management", label: "Weight", icon: Scale },
   { href: "/dashboard/goals", label: "Goals", icon: Target },
   { href: "/dashboard/reports", label: "Reports", icon: History },
 ];

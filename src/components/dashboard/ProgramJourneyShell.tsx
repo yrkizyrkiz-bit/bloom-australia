@@ -20,7 +20,7 @@ import {
   getConsultationCountdown,
   getTimelineProgress,
 } from "@/lib/program-journey/timeline";
-import { programSlugFromProgramKey } from "@/lib/billing/member-billing-summary";
+import { programSlugFromProgramKey } from "@/lib/billing/program-slugs";
 import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
 export type ProgramJourneyViewModel = {

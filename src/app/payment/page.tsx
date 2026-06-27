@@ -5,6 +5,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import {
+  ensurePrePaymentConsentRecorded,
+  paymentSourcePage,
+} from "@/lib/legal/ensure-pre-payment-consent";
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
@@ -37,11 +42,12 @@ const PROGRAM_DETAILS: Record<string, { title: string; description: string; colo
   },
 };
 
-function CheckoutForm({ clientSecret, amount, program }: { clientSecret: string; amount: number; program: string }) {
+function CheckoutForm({ clientSecret, amount, program, userId }: { clientSecret: string; amount: number; program: string; userId?: string | null }) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,6 +57,18 @@ function CheckoutForm({ clientSecret, amount, program }: { clientSecret: string;
 
     setIsProcessing(true);
     setError(null);
+
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      userId: userId ?? undefined,
+    });
+
+    if (!consentResult.ok) {
+      setError(consentResult.error);
+      setIsProcessing(false);
+      return;
+    }
 
     try {
       const { error: submitError } = await elements.submit();
@@ -63,7 +81,7 @@ function CheckoutForm({ clientSecret, amount, program }: { clientSecret: string;
       const { error: paymentError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/payment/success?program=${program}`,
+          return_url: `${window.location.origin}/payment/success?program=${program}&consentRecordId=${consentResult.consentRecordId}`,
         },
         redirect: "if_required",
       });
@@ -72,7 +90,7 @@ function CheckoutForm({ clientSecret, amount, program }: { clientSecret: string;
         setError(paymentError.message || "Payment failed");
         setIsProcessing(false);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
-        router.push(`/payment/success?program=${program}`);
+        router.push(`/payment/success?program=${program}&consentRecordId=${consentResult.consentRecordId}`);
       }
     } catch (err) {
       console.error("Payment error:", err);
@@ -99,9 +117,15 @@ function CheckoutForm({ clientSecret, amount, program }: { clientSecret: string;
         />
       </div>
 
+      <PrePaymentConsentCheckbox
+        checked={consentChecked}
+        onCheckedChange={setConsentChecked}
+        disabled={isProcessing}
+      />
+
       <button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={!stripe || isProcessing || !consentChecked}
         className="w-full py-4 font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         style={{ backgroundColor: programInfo.color, color: "white" }}
       >
@@ -336,7 +360,7 @@ function PaymentPageContent() {
               },
             }}
           >
-            <CheckoutForm clientSecret={clientSecret} amount={amount} program={program} />
+            <CheckoutForm clientSecret={clientSecret} amount={amount} program={program} userId={userId} />
           </Elements>
         )}
 

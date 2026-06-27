@@ -60,7 +60,7 @@ export default function AdminMembersPage() {
   const fetchMembers = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/users?role=MEMBER");
+      const response = await fetch("/api/users?role=MEMBER&lite=1");
       if (!response.ok) throw new Error("Failed to fetch members");
       const data = await response.json();
       setMembers(data.users || []);

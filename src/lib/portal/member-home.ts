@@ -3,6 +3,7 @@ import { PROGRAM_CARDS } from "@/lib/programs/catalog";
 import { isProgramEntitled } from "@/lib/membership/program-access";
 import type { ProgramKey } from "@/lib/membership/keys";
 import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
+import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 
 /** Program grid — default member home for portal upsells and pre-lab members. */
 export const MEMBER_PROGRAMS_HOME = "/dashboard/programs";
@@ -32,6 +33,31 @@ export function getPrimaryEnrolledProgramKey(
 
 export function resolveProgramDashboardRoute(programKey: ProgramKey): string {
   return PROGRAM_CARDS.find((card) => card.key === programKey)?.dashboardRoute ?? MEMBER_PROGRAMS_HOME;
+}
+
+export function memberHasClassicHealthDashboard(
+  portal: PortalContextPayload | null | undefined
+): boolean {
+  const membership = portal?.membership;
+  if (!membership) return false;
+
+  const biomarkersEntitled = Boolean(
+    membership.scopes?.BIOLOGICAL_CLOCK?.hasEntitlement &&
+      membership.scopes.BIOLOGICAL_CLOCK.status !== "INACTIVE"
+  );
+  const organCareEntitled = isOrganCareEntitled(membership);
+
+  return biomarkersEntitled && organCareEntitled;
+}
+
+/** Back navigation from program shells — classic overview vs programs hub. */
+export function resolveMemberBackPath(
+  portal: PortalContextPayload | null | undefined
+): string {
+  if (memberHasClassicHealthDashboard(portal)) {
+    return MEMBER_HEALTH_OVERVIEW;
+  }
+  return MEMBER_PROGRAMS_HOME;
 }
 
 export function resolveMemberHomePath(

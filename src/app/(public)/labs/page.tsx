@@ -17,7 +17,6 @@ import {
   Beaker,
   BadgeCheck,
   MessageCircle,
-  Star,
   BarChart3,
   Route,
   RefreshCw,
@@ -369,7 +368,7 @@ function LabsPageContent() {
                   Retest and track progress
                 </h3>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  Retest after 3–6 months on a Sanative program to see objective proof your treatment is working.
+                  Retest after 3–6 months on a Sanative program to track biomarker changes with your doctor.
                 </p>
               </div>
             </div>
@@ -458,7 +457,7 @@ function LabsPageContent() {
                     <div className="w-6 h-6 rounded-full bg-[#5c7a52] flex items-center justify-center flex-shrink-0 mt-0.5">
                       <Check className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-[#2c3628]">Habit building, nutrition plans, and, if eligible, medication</span>
+                    <span className="text-[#2c3628]">Habit building, nutrition plans, and further care if clinically appropriate</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-[#5c7a52] flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -661,49 +660,31 @@ function LabsPageContent() {
 
             {/* Features Bento */}
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {/* Large stat card */}
               <div className="md:col-span-2 lg:col-span-2 bg-gradient-to-br from-[#5c7a52] to-[#4a6243] rounded-3xl p-8 text-white">
-                <p className="text-5xl lg:text-6xl font-serif">50,000+</p>
-                <p className="mt-2 text-white/80">Australians trust care through Sanative</p>
+                <p className="text-5xl lg:text-6xl font-serif">80+</p>
+                <p className="mt-2 text-white/80">Biomarkers available through NATA-accredited labs</p>
               </div>
 
-              {/* Treatment plans */}
               <div className="bg-[#e6ebe3] rounded-3xl p-6 flex flex-col justify-between min-h-[200px]">
                 <div>
-                  <p className="text-[#5c7a52] italic font-serif text-lg">Doctor-trusted</p>
-                  <p className="text-2xl font-serif text-[#2c3628]">treatment plans</p>
+                  <p className="text-[#5c7a52] italic font-serif text-lg">Doctor-reviewed</p>
+                  <p className="text-2xl font-serif text-[#2c3628]">results</p>
                 </div>
                 <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center">
                   <BadgeCheck className="w-8 h-8 text-[#5c7a52]" />
                 </div>
               </div>
 
-              {/* Rating card */}
               <div className="bg-[#f4f7f2] rounded-3xl p-6 flex flex-col justify-between min-h-[200px]">
-                <p className="text-5xl font-serif text-[#2c3628]">4.9</p>
+                <p className="text-5xl font-serif text-[#2c3628]">100%</p>
                 <div>
-                  <div className="flex gap-1 mb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-[#c17a58] text-[#c17a58]" />
-                    ))}
-                  </div>
-                  <p className="text-sm text-[#5c7a52]">Average customer rating</p>
+                  <p className="text-sm text-[#5c7a52]">AHPRA-registered doctors review your results</p>
                 </div>
               </div>
 
-              {/* Wide stat card */}
-              <div className="md:col-span-2 relative rounded-3xl overflow-hidden min-h-[200px]">
-                <Image
-                  src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80"
-                  alt="Wellness"
-                  fill
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#34412f]/90 to-transparent" />
-                <div className="relative p-8 text-white">
-                  <p className="text-5xl lg:text-6xl font-serif">94%</p>
-                  <p className="mt-2 text-white/80">rate Sanative equal to or better than in-person care</p>
-                </div>
+              <div className="md:col-span-2 relative rounded-3xl overflow-hidden min-h-[200px] bg-gradient-to-br from-[#34412f] to-[#2c3628] p-8 text-white">
+                <p className="text-5xl lg:text-6xl font-serif">NATA</p>
+                <p className="mt-2 text-white/80">Accredited Australian pathology partners</p>
               </div>
 
               {/* Provider follow-ups */}
@@ -726,7 +707,7 @@ function LabsPageContent() {
             </div>
 
             <p className="mt-8 text-center text-xs text-[#7e9a72]">
-              Based on data from nearly 2,400 surveyed customers.
+              Individual results vary. Your doctor interprets results in the context of your health profile.
             </p>
 
             <div className="mt-10 text-center">

@@ -175,5 +175,5 @@ bun run db:reset
 - [ ] Enable SSL for database connections
 - [ ] Set up proper CORS headers
 - [ ] Review and limit database user permissions
-- [ ] Enable rate limiting for API routes
+- [ ] Enable rate limiting for API routes (DB-backed limits on auth/checkout routes)
 - [ ] Set up monitoring and alerts

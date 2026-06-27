@@ -17,8 +17,8 @@ import {
 const portalFeatures = [
   {
     icon: ClipboardList,
-    title: "View your treatment plan",
-    description: "Access your personalised program details and medication schedule",
+    title: "View your care plan",
+    description: "Access your personalised program details and care plan",
   },
   {
     icon: MessageCircle,
@@ -38,7 +38,7 @@ const portalFeatures = [
   {
     icon: LineChart,
     title: "View biomarker trends over time",
-    description: "Track how your key health markers improve with treatment",
+    description: "Track how your key health markers change over time",
   },
   {
     icon: Heart,
@@ -53,7 +53,7 @@ const portalFeatures = [
   {
     icon: Truck,
     title: "Manage deliveries and program updates",
-    description: "Track medication deliveries and program communications",
+    description: "Track program communications and updates",
   },
   {
     icon: Activity,
@@ -70,8 +70,8 @@ const programInclusions = [
   },
   {
     icon: Smartphone,
-    title: "Treatment if prescribed",
-    description: "Evidence-based medication where clinically appropriate",
+    title: "Personalised care plan",
+    description: "Doctor-led care planning where clinically appropriate",
   },
   {
     icon: FlaskConical,
@@ -85,8 +85,8 @@ const programInclusions = [
   },
   {
     icon: Truck,
-    title: "Secure delivery",
-    description: "Discreet medication delivery to your door",
+    title: "Ongoing care coordination",
+    description: "Follow-up support and program updates from your care team",
   },
   {
     icon: MessageCircle,

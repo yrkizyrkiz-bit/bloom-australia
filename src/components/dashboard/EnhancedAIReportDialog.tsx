@@ -9,8 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { generatePersonalizedReport, mockHealthScore } from "@/data/mock-data";
-import { getBiomarkerById, categoryInfo } from "@/data/biomarkers";
+import { mapApiReportToPersonalizedReport } from "@/lib/ai-report-mapper";
 import type { PersonalizedReport, AIInsight } from "@/types";
 import {
   Sparkles,
@@ -46,16 +45,40 @@ export function EnhancedAIReportDialog({
   onOpenChange
 }: EnhancedAIReportDialogProps) {
   const [report, setReport] = useState<PersonalizedReport | null>(null);
+  const [healthScoreOverall, setHealthScoreOverall] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const generateReport = async () => {
     setIsGenerating(true);
-    // Simulate AI processing time
-    await new Promise(r => setTimeout(r, 2000));
-    const newReport = generatePersonalizedReport(userId);
-    setReport(newReport);
-    setIsGenerating(false);
+    try {
+      const [scoreRes, reportRes] = await Promise.all([
+        fetch(`/api/health-scores?userId=${encodeURIComponent(userId)}&latest=true`),
+        fetch("/api/ai-reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        }),
+      ]);
+
+      if (scoreRes.ok) {
+        const scoreData = await scoreRes.json();
+        setHealthScoreOverall(scoreData.score?.overall ?? null);
+      }
+
+      if (!reportRes.ok) {
+        const err = await reportRes.json().catch(() => ({}));
+        toast.error(err.error || "Could not generate report. Add biomarker results first.");
+        return;
+      }
+
+      const data = await reportRes.json();
+      setReport(mapApiReportToPersonalizedReport(userId, data.report));
+    } catch {
+      toast.error("Failed to generate health report");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const getPriorityColor = (priority: string) => {
@@ -164,7 +187,7 @@ export function EnhancedAIReportDialog({
       // Health Score
       doc.setFontSize(48);
       doc.setTextColor(60, 130, 60);
-      doc.text(String(mockHealthScore.overall), pageWidth / 2, 120, { align: "center" });
+      doc.text(String(healthScoreOverall ?? "—"), pageWidth / 2, 120, { align: "center" });
       doc.setFontSize(14);
       doc.setTextColor(100, 100, 100);
       doc.text("Overall Health Score", pageWidth / 2, 135, { align: "center" });
@@ -294,7 +317,7 @@ export function EnhancedAIReportDialog({
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-2xl font-serif font-bold text-primary">{mockHealthScore.overall}</span>
+                      <span className="text-2xl font-serif font-bold text-primary">{healthScoreOverall ?? "—"}</span>
                     </div>
                     <div>
                       <h3 className="font-medium text-lg mb-2">Health Summary</h3>

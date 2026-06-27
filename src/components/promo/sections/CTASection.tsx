@@ -6,7 +6,7 @@ export function CTASection() {
     {
       icon: Shield,
       title: "AHPRA Doctors",
-      description: "All treatments are approved by Australia's Therapeutic Goods Administration",
+      description: "All care is provided by AHPRA-registered Australian medical practitioners",
     },
     {
       icon: Clock,
@@ -15,8 +15,8 @@ export function CTASection() {
     },
     {
       icon: Truck,
-      title: "Discreet Delivery",
-      description: "Plain packaging delivered Australia-wide",
+      title: "Pharmacy dispensing",
+      description: "Where clinically appropriate, items may be dispensed by Australian pharmacies",
     },
     {
       icon: MessageCircle,
@@ -43,7 +43,7 @@ export function CTASection() {
               </h2>
 
               <p className="mt-6 text-lg lg:text-xl text-[#a8bb9e] max-w-2xl mx-auto">
-                Join thousands of Australians who&apos;ve transformed their health with personalised, doctor-led care from home.
+                Doctor-led assessment and ongoing care from Australian-registered practitioners — personalised to your health profile.
               </p>
 
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">

@@ -28,7 +28,7 @@ const benefits = [
     // GAP-023: Removed "free" biomarker positioning
     icon: Gift,
     title: "Doctor-reviewed biomarker monitoring",
-    description: "Blood tests requested where clinically appropriate to personalise your treatment.",
+    description: "Blood tests requested where clinically appropriate to personalise your care plan.",
     highlight: true,
   },
   {
@@ -38,8 +38,8 @@ const benefits = [
   },
   {
     icon: Pill,
-    title: "Premium medications included",
-    description: "Evidence-based treatments included in your program fee.",
+    title: "Doctor-led clinical care",
+    description: "Doctor-led care plans developed only when clinically appropriate.",
   },
   {
     icon: Smartphone,
@@ -150,10 +150,10 @@ export function WhyWomenChoose() {
             {/* Differentiation Block */}
             <div className="mt-6 p-5 rounded-2xl bg-white/10 border border-white/20">
               <p className="text-white font-medium mb-2">
-                Unlike most providers, we don't just prescribe treatment
+                Unlike BMI-only programs, we look at your full metabolic picture
               </p>
               <p className="text-sm text-[#a8bb9e] leading-relaxed">
-                We actively manage side effects and optimise your results over time. Many people stop weight loss treatment due to nausea or fatigue — we address these early so you can stay consistent and achieve better results.
+                Your care plan is guided by symptoms, health history, and biomarkers where clinically appropriate — with ongoing clinical support to help you stay consistent.
               </p>
             </div>
           </div>
@@ -235,7 +235,7 @@ export function WhyWomenChoose() {
                         <span className="text-xs font-medium text-[#34412f]">Dr. Sarah Chen</span>
                       </div>
                       <p className="text-xs text-[#5c7a52]">
-                        Great progress this month! Let's discuss your dose...
+                        Great progress this month! Let's review your care plan...
                       </p>
                     </div>
                   </div>

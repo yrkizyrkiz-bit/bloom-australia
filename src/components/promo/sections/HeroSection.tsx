@@ -21,7 +21,7 @@ export function HeroSection() {
               deserved
             </h1>
             <p className="mt-6 text-lg lg:text-xl text-[#5c7a52] max-w-xl mx-auto lg:mx-0 leading-relaxed">
-              Personalised healthcare designed for Australian women. Access doctor-prescribed treatments, expert AHPRA-registered doctors, and comprehensive lab testing at centres near you.
+              Personalised healthcare designed for Australian women. Access doctor-led assessment, AHPRA-registered doctors, and comprehensive lab testing at centres near you.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link
@@ -51,7 +51,7 @@ export function HeroSection() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />
-                <span>Discreet Delivery</span>
+                <span>Pharmacy dispensing when prescribed</span>
               </div>
             </div>
           </div>
@@ -89,21 +89,9 @@ export function HeroSection() {
               </div>
             </div>
 
-            {/* Floating Stats Card */}
-            <div className="absolute -left-8 top-1/2 -translate-y-1/2 bg-white rounded-2xl p-5 shadow-xl border border-[#e6ebe3]">
-              <p className="text-4xl font-serif text-[#34412f]">50k+</p>
-              <p className="text-sm text-[#5c7a52]">Women helped</p>
-            </div>
-
-            {/* Rating Badge */}
-            <div className="absolute -right-4 bottom-20 bg-[#34412f] rounded-2xl px-5 py-3 text-white shadow-xl">
-              <div className="flex items-center gap-1">
-                <span className="text-2xl font-serif">4.9</span>
-                <svg className="w-5 h-5 text-[#c17a58] fill-current" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </div>
-              <p className="text-xs text-[#a8bb9e]">Avg. rating</p>
+            {/* Floating care card */}
+            <div className="absolute -left-8 top-1/2 -translate-y-1/2 bg-white rounded-2xl p-5 shadow-xl border border-[#e6ebe3] max-w-[200px]">
+              <p className="text-sm text-[#5c7a52] leading-relaxed">Doctor-led assessment with care options discussed privately if clinically appropriate.</p>
             </div>
           </div>
         </div>

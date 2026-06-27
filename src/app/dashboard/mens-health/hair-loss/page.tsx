@@ -501,13 +501,13 @@ export default function HairLossPage() {
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </div>
           </Link>
-          <Link href="/dashboard/mens-health/learn/finasteride">
+          <Link href="/dashboard/mens-health/learn">
             <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
               <div className="w-12 h-12 rounded-lg bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center shrink-0">
                 <Play className="w-5 h-5 text-violet-600" />
               </div>
               <div className="flex-1">
-                <p className="font-medium text-sm">Finasteride: How It Works</p>
+                <p className="font-medium text-sm">How Doctor-Led Hair Treatment Works</p>
                 <p className="text-xs text-muted-foreground">4 min read</p>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />

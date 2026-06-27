@@ -32,8 +32,8 @@ const content = [
   },
   {
     id: "2",
-    title: "How Finasteride Works",
-    description: "A deep dive into the science behind the most effective hair loss treatment.",
+    title: "How Doctor-Led Hair Treatment Works",
+    description: "Understanding the science behind personalised hair loss care.",
     category: "hair",
     type: "video",
     duration: "8 min",
@@ -78,8 +78,8 @@ const content = [
   },
   {
     id: "7",
-    title: "Minoxidil: What to Expect",
-    description: "Timeline, results, and how to maximize effectiveness.",
+    title: "Hair Treatment: What to Expect",
+    description: "Timeline, results, and how to get the most from your care plan.",
     category: "hair",
     type: "article",
     duration: "5 min read",
@@ -96,8 +96,8 @@ const content = [
   },
   {
     id: "9",
-    title: "Sildenafil vs Tadalafil",
-    description: "Comparing the two most popular ED medications.",
+    title: "ED Treatment Options Explained",
+    description: "Understanding erectile dysfunction and how doctors assess suitability.",
     category: "ed",
     type: "article",
     duration: "4 min read",

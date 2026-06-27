@@ -9,6 +9,7 @@ import {
   gpBiomarkerAlertEmail,
   orderConfirmationEmail,
   weightManagementOrderConfirmationEmail,
+  pathologyReferralEmail,
 } from "./email-templates";
 
 // Lazy-initialized Resend client (avoids build-time errors when env var is missing)
@@ -274,6 +275,38 @@ export async function sendWeightManagementConfirmationEmail(
   return sendEmailInternal(to, template.subject, template.html, template.text);
 }
 
+export async function sendPathologyReferralEmail(
+  to: string,
+  data: {
+    firstName: string;
+    doctorName: string;
+    referralId: string;
+    programSummary: string;
+    fastingRequired: boolean;
+    pdfFilename: string;
+    pdfBase64: string;
+  }
+): Promise<SendEmailResult> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://sanative.com.au";
+  const template = pathologyReferralEmail({
+    firstName: data.firstName,
+    doctorName: data.doctorName,
+    referralId: data.referralId,
+    programSummary: data.programSummary,
+    fastingRequired: data.fastingRequired,
+    dashboardUrl: `${baseUrl}/dashboard/biomarkers`,
+  });
+
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    attachments: [
+      {
+        filename: data.pdfFilename,
+        content: data.pdfBase64,
+      },
+    ],
+  });
+}
+
 // ============================================
 // CORE EMAIL SENDING FUNCTION
 // ============================================
@@ -307,11 +340,21 @@ export async function sendEmail(
   return sendEmailInternal(toOrOptions, subject!, html!, text!);
 }
 
+interface EmailAttachment {
+  filename: string;
+  content: string;
+}
+
+interface SendEmailInternalOptions {
+  attachments?: EmailAttachment[];
+}
+
 async function sendEmailInternal(
   to: string,
   subject: string,
   html: string,
-  text: string
+  text: string,
+  options?: SendEmailInternalOptions
 ): Promise<SendEmailResult> {
   // Get the lazily-initialized Resend client
   const resend = getResendClient();
@@ -333,6 +376,7 @@ async function sendEmailInternal(
       subject,
       html,
       text,
+      attachments: options?.attachments,
     });
 
     if (error) {

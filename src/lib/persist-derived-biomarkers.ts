@@ -6,32 +6,10 @@ import {
   type DerivedBiomarkerOutput,
 } from "@/lib/derived-biomarkers";
 import type { BiomarkerStatus } from "@prisma/client";
+import { calculateBiomarkerStatus } from "@/lib/biomarker-status";
 
 function dateKeyFromTestedAt(testedAt: Date): string {
   return testedAt.toISOString().split("T")[0];
-}
-
-function calculateStatus(
-  value: number,
-  biomarkerDef: {
-    maleRanges: unknown;
-    femaleRanges: unknown;
-  } | null | undefined,
-  gender: string
-): BiomarkerStatus {
-  if (!biomarkerDef) return "NORMAL";
-
-  const ranges =
-    gender === "FEMALE" ? biomarkerDef.femaleRanges : biomarkerDef.maleRanges;
-  if (!ranges) return "NORMAL";
-
-  const rangeData = typeof ranges === "string" ? JSON.parse(ranges) : ranges;
-  const { low, optimal_low, optimal_high, high } = rangeData;
-
-  if (value >= optimal_low && value <= optimal_high) return "OPTIMAL";
-  if (value >= low && value <= high) return "NORMAL";
-  if (value < low * 0.8 || value > high * 1.2) return "CRITICAL";
-  return "OUT_OF_RANGE";
 }
 
 export interface PersistDerivedResult {
@@ -147,7 +125,7 @@ export async function persistDerivedBiomarkersForUser(
         testedAt: episode.testedAt,
         labReportId: episode.labReportId,
         notes: item.notes,
-        status: calculateStatus(item.value, biomarkerDef, user.gender),
+        status: calculateBiomarkerStatus(item.value, biomarkerDef, user.gender),
       });
       episode.existingIds.add(item.biomarkerId);
     }

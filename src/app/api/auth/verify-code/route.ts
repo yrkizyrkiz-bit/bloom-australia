@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sign } from "jsonwebtoken";
+import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
+import {
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'sanative-secret-key';
 
 export async function POST(req: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      req,
+      "verify-code:ip",
+      RATE_LIMITS.verifyCodeIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const { contact, type, code } = await req.json();
 
     if (!contact || !type || !code) {

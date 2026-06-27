@@ -381,11 +381,11 @@ function generateFallbackResponse(userMessage: string): string {
   const message = userMessage.toLowerCase();
 
   if (message.includes("weight") || message.includes("diet") || message.includes("meal")) {
-    return "Ooh, weight management questions - I love these! Our program is pretty awesome - we've got personalised meal plans, regular check-ins, and medication support all wrapped up together. For the really specific stuff, your care partner is great at reviewing your progress and goals. Also, have a peek at our Learn section - there's heaps of great content there!";
+    return "Ooh, weight management questions - I love these! Our program includes personalised meal plans, regular check-ins, and ongoing clinical support. For the really specific stuff, your care partner is great at reviewing your progress and goals. Also, have a peek at our Learn section - there's heaps of great content there!";
   }
 
   if (message.includes("hair") || message.includes("finasteride") || message.includes("minoxidil")) {
-    return "Ah, the hair journey! Great question. Our treatment plans typically include FDA-approved medications like Finasteride and Minoxidil - the real deal stuff that actually works. Now, patience is key here - most people start seeing results around the 3-6 month mark. Stick with it! For personalised advice, your care partner can give you the lowdown on what to expect.";
+    return "Ah, the hair journey! Great question. Our doctors create personalised hair loss care plans based on your assessment — specific treatment options are discussed privately in consultation. Patience is key: most people start noticing changes around the 3–6 month mark. For personalised advice, your care partner can walk you through what to expect.";
   }
 
   if (message.includes("medication") || message.includes("dose") || message.includes("side effect")) {

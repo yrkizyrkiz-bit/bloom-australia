@@ -263,9 +263,6 @@ function JoinPageContent() {
     if (!formData.primaryConcern) {
       newErrors.primaryConcern = "Please select your primary concern";
     }
-    if (!formData.consent) {
-      newErrors.consent = "You must agree to the terms";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -304,7 +301,10 @@ function JoinPageContent() {
     }
   };
 
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
+  const handlePaymentSuccess = async (result: {
+    paymentIntentId?: string;
+    consentRecordId: string;
+  }) => {
     setIsSubmitting(true);
 
     try {
@@ -322,7 +322,8 @@ function JoinPageContent() {
             takingMedications: formData.takingMedications,
             primaryConcern: formData.primaryConcern,
           },
-          stripePaymentIntentId: paymentIntentId,
+          stripePaymentIntentId: result.paymentIntentId,
+          consentRecordId: result.consentRecordId,
           stripeCustomerId,
           clinicToken,
           referralToken,
@@ -822,39 +823,7 @@ function JoinPageContent() {
                 </div>
               )}
 
-              {/* Consent */}
-              <label
-                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer mb-4 ${
-                  errors.consent ? "border-red-500" : "border-[#e6ebe3]"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name="consent"
-                  checked={formData.consent}
-                  onChange={handleInputChange}
-                  className="w-5 h-5 rounded border-[#e6ebe3] text-[#1D9E75] focus:ring-[#1D9E75] mt-0.5"
-                />
-                <span className="text-sm text-[#5c7a52]">
-                  I agree to the{" "}
-                  <Link
-                    href="/terms"
-                    className="text-[#1D9E75] hover:underline"
-                  >
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link
-                    href="/privacy"
-                    className="text-[#1D9E75] hover:underline"
-                  >
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-              {errors.consent && (
-                <p className="text-red-500 text-sm mb-4">{errors.consent}</p>
-              )}
+              {/* Payment consent is collected on the card step below */}
 
               {/* Stripe Payment or Proceed Button */}
               {!paymentReady ? (
@@ -880,6 +849,7 @@ function JoinPageContent() {
                   onError={handlePaymentError}
                   amount={organCarePriceAud}
                   disabled={isSubmitting}
+                  customerEmail={formData.email}
                 />
               ) : (
                 <PaymentFormLoading />

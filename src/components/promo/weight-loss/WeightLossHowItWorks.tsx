@@ -42,37 +42,37 @@ const steps: Step[] = [
     number: "02",
     title: "Doctor review & diagnosis",
     subtitle: "Evidence-based clinical evaluation",
-    description: "An Australian-registered doctor reviews your assessment, evaluates potential contributing factors, and determines if prescription treatment is clinically appropriate.",
+    description: "An Australian-registered doctor reviews your assessment, evaluates potential contributing factors, and determines whether a personalised care plan is clinically appropriate.",
     details: [
       "AHPRA-registered practitioners",
       "Contraindication screening",
-      "Treatment suitability assessment",
+      "Care plan suitability assessment",
       "Personalised clinical recommendations",
     ],
   },
   {
     icon: Pill,
     number: "03",
-    title: "Treatment initiation",
+    title: "Care plan initiation",
     subtitle: "Starting with the right approach",
-    description: "If appropriate, your doctor prescribes evidence-based medication with clear dosing instructions. Treatment is titrated gradually to optimise efficacy and minimise side effects.",
+    description: "If appropriate, your doctor creates a personalised metabolic care plan with clear guidance. Any suitable care options are discussed privately in consultation.",
     details: [
-      "Doctor-prescribed medications",
-      "Gradual dose titration protocol",
-      "Side effect management guidance",
-      "Discreet delivery to your door",
+      "Doctor-led care plans",
+      "Personalised clinical guidance",
+      "Side effect management support",
+      "Ongoing monitoring",
     ],
   },
   {
     icon: HeartPulse,
     number: "04",
     title: "Ongoing clinical support",
-    subtitle: "Continuous care, not just a prescription",
-    description: "Your journey doesn't end with a prescription. Regular check-ins, dose adjustments, and clinical monitoring ensure your treatment remains safe and effective over time.",
+    subtitle: "Continuous care beyond your first consult",
+    description: "Your journey continues with regular check-ins, care plan reviews, and clinical monitoring so your metabolic health plan stays safe and effective over time.",
     details: [
       "Scheduled progress reviews",
-      "Dose optimisation as needed",
-      "Side effect monitoring",
+      "Care plan adjustments as needed",
+      "Symptom and side effect monitoring",
       "Long-term maintenance planning",
     ],
   },
@@ -86,18 +86,18 @@ const supportFeatures = [
   },
   {
     icon: RefreshCw,
-    title: "Treatment adjustments",
-    description: "Regular reviews to optimise dosing based on your response and progress",
+    title: "Care plan adjustments",
+    description: "Regular reviews to refine your plan based on your response, biomarkers, and progress",
   },
   {
     icon: Shield,
-    title: "Side effect management",
-    description: "We actively manage nausea, fatigue, and other side effects early — so you can stay consistent",
+    title: "Symptom support",
+    description: "Your care team helps you manage any symptoms early — so you can stay consistent with your plan",
   },
   {
     icon: Users,
     title: "Dietitian support",
-    description: "Optional nutrition guidance to complement your medical treatment",
+    description: "Optional nutrition guidance to complement your doctor-led metabolic care plan",
   },
 ];
 
@@ -244,7 +244,7 @@ export function WeightLossHowItWorks() {
               Ongoing clinical & program support
             </h3>
             <p className="text-[#a8bb9e] max-w-2xl mx-auto">
-              Weight management is a journey, not a one-time prescription. Our clinical team provides continuous support to help you achieve and maintain your results.
+              Weight management is a journey, not a one-off consult. Our clinical team provides continuous support to help you achieve and maintain your results.
             </p>
           </div>
 

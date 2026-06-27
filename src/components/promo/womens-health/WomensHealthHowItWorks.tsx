@@ -20,7 +20,7 @@ export function WomensHealthHowItWorks() {
       number: "03",
       icon: FileText,
       title: "Receive your treatment plan",
-      description: "Your doctor will create a personalised treatment plan. Any prescriptions are sent directly to your preferred pharmacy or delivered to your door.",
+      description: "Your doctor will create a personalised care plan. If clinically appropriate, any prescribed items are arranged through your preferred Australian pharmacy.",
       color: "from-[#d8e8e8] to-[#e4f0f0]"
     },
     {
@@ -93,10 +93,10 @@ export function WomensHealthHowItWorks() {
         {/* GAP-019: Removed star rating - health service advertising risk */}
         <div className="mt-20 grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {[
-            { value: "30,000+", label: "Women helped" },
             { value: "100%", label: "AHPRA-registered" },
-            { value: "100%", label: "Female specialists" },
-            { value: "24-48hrs", label: "Response time" },
+            { value: "100%", label: "Australian doctors" },
+            { value: "30 min", label: "Consultations" },
+            { value: "24-48hrs", label: "Typical response time" },
           ].map((stat) => (
             <div key={stat.label} className="text-center p-6 bg-white/60 rounded-2xl border border-[#f8e1e1]">
               <p className="text-3xl lg:text-4xl font-serif text-[#c17a58]">

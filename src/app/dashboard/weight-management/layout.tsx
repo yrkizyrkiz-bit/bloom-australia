@@ -15,6 +15,7 @@ import {
 import { WeightManagementPortalShell } from "@/components/portal/WeightManagementPortalShell";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { hasPortalFeature } from "@/components/portal/ProgramFeatureGate";
+import { resolveMemberBackPath } from "@/lib/portal/member-home";
 
 const weightNavItems = [
   { href: "/dashboard/weight-management", label: "Home", icon: Home, exact: true },
@@ -49,6 +50,7 @@ function WeightManagementLayoutInner({
   const pathname = usePathname() || "";
   const { data: portal } = usePortalContext();
   const progressLocked = portal && !hasPortalFeature(portal, "weightProgress");
+  const backHref = resolveMemberBackPath(portal);
 
   const isActive = (href: string, exact: boolean = false) => {
     if (exact) return pathname === href;
@@ -232,9 +234,11 @@ function WeightManagementLayoutInner({
                   Settings
                 </motion.div>
               </Link>
-              <Link href="/dashboard">
+              <Link href={backHref}>
                 <motion.div
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 mt-1"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 mt-1"
+                  )}
                   whileHover={{ x: 4 }}
                   whileTap={{ scale: 0.98 }}
                 >

@@ -22,7 +22,7 @@ const trustItems = [
   {
     icon: Fingerprint,
     title: "Personalised care",
-    description: "Treatment tailored to your unique biology",
+    description: "Care plans tailored to your unique biology",
   },
 ];
 

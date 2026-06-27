@@ -171,11 +171,20 @@ export default function InPortalProgramPage() {
     }
   };
 
-  const confirmPayment = async (paymentIntentId: string) => {
+  const confirmPayment = async (result: {
+    paymentIntentId?: string;
+    consentRecordId: string;
+  }) => {
     const res = await fetch("/api/portal/checkout/confirm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentIntentId, answers, programKey, billingTerm }),
+      body: JSON.stringify({
+        paymentIntentId: result.paymentIntentId,
+        consentRecordId: result.consentRecordId,
+        answers,
+        programKey,
+        billingTerm,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Could not confirm payment");
@@ -385,6 +394,8 @@ export default function InPortalProgramPage() {
                 clientSecret={clientSecret}
                 amountLabel={amountLabel}
                 submitLabel={`Subscribe to ${label}`}
+                userId={user?.id}
+                customerEmail={user?.email}
                 onConfirmed={confirmPayment}
               />
             ) : (

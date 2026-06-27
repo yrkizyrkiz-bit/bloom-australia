@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Scale, MessageCircle, Activity, Pill, TrendingDown, FlaskConical } from "lucide-react";
+import { Scale, MessageCircle, Activity, TrendingDown, FlaskConical } from "lucide-react";
 
 const appFeatures = [
   { icon: Scale, label: "Weight trends" },
-  { icon: Pill, label: "Medication schedule" },
+  { icon: Activity, label: "Care plan reminders" },
   { icon: FlaskConical, label: "Biomarker dashboard" },
   { icon: MessageCircle, label: "Message your doctor" },
 ];
@@ -133,10 +133,10 @@ export function AppSection() {
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       <div className="bg-white rounded-xl p-3">
                         <div className="flex items-center gap-2 mb-1">
-                          <Pill className="w-3 h-3 text-[#5c7a52]" />
-                          <span className="text-xs text-[#7e9a72]">Medication</span>
+                          <Activity className="w-3 h-3 text-[#5c7a52]" />
+                          <span className="text-xs text-[#7e9a72]">Care plan</span>
                         </div>
-                        <p className="text-sm font-medium text-[#34412f]">Taken today</p>
+                        <p className="text-sm font-medium text-[#34412f]">Check-in due</p>
                       </div>
                       <div className="bg-white rounded-xl p-3">
                         <div className="flex items-center gap-2 mb-1">

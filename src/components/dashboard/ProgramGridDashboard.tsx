@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -186,7 +187,6 @@ function CleanCardShell({
   children: React.ReactNode;
   onNavigate?: () => void;
 }) {
-  const router = useRouter();
   const classes = cn(
     "group relative flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br p-4 transition-transform duration-300 sm:rounded-3xl sm:p-6 md:hover:scale-[1.02]",
     theme.gradient,
@@ -205,24 +205,9 @@ function CleanCardShell({
 
   if (href) {
     return (
-      <div
-        role="link"
-        tabIndex={0}
-        className={classes}
-        onClick={() => {
-          onNavigate?.();
-          router.push(href);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onNavigate?.();
-            router.push(href);
-          }
-        }}
-      >
+      <Link href={href} prefetch className={classes} onClick={() => onNavigate?.()}>
         {inner}
-      </div>
+      </Link>
     );
   }
 

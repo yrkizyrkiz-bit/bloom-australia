@@ -25,7 +25,7 @@ const teamMembers: TeamMember[] = [
     title: "General Practitioner",
     specialties: ["MBBS", "Men's Health"],
     description:
-      "Dedicated practitioner specialising in men's health and metabolic care. Dr Wassif takes a patient-centred approach to weight management treatment.",
+      "Dedicated practitioner specialising in men's health and metabolic care. Dr Wassif takes a patient-centred approach to metabolic weight management.",
     image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face",
     initials: "GW",
     color: "from-[#7e9a72] to-[#5c7a52]",
@@ -43,9 +43,9 @@ const teamMembers: TeamMember[] = [
   {
     name: "Olfat Zekry",
     title: "Clinical Pharmacist",
-    specialties: ["BPharm", "Medication Safety"],
+    specialties: ["BPharm", "Clinical Safety"],
     description:
-      "Olly brings clinical pharmacy expertise to ensure your treatment is safe and effective. She reviews prescriptions and answers all your medication questions.",
+      "Olly brings clinical pharmacy expertise to support safe, effective care. She helps ensure your care plan is clinically sound and answers questions about your program.",
     image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=200&h=200&fit=crop&crop=face",
     initials: "OZ",
     color: "from-[#a8bb9e] to-[#7e9a72]",

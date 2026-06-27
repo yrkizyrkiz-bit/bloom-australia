@@ -57,7 +57,7 @@ export function WeightLossSection() {
             "AHPRA-registered doctors",
             "Personalised treatment plans",
             "Ongoing clinical support",
-            "Discreet home delivery",
+            "Pharmacy dispensing when prescribed",
           ].map((benefit) => (
             <div
               key={benefit}

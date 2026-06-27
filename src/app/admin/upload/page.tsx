@@ -151,7 +151,7 @@ export default function AdminUploadPage() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const response = await fetch("/api/users?role=MEMBER&limit=100");
+        const response = await fetch("/api/users?role=MEMBER&limit=100&lite=1");
         if (!response.ok) throw new Error("Failed to fetch members");
         const data = await response.json();
         setMembers(data.users || []);
@@ -215,10 +215,16 @@ export default function AdminUploadPage() {
     }
   };
 
-  // Reduced file size for faster processing (prevents gateway timeouts)
-  const MAX_FILE_SIZE_MB = 2;
-  const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
-  const RECOMMENDED_SIZE_MB = 1; // Recommend even smaller for best performance
+  const MAX_PDF_SIZE_MB = 10;
+  const MAX_IMAGE_SIZE_MB = 5;
+  const MAX_PDF_SIZE = MAX_PDF_SIZE_MB * 1024 * 1024;
+  const MAX_IMAGE_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+
+  const getMaxFileSize = (file: File) =>
+    file.type === "application/pdf" ? MAX_PDF_SIZE : MAX_IMAGE_SIZE;
+
+  const getMaxFileSizeMB = (file: File) =>
+    file.type === "application/pdf" ? MAX_PDF_SIZE_MB : MAX_IMAGE_SIZE_MB;
 
   const handleFiles = (newFiles: File[]) => {
     const validFiles = newFiles.filter(file =>
@@ -230,19 +236,17 @@ export default function AdminUploadPage() {
     }
 
     // Check file sizes and filter out oversized files
-    const oversizedFiles = validFiles.filter(file => file.size > MAX_FILE_SIZE);
-    const largeFiles = validFiles.filter(file => file.size > RECOMMENDED_SIZE_MB * 1024 * 1024 && file.size <= MAX_FILE_SIZE);
-    const acceptableFiles = validFiles.filter(file => file.size <= MAX_FILE_SIZE);
+    const oversizedFiles = validFiles.filter(file => file.size > getMaxFileSize(file));
+    const acceptableFiles = validFiles.filter(file => file.size <= getMaxFileSize(file));
 
     if (oversizedFiles.length > 0) {
-      const fileSizes = oversizedFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(1)}MB)`).join(", ");
-      toast.error(`File(s) too large: ${fileSizes}. Maximum size is ${MAX_FILE_SIZE_MB}MB. Please compress or crop your image to show just the results.`);
+      const fileSizes = oversizedFiles.map(f => {
+        const maxMb = getMaxFileSizeMB(f);
+        const typeLabel = f.type === "application/pdf" ? "PDF" : "image";
+        return `${f.name} (${(f.size / (1024 * 1024)).toFixed(1)}MB, max ${maxMb}MB for ${typeLabel})`;
+      }).join(", ");
+      toast.error(`File(s) too large: ${fileSizes}. Please compress or crop to show just the results.`);
       if (acceptableFiles.length === 0) return;
-    }
-
-    // Warn about large files that may be slow
-    if (largeFiles.length > 0) {
-      toast.warning(`Large file(s) may process slowly. For faster results, use files under ${RECOMMENDED_SIZE_MB}MB or crop to show just the results table.`);
     }
 
     const newUploadedFiles: UploadedFile[] = [];
@@ -279,7 +283,7 @@ export default function AdminUploadPage() {
     try {
       // Add timeout controller for fetch
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 115000); // 115 second timeout for larger PDFs
 
       const response = await fetch("/api/parse-blood-test", {
         method: "POST",
@@ -304,7 +308,13 @@ export default function AdminUploadPage() {
         }
 
         if (response.status === 413) {
-          const sizeError = `File too large (${fileSizeMB}MB). Maximum recommended size is 1MB for fast processing.`;
+          let sizeError = `File too large (${fileSizeMB}MB).`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.error) sizeError = errorJson.error;
+          } catch {
+            // use default message
+          }
           setDebugInfo(prev => ({ ...prev, lastError: sizeError }));
           toast.error(sizeError);
           throw new Error(sizeError);
@@ -398,7 +408,7 @@ export default function AdminUploadPage() {
 
       // Handle fetch abort (timeout)
       if (error instanceof Error && error.name === 'AbortError') {
-        const timeoutMsg = "Request timed out. Try a smaller image (under 1MB) or crop to show just the results.";
+        const timeoutMsg = "Request timed out. Large PDFs can take longer — try again, or crop to show just the results table.";
         setDebugInfo(prev => ({ ...prev, lastError: timeoutMsg }));
         toast.error(timeoutMsg);
         setAiMode("Timeout - Try smaller file");
@@ -578,7 +588,6 @@ export default function AdminUploadPage() {
       const resultsToSave = validBiomarkers.map(biomarker => ({
         biomarkerId: biomarker.matchedBiomarkerId,
         value: biomarker.value,
-        status: biomarker.confidence >= 0.9 ? "NORMAL" : "NORMAL",
         testedAt: biomarker.testDate ? new Date(biomarker.testDate).toISOString() : new Date().toISOString(),
         notes: `Extracted via AI (confidence: ${Math.round(biomarker.confidence * 100)}%)${biomarker.isHistorical ? ' [Historical]' : ''}`,
       }));

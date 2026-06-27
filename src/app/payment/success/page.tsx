@@ -10,8 +10,8 @@ const PROGRAM_DETAILS: Record<string, { title: string; nextSteps: string[]; dash
     nextSteps: [
       "Check your email for a confirmation and next steps",
       "A doctor will review your assessment within 24-48 hours",
-      "You'll receive a personalised treatment plan via email",
-      "If approved, medication will be shipped to you discreetly",
+      "You'll receive a personalised care plan via email",
+      "Where clinically appropriate, items may be dispensed by an Australian pharmacy",
     ],
     dashboardPath: "/dashboard/weight-management",
     color: "#5c7a52",
@@ -32,8 +32,8 @@ const PROGRAM_DETAILS: Record<string, { title: string; nextSteps: string[]; dash
     nextSteps: [
       "Check your email for a confirmation",
       "A doctor will review your assessment within 24 hours",
-      "You'll receive a personalised treatment recommendation",
-      "Discreet delivery to your door if treatment is approved",
+      "You'll receive a personalised care plan recommendation",
+      "Where clinically appropriate, items may be dispensed by an Australian pharmacy",
     ],
     dashboardPath: "/dashboard/mens-health",
     color: "#5c7a52",
@@ -43,8 +43,8 @@ const PROGRAM_DETAILS: Record<string, { title: string; nextSteps: string[]; dash
     nextSteps: [
       "Check your email for confirmation",
       "A practitioner will review your assessment",
-      "You'll receive a personalised treatment plan",
-      "Medication ships discreetly to your door",
+      "You'll receive a personalised care plan",
+      "Where clinically appropriate, items may be dispensed by an Australian pharmacy",
     ],
     dashboardPath: "/dashboard/mens-health/hair-loss",
     color: "#5c7a52",

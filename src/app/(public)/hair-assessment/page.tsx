@@ -480,7 +480,10 @@ export default function HairAssessmentPage() {
     }
   };
 
-  const handleCheckoutPaymentSuccess = async (paymentIntentId?: string) => {
+  const handleCheckoutPaymentSuccess = async (result: {
+    paymentIntentId?: string;
+    consentRecordId: string;
+  }) => {
     if (!bookingHoldId) {
       setStep(thankYouStep);
       return;
@@ -492,7 +495,8 @@ export default function HairAssessmentPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           bookingHoldId,
-          paymentIntentId: paymentIntentId || "pi_hair_manual_confirmation",
+          paymentIntentId: result.paymentIntentId || "pi_hair_manual_confirmation",
+          consentRecordId: result.consentRecordId,
           userId,
           clientOrigin:
             typeof window !== "undefined" ? window.location.origin : undefined,
@@ -601,8 +605,8 @@ export default function HairAssessmentPage() {
                 },
                 {
                   num: 4,
-                  title: "Receive your treatment",
-                  description: "Discreet packaging, free express shipping Australia-wide.",
+                  title: "Care plan if appropriate",
+                  description: "Where clinically appropriate, items may be dispensed by an Australian-registered pharmacy.",
                   icon: Package,
                 },
               ].map((item) => (
@@ -1404,19 +1408,19 @@ export default function HairAssessmentPage() {
               <div>
                 <h4 className="font-semibold text-[#2c3628] mb-2">What treatments do you offer?</h4>
                 <p className="text-sm text-[#5c7a52]">
-                  We offer clinically-proven hair loss treatments tailored to your specific needs. Your practitioner will explain all options during your consultation, including any potential side effects.
+                  Your doctor will discuss care options privately during consultation if clinically appropriate, including potential benefits and risks.
                 </p>
               </div>
               <div>
                 <h4 className="font-semibold text-[#2c3628] mb-2">How long until I see results?</h4>
                 <p className="text-sm text-[#5c7a52]">
-                  Most patients notice reduced shedding within 2-3 months, with visible regrowth appearing around 4-6 months. We offer a 180-day guarantee if you're not satisfied.
+                  Hair changes vary between individuals. Your doctor will discuss realistic expectations during follow-up consultations.
                 </p>
               </div>
               <div>
                 <h4 className="font-semibold text-[#2c3628] mb-2">What if I'm not suitable?</h4>
                 <p className="text-sm text-[#5c7a52]">
-                  If our practitioners determine treatment isn't right for you, or if you simply change your mind after your consultation, we'll refund your consultation fee completely.
+                  If your Sanative doctor determines after assessment that care is not clinically appropriate for you, your first-month payment will be refunded in accordance with our Refund Policy.
                 </p>
               </div>
               <div>

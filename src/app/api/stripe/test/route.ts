@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { blockStripeTestRouteInProduction } from "@/lib/stripe/route-guards";
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
 let stripeClient: Stripe | null = null;
@@ -19,6 +20,9 @@ function getStripeClient(): Stripe {
 // Test endpoint to verify Stripe integration
 // GET /api/stripe/test
 export async function GET() {
+  const blocked = blockStripeTestRouteInProduction();
+  if (blocked) return blocked;
+
   try {
     // 1. Verify API key is configured
     if (!process.env.STRIPE_SECRET_KEY) {

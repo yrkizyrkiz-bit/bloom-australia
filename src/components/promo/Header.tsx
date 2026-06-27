@@ -30,7 +30,7 @@ export function Header() {
       href: "/womens-health",
       dropdown: [
         { label: "Menopause Care", href: "/womens-health/assessment?category=menopause" },
-        { label: "HRT", href: "/womens-health/assessment?category=hrt" },
+        { label: "Menopause & hormone care", href: "/womens-health/assessment?category=hrt" },
         { label: "Contraception", href: "/womens-health/assessment?category=contraception" },
         { label: "Fertility Support", href: "/womens-health/assessment?category=fertility" },
       ],

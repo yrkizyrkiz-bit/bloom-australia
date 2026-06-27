@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
+import { RATE_LIMITS, rateLimitBucketKey } from "@/lib/security/rate-limit-config";
+import {
+  enforceDbRateLimits,
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
 
 export async function POST(request: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      request,
+      "forgot-password:ip",
+      RATE_LIMITS.forgotPasswordIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const { email } = await request.json();
 
     if (!email) {
@@ -11,6 +26,17 @@ export async function POST(request: NextRequest) {
         { error: "Email is required" },
         { status: 400 }
       );
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailLimited = await enforceDbRateLimits([
+      {
+        bucketKey: rateLimitBucketKey("forgot-password:email", normalizedEmail),
+        config: RATE_LIMITS.forgotPasswordEmail,
+      },
+    ]);
+    if (!emailLimited.allowed) {
+      return rateLimitExceededResponse(emailLimited.retryAfterSec);
     }
 
     // Check if user exists

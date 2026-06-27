@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
+import { useState, Suspense, useEffect, useMemo } from "react";
+import type { QuizStep } from "@/lib/programs/quizzes/sexual-health-quiz-shared";
+import {
+  getSexualHealthPublicQuizSteps,
+  getSexualHealthPublicStepBounds,
+  isSexualHealthConcern,
+  isSexualHealthQuizStepComplete,
+  normalizeSexualHealthConcern,
+} from "@/lib/funnel/mens-sexual-health-public-flow";
 import { scoreMensHealth, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import {
@@ -170,16 +178,18 @@ const previousTreatmentOptions = [
 const otherConcernsOptions = [
   { id: "hair-loss", label: "Hair Loss" },
   { id: "weight", label: "Weight Management" },
-  { id: "premature-ejaculation", label: "Premature Ejaculation" },
+  { id: "sexual-health", label: "Sexual Health" },
   { id: "energy", label: "Energy & Vitality" },
-  { id: "none", label: "No, I'm only interested in this treatment" },
+  { id: "none", label: "No, I'm only interested in this pathway" },
 ];
 
 function AssessmentContent() {
   const searchParams = useSearchParams();
   const concernParam = searchParams.get("concern") || "energy-vitality";
+  const isSexualFlow = isSexualHealthConcern(concernParam);
 
   const [step, setStep] = useState(0);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -187,7 +197,7 @@ function AssessmentContent() {
     confirmEmail: "",
     phone: "",
     dateOfBirth: "",
-    concern: concernParam,
+    concern: normalizeSexualHealthConcern(concernParam),
     edDuration: "",
     edSeverity: "",
     erectionDifficulty: "",
@@ -231,10 +241,21 @@ function AssessmentContent() {
   const [offerCountdown, setOfferCountdown] = useState(300);
   const [portalMagicLink, setPortalMagicLink] = useState<string | null>(null);
 
-  // Fetch biomarker campaigns on mount
+  const sexualQuizSteps = useMemo(
+    () => getSexualHealthPublicQuizSteps(quizAnswers),
+    [quizAnswers]
+  );
+  const sexualBounds = useMemo(
+    () => getSexualHealthPublicStepBounds(sexualQuizSteps.length),
+    [sexualQuizSteps.length]
+  );
+
+  // Fetch biomarker campaigns for vitality flow only (no pre-checkout upsell for sexual health)
   useEffect(() => {
-    fetchBiomarkerCampaigns('MENS_HEALTH').then(setCampaigns);
-  }, []);
+    if (!isSexualFlow) {
+      fetchBiomarkerCampaigns("MENS_HEALTH").then(setCampaigns);
+    }
+  }, [isSexualFlow]);
 
   // Payment loading states (kept for UI but payment handled by separate page)
   const [isApplePayLoading, setIsApplePayLoading] = useState(false);
@@ -254,9 +275,9 @@ function AssessmentContent() {
     cardName: false,
   });
 
-  const snapshotStep = 18;
-  const checkoutStep = 19;
-  const thankYouStep = 20;
+  const snapshotStep = isSexualFlow ? -1 : 18;
+  const checkoutStep = isSexualFlow ? sexualBounds.checkout : 19;
+  const thankYouStep = isSexualFlow ? sexualBounds.thankYou : 20;
   const totalSteps = thankYouStep;
   const progress = Math.min(((step + 1) / totalSteps) * 100, 100);
   const patientTimezone = resolveAustralianTimezone(null, formData.postcode);
@@ -290,6 +311,12 @@ function AssessmentContent() {
 
   // Get current phase for progress indicator
   const getPhase = () => {
+    if (isSexualFlow) {
+      if (step <= 3) return 1;
+      if (step < sexualBounds.contact) return 2;
+      if (step <= sexualBounds.consent) return 3;
+      return 4;
+    }
     if (step <= 3) return 1; // Personal Info
     if (step <= 15) return 2; // Health Assessment
     if (step === 16) return 2; // Contact details (still part of assessment)
@@ -410,7 +437,7 @@ function AssessmentContent() {
   const toggleArrayField = (field: "edCauses" | "medicalConditions" | "lifestyleFactors" | "otherConcerns", value: string) => {
     setFormData(prev => {
       const current = prev[field];
-      const noneValues = ["None of these apply to me", "None of these apply", "I'm not sure", "No, I'm only interested in this treatment"];
+      const noneValues = ["None of these apply to me", "None of these apply", "I'm not sure", "No, I'm only interested in this pathway"];
 
       if (noneValues.includes(value)) {
         return { ...prev, [field]: current.includes(value) ? [] : [value] };
@@ -442,10 +469,7 @@ function AssessmentContent() {
 
   const applyDiscount = () => {
     const code = formData.discountCode.toUpperCase();
-    if (code === "BLOOM20") {
-      setDiscountApplied(true);
-      setDiscountAmount(20);
-    } else if (code === "FIRST10") {
+    if (code === "FIRST10") {
       setDiscountApplied(true);
       setDiscountAmount(10);
     } else {
@@ -457,6 +481,32 @@ function AssessmentContent() {
   const finalPrice = Math.max(49 - discountAmount, 0);
 
   const canProceed = () => {
+    if (isSexualFlow) {
+      switch (step) {
+        case 0:
+          return true;
+        case 1:
+          return Boolean(formData.firstName.trim() && formData.lastName.trim());
+        case 2:
+          return formData.email.includes("@") && formData.email.includes(".") && emailsMatch;
+        case 3:
+          return formData.dateOfBirth.length === 10 && isValidAge;
+        case 4:
+          return true;
+        default:
+          if (step >= sexualBounds.quizStart && step < sexualBounds.contact) {
+            return isSexualHealthQuizStepComplete(step, quizAnswers);
+          }
+          if (step === sexualBounds.contact) {
+            return formData.phone.length >= 10 && formData.postcode.length >= 4;
+          }
+          if (step === sexualBounds.consent) {
+            return formData.confirmedAccurate;
+          }
+          return true;
+      }
+    }
+
     switch (step) {
       case 0: return true;
       case 1: return formData.firstName.trim() && formData.lastName.trim();
@@ -485,10 +535,53 @@ function AssessmentContent() {
   };
 
   const nextStep = () => {
-    if (canProceed() && step < totalSteps) {
+    if (!canProceed()) return;
+
+    if (isSexualFlow && step === sexualBounds.consent) {
+      void handleSexualConsentContinue();
+      return;
+    }
+
+    if (step < totalSteps) {
       setStep(step + 1);
       window.scrollTo(0, 0);
     }
+  };
+
+  const handleSexualConsentContinue = async () => {
+    const saved = await saveMensIntake();
+    if (saved) {
+      setStep(sexualBounds.checkout);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const selectSexualQuizAnswer = (question: QuizStep, optionId: string) => {
+    if (question.id === "treatmentFocus") {
+      setQuizAnswers({ treatmentFocus: optionId });
+      setTimeout(() => {
+        setStep(getSexualHealthPublicStepBounds(1).quizStart + 1);
+        window.scrollTo(0, 0);
+      }, 300);
+      return;
+    }
+
+    setQuizAnswers((prev) => {
+      const updated = { ...prev, [question.id]: optionId };
+      setTimeout(() => {
+        const steps = getSexualHealthPublicQuizSteps(updated);
+        const bounds = getSexualHealthPublicStepBounds(steps.length);
+        const currentIndex = step - bounds.quizStart;
+        const nextIndex = currentIndex + 1;
+        if (nextIndex < steps.length) {
+          setStep(bounds.quizStart + nextIndex);
+        } else {
+          setStep(bounds.contact);
+        }
+        window.scrollTo(0, 0);
+      }, 300);
+      return updated;
+    });
   };
 
   const prevStep = () => {
@@ -516,6 +609,8 @@ function AssessmentContent() {
       const result = await submitPublicIntake({
         programType: "MENS_HEALTH",
         ...formData,
+        ...quizAnswers,
+        concern: normalizeSexualHealthConcern(formData.concern),
         cardNumber: undefined,
         cardExpiry: undefined,
         cardCvc: undefined,
@@ -624,7 +719,10 @@ function AssessmentContent() {
     }
   };
 
-  const handleCheckoutPaymentSuccess = async (paymentIntentId?: string) => {
+  const handleCheckoutPaymentSuccess = async (result: {
+    paymentIntentId?: string;
+    consentRecordId: string;
+  }) => {
     if (!bookingHoldId) {
       setStep(thankYouStep);
       return;
@@ -636,7 +734,8 @@ function AssessmentContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           bookingHoldId,
-          paymentIntentId: paymentIntentId || "pi_mens_manual_confirmation",
+          paymentIntentId: result.paymentIntentId || "pi_mens_manual_confirmation",
+          consentRecordId: result.consentRecordId,
           userId,
           clientOrigin:
             typeof window !== "undefined" ? window.location.origin : undefined,
@@ -733,7 +832,339 @@ function AssessmentContent() {
     );
   };
 
+  const renderSexualHealthQuizQuestion = (question: QuizStep) => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">{question.prompt}</h1>
+        {question.subtitle && (
+          <p className="mt-3 text-[#5c7a52]">{question.subtitle}</p>
+        )}
+      </div>
+      <div className="space-y-3 mt-8">
+        {question.options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => selectSexualQuizAnswer(question, option.id)}
+            className={`w-full py-4 px-5 rounded-xl border-2 text-left transition-all ${
+              quizAnswers[question.id] === option.id
+                ? "border-[#5c7a52] bg-[#5c7a52]/10"
+                : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"
+            }`}
+          >
+            <span className="font-medium text-[#2c3628]">{option.label}</span>
+            {option.description && (
+              <span className="block text-sm text-[#7e9a72] mt-0.5">{option.description}</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderSexualFlowStep = () => {
+    if (step >= sexualBounds.quizStart && step < sexualBounds.contact) {
+      const question = sexualQuizSteps[step - sexualBounds.quizStart];
+      if (question) return renderSexualHealthQuizQuestion(question);
+    }
+
+    switch (step) {
+      case 0:
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628] text-center">
+              Your path to doctor-led sexual health care
+            </h1>
+            <p className="text-center text-[#5c7a52]">
+              Complete a confidential assessment, then book your doctor consultation — the same clinical pathway as in your Sanative portal.
+            </p>
+            <div className="space-y-4 mt-8">
+              {[
+                {
+                  num: 1,
+                  title: "Clinical assessment",
+                  description: "Answer the same confidential questions our doctors use to understand your sexual health concerns.",
+                  icon: Heart,
+                },
+                {
+                  num: 2,
+                  title: "Doctor consultation",
+                  description: "Book a telehealth appointment with an AHPRA-registered Australian doctor.",
+                  icon: Stethoscope,
+                },
+                {
+                  num: 3,
+                  title: "Personalised care planning",
+                  description: "Your doctor reviews your history and discusses what is clinically appropriate for you in private.",
+                  icon: MessageCircle,
+                },
+                {
+                  num: 4,
+                  title: "Ongoing support",
+                  description: "Care team messaging and follow-up in your portal if a program is suitable.",
+                  icon: Shield,
+                },
+              ].map((item) => (
+                <div key={item.num} className="bg-white rounded-2xl p-5 border border-[#e6ebe3] flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-[#5c7a52]/10 text-[#5c7a52] flex items-center justify-center flex-shrink-0">
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs font-medium text-[#5c7a52] bg-[#e6ebe3] px-2 py-0.5 rounded-full">Step {item.num}</span>
+                    <h3 className="font-semibold text-[#2c3628] mt-1">{item.title}</h3>
+                    <p className="text-sm text-[#5c7a52] mt-1">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-[#e6ebe3] rounded-2xl p-4 flex items-start gap-3">
+              <Shield className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-[#5c7a52]">100% confidential. Your information is encrypted and protected by Australian privacy laws.</p>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="text-center space-y-6">
+            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center rotate-3">
+              <Heart className="w-12 h-12 text-white" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Now, a few health questions</h1>
+            <p className="text-[#5c7a52] max-w-md mx-auto">
+              These match the in-portal sexual health assessment so your doctor receives consistent clinical information.
+            </p>
+          </div>
+        );
+
+      case sexualBounds.contact:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Contact details</h1>
+              <p className="mt-3 text-[#5c7a52]">We&apos;ll use these to arrange your consultation and follow-up.</p>
+            </div>
+            <div className="space-y-4 mt-8">
+              <div>
+                <label className="block text-sm font-medium text-[#2c3628] mb-2">Mobile number</label>
+                <input type="tel" value={formData.phone} onChange={(e) => updateFormData("phone", e.target.value.replace(/[^0-9+]/g, ""))} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="04XX XXX XXX" />
+                <p className="text-xs text-[#7e9a72] mt-2">We&apos;ll SMS you when your doctor has reviewed your assessment.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#2c3628] mb-2">Postcode</label>
+                <input type="text" value={formData.postcode} onChange={(e) => updateFormData("postcode", e.target.value.replace(/\D/g, "").slice(0, 4))} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="e.g. 2000" maxLength={4} />
+              </div>
+            </div>
+          </div>
+        );
+
+      case sexualBounds.consent:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Confirm your details</h1>
+              <p className="mt-3 text-[#5c7a52]">Please review and confirm your information is accurate.</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-[#e6ebe3] overflow-hidden mt-8">
+              <div className="p-5 border-b border-[#e6ebe3]">
+                <h3 className="font-semibold text-[#2c3628]">Personal details</h3>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-[#7e9a72] mb-1">First name</label>
+                    <p className="text-[#2c3628] font-medium">{formData.firstName}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[#7e9a72] mb-1">Last name</label>
+                    <p className="text-[#2c3628] font-medium">{formData.lastName}</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#7e9a72] mb-1">Date of birth</label>
+                  <p className="text-[#2c3628] font-medium">{formData.dateOfBirth}</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#7e9a72] mb-1">Mobile number</label>
+                  <p className="text-[#2c3628] font-medium">{formData.phone}</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#7e9a72] mb-1">Email</label>
+                  <p className="text-[#2c3628] font-medium">{formData.email}</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#7e9a72] mb-1">Postcode</label>
+                  <p className="text-[#2c3628] font-medium">{formData.postcode}</p>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => updateFormData("confirmedAccurate", !formData.confirmedAccurate)}
+              className={`w-full py-4 px-5 rounded-xl border-2 text-left flex items-center gap-3 transition-all ${formData.confirmedAccurate ? "border-[#5c7a52] bg-[#5c7a52]/10" : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"}`}
+            >
+              <div className={`w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 ${formData.confirmedAccurate ? "border-[#5c7a52] bg-[#5c7a52]" : "border-[#cdd8c6]"}`}>
+                {formData.confirmedAccurate && <Check className="w-4 h-4 text-white" />}
+              </div>
+              <span className="text-[#2c3628]">I confirm all information provided is true and accurate to the best of my knowledge</span>
+            </button>
+          </div>
+        );
+
+      case sexualBounds.checkout:
+        return (
+          <UnifiedCheckoutScreen
+            formData={{
+              consultationDate: formData.consultationDate,
+              consultationTime: formData.consultationTime,
+              selectedSlotId: formData.selectedSlotId,
+              email: formData.email,
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+            }}
+            userId={userId}
+            bookingHoldId={bookingHoldId}
+            holdCountdown={holdCountdown}
+            offerCountdown={offerCountdown}
+            slotsError={slotsError}
+            slotsRefreshKey={slotsRefreshKey}
+            creatingHold={creatingHold}
+            selectingSlotId={selectingSlotId}
+            onSlotSelect={handleSlotSelection}
+            onSlotsError={setSlotsError}
+            onPaymentSuccess={handleCheckoutPaymentSuccess}
+            onPaymentError={handleCheckoutPaymentError}
+            patientTimezone={patientTimezone}
+            pricing={MENS_CHECKOUT_PRICING}
+            valueProps={[
+              "Doctor-led sexual health assessment",
+              "AHPRA-registered Australian doctors",
+              "Care team support in your portal",
+            ]}
+            programType="mens_health"
+          />
+        );
+
+      case sexualBounds.thankYou:
+        return (
+          <div className="text-center space-y-6">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center">
+              <Check className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">You&apos;re booked in</h1>
+            <p className="text-[#5c7a52] max-w-md mx-auto">
+              Your assessment is with our care team for triage. A doctor will review your suitability and discuss what is clinically appropriate for you.
+            </p>
+            <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5 text-left space-y-3">
+              <p className="font-semibold text-[#2c3628]">What happens next</p>
+              {[
+                "Care team triage for men's sexual health",
+                "Doctor consultation at your selected time",
+                "Program access in your portal if clinically appropriate",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-2 text-sm text-[#5c7a52]">
+                  <Check className="w-4 h-4" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            {portalMagicLink && (
+              <a href={portalMagicLink} className="btn-primary inline-flex items-center justify-center gap-2">
+                Go to portal
+                <ArrowRight className="w-5 h-5" />
+              </a>
+            )}
+          </div>
+        );
+
+      default:
+        break;
+    }
+
+    // Shared PII steps (1–3)
+    switch (step) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Let&apos;s start with your name</h1>
+              <p className="mt-3 text-[#5c7a52]">Your legal name helps our clinical team safely review your assessment. We keep it completely private.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4 mt-8">
+              <div>
+                <label className="block text-sm font-medium text-[#2c3628] mb-2">First name</label>
+                <input type="text" value={formData.firstName} onChange={(e) => updateFormData("firstName", e.target.value)} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="Enter first name" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#2c3628] mb-2">Last name</label>
+                <input type="text" value={formData.lastName} onChange={(e) => updateFormData("lastName", e.target.value)} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="Enter last name" />
+              </div>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Where can we reach you?</h1>
+              <p className="mt-3 text-[#5c7a52]">We&apos;ll send your assessment results and care team updates here.</p>
+            </div>
+            <div className="space-y-4 mt-8">
+              <div>
+                <label className="block text-sm font-medium text-[#2c3628] mb-2">Email address</label>
+                <input type="email" value={formData.email} onChange={(e) => updateFormData("email", e.target.value)} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="you@example.com" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#2c3628] mb-2">Confirm email address</label>
+                <input type="email" value={formData.confirmEmail} onChange={(e) => updateFormData("confirmEmail", e.target.value)} className={`w-full px-4 py-4 rounded-xl border focus:ring-2 outline-none transition-all bg-white ${formData.confirmEmail && !emailsMatch ? "border-red-400 focus:border-red-500 focus:ring-red-500/20" : "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-[#5c7a52]/20"}`} placeholder="Confirm your email" />
+                {formData.confirmEmail && !emailsMatch && (
+                  <p className="text-sm text-red-600 mt-2">Email addresses don&apos;t match</p>
+                )}
+                {emailsMatch && formData.confirmEmail && (
+                  <p className="text-sm text-[#5c7a52] mt-2 flex items-center gap-1"><Check className="w-4 h-4" /> Email confirmed</p>
+                )}
+              </div>
+            </div>
+            <p className="text-center text-sm text-[#7e9a72]">Returning patient? <Link href="/login" className="text-[#5c7a52] underline font-medium">Sign in instead</Link></p>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">When were you born?</h1>
+              <p className="mt-3 text-[#5c7a52]">Age helps us interpret symptoms and medical history accurately.</p>
+            </div>
+            <div className="mt-8">
+              <div className="flex gap-3 justify-center">
+                <div className="w-20">
+                  <label className="block text-xs text-[#7e9a72] mb-1 text-center">Day</label>
+                  <input type="text" inputMode="numeric" value={formData.dateOfBirth.split("/")[0] || ""} onChange={(e) => { const day = e.target.value.replace(/\D/g, "").slice(0, 2); const parts = formData.dateOfBirth.split("/"); updateFormData("dateOfBirth", `${day}/${parts[1] || ""}/${parts[2] || ""}`); if (day.length === 2) (document.getElementById("dob-month") as HTMLInputElement)?.focus(); }} className={`w-full px-3 py-4 rounded-xl border focus:ring-2 outline-none transition-all text-center text-lg bg-white ${formData.dateOfBirth.length === 10 && !isValidAge ? "border-red-400" : "border-[#cdd8c6] focus:border-[#5c7a52]"}`} placeholder="DD" maxLength={2} />
+                </div>
+                <div className="w-20">
+                  <label className="block text-xs text-[#7e9a72] mb-1 text-center">Month</label>
+                  <input id="dob-month" type="text" inputMode="numeric" value={formData.dateOfBirth.split("/")[1] || ""} onChange={(e) => { const month = e.target.value.replace(/\D/g, "").slice(0, 2); const parts = formData.dateOfBirth.split("/"); updateFormData("dateOfBirth", `${parts[0] || ""}/${month}/${parts[2] || ""}`); if (month.length === 2) (document.getElementById("dob-year") as HTMLInputElement)?.focus(); }} className={`w-full px-3 py-4 rounded-xl border focus:ring-2 outline-none transition-all text-center text-lg bg-white ${formData.dateOfBirth.length === 10 && !isValidAge ? "border-red-400" : "border-[#cdd8c6] focus:border-[#5c7a52]"}`} placeholder="MM" maxLength={2} />
+                </div>
+                <div className="w-28">
+                  <label className="block text-xs text-[#7e9a72] mb-1 text-center">Year</label>
+                  <input id="dob-year" type="text" inputMode="numeric" value={formData.dateOfBirth.split("/")[2] || ""} onChange={(e) => { const year = e.target.value.replace(/\D/g, "").slice(0, 4); const parts = formData.dateOfBirth.split("/"); updateFormData("dateOfBirth", `${parts[0] || ""}/${parts[1] || ""}/${year}`); }} className={`w-full px-3 py-4 rounded-xl border focus:ring-2 outline-none transition-all text-center text-lg bg-white ${formData.dateOfBirth.length === 10 && !isValidAge ? "border-red-400" : "border-[#cdd8c6] focus:border-[#5c7a52]"}`} placeholder="YYYY" maxLength={4} />
+                </div>
+              </div>
+              {formData.dateOfBirth.length === 10 && !isValidAge && <p className="mt-4 text-sm text-red-600 text-center">You must be 18 or older to use this service.</p>}
+              {formData.dateOfBirth.length === 10 && isValidAge && <p className="mt-4 text-sm text-[#5c7a52] text-center">Great, you&apos;re {age} years old.</p>}
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderStep = () => {
+    if (isSexualFlow) {
+      return renderSexualFlowStep();
+    }
+
     switch (step) {
       case 0:
         return (
@@ -791,7 +1222,7 @@ function AssessmentContent() {
           <div className="space-y-6">
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Where can we reach you?</h1>
-              <p className="mt-3 text-[#5c7a52]">We'll send your assessment results and treatment updates here.</p>
+              <p className="mt-3 text-[#5c7a52]">We&apos;ll send your assessment results and care team updates here.</p>
             </div>
             <div className="space-y-4 mt-8">
               <div>
@@ -1190,7 +1621,7 @@ function AssessmentContent() {
               You&apos;re booked in
             </h1>
             <p className="text-[#5c7a52] max-w-md mx-auto">
-              Your assessment is with our care team for triage. A doctor will review your suitability before treatment is prescribed.
+              Your assessment is with our care team for triage. A doctor will review your suitability and discuss what is clinically appropriate for you.
             </p>
             <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5 text-left space-y-3">
               <p className="font-semibold text-[#2c3628]">What happens next</p>
@@ -1234,7 +1665,7 @@ function AssessmentContent() {
       {/* Header */}
       <header className="sticky top-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#e6ebe3]">
         <div className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 py-4 flex items-center justify-between`}>
-          <Link href="/mens-health" className="text-2xl font-serif text-[#34412f]">bloom</Link>
+          <Link href="/mens-health" className="text-2xl font-serif text-[#34412f]">Sanative</Link>
           <button type="button" onClick={() => setShowFAQ(true)} className="flex items-center gap-1.5 text-sm text-[#5c7a52] hover:text-[#34412f] transition-colors">
             <Info className="w-4 h-4" /><span>Help</span>
           </button>

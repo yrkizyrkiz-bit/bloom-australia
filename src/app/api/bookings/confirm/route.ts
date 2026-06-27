@@ -25,11 +25,16 @@ import {
 import { resolvePublicConsultProgramFromContext } from "@/lib/funnel/public-consult-programs";
 import { createProgramPreTriageTask } from "@/lib/funnel/program-pre-triage";
 import { savePublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
+import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
+import { verifyOrganCareMembershipBookingPayment } from "@/lib/stripe/verify-organ-care-booking-payment";
+import { validatePrePaymentConsent } from "@/lib/legal/consent-record";
+import { syncEntitlementsFromSignals } from "@/lib/membership/entitlement-service";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
 export interface ConfirmRequest {
   bookingHoldId: string;
   paymentIntentId: string;
+  consentRecordId: string;
   userId?: string;
   sessionId?: string;
   selectedPlan?: "CORE" | "PRECISION";
@@ -285,7 +290,7 @@ async function sendConfirmationEmail(
             <li>Activate your portal to follow your program journey</li>
             <li>Our care team will review your health assessment</li>
             <li>Your doctor will call you at your scheduled time</li>
-            <li>If treatment is appropriate, your prescription will be sent to our pharmacy</li>
+            <li>If clinically appropriate, your doctor will discuss next steps for your care plan</li>
           </ol>
 
           <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 24px 0;">
@@ -301,7 +306,7 @@ async function sendConfirmationEmail(
           </div>
 
           <p style="color: #666; font-size: 14px;">
-            Use the button above to set your password and open your weight program home. Progress tracking unlocks when your treatment is active. This link is valid for 7 days.
+            Use the button above to set your password and open your weight program home. Progress tracking unlocks once your doctor confirms your care plan. This link is valid for 7 days.
           </p>
 
           <p style="color: #666; font-size: 14px;">
@@ -561,6 +566,7 @@ export async function POST(req: NextRequest) {
     const {
       bookingHoldId,
       paymentIntentId,
+      consentRecordId,
       userId: bodyUserId,
       sessionId,
       selectedPlan,
@@ -596,6 +602,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!consentRecordId) {
+      return NextResponse.json(
+        { error: "Payment consent is required before confirming booking" },
+        { status: 400 }
+      );
+    }
+
     // Find the booking hold
     const booking = await prisma.consultationBooking.findUnique({
       where: { id: bookingHoldId },
@@ -605,6 +618,91 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Booking hold not found" },
         { status: 404 }
+      );
+    }
+
+    const bookingUserId = userId || booking.userId;
+
+    if (!bookingUserId) {
+      return NextResponse.json(
+        { error: "User is required to confirm a paid booking" },
+        { status: 400 }
+      );
+    }
+
+    if (userId && booking.userId && booking.userId !== userId) {
+      return NextResponse.json(
+        { error: "Booking does not belong to this user" },
+        { status: 403 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: bookingUserId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        timezone: true,
+        subscriptionTier: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const consultProgram = resolvePublicConsultProgramFromContext({
+      subscriptionTier: user.subscriptionTier,
+      bookingNotes: booking.notes,
+    });
+    const programLabel = consultProgram.label;
+
+    const consentVerification = await validatePrePaymentConsent({
+      consentRecordId,
+      userId: bookingUserId,
+      email: user.email,
+    });
+
+    if (!consentVerification.ok) {
+      return NextResponse.json(
+        { error: consentVerification.error },
+        { status: consentVerification.status }
+      );
+    }
+
+    const isOrganCareBooking = (booking.notes || "").includes("Organ & Metabolic Care");
+
+    const paymentVerification = isOrganCareBooking
+      ? await (async () => {
+          const organCarePayment = await verifyOrganCareMembershipBookingPayment({
+            paymentIntentId,
+            userId: bookingUserId,
+            bookingHoldId,
+          });
+          if (!organCarePayment.ok) {
+            return organCarePayment;
+          }
+          return {
+            paymentIntent: organCarePayment.paymentIntent,
+            expectedAmountCents: organCarePayment.paymentIntent.amount,
+            normalizedPlan: null as const,
+            bookingId: bookingHoldId,
+          };
+        })()
+      : await verifyFirstMonthPaymentForBooking({
+          paymentIntentId,
+          userId: bookingUserId,
+          bookingHoldId,
+          selectedPlan: selectedPlan || booking.selectedPlan,
+        });
+
+    if ("error" in paymentVerification) {
+      return NextResponse.json(
+        { error: paymentVerification.error },
+        { status: paymentVerification.status }
       );
     }
 
@@ -687,59 +785,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // GAP-012: Verify user ID matches if provided
-    if (userId && booking.userId && booking.userId !== userId) {
-      return NextResponse.json(
-        { error: "Booking does not belong to this user" },
-        { status: 403 }
-      );
-    }
-
-    // Get user info separately if we have a valid userId
-    let user: {
-      id: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-      phone: string | null;
-      timezone: string | null;
-      subscriptionTier: string | null;
-    } | null = null;
-    const bookingUserId = userId || booking.userId;
-
-    if (bookingUserId) {
-      user = await prisma.user.findUnique({
-        where: { id: bookingUserId },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          phone: true,
-          timezone: true,
-          subscriptionTier: true,
-        },
-      });
-    }
-
     // Get patient name
-    const patientName = user?.firstName && user?.lastName
+    const patientName = user.firstName && user.lastName
       ? `${user.firstName} ${user.lastName}`
-      : user?.firstName || "Patient";
+      : user.firstName || "Patient";
 
     // GAP-013: Create doctor brief URL
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://sanative.com.au";
     const doctorBriefUrl = booking.intakeId
-      ? `${baseUrl}/admin/doctor-brief/${booking.intakeId}`
+      ? `${baseUrl}/admin/doctor/brief/${booking.intakeId}`
       : bookingUserId
-      ? `${baseUrl}/admin/doctor-brief/${bookingUserId}`
+      ? `${baseUrl}/admin/doctor/brief/${bookingUserId}`
       : null;
-
-    const consultProgram = resolvePublicConsultProgramFromContext({
-      subscriptionTier: user?.subscriptionTier,
-      bookingNotes: booking.notes,
-    });
-    const programLabel = consultProgram.label;
 
     // GAP-013: Create calendar event with all required fields
     const calendarTitle = `Sanative ${programLabel} Phone Consult — ${patientName}`;
@@ -885,6 +942,10 @@ export async function POST(req: NextRequest) {
 
     // Log activity
     if (bookingUserId) {
+      await syncEntitlementsFromSignals(bookingUserId).catch((err) => {
+        console.error("[bookings/confirm] entitlement sync failed:", err);
+      });
+
       await prisma.activityLog.create({
         data: {
           userId: bookingUserId,

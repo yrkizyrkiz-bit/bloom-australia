@@ -9,18 +9,25 @@ import {
 } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { Loader2, Lock, CreditCard } from "lucide-react";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import {
+  ensurePrePaymentConsentRecorded,
+  paymentSourcePage,
+} from "@/lib/legal/ensure-pre-payment-consent";
 
-// Initialize Stripe
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
 );
 
 interface PaymentFormProps {
   clientSecret: string;
-  onSuccess: (paymentIntentId: string) => void;
+  onSuccess: (result: CheckoutPaymentSuccess) => void;
   onError: (error: string) => void;
   amount: number;
   disabled?: boolean;
+  userId?: string;
+  customerEmail?: string;
 }
 
 function CheckoutForm({
@@ -28,10 +35,13 @@ function CheckoutForm({
   onError,
   amount,
   disabled,
+  userId,
+  customerEmail,
 }: Omit<PaymentFormProps, "clientSecret">) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,6 +53,20 @@ function CheckoutForm({
 
     setIsProcessing(true);
     setErrorMessage(null);
+
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      email: customerEmail,
+      userId,
+    });
+
+    if (!consentResult.ok) {
+      setErrorMessage(consentResult.error);
+      onError(consentResult.error);
+      setIsProcessing(false);
+      return;
+    }
 
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
@@ -57,7 +81,10 @@ function CheckoutForm({
         setErrorMessage(error.message || "Payment failed");
         onError(error.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
-        onSuccess(paymentIntent.id);
+        onSuccess({
+          paymentIntentId: paymentIntent.id,
+          consentRecordId: consentResult.consentRecordId,
+        });
       }
     } catch {
       setErrorMessage("An unexpected error occurred");
@@ -75,6 +102,12 @@ function CheckoutForm({
         }}
       />
 
+      <PrePaymentConsentCheckbox
+        checked={consentChecked}
+        onCheckedChange={setConsentChecked}
+        disabled={isProcessing || disabled}
+      />
+
       {errorMessage && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-600 text-sm">{errorMessage}</p>
@@ -83,7 +116,7 @@ function CheckoutForm({
 
       <button
         type="submit"
-        disabled={!stripe || isProcessing || disabled}
+        disabled={!stripe || isProcessing || disabled || !consentChecked}
         className="w-full py-4 bg-[#1D9E75] text-white font-semibold rounded-full hover:bg-[#178a64] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isProcessing ? (
@@ -113,6 +146,8 @@ export function JoinPaymentForm({
   onError,
   amount,
   disabled,
+  userId,
+  customerEmail,
 }: PaymentFormProps) {
   const appearance = {
     theme: "stripe" as const,
@@ -165,12 +200,13 @@ export function JoinPaymentForm({
         onError={onError}
         amount={amount}
         disabled={disabled}
+        userId={userId}
+        customerEmail={customerEmail}
       />
     </Elements>
   );
 }
 
-// Loading state component
 export function PaymentFormLoading() {
   return (
     <div className="space-y-4 animate-pulse">

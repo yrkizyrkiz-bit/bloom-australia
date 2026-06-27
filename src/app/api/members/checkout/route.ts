@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,10 +15,23 @@ export async function POST(request: NextRequest) {
       program,
       intakeData,
       stripePaymentIntentId,
+      consentRecordId,
       stripeCustomerId,
       clinicToken,
       referralToken,
     } = body;
+
+    const consentVerification = await requirePrePaymentConsent({
+      consentRecordId,
+      email,
+    });
+
+    if (!consentVerification.ok) {
+      return NextResponse.json(
+        { success: false, message: consentVerification.error },
+        { status: consentVerification.status }
+      );
+    }
 
     // Validate required fields
     if (!firstName || !lastName || !email || !mobile || !dob || !program) {

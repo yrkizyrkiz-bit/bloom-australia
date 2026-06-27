@@ -12,8 +12,7 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Loader2,
-  AlertTriangle
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { useAdminStats } from "@/hooks/useApi";
@@ -39,9 +38,6 @@ export default function AdminDashboardPage() {
     status: a.action?.includes("CREATED") || a.action?.includes("UPLOADED") ? "success" :
             a.action?.includes("CRITICAL") ? "warning" : "info",
   })) || [];
-
-  // Users with critical biomarkers
-  const criticalUsers = adminData?.usersWithCritical || [];
 
   if (isLoading) {
     return (
@@ -141,33 +137,6 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Critical Biomarkers Alert */}
-      {criticalUsers.length > 0 && (
-        <Card className="border-red-500/30 bg-red-500/5">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-medium flex items-center gap-2 text-red-600">
-              <AlertTriangle className="w-5 h-5" />
-              Critical Results Requiring Review ({criticalUsers.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {criticalUsers.slice(0, 3).map((item: any, index: number) => (
-                <div key={index} className="flex items-center justify-between p-2 rounded bg-red-500/5">
-                  <div>
-                    <p className="font-medium text-sm">{item.userName}</p>
-                    <p className="text-xs text-muted-foreground">{item.biomarker}: {item.value}</p>
-                  </div>
-                  <Link href={`/admin/members?search=${item.userEmail}`}>
-                    <Button variant="outline" size="sm">Review</Button>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Quick Actions */}
       <div className="grid md:grid-cols-2 gap-6">

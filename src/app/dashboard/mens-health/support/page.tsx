@@ -37,16 +37,16 @@ const faqs = [
     category: "ED Treatment",
     questions: [
       {
-        q: "How quickly do ED medications work?",
-        a: "Sildenafil typically works within 30-60 minutes on an empty stomach. Tadalafil may take 1-2 hours but offers longer duration of effectiveness.",
+        q: "How quickly do ED treatments work?",
+        a: "Onset and duration vary between options. Your doctor will explain what to expect for any treatment prescribed to you, including how and when to take it.",
       },
       {
-        q: "Can I take ED medication with alcohol?",
+        q: "Can I take ED treatment with alcohol?",
         a: "Moderate alcohol consumption is generally acceptable, but excessive alcohol can reduce effectiveness and increase side effects. Always consult your doctor.",
       },
       {
         q: "Are there any food interactions?",
-        a: "High-fat meals can delay the absorption of sildenafil. Tadalafil is less affected by food. Take as directed by your healthcare provider.",
+        a: "Food can affect absorption of some treatments. Take any prescribed treatment as directed by your healthcare provider.",
       },
     ],
   },

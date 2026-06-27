@@ -183,14 +183,18 @@ export default function OrganCareQuizPage() {
     }
   };
 
-  const confirmPayment = async (paymentIntentId: string) => {
+  const confirmPayment = async (result: {
+    paymentIntentId?: string;
+    consentRecordId: string;
+  }) => {
     setSubmitting(true);
     try {
       const res = await fetch("/api/portal/organ-care-checkout/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paymentIntentId,
+          paymentIntentId: result.paymentIntentId,
+          consentRecordId: result.consentRecordId,
           organCareTerm,
           addBiomarkers,
           panelTier: addBiomarkers ? selectedPanel : undefined,
@@ -458,6 +462,8 @@ export default function OrganCareQuizPage() {
                   clientSecret={clientSecret}
                   amountLabel={checkoutPriceLabel}
                   submitLabel="Subscribe to Organ Care"
+                  userId={user?.id}
+                  customerEmail={user?.email}
                   onConfirmed={confirmPayment}
                 />
               </div>

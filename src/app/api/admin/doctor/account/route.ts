@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import bcrypt from "bcryptjs";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  resolveDoctorProviderNumber,
+  saveDoctorProviderNumber,
+} from "@/lib/doctor/provider-number";
 
 function canAccessDoctorAccount(role?: string | null): boolean {
   return role === "DOCTOR" || role === "ADMIN" || role === "admin";
@@ -15,49 +19,38 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [doctor, latestPrescription] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          address: true,
-          addressLine1: true,
-          addressLine2: true,
-          suburb: true,
-          state: true,
-          postcode: true,
-          country: true,
-          role: true,
-          updatedAt: true,
-        },
-      }),
-      prisma.prescription.findFirst({
-        where: { prescriberId: session.user.id },
-        orderBy: { prescribedAt: "desc" },
-        select: {
-          prescriberName: true,
-          prescriberLicense: true,
-          prescribedAt: true,
-        },
-      }),
-    ]);
+    const doctor = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        address: true,
+        addressLine1: true,
+        addressLine2: true,
+        suburb: true,
+        state: true,
+        postcode: true,
+        country: true,
+        role: true,
+        updatedAt: true,
+      },
+    });
 
     if (!doctor || !canAccessDoctorAccount(doctor.role)) {
       return NextResponse.json({ error: "Doctor account not found" }, { status: 404 });
     }
 
+    const provider = await resolveDoctorProviderNumber(session.user.id);
+
     return NextResponse.json({
       doctor: {
         ...doctor,
         fullName: `${doctor.firstName} ${doctor.lastName}`.trim(),
-        registrationNumber: latestPrescription?.prescriberLicense || null,
-        registrationSource: latestPrescription?.prescriberLicense
-          ? "Latest prescription record"
-          : null,
+        registrationNumber: provider.providerNumber,
+        registrationSource: provider.source,
       },
     });
   } catch (error) {
@@ -77,7 +70,35 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { newPassword } = body;
+    const { newPassword, medicareProviderNumber } = body as {
+      newPassword?: string;
+      medicareProviderNumber?: string;
+    };
+
+    if (medicareProviderNumber !== undefined) {
+      if (typeof medicareProviderNumber !== "string") {
+        return NextResponse.json(
+          { error: "Provider number must be a string" },
+          { status: 400 }
+        );
+      }
+
+      const trimmed = medicareProviderNumber.trim();
+      if (!trimmed) {
+        return NextResponse.json(
+          { error: "Provider number cannot be empty" },
+          { status: 400 }
+        );
+      }
+
+      await saveDoctorProviderNumber(session.user.id, trimmed);
+
+      return NextResponse.json({
+        success: true,
+        message: "Medicare provider number saved",
+        medicareProviderNumber: trimmed,
+      });
+    }
 
     if (!newPassword || typeof newPassword !== "string") {
       return NextResponse.json(
@@ -124,7 +145,7 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error("[Doctor Account PATCH]", error);
     return NextResponse.json(
-      { error: "Failed to reset password" },
+      { error: "Failed to update doctor account" },
       { status: 500 }
     );
   }

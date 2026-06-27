@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireClinicalStaff } from "@/lib/auth/require-clinical-staff";
+import { recordSecurityAudit } from "@/lib/security/audit-log";
+import { canAccessPatientClinicalRecord } from "@/lib/security/patient-access";
 
 // GAP-014: Doctor Brief API
 // Returns comprehensive patient information for doctor consultation
@@ -36,6 +39,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireClinicalStaff();
+    if ("error" in auth) {
+      return auth.error;
+    }
+
     const { id: intakeId } = await params;
 
     // First try to find by intakeId in ConsultationBooking
@@ -123,6 +131,27 @@ export async function GET(
       );
     }
 
+    const patientUserId = consultation.user.id;
+    if (
+      !canAccessPatientClinicalRecord({
+        actorRole: auth.role,
+        actorUserId: auth.userId,
+        patientUserId,
+        assignedDoctorId: consultation.doctorId,
+      })
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await recordSecurityAudit({
+      req,
+      actorUserId: auth.userId,
+      actorRole: auth.role,
+      route: `/api/admin/doctor-brief/${intakeId}`,
+      patientId: patientUserId,
+      actionType: "read",
+    });
+
     const user = consultation.user;
     const healthProfile = user.healthProfile;
 
@@ -193,10 +222,13 @@ export async function GET(
       allergies,
       riskFlags: consultation.riskFlags || [],
       consent: {
-        status: "CONSENTED",
+        status:
+          intakeData.privacyAccepted === true && intakeData.termsAccepted === true
+            ? "CONSENTED"
+            : "UNKNOWN",
         consentedAt: (intakeData.consentedAt as string) || null,
-        privacyAccepted: (intakeData.privacyAccepted as boolean) || true,
-        termsAccepted: (intakeData.termsAccepted as boolean) || true,
+        privacyAccepted: intakeData.privacyAccepted === true,
+        termsAccepted: intakeData.termsAccepted === true,
       },
       payment: {
         status: consultation.paymentIntentId ? "PAID" : "PENDING",

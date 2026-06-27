@@ -14,6 +14,96 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import {
+  BANNED_PUBLIC_MEDICATION_TERMS,
+  BANNED_PUBLIC_MARKETING_PHRASES,
+  BANNED_TESTIMONIAL_OUTCOME_CLAIMS,
+  PUBLIC_VERTICAL_PATHS,
+} from '@/lib/legal/marketing-compliance';
+
+function assertNoBannedMedicationNames(html: string) {
+  const lower = html.toLowerCase();
+  for (const term of BANNED_PUBLIC_MEDICATION_TERMS) {
+    expect(lower).not.toContain(term);
+  }
+}
+
+function assertNoBannedPublicMarketing(html: string) {
+  const lower = html.toLowerCase();
+  for (const phrase of BANNED_PUBLIC_MARKETING_PHRASES) {
+    expect(lower).not.toContain(phrase.toLowerCase());
+  }
+}
+
+const BANNED_WM_MARKETING_PHRASES = [
+  'medication included',
+  'secure medication delivery',
+  'premium medications',
+  'higher doses',
+  'treatment delivered to your door',
+  'weight-loss treatment',
+  '12-15%',
+  '12–15%',
+  'clinical average',
+  'prescription medication (if appropriate)',
+  'prescription treatment',
+  'weight management medication',
+  'ozempic',
+  'semaglutide',
+  'mounjaro',
+];
+
+function assertNoBannedWeightManagementMarketing(html: string) {
+  const lower = html.toLowerCase();
+  for (const phrase of BANNED_WM_MARKETING_PHRASES) {
+    expect(lower).not.toContain(phrase.toLowerCase());
+  }
+}
+
+const BANNED_MENS_HEALTH_MARKETING_PHRASES = [
+  'ed treatment',
+  'ed medications',
+  'erectile dysfunction treatment',
+  'premature ejaculation treatment',
+  'pde5',
+  'pde5 inhibitor',
+  'how quickly do ed',
+  'millions of men',
+];
+
+function assertNoBannedMensHealthMarketing(html: string) {
+  const lower = html.toLowerCase();
+  for (const phrase of BANNED_MENS_HEALTH_MARKETING_PHRASES) {
+    expect(lower).not.toContain(phrase.toLowerCase());
+  }
+}
+
+const BANNED_REFUND_PHRASES = [
+  'no questions asked',
+  'money-back guarantee',
+  '180-day guarantee',
+];
+
+function assertNoBannedTestimonialClaims(html: string) {
+  const lower = html.toLowerCase();
+  for (const phrase of BANNED_TESTIMONIAL_OUTCOME_CLAIMS) {
+    expect(lower).not.toContain(phrase.toLowerCase());
+  }
+}
+
+function assertNoBannedRefundCopy(html: string) {
+  const lower = html.toLowerCase();
+  for (const phrase of BANNED_REFUND_PHRASES) {
+    expect(lower).not.toContain(phrase.toLowerCase());
+  }
+}
+
+function assertPublicVerticalCompliance(html: string) {
+  assertNoBannedMedicationNames(html);
+  assertNoBannedPublicMarketing(html);
+  assertNoBannedTestimonialClaims(html);
+  assertNoBannedRefundCopy(html);
+}
 
 // Mock data for tests
 const TEST_USER = {
@@ -29,20 +119,41 @@ describe('GAP-033 Smoke Tests', () => {
       expect(response.status).toBe(200);
     });
 
+    it('should load the homepage without testimonial outcome claims', async () => {
+      const response = await fetch('http://localhost:3000/');
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      assertPublicVerticalCompliance(html);
+    });
+
+    it.each(PUBLIC_VERTICAL_PATHS)(
+      'should load %s without banned public marketing copy',
+      async (path) => {
+        const response = await fetch(`http://localhost:3000${path}`);
+        expect(response.status).toBe(200);
+        const html = await response.text();
+        assertPublicVerticalCompliance(html);
+        if (path.startsWith('/weight-management')) {
+          assertNoBannedWeightManagementMarketing(html);
+        }
+        if (path.startsWith('/mens-health')) {
+          assertNoBannedMensHealthMarketing(html);
+        }
+      },
+    );
+
     it('should load the weight management assessment', async () => {
       const response = await fetch('http://localhost:3000/weight-management/assessment');
       expect(response.status).toBe(200);
     });
 
-    it('should load the services page without medication names', async () => {
-      const response = await fetch('http://localhost:3000/services');
+    it('should load weight-management assessment without risky marketing copy', async () => {
+      const response = await fetch('http://localhost:3000/weight-management/assessment');
       expect(response.status).toBe(200);
       const html = await response.text();
-      // GAP-022: No public medication names
-      expect(html.toLowerCase()).not.toContain('semaglutide');
-      expect(html.toLowerCase()).not.toContain('tirzepatide');
-      expect(html.toLowerCase()).not.toContain('ozempic');
-      expect(html.toLowerCase()).not.toContain('wegovy');
+      assertNoBannedMedicationNames(html);
+      assertNoBannedWeightManagementMarketing(html);
+      assertNoBannedTestimonialClaims(html);
     });
   });
 

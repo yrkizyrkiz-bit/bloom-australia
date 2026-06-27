@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { extendProgramTasks } from "@/lib/program/extend-tasks";
 import { sendProgramRemindersForUser } from "@/lib/program/reminders";
+import { assertCronAuthorized } from "@/lib/security/cron-auth";
 
 /** Daily program maintenance: extend tasks, mark overdue, send reminders. */
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const cronAuth = assertCronAuthorized(request);
+    if (cronAuth) {
+      return cronAuth;
     }
 
     const programs = await prisma.memberProgram.findMany({

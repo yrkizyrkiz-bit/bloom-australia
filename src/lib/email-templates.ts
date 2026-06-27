@@ -543,7 +543,7 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
       <div style="margin-bottom: 16px;">
         <p style="margin: 0 0 4px 0; font-size: 14px; color: #34412f; font-weight: 600;">If approved:</p>
         <p style="margin: 0; font-size: 13px; color: #5c7a52; line-height: 1.5;">
-          Our care team will help you get started with your portal, onboarding, treatment if prescribed, and your next steps.
+          Our care team will help you get started with your portal, onboarding, and your personalised care plan.
         </p>
       </div>
 
@@ -587,7 +587,7 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
     <!-- Fine Print -->
     <div style="border-top: 1px solid #e6ebe3; padding-top: 16px;">
       <p style="margin: 0; font-size: 11px; color: #a8bb9e; line-height: 1.6;">
-        Treatment is only prescribed where clinically appropriate following your doctor consultation. Blood tests may be requested where clinically indicated. This email confirms your booking — it does not confirm clinical suitability or approval for treatment.
+        Treatment options are discussed privately with your doctor if clinically appropriate. Blood tests may be requested where clinically indicated. This email confirms your booking — it does not confirm clinical suitability.
       </p>
     </div>
   `;
@@ -607,7 +607,7 @@ During the call, your doctor will:
 • Discuss your health goals and any concerns
 • Confirm whether the program is clinically suitable for you
 
-If approved, our care team will help you get started with your portal, onboarding, treatment if prescribed, and your next steps.
+If approved, our care team will help you get started with your portal, onboarding, and your personalised care plan.
 
 If your doctor determines the program is not suitable, your first-month payment will be refunded.
 
@@ -621,5 +621,76 @@ Access your portal: ${data.dashboardUrl}`;
     subject,
     html: wrapEmail(content),
     text: textContent,
+  };
+}
+
+// ============================================
+// PATHOLOGY REFERRAL
+// ============================================
+
+interface PathologyReferralEmailData {
+  firstName: string;
+  doctorName: string;
+  referralId: string;
+  programSummary: string;
+  fastingRequired: boolean;
+  dashboardUrl: string;
+}
+
+export function pathologyReferralEmail(data: PathologyReferralEmailData): EmailTemplate {
+  const fastingNote = data.fastingRequired
+    ? "Please fast for 8–12 hours before your blood test (water is fine unless your doctor advised otherwise)."
+    : "Fasting is not required unless noted on your referral form.";
+
+  const content = `
+    <h2 style="margin: 0 0 16px 0; font-size: 24px; color: #34412f; font-family: Georgia, serif;">Your pathology referral, ${data.firstName}</h2>
+
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #5c7a52; line-height: 1.6;">
+      ${data.doctorName} has issued a pathology referral for your Sanative care plan. Your referral PDF is attached to this email.
+    </p>
+
+    <div style="background-color: #fdfbf7; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px 0; font-size: 13px; color: #5c7a52;"><strong style="color: #34412f;">Referral ID:</strong> ${data.referralId}</p>
+      <p style="margin: 0 0 8px 0; font-size: 13px; color: #5c7a52;"><strong style="color: #34412f;">Panels:</strong> ${data.programSummary}</p>
+      <p style="margin: 0; font-size: 13px; color: #5c7a52;"><strong style="color: #34412f;">Before you go:</strong> ${fastingNote}</p>
+    </div>
+
+    <div style="border-top: 1px solid #e6ebe3; padding-top: 24px; margin-bottom: 24px;">
+      <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #34412f;">What to do next</h4>
+      <ol style="margin: 0; padding-left: 20px; color: #5c7a52; font-size: 14px; line-height: 1.8;">
+        <li>Print the attached referral or show it on your phone at collection</li>
+        <li>Visit any NATA-accredited pathology collection centre of your choice</li>
+        <li>Bring your Medicare card and photo ID</li>
+        <li>Results will be uploaded to your Sanative record when available</li>
+      </ol>
+    </div>
+
+    <div style="text-align: center;">
+      ${emailButton("Open your dashboard", data.dashboardUrl)}
+    </div>
+  `;
+
+  const text = `Hi ${data.firstName},
+
+${data.doctorName} has issued a pathology referral for your Sanative care plan. Your referral PDF is attached.
+
+Referral ID: ${data.referralId}
+Panels: ${data.programSummary}
+${fastingNote}
+
+What to do next:
+1. Print the attached referral or show it on your phone at collection
+2. Visit any NATA-accredited pathology collection centre of your choice
+3. Bring your Medicare card and photo ID
+4. Results will be uploaded to your Sanative record when available
+
+Dashboard: ${data.dashboardUrl}
+
+The Sanative Care Team`;
+
+  return {
+    subject: `Your pathology referral — ${data.referralId}`,
+    html: wrapEmail(content),
+    text,
   };
 }

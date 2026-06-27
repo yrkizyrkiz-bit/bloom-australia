@@ -17,11 +17,15 @@ export function Footer() {
     ],
     company: [
       { label: "About Us", href: "#" },
-      { label: "Contact", href: "#" },
+      { label: "Contact", href: "/contact" },
     ],
     legal: [
       { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Service", href: "/terms" },
+      { label: "Terms & Conditions", href: "/terms" },
+      { label: "Medical Disclaimer", href: "/medical-disclaimer" },
+      { label: "Telehealth Consent", href: "/telehealth-consent" },
+      { label: "Refund Policy", href: "/refund-policy" },
+      { label: "Subscription Terms", href: "/subscription-terms" },
     ],
   };
 
@@ -65,7 +69,7 @@ export function Footer() {
               <span className="text-4xl font-serif tracking-tight">sanative</span>
             </Link>
             <p className="mt-4 text-[#a8bb9e] text-sm leading-relaxed">
-              Personalised healthcare for every Australian. Doctor-prescribed treatments, delivered to your door.
+              Personalised healthcare for every Australian. Doctor-led programs guided by your health profile, symptoms, and biomarkers.
             </p>
             <div className="flex gap-4 mt-6">
               <a

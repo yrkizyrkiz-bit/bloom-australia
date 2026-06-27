@@ -137,17 +137,23 @@ const defaultVariants = {
 
 export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
-  const { direction, currentIndex } = useNavigationDirection();
+  const { direction } = useNavigationDirection();
+  const isFirstRender = useRef(true);
 
-  // Check if this is a main tab page
-  const isTabPage = TAB_PATHS.some(p => pathname === p);
-  const variants = isTabPage && direction !== 0 ? getPageVariants(direction) : defaultVariants;
+  const isTabPage = TAB_PATHS.some((p) => pathname === p);
+  const variants =
+    isTabPage && direction !== 0 ? getPageVariants(direction) : defaultVariants;
+
+  const skipInitialAnimation = isFirstRender.current;
+  if (isFirstRender.current) {
+    isFirstRender.current = false;
+  }
 
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={pathname}
-        initial="initial"
+        initial={skipInitialAnimation ? false : "initial"}
         animate="enter"
         exit="exit"
         variants={variants}

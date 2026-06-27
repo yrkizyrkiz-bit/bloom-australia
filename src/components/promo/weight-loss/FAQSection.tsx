@@ -11,7 +11,7 @@ interface FAQ {
 const faqs: FAQ[] = [
   {
     question: "How does the biomarker testing work?",
-    answer: "Blood tests are requested only where clinically appropriate by an Australian doctor. Many standard pathology tests are Medicare-rebated or bulk-billed for eligible Medicare card holders, depending on the test, provider and billing arrangements. Some tests may attract an out-of-pocket cost. Your doctor uses these insights to personalise your treatment plan based on your individual health profile.",
+    answer: "Blood tests are requested only where clinically appropriate by an Australian doctor. Many standard pathology tests are Medicare-rebated or bulk-billed for eligible Medicare card holders, depending on the test, provider and billing arrangements. Some tests may attract an out-of-pocket cost. Your doctor uses these insights to personalise your care plan based on your individual health profile.",
   },
   {
     question: "What is a Care Partner and how do they help?",
@@ -19,11 +19,11 @@ const faqs: FAQ[] = [
   },
   {
     question: "How much does the program cost?",
-    answer: "We offer two plans: Sanative Core starts at $249 for your first month (then from $349/month ongoing), and Sanative Precision starts at $399 for your first month (then from $499/month ongoing). Both include doctor consultations, medication if prescribed, Care Partner support, portal access, and ongoing clinical monitoring. Precision includes more frequent doctor check-ins and enhanced biomarker monitoring. No hidden fees or lock-in contracts — cancel anytime.",
+    answer: "We offer two plans: Sanative Core starts at $249 for your first month (then from $349/month ongoing), and Sanative Precision starts at $399 for your first month (then from $499/month ongoing). Both include doctor consultations, Care Partner support, portal access, and ongoing clinical monitoring. Precision includes more frequent doctor check-ins and enhanced biomarker monitoring. No hidden fees or lock-in contracts — cancel anytime.",
   },
   {
-    question: "Is medication included in the price?",
-    answer: "Yes, if treatment is clinically appropriate for you, the cost of standard medications is included in your monthly fee. Our doctors will review your health profile and biomarkers to determine the most suitable treatment. Premium medications or higher doses may have additional costs, which your doctor will discuss with you.",
+    question: "What does the monthly fee cover?",
+    answer: "Your monthly fee covers doctor consultations, clinical monitoring, Care Partner support, and portal access. Some care options may involve additional costs, discussed before proceeding.",
   },
   {
     question: "Who is eligible for the program?",
@@ -31,27 +31,31 @@ const faqs: FAQ[] = [
   },
   {
     question: "What results can I expect?",
-    answer: "Results vary significantly based on individual biology, adherence, and starting point. Clinical studies on prescription weight management medications show a range of outcomes. Your doctor will discuss realistic expectations during your consultation and use biomarker results to help personalise your plan.",
+    answer: "Results vary significantly based on individual biology, adherence, and starting point. Your doctor will discuss realistic expectations during your consultation and use biomarker results to help personalise your plan.",
   },
   {
     question: "Are the doctors real Australian doctors?",
-    answer: "Yes, absolutely. Every Sanative doctor is AHPRA-registered and practising in Australia. Your Sanative doctor consultation is completed by telehealth where clinically appropriate. Your doctor may recommend alternative care or in-person assessment if needed. They review your health profile, discuss your symptoms, and adjust your treatment plan accordingly.",
+    answer: "Yes, absolutely. Every Sanative doctor is AHPRA-registered and practising in Australia. Your Sanative doctor consultation is completed by telehealth where clinically appropriate. Your doctor may recommend alternative care or in-person assessment if needed. They review your health profile, discuss your symptoms, and adjust your care plan accordingly.",
+  },
+  {
+    question: "What about treatment options?",
+    answer: "Treatment options are discussed privately with your doctor if clinically appropriate. Your monthly program fee covers clinical assessment, monitoring, and portal access — not medicine bundles.",
   },
   {
     question: "How long should I stay on the program?",
-    answer: "Most patients see meaningful results within 3-6 months. Treatment duration varies based on your goals and response. Our doctors work with you to create a sustainable long-term plan, including guidance on maintaining results after you complete the program.",
+    answer: "Program duration varies based on your goals and response. Our doctors work with you to create a sustainable long-term plan, including guidance on maintaining results.",
   },
   {
     question: "Can I cancel my subscription?",
     answer: "Yes, you can cancel anytime with no penalties or cancellation fees. Simply contact our support team or cancel through the app. Your subscription ends at the end of your current billing period. We believe in earning your trust every month.",
   },
   {
-    question: "Is there a money-back guarantee?",
-    answer: "Yes. If you're not satisfied within your first 30 days, we'll refund your payment in full — no questions asked. We're confident in our biomarker-led approach, but we understand it's not right for everyone. Your trust matters more than the sale.",
+    question: "What is your refund policy?",
+    answer: "If your Sanative doctor determines after assessment that the program is not clinically appropriate for you, your first-month payment will be refunded in accordance with our Refund Policy.",
   },
   {
     question: "Is my information kept private?",
-    answer: "Completely. All deliveries come in plain, unmarked packaging with no indication of contents. Your health data is encrypted, protected under Australian privacy law, and never shared without your explicit consent. Even your payment description is discreet.",
+    answer: "Completely. Your health data is encrypted, protected under Australian privacy law, and never shared without your explicit consent. Program coordination is handled discreetly.",
   },
   {
     question: "Can I claim through private health insurance?",

@@ -16,7 +16,7 @@ import {
   invoices,
   subscriptionPlans
 } from "@/data/crm-data";
-import { mockUsers } from "@/data/mock-data";
+import { useMemberDirectory } from "@/hooks/useMemberDirectory";
 import {
   Users,
   DollarSign,
@@ -77,6 +77,7 @@ interface FollowUpsData {
 
 export default function CRMDashboardPage() {
   const mockStats = getCRMStats();
+  const { getDisplayName } = useMemberDirectory();
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
 
@@ -119,7 +120,7 @@ export default function CRMDashboardPage() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const res = await fetch("/api/users?role=MEMBER&limit=500");
+        const res = await fetch("/api/users?role=MEMBER&limit=500&lite=1");
         if (res.ok) {
           const data = await res.json();
           setMembers(
@@ -204,8 +205,7 @@ export default function CRMDashboardPage() {
   const getCustomerName = (customerId: string) => {
     const customer = customerAccounts.find(c => c.id === customerId);
     if (!customer) return "Unknown";
-    const user = mockUsers.find(u => u.id === customer.userId);
-    return user ? `${user.firstName} ${user.lastName}` : "Unknown";
+    return getDisplayName(customer.userId);
   };
 
   return (

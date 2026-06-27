@@ -34,7 +34,7 @@ export function WeightLossHero() {
 
             {/* Market leader statement */}
             <p className="text-base lg:text-lg text-[#5c7a52] leading-relaxed max-w-xl">
-              Sanative is Australia&apos;s doctor-led metabolic weight management program: treatment if prescribed, biomarker-guided monitoring, Health Age tracking, secure delivery and ongoing care — from $249 for your first month.
+              Sanative is Australia&apos;s doctor-led metabolic weight management program — guided by your health profile, symptoms, and biomarkers where clinically appropriate. Program access starts from $249 for your first month.
             </p>
 
             {/* Supporting line */}
@@ -51,7 +51,7 @@ export function WeightLossHero() {
                 <div>
                   <p className="font-semibold text-[#2c3628]">Start from $249 for your first month</p>
                   <p className="text-sm text-[#5c7a52] mt-0.5">
-                    Includes doctor assessment, treatment if prescribed, biomarker monitoring, Health Age tracking and ongoing care. $100 introductory discount applied.
+                    Includes doctor assessment, biomarker-guided monitoring, Health Age tracking, and ongoing clinical support. $100 introductory discount applied.
                   </p>
                 </div>
               </div>
@@ -106,7 +106,7 @@ export function WeightLossHero() {
                 {/* Clinical appropriateness */}
                 <div className="flex items-center gap-2">
                   <BadgeCheck className="w-4 h-4 text-[#5c7a52]" />
-                  <span className="text-sm text-[#34412f]">Treatment if clinically appropriate</span>
+                  <span className="text-sm text-[#34412f]">Care plan if clinically appropriate</span>
                 </div>
 
                 {/* Divider */}

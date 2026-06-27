@@ -73,17 +73,6 @@ export async function GET(request: NextRequest) {
       take: 10,
     });
 
-    // Users with critical biomarkers
-    const usersWithCritical = await prisma.biomarkerResult.findMany({
-      where: { status: "CRITICAL" },
-      include: {
-        user: { select: { id: true, firstName: true, lastName: true, email: true } },
-        biomarker: { select: { name: true, shortName: true } },
-      },
-      orderBy: { testedAt: "desc" },
-      take: 10,
-    });
-
     // Calculate growth
     const userGrowth = newUsersLastMonth > 0 ? Math.round(((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100) : (newUsersThisMonth > 0 ? 100 : 0);
 
@@ -112,10 +101,6 @@ export async function GET(request: NextRequest) {
         id: r.id, fileName: r.fileName, status: r.status,
         userName: `${r.user.firstName} ${r.user.lastName}`,
         userEmail: r.user.email, uploadedAt: r.uploadedAt, biomarkerCount: r.biomarkerCount,
-      })),
-      usersWithCritical: usersWithCritical.map(r => ({
-        userId: r.user.id, userName: `${r.user.firstName} ${r.user.lastName}`,
-        userEmail: r.user.email, biomarker: r.biomarker.name, value: r.value, testedAt: r.testedAt,
       })),
     });
   } catch (error) {

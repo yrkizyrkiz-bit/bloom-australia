@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EMAIL_TEMPLATES } from "@/lib/email";
+import { blockDevOnlyRouteInProduction } from "@/lib/security/environment";
 
 // GET - Fetch all email templates
 export async function GET(request: NextRequest) {
@@ -53,6 +54,11 @@ export async function POST(request: NextRequest) {
 
     // Seed default templates
     if (action === "seed") {
+      const blocked = blockDevOnlyRouteInProduction();
+      if (blocked) {
+        return blocked;
+      }
+
       const seededTemplates = [];
 
       for (const [key, template] of Object.entries(EMAIL_TEMPLATES)) {

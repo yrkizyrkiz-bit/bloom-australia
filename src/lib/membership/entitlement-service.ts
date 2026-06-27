@@ -341,26 +341,39 @@ export async function syncEntitlementsFromSignals(userId: string): Promise<void>
   const existing = await getAllEntitlements(userId);
   const existingMap = new Map(existing.map((e) => [`${e.type}:${e.key}`, e]));
   const desiredMap = new Map(desired.map((d) => [`${d.type}:${d.key}`, d]));
+  const upserts: Promise<unknown>[] = [];
 
   for (const d of desired) {
     const current = existingMap.get(`${d.type}:${d.key}`);
     // Respect manual admin grants and paid portal purchases — don't let derived sync clobber them.
     if (current?.source === "ADMIN_GRANT" || current?.source === "PORTAL_PURCHASE") continue;
 
-    await prisma.entitlement.upsert({
-      where: { userId_type_key: { userId, type: d.type, key: d.key } },
-      create: { userId, type: d.type, key: d.key, status: d.status, source: d.source },
-      update: { status: d.status, source: d.source },
-    });
+    upserts.push(
+      prisma.entitlement.upsert({
+        where: { userId_type_key: { userId, type: d.type, key: d.key } },
+        create: { userId, type: d.type, key: d.key, status: d.status, source: d.source },
+        update: { status: d.status, source: d.source },
+      })
+    );
   }
 
-  // Deactivate derived rows that no longer have any supporting signal.
+  if (upserts.length > 0) {
+    await Promise.all(upserts);
+  }
+
+  const deactivations: Promise<unknown>[] = [];
   for (const e of existing) {
     if (e.source === "ADMIN_GRANT" || e.source === "PORTAL_PURCHASE") continue;
     if (e.status === "INACTIVE") continue;
     if (!desiredMap.has(`${e.type}:${e.key}`)) {
-      await prisma.entitlement.update({ where: { id: e.id }, data: { status: "INACTIVE" } });
+      deactivations.push(
+        prisma.entitlement.update({ where: { id: e.id }, data: { status: "INACTIVE" } })
+      );
     }
+  }
+
+  if (deactivations.length > 0) {
+    await Promise.all(deactivations);
   }
 }
 

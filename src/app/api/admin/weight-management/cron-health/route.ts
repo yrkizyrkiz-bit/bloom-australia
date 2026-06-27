@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -10,10 +10,22 @@ const CRON_TYPES = [
   "member_program_started",
 ];
 
-export async function GET() {
+function hasValidCronSecret(request: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return false;
+  }
+  const authHeader = request.headers.get("authorization");
+  return authHeader === `Bearer ${cronSecret}`;
+}
+
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || session.user.role !== "ADMIN") {
+    const isAdmin = session?.user?.role === "ADMIN";
+    const hasSecret = hasValidCronSecret(request);
+
+    if (!isAdmin && !hasSecret) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

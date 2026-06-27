@@ -227,16 +227,16 @@ export function SocialProofStrip() {
           `}
         >
           <div className="text-center">
-            <div className="text-3xl lg:text-4xl font-serif text-[#5c7a52]">12-15%</div>
-            <p className="text-sm text-[#7e9a72] mt-1">Average weight loss*</p>
-          </div>
-          <div className="text-center">
             <div className="text-3xl lg:text-4xl font-serif text-[#5c7a52]">10,000+</div>
             <p className="text-sm text-[#7e9a72] mt-1">Consultations delivered</p>
           </div>
           <div className="text-center">
-            <div className="text-3xl lg:text-4xl font-serif text-[#5c7a52]">Included</div>
-            <p className="text-sm text-[#7e9a72] mt-1">Medication in program</p>
+            <div className="text-3xl lg:text-4xl font-serif text-[#5c7a52]">AHPRA</div>
+            <p className="text-sm text-[#7e9a72] mt-1">Registered doctors</p>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl lg:text-4xl font-serif text-[#5c7a52]">1:1</div>
+            <p className="text-sm text-[#7e9a72] mt-1">Care Partner support</p>
           </div>
         </div>
 
@@ -248,13 +248,13 @@ export function SocialProofStrip() {
           `}
         >
           <p className="text-[#5c7a52] font-medium">
-            Most patients notice reduced appetite within weeks, followed by steady and sustainable weight loss over time.
+            Most patients benefit from ongoing clinical support, lifestyle guidance, and regular progress reviews.
           </p>
         </div>
 
         {/* Disclaimer */}
         <p className="text-center text-xs text-[#a8bb9e] mt-6">
-          *Results vary. Individual weight loss depends on adherence to treatment, diet, and lifestyle factors.
+          Individual results vary. Outcomes depend on adherence to your care plan, diet, and lifestyle factors.
         </p>
       </div>
     </section>

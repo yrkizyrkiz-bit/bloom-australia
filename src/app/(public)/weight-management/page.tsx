@@ -14,7 +14,6 @@ import { PricingSection } from "@/components/promo/weight-loss/PricingSection";
 
 import { AppSection } from "@/components/promo/weight-loss/AppSection";
 import { TrustSection } from "@/components/promo/weight-loss/TrustSection";
-import { VideoTestimonialsSection } from "@/components/promo/weight-loss/VideoTestimonialsSection";
 import { FAQSection } from "@/components/promo/weight-loss/FAQSection";
 import { FinalCTASection } from "@/components/promo/weight-loss/FinalCTASection";
 
@@ -31,7 +30,6 @@ export default function WeightManagementPage() {
         <BiomarkerQuestionsSection />
         <ObjectionHandlingSection />
         <WeightLossTeamSection />
-        <VideoTestimonialsSection />
         <WhyThisWorksSection />
         <WeightLossHowItWorks />
         <EligibilitySection />

@@ -428,7 +428,10 @@ function WomensHealthAssessmentContent() {
     }
   };
 
-  const handleCheckoutPaymentSuccess = async (paymentIntentId?: string) => {
+  const handleCheckoutPaymentSuccess = async (result: {
+    paymentIntentId?: string;
+    consentRecordId: string;
+  }) => {
     if (!bookingHoldId) {
       setStep(thankYouStep);
       return;
@@ -440,7 +443,8 @@ function WomensHealthAssessmentContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           bookingHoldId,
-          paymentIntentId: paymentIntentId || "pi_womens_manual_confirmation",
+          paymentIntentId: result.paymentIntentId || "pi_womens_manual_confirmation",
+          consentRecordId: result.consentRecordId,
           userId,
           clientOrigin:
             typeof window !== "undefined" ? window.location.origin : undefined,

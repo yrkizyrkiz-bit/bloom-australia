@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,6 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, MapPin, Edit, Save, X, Loader2,
@@ -40,9 +46,23 @@ import { RescheduleBookingDialog } from "@/components/admin/RescheduleBookingDia
 import { CancelBookingDialog } from "@/components/admin/CancelBookingDialog";
 import { BookingChangeHistory } from "@/components/admin/BookingChangeHistory";
 import {
-  MemberProgramQuizTabs,
+  MemberQuizAssessmentTabs,
   type PortalQuizSubmissionView,
 } from "@/components/admin/MemberProgramQuizTabs";
+import {
+  getBiomarkerStatusBadgeClass,
+  getBiomarkerStatusDotClass,
+  getBiomarkerStatusLabel,
+  getBiomarkerStatusRowClass,
+} from "@/lib/biomarker-status";
+import { biomarkerDefinitions } from "@/data/biomarkers";
+import {
+  calculateAllHealthTestScores,
+  calculateStatusBasedScore,
+  getProgressColor,
+  getScoreColor,
+  type BiomarkerResultInput,
+} from "@/lib/healthTestScoring";
 
 interface CustomerData {
   id: string;
@@ -104,6 +124,15 @@ const HEALTH_CATEGORIES = [
   { key: "thyroid", label: "Thyroid", icon: Zap, color: "text-purple-500" },
   { key: "inflammation", label: "Inflammation", icon: Shield, color: "text-amber-500" },
 ];
+
+/** Maps sidebar category keys to health test scoring ids (member dashboard). */
+const HOLISTIC_TEST_ID_BY_CATEGORY: Record<string, string> = {
+  metabolic: "metabolic",
+  cardiovascular: "heart",
+  liver: "liver",
+  kidney: "kidney",
+  thyroid: "thyroid",
+};
 
 // Biomarker panels with conditions they're relevant for
 const BIOMARKER_PANELS = [
@@ -220,8 +249,11 @@ export default function CustomerDetailPage() {
 
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [assessmentData, setAssessmentData] = useState<Record<string, unknown> | null>(null);
-  const [portalQuizzes, setPortalQuizzes] = useState<PortalQuizSubmissionView[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [portalQuizAllSubmissions, setPortalQuizAllSubmissions] = useState<
+    PortalQuizSubmissionView[]
+  >([]);
+  const [isLoadingCustomer, setIsLoadingCustomer] = useState(true);
+  const [isLoadingAssessment, setIsLoadingAssessment] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<Partial<CustomerData>>({});
@@ -251,62 +283,62 @@ export default function CustomerDetailPage() {
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [rescheduleBooking, setRescheduleBooking] = useState<Record<string, unknown> | null>(null);
   const [cancelBooking, setCancelBooking] = useState<Record<string, unknown> | null>(null);
+  const [expandedLabDates, setExpandedLabDates] = useState<string[]>([]);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchCustomer = useCallback(async () => {
+    setIsLoadingCustomer(true);
     try {
-      const [customerRes, assessmentRes, portalQuizzesRes] = await Promise.all([
-        fetch(`/api/users/${customerId}`),
-        fetch(`/api/admin/customer-assessment?userId=${customerId}`),
-        fetch(`/api/admin/portal-quizzes?userId=${customerId}`),
-      ]);
-
+      const customerRes = await fetch(`/api/users/${customerId}`);
       if (customerRes.ok) {
         const data = await customerRes.json();
         setCustomer(data.user);
         setEditData(data.user);
-      }
-
-      if (portalQuizzesRes.ok) {
-        const portalJson = await portalQuizzesRes.json();
-        setPortalQuizzes(
-          Array.isArray(portalJson.submissions)
-            ? (portalJson.submissions as PortalQuizSubmissionView[])
-            : []
-        );
       } else {
-        const portalErr = await portalQuizzesRes.json().catch(() => ({}));
-        console.error("Portal quizzes fetch failed:", portalErr);
-        setPortalQuizzes([]);
-        if (portalQuizzesRes.status === 401) {
-          toast.error("Could not load program quizzes — check your admin permissions.");
-        }
+        setCustomer(null);
       }
+    } catch (error) {
+      console.error("Error fetching customer:", error);
+      toast.error("Failed to load customer profile");
+      setCustomer(null);
+    } finally {
+      setIsLoadingCustomer(false);
+    }
+  }, [customerId]);
 
+  const fetchAssessmentData = useCallback(async () => {
+    setIsLoadingAssessment(true);
+    try {
+      const assessmentRes = await fetch(`/api/admin/customer-assessment?userId=${customerId}`);
       const assessmentJson = await assessmentRes.json().catch(() => ({}));
+
       if (assessmentRes.ok) {
         setAssessmentData(assessmentJson);
-        if (!portalQuizzesRes.ok && Array.isArray(assessmentJson.portalQuizzes)) {
-          setPortalQuizzes(assessmentJson.portalQuizzes as PortalQuizSubmissionView[]);
+        if (Array.isArray(assessmentJson.portalQuizAllSubmissions)) {
+          setPortalQuizAllSubmissions(
+            assessmentJson.portalQuizAllSubmissions as PortalQuizSubmissionView[]
+          );
+        } else if (Array.isArray(assessmentJson.portalQuizzes)) {
+          setPortalQuizAllSubmissions(assessmentJson.portalQuizzes as PortalQuizSubmissionView[]);
         }
       } else {
         console.error("Assessment fetch failed:", assessmentJson);
-        if (customerRes.ok) {
-          toast.error(
-            assessmentJson.error ||
-              "Some billing and assessment details could not be loaded. Try refreshing the page."
-          );
-        } else {
-          toast.error(assessmentJson.error || "Failed to load billing and assessment data");
-        }
+        toast.error(
+          assessmentJson.error ||
+            "Some billing and assessment details could not be loaded. Try refreshing the page."
+        );
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Failed to load customer data");
+      console.error("Error fetching assessment data:", error);
+      toast.error("Failed to load billing and assessment data");
     } finally {
-      setIsLoading(false);
+      setIsLoadingAssessment(false);
     }
   }, [customerId]);
+
+  const fetchData = useCallback(async () => {
+    await fetchCustomer();
+    void fetchAssessmentData();
+  }, [fetchCustomer, fetchAssessmentData]);
 
   useEffect(() => {
     if (customerId) fetchData();
@@ -397,7 +429,129 @@ export default function CustomerDetailPage() {
     }
   };
 
-  if (isLoading) {
+  const biomarkers = useMemo(
+    () => (assessmentData?.biomarkers as Array<Record<string, unknown>>) || [],
+    [assessmentData?.biomarkers]
+  );
+
+  const biomarkersByTestDate = useMemo(() => {
+    const groups = new Map<string, Array<Record<string, unknown>>>();
+    for (const result of biomarkers) {
+      const testedAt = result.testedAt as string | undefined;
+      let dateKey = "unknown";
+      if (testedAt) {
+        const parsed = new Date(testedAt);
+        if (!Number.isNaN(parsed.getTime())) {
+          dateKey = parsed.toLocaleDateString("en-CA");
+        }
+      }
+      const existing = groups.get(dateKey) ?? [];
+      existing.push(result);
+      groups.set(dateKey, existing);
+    }
+    return Array.from(groups.entries()).sort((a, b) => {
+      if (a[0] === "unknown") return 1;
+      if (b[0] === "unknown") return -1;
+      return b[0].localeCompare(a[0]);
+    });
+  }, [biomarkers]);
+
+  const labDateKeys = useMemo(
+    () => biomarkersByTestDate.map(([dateKey]) => dateKey),
+    [biomarkersByTestDate]
+  );
+
+  useEffect(() => {
+    if (labDateKeys.length === 0) return;
+    setExpandedLabDates((prev) => {
+      const valid = prev.filter((key) => labDateKeys.includes(key));
+      if (valid.length > 0) return valid;
+      return [labDateKeys[0]];
+    });
+  }, [labDateKeys]);
+
+  const memberGender = (customer?.gender === "FEMALE" ? "female" : "male") as "male" | "female";
+
+  /** Latest value per biomarker — same rule as member dashboard (most recent testedAt). */
+  const latestBiomarkerResults = useMemo((): BiomarkerResultInput[] => {
+    const latest = new Map<string, BiomarkerResultInput>();
+    for (const r of biomarkers) {
+      const biomarkerId = r.biomarkerId as string | undefined;
+      if (!biomarkerId || latest.has(biomarkerId)) continue;
+      const value = typeof r.value === "number" ? r.value : Number(r.value);
+      if (!Number.isFinite(value)) continue;
+      latest.set(biomarkerId, {
+        id: (r.id as string) ?? biomarkerId,
+        biomarkerId,
+        value,
+        status: String(r.status ?? "NORMAL").toLowerCase(),
+        testedAt: (r.testedAt as string) ?? new Date().toISOString(),
+      });
+    }
+    return Array.from(latest.values());
+  }, [biomarkers]);
+
+  const holisticInsights = useMemo(() => {
+    if (latestBiomarkerResults.length === 0) return null;
+
+    const healthScores = calculateAllHealthTestScores(
+      memberGender,
+      latestBiomarkerResults
+    );
+
+    const inflammationIds = biomarkerDefinitions
+      .filter((b) => b.category === "inflammation")
+      .map((b) => b.id);
+    const inflammation = calculateStatusBasedScore(
+      inflammationIds,
+      memberGender,
+      latestBiomarkerResults
+    );
+
+    const byKey: Record<
+      string,
+      {
+        score: number;
+        hasData: boolean;
+        optimal: number;
+        normal: number;
+        outOfRange: number;
+      }
+    > = {};
+
+    for (const cat of HEALTH_CATEGORIES) {
+      if (cat.key === "inflammation") {
+        byKey.inflammation = {
+          score: inflammation.score,
+          hasData: inflammation.hasData,
+          optimal: inflammation.optimal,
+          normal: inflammation.normal,
+          outOfRange: inflammation.outOfRange,
+        };
+        continue;
+      }
+
+      const testId = HOLISTIC_TEST_ID_BY_CATEGORY[cat.key];
+      const match = healthScores.categories.find((c) => c.id === testId);
+      byKey[cat.key] = match
+        ? {
+            score: match.score,
+            hasData: match.hasData,
+            optimal: match.optimal,
+            normal: match.normal,
+            outOfRange: match.outOfRange,
+          }
+        : { score: 0, hasData: false, optimal: 0, normal: 0, outOfRange: 0 };
+    }
+
+    return {
+      overall: healthScores.overall,
+      lastUpdated: healthScores.lastUpdated,
+      byKey,
+    };
+  }, [latestBiomarkerResults, memberGender]);
+
+  if (isLoadingCustomer) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -416,7 +570,6 @@ export default function CustomerDetailPage() {
   }
 
   const notes = (assessmentData?.notes as Array<Record<string, unknown>>) || [];
-  const biomarkers = (assessmentData?.biomarkers as Array<Record<string, unknown>>) || [];
   const weightLogs = (assessmentData?.weightLogs as Array<Record<string, unknown>>) || [];
   const invoices = (assessmentData?.invoices as Array<Record<string, unknown>>) || [];
   const bookings = (assessmentData?.bookings as Array<Record<string, unknown>>) || [];
@@ -521,26 +674,25 @@ export default function CustomerDetailPage() {
   // Calculate BMI if available
   const height = parseFloat(assessment?.height || "0");
   const weight = parseFloat(assessment?.currentWeight || "0");
+  const quizAssessmentProgramCount = (() => {
+    const keys = new Set<string>();
+    if (assessment) keys.add("WEIGHT_MANAGEMENT");
+    for (const sub of portalQuizAllSubmissions) keys.add(sub.programKey);
+    if (isHairLossQuestionnaire && rawSurveyData && !keys.has("HAIR_LOSS")) {
+      keys.add("HAIR_LOSS");
+    }
+    return keys.size;
+  })();
   const bmi = height > 0 ? (weight / Math.pow(height / 100, 2)).toFixed(1) : null;
-
-  // Helper to render condition badges
-  const renderConditionBadges = (conditions: string[] | undefined, colorClass: string) => {
-    if (!conditions || conditions.length === 0) return <span className="text-sm text-muted-foreground">None reported</span>;
-    const filtered = conditions.filter(c => c && !c.toLowerCase().includes("none"));
-    if (filtered.length === 0) return <span className="text-sm text-muted-foreground">None reported</span>;
-    return (
-      <div className="flex flex-wrap gap-1.5">
-        {filtered.map((condition, i) => (
-          <Badge key={i} variant="secondary" className={colorClass}>
-            {condition}
-          </Badge>
-        ))}
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-6">
+      {isLoadingAssessment && (
+        <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading billing, assessment, and program details…
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -549,7 +701,7 @@ export default function CustomerDetailPage() {
           </Link>
           <Avatar className="h-14 w-14">
             <AvatarFallback className="bg-primary/10 text-primary text-lg">
-              {customer.firstName[0]}{customer.lastName[0]}
+              {customer.firstName?.[0] ?? "?"}{customer.lastName?.[0] ?? ""}
             </AvatarFallback>
           </Avatar>
           <div>
@@ -664,18 +816,16 @@ export default function CustomerDetailPage() {
           </Card>
 
           {/* Tabs */}
-          <Tabs defaultValue="quizzes">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9">
-              <TabsTrigger value="quizzes">
-                Program Quizzes
-                {portalQuizzes.length > 0 && (
+          <Tabs defaultValue="quiz-assessment">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+              <TabsTrigger value="quiz-assessment">
+                Quiz Assessment
+                {quizAssessmentProgramCount > 0 && (
                   <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
-                    {portalQuizzes.length}
+                    {quizAssessmentProgramCount}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="assessment">Assessment</TabsTrigger>
-              <TabsTrigger value="hair">Hair</TabsTrigger>
               <TabsTrigger value="subscription">Subscription</TabsTrigger>
               <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -684,273 +834,20 @@ export default function CustomerDetailPage() {
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="quizzes" className="mt-4">
-              <MemberProgramQuizTabs
-                submissions={portalQuizzes}
+            <TabsContent value="quiz-assessment" className="mt-4">
+              <MemberQuizAssessmentTabs
+                submissions={portalQuizAllSubmissions}
                 memberGender={customer?.gender}
+                assessment={assessment}
+                bmi={bmi}
+                rawSurveyData={rawSurveyData}
+                isHairLossQuestionnaire={isHairLossQuestionnaire}
+                assessmentSubmittedAt={
+                  assessment?.submittedAt ||
+                  (assessmentData?.submittedAt as string | undefined) ||
+                  null
+                }
               />
-            </TabsContent>
-
-            {/* Assessment / Quiz Responses Tab */}
-            <TabsContent value="assessment" className="space-y-4 mt-4">
-              {assessment ? (
-                <>
-                  {/* Weight & BMI Summary */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Scale className="w-5 h-5" />
-                        Weight Management Goals
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-3 bg-muted/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Current Weight</p>
-                          <p className="text-xl font-bold">{assessment.currentWeight || "—"} kg</p>
-                        </div>
-                        <div className="p-3 bg-muted/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Target Weight</p>
-                          <p className="text-xl font-bold">{assessment.targetWeight || "—"} kg</p>
-                        </div>
-                        <div className="p-3 bg-muted/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Height</p>
-                          <p className="text-xl font-bold">{assessment.height || "—"} cm</p>
-                        </div>
-                        <div className="p-3 bg-muted/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">BMI</p>
-                          <p className="text-xl font-bold">{bmi || "—"}</p>
-                          {bmi && (
-                            <Badge className={`text-xs mt-1 ${
-                              parseFloat(bmi) >= 30 ? "bg-red-100 text-red-700" :
-                              parseFloat(bmi) >= 27 ? "bg-orange-100 text-orange-700" :
-                              parseFloat(bmi) >= 25 ? "bg-yellow-100 text-yellow-700" :
-                              "bg-green-100 text-green-700"
-                            }`}>
-                              {parseFloat(bmi) >= 30 ? "Obese" :
-                               parseFloat(bmi) >= 27 ? "Overweight" :
-                               parseFloat(bmi) >= 25 ? "Slightly Overweight" : "Healthy"}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      {assessment.weightLossGoal && (
-                        <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                          <p className="text-sm font-medium flex items-center gap-2">
-                            <Target className="w-4 h-4 text-primary" />
-                            Weight Loss Goal: <span className="text-primary">{assessment.weightLossGoal}</span>
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Medical Conditions */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <ClipboardList className="w-5 h-5" />
-                        Medical History
-                      </CardTitle>
-                      <CardDescription>
-                        Conditions reported during health assessment
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2">
-                          <Flame className="w-4 h-4 text-orange-500" />
-                          Metabolic Conditions
-                        </Label>
-                        {renderConditionBadges(assessment.metabolicConditions, "bg-orange-50 text-orange-700")}
-                      </div>
-                      <Separator />
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2">
-                          <Utensils className="w-4 h-4 text-green-500" />
-                          Digestive Conditions
-                        </Label>
-                        {renderConditionBadges(assessment.digestiveConditions, "bg-green-50 text-green-700")}
-                      </div>
-                      <Separator />
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2">
-                          <Heart className="w-4 h-4 text-red-500" />
-                          Cardiovascular Conditions
-                        </Label>
-                        {renderConditionBadges(assessment.cardiovascularConditions, "bg-red-50 text-red-700")}
-                      </div>
-                      <Separator />
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2">
-                          <Brain className="w-4 h-4 text-purple-500" />
-                          Mental Health Conditions
-                        </Label>
-                        {renderConditionBadges(assessment.mentalHealthConditions, "bg-purple-50 text-purple-700")}
-                      </div>
-                      {assessment.seriousConditions && assessment.seriousConditions.filter(c => c && !c.toLowerCase().includes("none")).length > 0 && (
-                        <>
-                          <Separator />
-                          <div>
-                            <Label className="flex items-center gap-2 mb-2">
-                              <AlertTriangle className="w-4 h-4 text-red-600" />
-                              Serious Conditions / Contraindications
-                            </Label>
-                            {renderConditionBadges(assessment.seriousConditions, "bg-red-100 text-red-800")}
-                          </div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Current Medications */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Pill className="w-5 h-5" />
-                        Current Medications
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {renderConditionBadges(assessment.currentMedications, "bg-blue-50 text-blue-700")}
-                    </CardContent>
-                  </Card>
-
-                  {/* Motivations & Goals */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Target className="w-5 h-5" />
-                        Motivations & Goals
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <Label className="mb-2">Primary Motivations</Label>
-                        {renderConditionBadges(assessment.motivations, "bg-primary/10 text-primary")}
-                      </div>
-                      {assessment.otherGoals && assessment.otherGoals.filter(g => g && g !== "none").length > 0 && (
-                        <div>
-                          <Label className="mb-2">Other Health Goals</Label>
-                          {renderConditionBadges(assessment.otherGoals, "bg-amber-50 text-amber-700")}
-                        </div>
-                      )}
-                      {assessment.howHeard && (
-                        <div className="pt-2">
-                          <p className="text-sm text-muted-foreground">
-                            How they heard about us: <span className="font-medium text-foreground">{assessment.howHeard}</span>
-                          </p>
-                        </div>
-                      )}
-                      {assessment.submittedAt && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            Assessment submitted: <span className="font-medium text-foreground">{new Date(assessment.submittedAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}</span>
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </>
-              ) : (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No assessment data available</p>
-                    <p className="text-sm text-muted-foreground mt-1">The customer has not completed the health questionnaire yet.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="hair" className="space-y-4 mt-4">
-              {isHairLossQuestionnaire && rawSurveyData ? (
-                <>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-amber-600" />
-                        Hair Loss Questionnaire
-                        <Badge className="bg-amber-100 text-amber-800 border-amber-200">
-                          Hair Loss
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription>
-                        Captured from the hair assessment quiz.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="p-3 bg-muted/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Hair stage</p>
-                          <p className="font-medium">{(rawSurveyData.hairStage as string) || "—"}</p>
-                        </div>
-                        <div className="p-3 bg-muted/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Timeline</p>
-                          <p className="font-medium">{(rawSurveyData.hairLossTimeline as string) || "—"}</p>
-                        </div>
-                        <div className="p-3 bg-muted/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Family history</p>
-                          <p className="font-medium">{(rawSurveyData.familyHistory as string) || "—"}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Medical considerations</CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div>
-                              <Label className="mb-2">Conditions</Label>
-                              {renderConditionBadges(
-                                (rawSurveyData.medicalConditions as string[]) || [],
-                                "bg-blue-50 text-blue-700"
-                              )}
-                            </div>
-                            {(rawSurveyData.gender as string) === "female" && (
-                              <div>
-                                <Label className="mb-2">Pregnancy status</Label>
-                                <Badge variant="outline">
-                                  {(rawSurveyData.pregnancyStatus as string) || "—"}
-                                </Badge>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Care context</CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div>
-                              <Label className="mb-2">Other concerns</Label>
-                              {renderConditionBadges(
-                                (rawSurveyData.otherConcerns as string[]) || [],
-                                "bg-amber-50 text-amber-700"
-                              )}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              Plan:{" "}
-                              <span className="font-medium text-foreground">
-                                $49 first month, then $79/month if approved
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              ) : (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No hair questionnaire data available</p>
-                  </CardContent>
-                </Card>
-              )}
             </TabsContent>
 
             {/* Prescriptions Tab */}
@@ -1129,18 +1026,125 @@ export default function CustomerDetailPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {biomarkers.length > 0 ? biomarkers.map((b: Record<string, unknown>) => (
-                    <div key={b.id as string} className="flex justify-between p-3 border rounded-lg mb-2">
-                      <div>
-                        <p className="font-medium">{(b.biomarker as Record<string, unknown>)?.name as string || b.biomarkerId as string}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(b.testedAt as string).toLocaleDateString()}</p>
+                  {biomarkers.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm text-muted-foreground">
+                          {biomarkersByTestDate.length} test date{biomarkersByTestDate.length === 1 ? "" : "s"} · {biomarkers.length} results
+                        </p>
+                        {labDateKeys.length > 1 && (
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setExpandedLabDates(labDateKeys)}
+                            >
+                              Expand all
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setExpandedLabDates([])}
+                            >
+                              Collapse all
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <span className="font-semibold">{b.value as number} {(b.biomarker as Record<string, unknown>)?.unit as string}</span>
-                        <Badge className="ml-2">{b.status as string}</Badge>
+                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pb-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full status-dot-optimal" />
+                          Optimal
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full status-dot-normal" />
+                          Normal
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full status-dot-out-of-range" />
+                          Attention
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full status-dot-critical" />
+                          Critical
+                        </span>
                       </div>
+                      <Accordion
+                        type="multiple"
+                        value={expandedLabDates}
+                        onValueChange={setExpandedLabDates}
+                        className="w-full"
+                      >
+                        {biomarkersByTestDate.map(([dateKey, dateResults]) => (
+                          <AccordionItem key={dateKey} value={dateKey}>
+                            <AccordionTrigger className="hover:no-underline py-3">
+                              <div className="flex items-center gap-2 text-left">
+                                <Calendar className="w-4 h-4 text-primary shrink-0" />
+                                <span className="font-semibold">
+                                  {dateKey !== "unknown"
+                                    ? new Date(`${dateKey}T12:00:00`).toLocaleDateString("en-AU", {
+                                        weekday: "short",
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                      })
+                                    : "Unknown date"}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {dateResults.length} biomarker{dateResults.length === 1 ? "" : "s"}
+                                </Badge>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-2 pt-1">
+                                {dateResults.map((b: Record<string, unknown>) => {
+                                  const status = String(b.status ?? "NORMAL");
+                                  const displayValue =
+                                    typeof b.value === "number"
+                                      ? b.value
+                                      : Number(b.value);
+                                  return (
+                                    <div
+                                      key={b.id as string}
+                                      className={`flex items-center justify-between gap-3 p-3 border rounded-lg ${getBiomarkerStatusRowClass(status)}`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span
+                                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${getBiomarkerStatusDotClass(status)}`}
+                                        />
+                                        <p className="font-medium truncate">
+                                          {(b.biomarker as Record<string, unknown>)?.name as string ||
+                                            (b.biomarkerId as string)}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0 text-right">
+                                        <span className="font-semibold tabular-nums">
+                                          {Number.isFinite(displayValue) ? displayValue : "—"}{" "}
+                                          <span className="font-normal text-muted-foreground">
+                                            {(b.biomarker as Record<string, unknown>)?.unit as string}
+                                          </span>
+                                        </span>
+                                        <Badge
+                                          variant="outline"
+                                          className={`text-xs ${getBiomarkerStatusBadgeClass(status)}`}
+                                        >
+                                          {getBiomarkerStatusLabel(status)}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
                     </div>
-                  )) : <p className="text-center text-muted-foreground py-8">No biomarker results</p>}
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No biomarker results</p>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1908,25 +1912,73 @@ export default function CustomerDetailPage() {
           {/* Holistic Insights */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" />Holistic Insights</CardTitle>
-              <CardDescription>Health overview</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Holistic Insights
+              </CardTitle>
+              <CardDescription>
+                Health overview from latest lab results
+                {holisticInsights?.lastUpdated && (
+                  <span className="block text-xs mt-0.5">
+                    Updated{" "}
+                    {new Date(holisticInsights.lastUpdated).toLocaleDateString("en-AU", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {HEALTH_CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                return (
-                  <div key={cat.key} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                    <div className={`p-2 rounded-lg bg-background ${cat.color}`}><Icon className="w-4 h-4" /></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{cat.label}</p>
-                      <div className="h-2 bg-muted rounded-full mt-1">
-                        <div className="h-full bg-gray-300 rounded-full" style={{ width: "0%" }} />
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">—</span>
+              {!holisticInsights ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No lab results yet. Upload biomarkers to see health scores.
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/10">
+                    <span className="text-sm font-medium">Overall health score</span>
+                    <span className={`text-2xl font-bold ${getScoreColor(holisticInsights.overall)}`}>
+                      {holisticInsights.overall}
+                    </span>
                   </div>
-                );
-              })}
+                  {HEALTH_CATEGORIES.map((cat) => {
+                    const Icon = cat.icon;
+                    const insight = holisticInsights.byKey[cat.key];
+                    const hasData = insight?.hasData ?? false;
+                    const score = insight?.score ?? 0;
+                    return (
+                      <div key={cat.key} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                        <div className={`p-2 rounded-lg bg-background ${cat.color}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">{cat.label}</p>
+                            {hasData && insight.outOfRange > 0 && (
+                              <span className="text-xs text-orange-600 shrink-0">
+                                {insight.outOfRange} need attention
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-2 bg-muted rounded-full mt-1 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${hasData ? getProgressColor(score) : "bg-gray-300"}`}
+                              style={{ width: hasData ? `${Math.min(100, Math.max(0, score))}%` : "0%" }}
+                            />
+                          </div>
+                        </div>
+                        <span
+                          className={`text-sm font-semibold tabular-nums shrink-0 ${hasData ? getScoreColor(score) : "text-muted-foreground"}`}
+                        >
+                          {hasData ? score : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </CardContent>
           </Card>
 

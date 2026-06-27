@@ -160,10 +160,10 @@ export default function FattyLiverPage() {
 
   // GAP-017: Removed public medication names for TGA compliance
   const outcomes = [
-    { metric: "59%", description: "of study participants showed NASH resolution with prescription treatment in clinical trial", citation: "Newsome PN, et al. NEJM 2021;384(12):1113-1124" },
-    { metric: "90%", description: "NASH resolution observed in trial participants achieving ≥10% weight loss", citation: "Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378" },
+    { metric: "59%", description: "of study participants showed NASH resolution in a published clinical trial (research context only — not a treatment advertisement)", citation: "Newsome PN, et al. NEJM 2021;384(12):1113-1124" },
+    { metric: "90%", description: "NASH resolution observed in trial participants achieving ≥10% weight loss through lifestyle changes", citation: "Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378" },
     { metric: "45%", description: "of participants showed fibrosis improvement with lifestyle changes in study", citation: "Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378" },
-    { metric: ">65%", description: "reduction in liver fat observed in prescription medication clinical trials", citation: "Loomba R, et al. Lancet Gastroenterol Hepatol 2023;8(6):511-522" },
+    { metric: ">65%", description: "reduction in liver fat observed in some clinical research studies (individual results vary)", citation: "Loomba R, et al. Lancet Gastroenterol Hepatol 2023;8(6):511-522" },
   ];
 
   const treatmentOptions = [
@@ -180,7 +180,7 @@ export default function FattyLiverPage() {
     {
       icon: Pill,
       title: "Medical Options",
-      description: "When clinically appropriate, prescription medications that have been studied for their effects on liver fat in clinical trials. Treatment options are discussed privately with your doctor.²",
+      description: "When clinically appropriate, treatment options may be discussed privately with your doctor based on individual assessment and published clinical research.²",
     },
     {
       icon: FlaskConical,

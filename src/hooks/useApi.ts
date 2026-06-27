@@ -141,7 +141,6 @@ export function useAdminStats() {
     appointments: any;
     recentActivity: any[];
     recentLabReports: any[];
-    usersWithCritical: any[];
   }>("/api/admin/stats");
 }
 

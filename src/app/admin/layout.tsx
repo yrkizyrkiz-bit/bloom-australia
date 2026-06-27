@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { ComponentType } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -41,6 +41,7 @@ import {
   KeyRound,
   DollarSign,
 } from "lucide-react";
+import { DOCTOR_PORTAL_HOME } from "@/lib/portal/staff-home";
 
 type AdminNavItem = {
   href: string;
@@ -65,11 +66,16 @@ const clinicalAdminNavItems: AdminNavItem[] = [
   { href: "/admin/welcome-calls", label: "Welcome Calls", icon: Sparkles },
 ];
 
-const doctorClinicalAdminNavItems: AdminNavItem[] = [
-  { href: "/admin/doctor", label: "Doctors", icon: Stethoscope },
+const doctorPrimaryNavItems: AdminNavItem[] = [
   { href: "/admin/bookings", label: "Bookings", icon: Calendar },
-  { href: "/admin/prescriptions", label: "Prescriptions", icon: Pill },
-  { href: "/admin/welcome-calls", label: "Welcome Calls", icon: Sparkles },
+  { href: "/admin/doctor", label: "Doctor", icon: Stethoscope },
+  { href: "/admin/upload", label: "Upload Results", icon: Upload },
+];
+
+const doctorCareCommsNavItems: AdminNavItem[] = [
+  { href: "/admin/notifications", label: "Notifications", icon: Bell },
+  { href: "/admin/email-preview", label: "Emails", icon: Mail },
+  { href: "/admin/chat", label: "Live Chat", icon: MessageSquare },
 ];
 
 const adminUtilityNavItems: AdminNavItem[] = [
@@ -83,10 +89,10 @@ const adminUtilityNavItems: AdminNavItem[] = [
 ];
 
 const doctorMobileNavItems: AdminNavItem[] = [
-  { href: "/admin/doctor", label: "Consults", icon: Stethoscope },
   { href: "/admin/bookings", label: "Bookings", icon: Calendar },
-  { href: "/admin/prescriptions", label: "Scripts", icon: Pill },
-  { href: "/admin/welcome-calls", label: "Calls", icon: Sparkles },
+  { href: "/admin/doctor", label: "Doctor", icon: Stethoscope },
+  { href: "/admin/upload", label: "Upload", icon: Upload },
+  { href: "/admin/notifications", label: "Care Comms", icon: MessageSquare },
 ];
 
 // Health Tests moved to customer form sidebar as "Holistic Insights"
@@ -99,27 +105,23 @@ export default function AdminLayout({
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname() || "";
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Roles that can access admin panel
   const adminRoles = ["admin", "ADMIN", "CARE_PARTNER", "DOCTOR"];
 
   useEffect(() => {
-    // Give session time to sync after login
-    if (!isLoading) {
-      const timer = setTimeout(() => {
-        setIsCheckingAuth(false);
-        if (!user) {
-          router.push("/");
-        } else if (!adminRoles.includes(user.role)) {
-          router.push("/dashboard");
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [user, isLoading, router]);
+    if (isLoading) return;
 
-  if (isLoading || isCheckingAuth) {
+    if (!user) {
+      router.replace("/");
+    } else if (!adminRoles.includes(user.role)) {
+      router.replace("/dashboard");
+    } else if (user.role === "DOCTOR" && pathname === "/admin") {
+      router.replace(DOCTOR_PORTAL_HOME);
+    }
+  }, [user, isLoading, router, pathname]);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -140,15 +142,14 @@ export default function AdminLayout({
   const isGroupActive = (items: AdminNavItem[]) =>
     items.some((item) => isNavActive(item));
   const isDoctor = user.role === "DOCTOR";
-  const displayedClinicalAdminNavItems = isDoctor
-    ? doctorClinicalAdminNavItems
-    : clinicalAdminNavItems;
+  const portalHomeHref = isDoctor ? DOCTOR_PORTAL_HOME : dashboardNavItem.href;
   const bottomNavItems = isDoctor ? doctorMobileNavItems : [
     dashboardNavItem,
     crmNavItems[1],
     clinicalAdminNavItems[1],
     adminUtilityNavItems[0],
   ];
+  const isCareCommsActive = isDoctor && isGroupActive(doctorCareCommsNavItems);
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -157,7 +158,7 @@ export default function AdminLayout({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/admin" className="flex items-center gap-2 cursor-pointer">
+            <Link href={portalHomeHref} className="flex items-center gap-2 cursor-pointer">
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <FlaskConical className="w-5 h-5 text-white" />
               </div>
@@ -165,12 +166,58 @@ export default function AdminLayout({
                 sanative
               </span>
               <span className="ml-2 px-2 py-0.5 text-xs bg-orange-500 rounded-full font-medium">
-                Admin
+                {isDoctor ? "Doctor" : "Admin"}
               </span>
             </Link>
 
             {/* Desktop Nav Items */}
             <div className="hidden md:flex items-center gap-1">
+              {isDoctor ? (
+                <>
+                  {doctorPrimaryNavItems.map((item) => {
+                    const isActive = isNavActive(item);
+                    return (
+                      <Link key={item.href} href={item.href}>
+                        <Button
+                          variant={isActive ? "secondary" : "ghost"}
+                          size="sm"
+                          className={`gap-2 ${!isActive && "text-slate-300 hover:text-white hover:bg-slate-800"}`}
+                        >
+                          <item.icon className="w-4 h-4" />
+                          {item.label}
+                        </Button>
+                      </Link>
+                    );
+                  })}
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant={isCareCommsActive ? "secondary" : "ghost"}
+                        size="sm"
+                        className={`gap-2 ${!isCareCommsActive && "text-slate-300 hover:text-white hover:bg-slate-800"}`}
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        Care Comms
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-52">
+                      <DropdownMenuLabel>Care Comms</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {doctorCareCommsNavItems.map((item) => (
+                        <DropdownMenuItem key={item.href} asChild>
+                          <Link href={item.href} className="cursor-pointer">
+                            <item.icon className="w-4 h-4" />
+                            {item.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : (
+                <>
               <Link href={dashboardNavItem.href}>
                 <Button
                   variant={isNavActive(dashboardNavItem) ? "secondary" : "ghost"}
@@ -211,9 +258,9 @@ export default function AdminLayout({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant={isGroupActive(displayedClinicalAdminNavItems) ? "secondary" : "ghost"}
+                    variant={isGroupActive(clinicalAdminNavItems) ? "secondary" : "ghost"}
                     size="sm"
-                    className={`gap-2 ${!isGroupActive(displayedClinicalAdminNavItems) && "text-slate-300 hover:text-white hover:bg-slate-800"}`}
+                    className={`gap-2 ${!isGroupActive(clinicalAdminNavItems) && "text-slate-300 hover:text-white hover:bg-slate-800"}`}
                   >
                     <Stethoscope className="w-4 h-4" />
                     Clinical Admin
@@ -223,7 +270,7 @@ export default function AdminLayout({
                 <DropdownMenuContent align="start" className="w-56">
                   <DropdownMenuLabel>Clinical Admin</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {displayedClinicalAdminNavItems.map((item) => (
+                  {clinicalAdminNavItems.map((item) => (
                     <DropdownMenuItem key={item.href} asChild>
                       <Link href={item.href} className="cursor-pointer">
                         <item.icon className="w-4 h-4" />
@@ -249,6 +296,8 @@ export default function AdminLayout({
                   </Link>
                 );
               })}
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-1">
@@ -261,6 +310,31 @@ export default function AdminLayout({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64 max-h-[80vh] overflow-y-auto">
+                  {isDoctor ? (
+                    <>
+                      <DropdownMenuLabel>Doctor Navigation</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {doctorPrimaryNavItems.map((item) => (
+                        <DropdownMenuItem key={item.href} asChild>
+                          <Link href={item.href} className="cursor-pointer">
+                            <item.icon className="w-4 h-4" />
+                            {item.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">Care Comms</DropdownMenuLabel>
+                      {doctorCareCommsNavItems.map((item) => (
+                        <DropdownMenuItem key={item.href} asChild>
+                          <Link href={item.href} className="cursor-pointer">
+                            <item.icon className="w-4 h-4" />
+                            {item.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  ) : (
+                    <>
                   <DropdownMenuLabel>Admin Navigation</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -281,7 +355,7 @@ export default function AdminLayout({
                   ))}
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-xs text-muted-foreground">Clinical Admin</DropdownMenuLabel>
-                  {displayedClinicalAdminNavItems.map((item) => (
+                  {clinicalAdminNavItems.map((item) => (
                     <DropdownMenuItem key={item.href} asChild>
                       <Link href={item.href} className="cursor-pointer">
                         <item.icon className="w-4 h-4" />
@@ -298,6 +372,8 @@ export default function AdminLayout({
                       </Link>
                     </DropdownMenuItem>
                   ))}
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -311,7 +387,7 @@ export default function AdminLayout({
                       </AvatarFallback>
                     </Avatar>
                     <span className="hidden sm:inline text-sm font-medium">
-                      Admin
+                      {isDoctor ? "Doctor" : "Admin"}
                     </span>
                     <ChevronDown className="w-4 h-4 hidden sm:block" />
                   </Button>
@@ -319,7 +395,7 @@ export default function AdminLayout({
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
                     <div className="flex flex-col">
-                      <span>Administrator</span>
+                      <span>{isDoctor ? "Doctor" : "Administrator"}</span>
                       <span className="text-xs font-normal text-muted-foreground">
                         {user?.email}
                       </span>
@@ -365,7 +441,10 @@ export default function AdminLayout({
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
         <div className="mx-auto grid h-16 max-w-md grid-cols-4 px-1">
           {bottomNavItems.map((item) => {
-            const isActive = isNavActive(item);
+            const isActive =
+              isDoctor && item.href === "/admin/notifications"
+                ? isCareCommsActive
+                : isNavActive(item);
             return (
               <Link
                 key={item.href}

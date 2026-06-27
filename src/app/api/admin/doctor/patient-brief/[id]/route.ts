@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireClinicalStaff } from "@/lib/auth/require-clinical-staff";
+import { recordSecurityAudit } from "@/lib/security/audit-log";
+import { canAccessPatientClinicalRecord } from "@/lib/security/patient-access";
 import {
   formatScheduleHistoryEntry,
   getScheduleHistoryForBooking,
@@ -16,9 +17,9 @@ interface RouteParams {
 // GET /api/admin/doctor/patient-brief/[id] - Get comprehensive patient brief
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !["ADMIN", "DOCTOR", "CARE_PARTNER"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireClinicalStaff();
+    if ("error" in auth) {
+      return auth.error;
     }
 
     const { id: userId } = await params;
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             completedAt: true,
             notes: true,
             doctorName: true,
+            doctorId: true,
             selectedPlan: true,
             riskFlags: true,
             patientBmi: true,
@@ -141,6 +143,26 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       ) ||
       user.consultationBookings[0] ||
       null;
+
+    if (
+      !canAccessPatientClinicalRecord({
+        actorRole: auth.role,
+        actorUserId: auth.userId,
+        patientUserId: userId,
+        assignedDoctorId: activeBooking?.doctorId,
+      })
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await recordSecurityAudit({
+      req: request,
+      actorUserId: auth.userId,
+      actorRole: auth.role,
+      route: `/api/admin/doctor/patient-brief/${userId}`,
+      patientId: userId,
+      actionType: "read",
+    });
 
     if (activeBooking) {
       const hasScheduleNote = user.internalNotes.some(
@@ -384,7 +406,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
       urls: {
         memberProfile: `/admin/crm/customers/${user.id}`,
-        doctorBrief: `/admin/doctor-brief/${user.id}`,
+        doctorBrief: `/admin/doctor/brief/${user.id}`,
       },
 
       // Clinical Notes (exclude system/integration failure notes)
@@ -443,21 +465,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       // Intake Data (raw, for reference)
       rawIntakeData: intakeData,
     };
-
-    // Log brief access for audit
-    await prisma.activityLog.create({
-      data: {
-        userId,
-        action: "PATIENT_BRIEF_VIEWED",
-        entity: "patient_brief",
-        entityId: userId,
-        details: {
-          viewedBy: session.user.id,
-          viewerRole: session.user.role,
-          timestamp: new Date().toISOString(),
-        },
-      },
-    });
 
     return NextResponse.json(patientBrief);
   } catch (error) {

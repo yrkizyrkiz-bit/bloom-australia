@@ -7,6 +7,7 @@ import { normalizeProgramKey, PROGRAM_LABELS } from "@/lib/membership/keys";
 import { resolveProgramCheckoutQuote } from "@/lib/billing/portal-pricing";
 import { isProgramBillingTerm } from "@/lib/programs/offers";
 import { getSexualHealthFocusLabel } from "@/lib/programs/quizzes/sexual-health-quiz";
+import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
 
 export async function POST(request: Request) {
   try {
@@ -17,8 +18,22 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const paymentIntentId = body?.paymentIntentId as string | undefined;
+    const consentRecordId = body?.consentRecordId as string | undefined;
     if (!paymentIntentId) {
       return NextResponse.json({ error: "Missing paymentIntentId" }, { status: 400 });
+    }
+
+    const consentVerification = await requirePrePaymentConsent({
+      consentRecordId,
+      userId: session.user.id,
+      email: session.user.email ?? undefined,
+    });
+
+    if (!consentVerification.ok) {
+      return NextResponse.json(
+        { error: consentVerification.error },
+        { status: consentVerification.status }
+      );
     }
 
     const activation = await confirmPortalProgramPayment({

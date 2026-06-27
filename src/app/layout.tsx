@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
+import { getServerSession } from "next-auth";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import { SessionProvider } from "@/components/SessionProvider";
+import { authOptions } from "@/lib/auth";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -34,15 +36,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
       <body className="font-sans">
-        <SessionProvider>
+        <SessionProvider session={session}>
           <AuthProvider>
             {children}
             <Toaster position="top-right" richColors />

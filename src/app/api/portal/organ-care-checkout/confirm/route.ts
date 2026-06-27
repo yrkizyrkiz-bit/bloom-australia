@@ -9,6 +9,7 @@ import {
 import { savePortalQuizSubmission } from "@/lib/portal-quiz-submissions";
 import { prisma } from "@/lib/prisma";
 import { BIOMARKERS_PANEL_META } from "@/lib/programs/offers";
+import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
 
 export async function POST(request: Request) {
   try {
@@ -20,8 +21,22 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const paymentIntentId = body?.paymentIntentId as string | undefined;
+    const consentRecordId = body?.consentRecordId as string | undefined;
     if (!paymentIntentId) {
       return NextResponse.json({ error: "Missing paymentIntentId" }, { status: 400 });
+    }
+
+    const consentVerification = await requirePrePaymentConsent({
+      consentRecordId,
+      userId,
+      email: session.user.email ?? undefined,
+    });
+
+    if (!consentVerification.ok) {
+      return NextResponse.json(
+        { error: consentVerification.error },
+        { status: consentVerification.status }
+      );
     }
 
     const answers = (body?.answers ?? {}) as Record<string, string>;

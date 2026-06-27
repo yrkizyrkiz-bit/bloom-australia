@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const latest = searchParams.get("latest") === "true";
 
     if (userId !== session.user.id && session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (latest) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const userId = body.userId || session.user.id;
 
     if (userId !== session.user.id && session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const user = await prisma.user.findUnique({

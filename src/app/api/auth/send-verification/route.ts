@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { RATE_LIMITS, rateLimitBucketKey } from "@/lib/security/rate-limit-config";
+import {
+  enforceDbRateLimits,
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
 
 // Generate 6-digit code
 function generateCode(): string {
@@ -158,6 +164,15 @@ async function sendEmail(email: string, code: string): Promise<boolean> {
 
 export async function POST(req: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      req,
+      "send-verification:ip",
+      RATE_LIMITS.sendVerificationIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const { contact, type } = await req.json();
     // type: 'email' | 'phone'
 
@@ -166,6 +181,17 @@ export async function POST(req: NextRequest) {
         { error: "Missing contact or type" },
         { status: 400 }
       );
+    }
+
+    const normalizedContact = contact.toLowerCase().trim();
+    const contactLimited = await enforceDbRateLimits([
+      {
+        bucketKey: rateLimitBucketKey("send-verification:contact", normalizedContact),
+        config: RATE_LIMITS.sendVerificationContact,
+      },
+    ]);
+    if (!contactLimited.allowed) {
+      return rateLimitExceededResponse(contactLimited.retryAfterSec);
     }
 
     // Validate format

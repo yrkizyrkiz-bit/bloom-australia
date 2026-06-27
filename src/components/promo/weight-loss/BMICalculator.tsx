@@ -70,7 +70,7 @@ export function BMICalculator() {
           `}
         >
           <p className="text-[#5c7a52] font-medium">
-            Most patients experience meaningful weight loss within the first 3 months.
+            Most patients begin seeing progress within the first few months as part of a doctor-led care plan.
           </p>
         </div>
 
@@ -86,7 +86,7 @@ export function BMICalculator() {
             <span className="text-[#5c7a52] italic">eligible</span>
           </h2>
           <p className="text-lg text-[#5c7a52]">
-            Use our BMI calculator to see if you may qualify for treatment.
+            Use our BMI calculator to see if you may qualify for the program.
           </p>
         </div>
 

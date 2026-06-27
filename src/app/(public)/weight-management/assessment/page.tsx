@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { scoreWeightManagement, fetchBiomarkerCampaigns, getBiomarkerFlags, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import { UnifiedCheckoutScreen } from "@/components/checkout/UnifiedCheckoutScreen";
+import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import {
   formatDateInTimezone,
   formatTimeInTimezone,
@@ -22,6 +23,8 @@ import {
   WM_POST_CHECKOUT_PATH,
 } from "@/lib/portal-context";
 import Link from "next/link";
+import { ConsentNotice } from "@/components/legal/ConsentNotice";
+import { logConsentEvent } from "@/lib/legal/log-consent";
 import {
   ArrowRight,
   ArrowLeft,
@@ -324,13 +327,11 @@ function calcBMI(weightKg: string, heightCm: string): number | null {
 function getBMICategory(bmi: number): {
   label: string;
   eligible: boolean;
-  monthlyLossKg: number;
-  percentLoss: string;
 } {
-  if (bmi < 27) return { label: 'Not yet in range', eligible: false, monthlyLossKg: 0.5, percentLoss: '5–8%' };
-  if (bmi < 30) return { label: 'Overweight', eligible: true, monthlyLossKg: 1.0, percentLoss: '10–13%' };
-  if (bmi < 35) return { label: 'Obese Class I', eligible: true, monthlyLossKg: 1.3, percentLoss: '12–15%' };
-  return { label: 'Obese Class II+', eligible: true, monthlyLossKg: 1.8, percentLoss: '15–20%' };
+  if (bmi < 27) return { label: 'Not yet in range', eligible: false };
+  if (bmi < 30) return { label: 'Overweight', eligible: true };
+  if (bmi < 35) return { label: 'Obese Class I', eligible: true };
+  return { label: 'Obese Class II+', eligible: true };
 }
 
 /** Fixed program projection horizon shown on graph screens */
@@ -365,23 +366,8 @@ function getMonthlyTargetForTimeline(
   return Math.round((tolose / months) * 10) / 10;
 }
 
-// Matched patient profiles — gender-aware
-const PATIENT_PROFILES = {
-  female: [
-    { name: 'Sarah, 41 — Sydney', bmiLabel: 'BMI 31', result: 'Lost 14.2kg in 7 months', extra: 'Insulin resistance improved, liver score normalised', tags: ['–14.2kg ✓', 'Liver resolved ✓'] },
-    { name: 'Michelle, 47 — Melbourne', bmiLabel: 'BMI 33', result: 'Lost 11kg in 6 months', extra: 'PCOS symptoms significantly reduced', tags: ['–11kg ✓', 'PCOS improved ✓'] },
-  ],
-  male: [
-    { name: 'James, 44 — Brisbane', bmiLabel: 'BMI 34', result: 'Lost 16kg in 8 months', extra: 'Blood pressure normalised, energy levels improved', tags: ['–16kg ✓', 'BP normal ✓'] },
-    { name: 'David, 52 — Perth', bmiLabel: 'BMI 31', result: 'Lost 12.4kg in 7 months', extra: 'Cholesterol improved, biological age reversed 3 years', tags: ['–12.4kg ✓', '–3yr bio age ✓'] },
-  ],
-};
-
-function getMatchedPatient(gender: string) {
-  const isFemale = gender.toLowerCase().includes('female') || gender.toLowerCase().includes('woman');
-  const profiles = isFemale ? PATIENT_PROFILES.female : PATIENT_PROFILES.male;
-  return profiles[Math.floor(Math.random() * profiles.length)];
-}
+const CLINICAL_INDIVIDUALITY_COPY =
+  "People enter Sanative with different health profiles, goals and medical histories. Your doctor will review your assessment and discuss what is clinically appropriate for you.";
 
 // Check for absolute contraindications (determines eligibility screen version)
 function hasAbsoluteContraindication(seriousConditions: string[]): boolean {
@@ -881,6 +867,12 @@ function EmailGateScreen({
       }
 
       // Email is new (or check failed) - proceed with lead capture and submission
+      void logConsentEvent({
+        consentType: "CONTACT_SMS_EMAIL",
+        sourcePage: "/weight-management/assessment",
+        email: email.toLowerCase().trim(),
+      });
+
       // Capture lead in parallel (don't wait)
       fetch('/api/leads/capture', {
         method: 'POST',
@@ -987,7 +979,7 @@ function EmailGateScreen({
           </div>
 
           <h2 className="text-xl sm:text-2xl font-serif text-[#2c3628] text-center mb-2 leading-snug">
-            See how much weight you could lose
+            Let&apos;s see what goal we can aim for
           </h2>
           <p className="text-sm text-[#7e9a72] text-center mb-5 leading-relaxed">
             New member promotion automatically applied at checkout today.
@@ -1011,7 +1003,7 @@ function EmailGateScreen({
             {loading ? 'Checking...' : 'View results'}
           </button>
 
-          <p className="text-center text-xs text-[#7e9a72] mt-3">Your health data stays in Australia · Cancel anytime</p>
+          <ConsentNotice variant="contact" className="text-center mt-3 max-w-xs mx-auto" />
         </div>
       </div>
     </div>
@@ -1116,17 +1108,22 @@ function WeightLossGraph({
         </div>
 
         <div className="bg-[#f4f7f2] rounded-2xl p-5 mb-6">
-          <p className="text-base font-semibold text-[#2c3628] mb-3">Your treatment options</p>
+          <p className="text-base font-semibold text-[#2c3628] mb-3">What happens next</p>
+          <p className="text-sm text-[#5c7a52] leading-relaxed mb-4">
+            {CLINICAL_INDIVIDUALITY_COPY}
+          </p>
           <div className="flex gap-3 items-start">
             <Stethoscope className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-[#2c3628]">Prescription treatment, if appropriate</p>
+              <p className="text-sm font-semibold text-[#2c3628]">Doctor-led care plan review</p>
               <p className="text-sm text-[#7e9a72] mt-0.5">
-                If clinically appropriate, our doctor will prescribe evidence-based weight management medication
-                combined with simple lifestyle changes. We&apos;re behind you all the way in achieving your goal!
+                Your doctor will review your health profile and discuss suitable care options privately if clinically appropriate — alongside lifestyle guidance to support your goals.
               </p>
             </div>
           </div>
+          <p className="text-xs text-[#7e9a72] mt-3 leading-relaxed">
+            Individual results vary and are not guaranteed.
+          </p>
         </div>
 
         <button onClick={onContinue} className="w-full py-4 bg-[#5c7a52] hover:bg-[#4a6343] text-white font-semibold rounded-full text-base transition-colors flex items-center justify-center gap-2">
@@ -1201,10 +1198,10 @@ function AddressFormStep({
   return (
     <div className="min-h-screen bg-white flex flex-col px-5 pt-6 pb-8">
       <h2 className="text-2xl font-bold text-gray-900 mb-1">
-        Delivery information
+        Contact & delivery details
       </h2>
       <p className="text-sm text-gray-400 mb-6">
-        We deliver prescription treatment right to your door
+        For care coordination, follow-up support, and any program logistics your doctor approves
       </p>
 
       <div className="flex-1 space-y-3">
@@ -1327,17 +1324,8 @@ function AddressFormStep({
           )}
         </div>
 
-        {/* SMS consent — required for Twilio/AHPRA compliance */}
-        <div className="bg-gray-50 rounded-2xl px-4 py-4 text-xs text-gray-500
-          leading-relaxed">
-          As part of our clinical care process, Sanative Health may send you
-          SMS messages to verify your contact details, confirm consultations,
-          and provide updates from your care partner. Message frequency varies.
-          You can opt out at any time by replying STOP.{' '}
-          <a href="/privacy" className="underline text-gray-700">
-            Privacy policy
-          </a>
-        </div>
+        {/* Contact & SMS consent */}
+        <ConsentNotice variant="contact" className="mt-2" />
       </div>
 
       <button
@@ -1765,11 +1753,8 @@ function ShippingInfoScreen({
             )}
           </div>
 
-          {/* SMS consent */}
-          <div className="bg-[#f4f7f2] rounded-2xl px-4 py-4 text-xs text-[#7e9a72] leading-relaxed mt-4">
-            By continuing, you agree to receive SMS notifications about your consultation and treatment. You can opt out at any time.{' '}
-            <a href="/privacy" className="underline text-gray-700">Privacy policy</a>
-          </div>
+          {/* Contact & SMS consent */}
+          <ConsentNotice variant="contact" className="mt-4" />
         </div>
       </div>
 
@@ -2071,6 +2056,12 @@ export default function WeightLossAssessmentPage() {
   const nextStep = () => {
     // Circular progress and email gate handle their own advancement
     if (step === 5 || step === 6) return;
+    if (step === 1) {
+      void logConsentEvent({
+        consentType: "PRE_QUIZ",
+        sourcePage: "/weight-management/assessment",
+      });
+    }
     if (canProceed() && step < totalSteps) {
       animateToStep(step + 1, 'forward');
     }
@@ -2266,7 +2257,7 @@ export default function WeightLossAssessmentPage() {
               Your BMI is within the range we typically assess
             </p>
             <p className="text-xs text-[#7e9a72]">
-              A doctor will determine if treatment is appropriate for you
+              A doctor will determine if the program is appropriate for you
             </p>
           </div>
         ) : (
@@ -2330,7 +2321,7 @@ export default function WeightLossAssessmentPage() {
               <p className="text-2xl font-bold text-[#c17a58]">–{weightToLose.toFixed(1)} kg</p>
               {cat && weightToLose > 0 && (
                 <p className="text-xs text-[#7e9a72] mt-2">
-                  Based on your profile, you could reach this in {PROJECTION_GOAL_MONTHS} months
+                  Your doctor will help refine this goal during your consultation
                 </p>
               )}
             </div>
@@ -2346,7 +2337,6 @@ export default function WeightLossAssessmentPage() {
 
   // Projection Graph - Step 11
   const renderProjectionGraph = () => {
-    const bmiValue = calcBMI(formData.currentWeight, formData.height);
     const current = parseFloat(formData.currentWeight) || 0;
     let target = current * 0.87;
     if (formData.weightLossGoal === '1-10') target = current - 5.5;
@@ -2358,48 +2348,24 @@ export default function WeightLossAssessmentPage() {
       updateFormData('targetWeight', target.toFixed(1));
     }
 
-    const projectedMonth = getProjectedMonth(String(current), String(target), bmiValue);
-    const cat = bmiValue ? getBMICategory(bmiValue) : null;
-
-    const chartW = 260, chartH = 110, padL = 10, maxM = PROJECTION_GOAL_MONTHS;
-    const wRange = current - (current * 0.78);
-    const wToY = (w: number) => chartH - (((w - (current - wRange)) / wRange) * chartH * 0.9) - 5;
-    const mToX = (m: number) => padL + (m / maxM) * chartW;
-    const totalLoss = Math.max(0, current - target);
-
-    const treatPts = Array.from({length: maxM + 1}, (_, m) => {
-      const loss = Math.min(totalLoss, (m / PROJECTION_GOAL_MONTHS) * totalLoss);
-      return {x: mToX(m), y: wToY(current - loss)};
-    });
-    const noPts = Array.from({length: maxM + 1}, (_, m) => ({x: mToX(m), y: wToY(current - Math.min(2, m * 0.2))}));
-    const toPath = (pts: {x:number,y:number}[]) => pts.map((p,i) => `${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-
     return (
-      <div className="px-4 py-6 max-w-md mx-auto">
-        <h2 className="text-xl font-bold text-gray-900 text-center mb-1">Your projected transformation</h2>
-        <p className="text-xs text-gray-400 text-center mb-6">Based on clinical data from patients with your profile</p>
-
-        <div className="w-full bg-white rounded-2xl border border-gray-100 p-4 mb-4">
-          <svg viewBox={`0 0 ${chartW + padL + 20} ${chartH + 30}`} className="w-full">
-            {[0, 3, 6].map(m => <line key={m} x1={mToX(m)} y1={0} x2={mToX(m)} y2={chartH} stroke="#F1F5F9" strokeWidth={1}/>)}
-            <line x1={padL} y1={wToY(target)} x2={chartW+padL} y2={wToY(target)} stroke="#059669" strokeWidth={1} strokeDasharray="4,3"/>
-            <text x={chartW+padL+2} y={wToY(target)+3} fontSize={8} fill="#059669" fontWeight={600}>Goal</text>
-            <path d={toPath(noPts)} fill="none" stroke="#CBD5E1" strokeWidth={1.5} strokeDasharray="5,3"/>
-            <path d={toPath(treatPts)} fill="none" stroke="#3B6D11" strokeWidth={2.5}/>
-            {treatPts[projectedMonth] && <circle cx={mToX(projectedMonth)} cy={treatPts[projectedMonth].y} r={5} fill="#3B6D11"/>}
-            {[0, 3, 6].map(m => <text key={m} x={mToX(m)} y={chartH+20} textAnchor="middle" fontSize={8} fill="#94A3B8">{m===0?'Now':`${m}mo`}</text>)}
-          </svg>
-          <div className="flex gap-4 justify-center mt-2 text-xs text-gray-400">
-            <span className="flex items-center gap-1"><span className="w-6 border-t-2 border-dashed border-gray-300"></span>Without</span>
-            <span className="flex items-center gap-1"><span className="w-6 border-t-2 border-green-700"></span>With Sanative</span>
+      <div className="px-4 py-6 max-w-md mx-auto text-center">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Your draft goal</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          Your doctor will review this during consultation. Individual results vary and are not guaranteed.
+        </p>
+        <div className="bg-[#f4f7f2] rounded-2xl p-6">
+          <div className="flex items-center justify-center gap-4">
+            <div>
+              <p className="text-xs text-[#7e9a72] uppercase tracking-wide mb-1">Current</p>
+              <p className="text-2xl font-bold text-[#2c3628]">{Math.round(current)} kg</p>
+            </div>
+            <div className="text-[#5c7a52]">→</div>
+            <div>
+              <p className="text-xs text-[#7e9a72] uppercase tracking-wide mb-1">Draft target</p>
+              <p className="text-2xl font-bold text-[#5c7a52]">{Math.round(target)} kg</p>
+            </div>
           </div>
-        </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-          <p className="text-sm font-semibold text-green-800">
-            Reach <strong>{Math.round(target)}kg</strong> in <strong>{projectedMonth} months</strong>
-          </p>
-          <p className="text-xs text-green-600 mt-1">Clinical average: {cat?.percentLoss || '12–15%'} loss with program support*</p>
         </div>
       </div>
     );
@@ -2420,12 +2386,12 @@ export default function WeightLossAssessmentPage() {
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Assessment recorded</h2>
               <p className="text-sm text-gray-500">
-                Your responses have been saved. A doctor will review your full profile during your consultation to determine if treatment is appropriate.
+                Your responses have been saved. A doctor will review your full profile during your consultation to determine if the program is clinically appropriate.
               </p>
             </div>
             <div className="bg-[#f4f7f2] rounded-2xl p-4 mb-6">
               <p className="text-xs text-[#7e9a72] leading-relaxed">
-                <strong>Note:</strong> This assessment does not guarantee treatment. All clinical decisions are made by your doctor.
+                <strong>Note:</strong> This assessment does not guarantee clinical suitability. All care decisions are made by your doctor.
               </p>
             </div>
           </>
@@ -2551,10 +2517,10 @@ export default function WeightLossAssessmentPage() {
             {!hasHardStop ? (
               <>
                 <h1 className="text-2xl sm:text-3xl font-serif text-[#2c3628] leading-tight mb-4">
-                  You may be suitable for our doctor-led program
+                  Your assessment is complete
                 </h1>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  The next step is to book a phone consultation with an Australian doctor, who will review your assessment and confirm whether treatment is clinically appropriate.
+                  The next step is to book a phone consultation with an Australian doctor, who will review your assessment and confirm whether the program is clinically appropriate for you.
                 </p>
               </>
             ) : (
@@ -2563,8 +2529,8 @@ export default function WeightLossAssessmentPage() {
                   Thanks for completing your assessment
                 </h1>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  Please proceed to book your doctor&apos;s consultation to discuss treatment and how the Sanative
-                  program can help you achieve your goals.
+                  Please proceed to book your doctor&apos;s consultation to discuss your care plan and how the Sanative
+                  program can support your metabolic health goals.
                 </p>
               </>
             )}
@@ -2592,7 +2558,7 @@ export default function WeightLossAssessmentPage() {
               <div className="flex items-start gap-3">
                 <Check className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-[#2c3628]">
-                  <span className="font-semibold">Personalised treatment plan</span> — your doctor reviews your assessment and discusses options with you
+                  <span className="font-semibold">Personalised care plan</span> — your doctor reviews your assessment and discusses options with you privately
                 </p>
               </div>
               <div className="flex items-start gap-3 rounded-xl bg-gradient-to-br from-[#f4f7f2] to-[#eef4eb] border border-[#5c7a52]/25 p-3.5">
@@ -2613,7 +2579,7 @@ export default function WeightLossAssessmentPage() {
               <div className="flex items-start gap-3">
                 <Check className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-[#2c3628]">
-                  <span className="font-semibold">Ongoing support</span> — medication and lifestyle guidance delivered, with care team check-ins
+                  <span className="font-semibold">Ongoing support</span> — lifestyle guidance and care team check-ins throughout your program
                 </p>
               </div>
             </div>
@@ -2654,6 +2620,13 @@ export default function WeightLossAssessmentPage() {
         ...data,
       };
       setFormData(updatedFormData);
+
+      void logConsentEvent({
+        consentType: "CONTACT_SMS_EMAIL",
+        sourcePage: "/weight-management/assessment",
+        email: updatedFormData.email,
+        userId: userId ?? undefined,
+      });
 
       // Create user in database now (before payment) so they're captured
       try {
@@ -2734,17 +2707,14 @@ export default function WeightLossAssessmentPage() {
   };
 
   // ─── Handler: Select a time slot and create hold ────────────────────────────
-  // UNIFIED CALENDAR: No doctor assignment - that happens during triage
-  // FIX: Improved to prevent double holds and provide better UX
+  const holdRequestRef = useRef(0);
+
   const handleSlotSelection = async (slot: UnifiedSlot) => {
     if (slot.availabilityStatus === "BOOKED") return;
 
-    // If this slot is already selected, do nothing
-    if (formData.selectedSlotId === slot.slotId) return;
+    if (formData.selectedSlotId === slot.slotId && bookingHoldId) return;
 
-    // Prevent double-clicks while processing
-    if (creatingHold) return;
-
+    const requestId = ++holdRequestRef.current;
     setCreatingHold(true);
     setSelectingSlotId(slot.slotId);
     setSlotsError(null);
@@ -2788,23 +2758,20 @@ export default function WeightLossAssessmentPage() {
 
       const data = await response.json();
 
+      if (requestId !== holdRequestRef.current) {
+        return;
+      }
+
       // Update booking state with new hold
       setBookingHoldId(data.bookingHoldId);
       setHoldExpiry(new Date(data.holdExpiryTime));
-      setSlotsRefreshKey((k) => k + 1);
-
-      // Release previous hold in background (fire and forget - API already removed it)
-      if (previousHoldId && previousHoldId !== data.bookingHoldId) {
-        fetch(`/api/bookings/hold?holdId=${previousHoldId}`, {
-          method: 'DELETE',
-        }).catch(() => {
-          // Silently ignore - hold will expire anyway
-        });
-      }
 
       // Subtle success feedback (no intrusive toast)
       // The UI already shows the selection, so just a brief visual confirmation
     } catch (error) {
+      if (requestId !== holdRequestRef.current) {
+        return;
+      }
       console.error('Error creating hold:', error);
       const message = error instanceof Error ? error.message : 'Failed to reserve time slot';
       setSlotsError(message);
@@ -2821,13 +2788,15 @@ export default function WeightLossAssessmentPage() {
 
       toast.error('Could not reserve this slot', { description: message });
     } finally {
-      setCreatingHold(false);
-      setSelectingSlotId(null);
+      if (requestId === holdRequestRef.current) {
+        setCreatingHold(false);
+        setSelectingSlotId(null);
+      }
     }
   };
 
   // ─── Payment success: confirm booking + advance to thank you ───────────────
-  const handleCheckoutPaymentSuccess = async (paymentIntentId?: string) => {
+  const handleCheckoutPaymentSuccess = async (result: CheckoutPaymentSuccess) => {
     setMembershipPaid(true);
     setShowPaymentForm(false);
 
@@ -2838,7 +2807,8 @@ export default function WeightLossAssessmentPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             bookingHoldId,
-            paymentIntentId: paymentIntentId || "pi_manual_confirmation",
+            paymentIntentId: result.paymentIntentId || "pi_manual_confirmation",
+            consentRecordId: result.consentRecordId,
             userId,
             selectedPlan: "CORE",
             clientOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
@@ -3090,7 +3060,7 @@ export default function WeightLossAssessmentPage() {
   const renderThankYouScreen = () => {
     const portalLink = portalMagicLink
       ? buildPortalActivationMagicLink(portalMagicLink)
-      : WM_POST_CHECKOUT_PATH;
+      : `/login?redirect=${encodeURIComponent(WM_POST_CHECKOUT_PATH)}`;
     const buttonText = portalMagicLink ? "Activate my portal" : "Go to my program";
 
     return (
@@ -3131,7 +3101,7 @@ export default function WeightLossAssessmentPage() {
                 <div className="w-8 h-8 rounded-lg bg-[#f4f7f2] flex items-center justify-center">
                   <Stethoscope className="w-4 h-4 text-[#5c7a52]" />
                 </div>
-                <p className="text-sm text-[#5c7a52]">Doctor will confirm if treatment is appropriate</p>
+                <p className="text-sm text-[#5c7a52]">Doctor will confirm your care plan during consultation</p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-[#f4f7f2] flex items-center justify-center">
@@ -3146,7 +3116,7 @@ export default function WeightLossAssessmentPage() {
           <div className="text-white/80 text-sm max-w-xs">
             <p className="mb-2 font-medium text-white">What happens next?</p>
             <p className="leading-relaxed">
-              Use the button below to set your password and open your weight program home. Progress tracking unlocks when your treatment is active. During your appointment, your doctor will confirm whether treatment is clinically appropriate for you.
+              Use the button below to set your password and open your weight program home. Progress tracking unlocks once your doctor confirms your care plan. During your appointment, your doctor will discuss suitable options privately if clinically appropriate.
             </p>
           </div>
         </div>
@@ -3452,7 +3422,7 @@ export default function WeightLossAssessmentPage() {
       case 12:
         return renderConditionsStep(
           "Do you have any metabolic conditions?",
-          "These affect how we prescribe medications.",
+          "These help your doctor understand your metabolic health profile.",
           filteredMetabolicConditions,
           "metabolicConditions"
         );
@@ -3461,7 +3431,7 @@ export default function WeightLossAssessmentPage() {
       case 13:
         return renderConditionsStep(
           "Any digestive or gastrointestinal conditions?",
-          "These medications affect the digestive system.",
+          "These help your doctor assess your full health picture.",
           digestiveConditions,
           "digestiveConditions"
         );
@@ -3489,7 +3459,7 @@ export default function WeightLossAssessmentPage() {
         return (
           <QuizStepShell
             title="Have you ever been diagnosed with any of these?"
-            subtitle="These conditions may affect treatment eligibility."
+            subtitle="These conditions may affect program eligibility."
             greeting={renderGreeting()}
             headerExtra={
               formData.seriousConditions.some(c => c !== "None of these apply") ? (
@@ -3538,7 +3508,7 @@ export default function WeightLossAssessmentPage() {
       case 17:
         return renderConditionsStep(
           "Are you currently taking any of these medications?",
-          "Some medications interact with weight loss treatments.",
+          "Some medications may affect your care plan options.",
           currentMedicationsOptions,
           "currentMedications"
         );
@@ -3571,7 +3541,7 @@ export default function WeightLossAssessmentPage() {
           What&apos;s your last name?
         </h1>
         <p className="mt-3 text-[#5c7a52]">
-          Required for prescriptions — we keep it confidential.
+          Required for your clinical record — we keep it confidential.
         </p>
       </div>
 
@@ -3857,6 +3827,11 @@ export default function WeightLossAssessmentPage() {
             className="p-4"
             style={useViewportLayout ? undefined : { boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.08)" }}
           >
+            {step === 1 && (
+              <div className="max-w-2xl mx-auto mb-3">
+                <ConsentNotice variant="quiz" />
+              </div>
+            )}
             <div className="max-w-2xl mx-auto flex gap-3">
               {step > 1 && (
                 <button
@@ -3906,9 +3881,9 @@ export default function WeightLossAssessmentPage() {
             </div>
             <div className="p-6 space-y-6">
               <div>
-                <h4 className="font-semibold text-[#2c3628] mb-2">What treatments do you offer?</h4>
+                <h4 className="font-semibold text-[#2c3628] mb-2">What care options are available?</h4>
                 <p className="text-sm text-[#5c7a52]">
-                  Our doctors prescribe evidence-based weight management medications where clinically appropriate. Your doctor will recommend the best option based on your health profile and biomarker results.
+                  Treatment options are discussed privately with your doctor if clinically appropriate. Your doctor will recommend the best approach based on your health profile and biomarker results.
                 </p>
               </div>
               <div>
@@ -3926,13 +3901,13 @@ export default function WeightLossAssessmentPage() {
               <div>
                 <h4 className="font-semibold text-[#2c3628] mb-2">Are there side effects?</h4>
                 <p className="text-sm text-[#5c7a52]">
-                  Common side effects include nausea, which typically improves over time. Your doctor will discuss all potential side effects during your consultation.
+                  Your doctor will discuss potential side effects and how to manage them during your consultation. Ongoing clinical monitoring supports your safety throughout the program.
                 </p>
               </div>
               <div>
                 <h4 className="font-semibold text-[#2c3628] mb-2">What if I&apos;m not suitable?</h4>
                 <p className="text-sm text-[#5c7a52]">
-                  If our doctors determine treatment isn&apos;t right for you, we&apos;ll refund your first-month payment and may suggest alternative approaches.
+                  If our doctors determine the program isn&apos;t right for you, we&apos;ll refund your first-month payment and may suggest alternative approaches.
                 </p>
               </div>
             </div>
@@ -3957,7 +3932,7 @@ export default function WeightLossAssessmentPage() {
               </div>
               {showWhyAsking === "gender" && (
                 <p className="text-sm text-[#5c7a52]">
-                  Biological sex affects how your body stores fat, responds to hormones, and metabolises medications. This helps us provide safe, effective treatment tailored to your physiology.
+                  Biological sex affects how your body stores fat, responds to hormones, and processes nutrients. This helps us provide safe, personalised metabolic care tailored to your physiology.
                 </p>
               )}
               {showWhyAsking === "ethnicity" && (

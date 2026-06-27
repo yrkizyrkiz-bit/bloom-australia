@@ -30,13 +30,13 @@ export function LabsSection() {
             </span>
 
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-[#2c3628] leading-tight">
-              The only telehealth clinic that
+              Doctor-led care with
               <br />
-              <span className="text-[#5c7a52] italic">tests before it treats</span>
+              <span className="text-[#5c7a52] italic">biomarker insights</span>
             </h2>
 
             <p className="mt-6 text-lg text-[#5c7a52] max-w-lg">
-              Most weight loss programs start with a quiz. We start with your blood. 80+ biomarkers tested at Australian NATA-accredited labs — so your doctor treats what&apos;s actually causing the problem.
+              Comprehensive blood testing at Australian NATA-accredited labs helps your doctor understand your health profile before recommending care options.
             </p>
 
             <div className="mt-8 grid grid-cols-3 gap-3">

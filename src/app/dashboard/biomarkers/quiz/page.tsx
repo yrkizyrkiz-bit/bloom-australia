@@ -249,12 +249,16 @@ export default function BiomarkersQuizPage() {
     }
   };
 
-  const confirmPanelPayment = async (paymentIntentId: string) => {
+  const confirmPanelPayment = async (result: {
+    paymentIntentId?: string;
+    consentRecordId: string;
+  }) => {
     const res = await fetch("/api/portal/biomarkers-checkout/confirm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        paymentIntentId,
+        paymentIntentId: result.paymentIntentId,
+        consentRecordId: result.consentRecordId,
         panelTier: selectedPanel,
         addOrganCare,
         organCareTerm: addOrganCare ? organCareTerm : undefined,
@@ -604,6 +608,8 @@ export default function BiomarkersQuizPage() {
                   clientSecret={clientSecret}
                   amountLabel={checkoutPriceLabel}
                   submitLabel="Subscribe & book testing"
+                  userId={user?.id}
+                  customerEmail={user?.email}
                   onConfirmed={confirmPanelPayment}
                 />
               </div>

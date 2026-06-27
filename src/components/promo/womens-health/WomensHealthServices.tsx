@@ -36,13 +36,13 @@ const services: ServiceCard[] = [
   },
   {
     id: "hrt",
-    title: "Hormone Replacement Therapy",
-    subtitle: "Body-identical hormones",
-    description: "Modern HRT options tailored to your needs. Our doctors prescribe TGA-approved bioidentical hormones to help restore hormonal balance safely.",
+    title: "Menopause & Hormone Care",
+    subtitle: "Personalised consultations",
+    description: "Consultations for menopause and hormone health concerns. Suitable treatment options, if any, are discussed privately with your doctor based on your health history.",
     features: [
-      "Oestrogen therapy",
-      "Progesterone options",
-      "Testosterone support",
+      "Menopause symptom support",
+      "Hormone health assessment",
+      "Personalised care plans",
       "Regular monitoring"
     ],
     icon: Pill,

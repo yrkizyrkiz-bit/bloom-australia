@@ -5,6 +5,12 @@ import { loadStripe } from "@stripe/stripe-js";
 import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import { CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import {
+  ensurePrePaymentConsentRecorded,
+  paymentSourcePage,
+} from "@/lib/legal/ensure-pre-payment-consent";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
@@ -30,19 +36,24 @@ type PortalPaymentFormProps = {
   clientSecret: string;
   amountLabel: string;
   submitLabel: string;
-  onConfirmed: (paymentIntentId: string) => Promise<void>;
+  userId?: string;
+  customerEmail?: string;
+  onConfirmed: (result: CheckoutPaymentSuccess) => Promise<void>;
 };
 
 function CheckoutInner({
   clientSecret,
   amountLabel,
   submitLabel,
+  userId,
+  customerEmail,
   onConfirmed,
 }: PortalPaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [cardReady, setCardReady] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,6 +68,19 @@ function CheckoutInner({
 
     setProcessing(true);
     setError(null);
+
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      email: customerEmail,
+      userId,
+    });
+
+    if (!consentResult.ok) {
+      setError(consentResult.error);
+      setProcessing(false);
+      return;
+    }
 
     try {
       const { error: paymentError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
@@ -78,13 +102,19 @@ function CheckoutInner({
           return;
         }
         if (confirmedIntent?.status === "succeeded") {
-          await onConfirmed(confirmedIntent.id);
+          await onConfirmed({
+            paymentIntentId: confirmedIntent.id,
+            consentRecordId: consentResult.consentRecordId,
+          });
           return;
         }
       }
 
       if (paymentIntent?.status === "succeeded") {
-        await onConfirmed(paymentIntent.id);
+        await onConfirmed({
+          paymentIntentId: paymentIntent.id,
+          consentRecordId: consentResult.consentRecordId,
+        });
       } else {
         setError("Payment was not completed. Please try again.");
         setProcessing(false);
@@ -130,9 +160,15 @@ function CheckoutInner({
         </div>
       </div>
 
+      <PrePaymentConsentCheckbox
+        checked={consentChecked}
+        onCheckedChange={setConsentChecked}
+        disabled={processing}
+      />
+
       <Button
         type="submit"
-        disabled={!stripe || !cardReady || processing}
+        disabled={!stripe || !cardReady || !consentChecked || processing}
         className="w-full bg-emerald-700 hover:bg-emerald-800"
       >
         {processing ? (

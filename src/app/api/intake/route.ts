@@ -760,20 +760,38 @@ async function saveNotesForProgram(userId: string, programType: ProgramType, dat
   }
 
   if (programType === "MENS_HEALTH") {
-    noteGroups.push(
-      { title: "Men's Health — Primary Concern",     conditions: [(data.concern as string) || ""] },
-      { title: "Men's Health — ED Details",          conditions: [
-          `Duration: ${(data.edDuration as string) || "n/a"}`,
-          `Severity: ${(data.edSeverity as string) || "n/a"}`,
-          `Morning erections: ${(data.morningErections as string) || "n/a"}`,
-        ].filter(Boolean)
-      },
-      { title: "Men's Health — Contributing Causes", conditions: (data.edCauses as string[]) || [] },
-      { title: "Men's Health — Medical Conditions",  conditions: (data.medicalConditions as string[]) || [] },
-      { title: "Men's Health — Lifestyle Factors",   conditions: (data.lifestyleFactors as string[]) || [] },
-      { title: "Men's Health — Nitrates (FLAG)",     conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES — DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
-      { title: "Men's Health — Other Concerns",      conditions: (data.otherConcerns as string[]) || [] },
-    );
+    const canonicalKey = resolveMensHealthCanonicalKey((data.concern as string) || "");
+    if (canonicalKey === "MENS_HEALTH_SEXUAL") {
+      noteGroups.push(
+        { title: "Men's Health — Primary Concern", conditions: [(data.concern as string) || "sexual-health"] },
+        { title: "Men's Sexual Health — Focus", conditions: [(data.treatmentFocus as string) || ""] },
+        { title: "Men's Sexual Health — ED Duration", conditions: data.edDuration ? [`Duration: ${data.edDuration}`] : [] },
+        { title: "Men's Sexual Health — ED Severity", conditions: data.edSeverity ? [`Severity: ${data.edSeverity}`] : [] },
+        { title: "Men's Sexual Health — ED Main Issue", conditions: data.edMainIssue ? [`Issue: ${data.edMainIssue}`] : [] },
+        { title: "Men's Sexual Health — PE Duration", conditions: data.peDuration ? [`Duration: ${data.peDuration}`] : [] },
+        { title: "Men's Sexual Health — PE Frequency", conditions: data.peFrequency ? [`Frequency: ${data.peFrequency}`] : [] },
+        { title: "Men's Sexual Health — PE Timing", conditions: data.peTiming ? [`Timing: ${data.peTiming}`] : [] },
+        { title: "Men's Sexual Health — PE Distress", conditions: data.peDistress ? [`Distress: ${data.peDistress}`] : [] },
+        { title: "Men's Sexual Health — Previous Treatment", conditions: data.previousTreatment ? [`Previous: ${data.previousTreatment}`] : [] },
+        { title: "Men's Sexual Health — Start Timing", conditions: data.startTiming ? [`Timing: ${data.startTiming}`] : [] },
+        { title: "Men's Sexual Health — Nitrates (FLAG)", conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES — DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
+      );
+    } else {
+      noteGroups.push(
+        { title: "Men's Health — Primary Concern",     conditions: [(data.concern as string) || ""] },
+        { title: "Men's Health — ED Details",          conditions: [
+            `Duration: ${(data.edDuration as string) || "n/a"}`,
+            `Severity: ${(data.edSeverity as string) || "n/a"}`,
+            `Morning erections: ${(data.morningErections as string) || "n/a"}`,
+          ].filter(Boolean)
+        },
+        { title: "Men's Health — Contributing Causes", conditions: (data.edCauses as string[]) || [] },
+        { title: "Men's Health — Medical Conditions",  conditions: (data.medicalConditions as string[]) || [] },
+        { title: "Men's Health — Lifestyle Factors",   conditions: (data.lifestyleFactors as string[]) || [] },
+        { title: "Men's Health — Nitrates (FLAG)",     conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES — DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
+        { title: "Men's Health — Other Concerns",      conditions: (data.otherConcerns as string[]) || [] },
+      );
+    }
   }
 
   if (programType === "HAIR_LOSS") {

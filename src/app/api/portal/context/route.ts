@@ -45,13 +45,17 @@ export async function GET() {
       isWeightTier &&
       PAID_JOURNEY_STATUSES.includes(user.journeyStatus || "");
 
-    // Derive membership entitlements: reconcile persisted rows from current
-    // signals (idempotent), then combine with biomarker coverage.
+    // Derive membership entitlements: reconcile when none exist yet (first visit),
+    // otherwise use persisted rows for a fast read path.
     let membership;
     try {
-      await syncEntitlementsFromSignals(userId);
-      const [entitlements, biomarkerResults, pendingLabCount] = await Promise.all([
-        getAllEntitlements(userId),
+      let entitlements = await getAllEntitlements(userId);
+      if (entitlements.length === 0) {
+        await syncEntitlementsFromSignals(userId);
+        entitlements = await getAllEntitlements(userId);
+      }
+
+      const [biomarkerResults, pendingLabCount] = await Promise.all([
         prisma.biomarkerResult.findMany({
           where: { userId },
           select: { biomarkerId: true, testedAt: true },

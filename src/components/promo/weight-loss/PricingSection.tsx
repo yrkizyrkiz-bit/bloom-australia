@@ -43,7 +43,7 @@ export function PricingSection() {
             <span className="text-[#34412f] italic">from $249 for your first month</span>
           </h2>
           <p className="text-lg text-[#5c7a52] max-w-3xl mx-auto">
-            Normally from $349/month. Includes treatment if prescribed, Australian doctor-led care, Sanative portal access, doctor-reviewed biomarker monitoring, Health Age tracking and ongoing clinical check-ins.
+            Normally from $349/month. Includes program access, Australian doctor-led assessment, Sanative portal access, doctor-reviewed biomarker monitoring, Health Age tracking and ongoing clinical check-ins.
           </p>
         </div>
 
@@ -78,11 +78,11 @@ export function PricingSection() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span>Treatment if prescribed</span>
+                <span>Ongoing care coordination and follow-up support</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span>Secure medication delivery</span>
+                <span>Care options discussed privately with your doctor if clinically appropriate</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
@@ -197,7 +197,7 @@ export function PricingSection() {
               <AlertCircle className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
               <div className="text-sm text-[#5c7a52] leading-relaxed">
                 <p className="mb-2">
-                  <strong>Your first month includes $100 off</strong> if your Sanative doctor confirms the program is clinically suitable. Treatment is only supplied where clinically appropriate following doctor assessment.
+                  <strong>Your first month includes $100 off</strong> if your Sanative doctor confirms the program is clinically suitable. Some care options may involve additional costs, discussed before proceeding.
                 </p>
                 <p>
                   If your doctor determines the program is not suitable, your first-month payment will be refunded.
@@ -245,7 +245,7 @@ export function PricingSection() {
         {/* Fine Print */}
         <div className={`mt-12 max-w-3xl mx-auto transition-all duration-700 delay-600 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           <p className="text-xs text-[#7e9a72] text-center leading-relaxed">
-            First-month offer applies to eligible new Sanative Weight Management patients only. Treatment is supplied only where clinically appropriate following doctor assessment. If your doctor determines the program is not clinically suitable, your first-month payment will be refunded. Ongoing monthly fees apply after the first month.
+            First-month offer applies to eligible new Sanative Weight Management patients only. Program fees cover clinical assessment, monitoring, and portal access. If your doctor determines the program is not clinically suitable, your first-month payment will be refunded. Ongoing monthly fees apply after the first month.
           </p>
         </div>
       </div>

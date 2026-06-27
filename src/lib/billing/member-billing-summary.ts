@@ -27,6 +27,9 @@ import {
   type BillingInvoiceRow,
   type SubscriptionAccessStatus,
 } from "./paid-till";
+import { PROGRAM_SLUG } from "./program-slugs";
+
+export { programSlugFromProgramKey } from "./program-slugs";
 
 export type BillingModel = "program_first_month" | "annual_subscription";
 
@@ -124,15 +127,6 @@ const APPROVED_JOURNEY = new Set([
   "ACTIVE",
 ]);
 
-const PROGRAM_SLUG: Record<ProgramKey, string> = {
-  WEIGHT_MANAGEMENT: "weight_management",
-  HAIR_LOSS: "hair_loss",
-  MENS_HEALTH_VITALITY: "mens_health_vitality",
-  MENS_HEALTH_SEXUAL: "mens_health_sexual",
-  WOMENS_HEALTH_VITALITY: "womens_health_vitality",
-  WOMENS_HEALTH_SEXUAL: "womens_health_sexual",
-};
-
 const BILLING_PROGRAMS = new Set(Object.values(PROGRAM_SLUG));
 
 const PROGRAM_BILLING_PRIORITY: ProgramKey[] = [
@@ -157,14 +151,6 @@ function getPlanLabel(tier: "CORE" | "PRECISION" | null): string {
   if (tier === "PRECISION") return "Sanative Precision";
   if (tier === "CORE") return "Sanative Core";
   return "Program";
-}
-
-function programSlugFromKey(key: ProgramKey): string {
-  return PROGRAM_SLUG[key];
-}
-
-export function programSlugFromProgramKey(key: ProgramKey): string {
-  return PROGRAM_SLUG[key];
 }
 
 export function getBillingSummaryBySlug(
@@ -368,7 +354,7 @@ async function buildProgramBillingSummary(
   ctx: BillingBuildContext,
   programKey: ProgramKey
 ): Promise<MemberBillingSummary> {
-  const programSlug = programSlugFromKey(programKey);
+  const programSlug = PROGRAM_SLUG[programKey];
   const programLabel = PROGRAM_LABELS[programKey];
   const programMember = findProgramMemberForKey(ctx.programMembers, programKey);
   const entitlement = ctx.programEntitlements.find(

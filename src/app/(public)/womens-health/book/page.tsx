@@ -55,7 +55,6 @@ export default function BookingPage() {
     dateOfBirth: "",
     concerns: ""
   });
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
@@ -129,11 +128,13 @@ export default function BookingPage() {
   };
 
   // Handle successful payment
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
+  const handlePaymentSuccess = async (result: {
+    paymentIntentId?: string;
+    consentRecordId: string;
+  }) => {
     setIsProcessing(true);
 
     try {
-      // Create the booking
       const response = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,7 +147,8 @@ export default function BookingPage() {
           category: "womens-health",
           date: selectedDate?.toISOString().split("T")[0],
           time: selectedTime,
-          paymentIntentId,
+          paymentIntentId: result.paymentIntentId,
+          consentRecordId: result.consentRecordId,
           amount: 14900,
           concerns: contactDetails.concerns,
         }),
@@ -589,31 +591,11 @@ export default function BookingPage() {
                     Payment Details
                   </h3>
 
-                  {/* Terms - before payment */}
-                  <div className="mb-6">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={agreeToTerms}
-                        onChange={(e) => setAgreeToTerms(e.target.checked)}
-                        className="mt-1 w-5 h-5 rounded border-[#f8e1e1] text-[#c17a58] focus:ring-[#f8e1e1]"
-                      />
-                      <span className="text-sm text-[#5c7a52]">
-                        I agree to the{" "}
-                        <a href="/terms" className="text-[#c17a58] underline">Terms of Service</a>
-                        {" "}and{" "}
-                        <a href="/privacy" className="text-[#c17a58] underline">Privacy Policy</a>.
-                        I understand this is a telehealth consultation and my information will be kept confidential.
-                      </span>
-                    </label>
-                  </div>
-
                   {/* Stripe Elements */}
                   {clientSecret ? (
                     <StripeCheckout
                       clientSecret={clientSecret}
                       customerEmail={contactDetails.email}
-                      agreeToTerms={agreeToTerms}
                       onSuccess={handlePaymentSuccess}
                       onError={handlePaymentError}
                     />

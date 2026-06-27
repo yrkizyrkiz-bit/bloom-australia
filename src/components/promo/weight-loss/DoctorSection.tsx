@@ -15,7 +15,7 @@ const trustBullets = [
   },
   {
     icon: Stethoscope,
-    text: "Treatment prescribed only if appropriate",
+    text: "Care plans developed only if clinically appropriate",
   },
   {
     icon: Shield,

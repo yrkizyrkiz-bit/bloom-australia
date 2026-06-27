@@ -1,6 +1,8 @@
-import { useApi } from "@/hooks/useApi";
+import { usePortalContextValue } from "@/contexts/PortalContextProvider";
 import type { PortalContextPayload } from "@/lib/portal-context";
 
 export function usePortalContext() {
-  return useApi<PortalContextPayload>("/api/portal/context");
+  return usePortalContextValue();
 }
+
+export type { PortalContextPayload };

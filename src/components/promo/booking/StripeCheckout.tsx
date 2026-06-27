@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   PaymentElement,
   useStripe,
@@ -9,18 +9,25 @@ import {
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripe-client";
 import { Shield, Check, Loader2 } from "lucide-react";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import {
+  ensurePrePaymentConsentRecorded,
+  paymentSourcePage,
+} from "@/lib/legal/ensure-pre-payment-consent";
 
 interface CheckoutFormProps {
-  onSuccess: (paymentIntentId: string) => void;
+  onSuccess: (result: CheckoutPaymentSuccess) => void;
   onError: (error: string) => void;
   customerEmail: string;
-  agreeToTerms: boolean;
+  userId?: string;
 }
 
-function CheckoutForm({ onSuccess, onError, customerEmail, agreeToTerms }: CheckoutFormProps) {
+function CheckoutForm({ onSuccess, onError, customerEmail, userId }: CheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -30,13 +37,22 @@ function CheckoutForm({ onSuccess, onError, customerEmail, agreeToTerms }: Check
       return;
     }
 
-    if (!agreeToTerms) {
-      setErrorMessage("Please agree to the terms and conditions");
-      return;
-    }
-
     setIsProcessing(true);
     setErrorMessage(null);
+
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      email: customerEmail,
+      userId,
+    });
+
+    if (!consentResult.ok) {
+      setErrorMessage(consentResult.error);
+      onError(consentResult.error);
+      setIsProcessing(false);
+      return;
+    }
 
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
@@ -52,7 +68,12 @@ function CheckoutForm({ onSuccess, onError, customerEmail, agreeToTerms }: Check
       onError(error.message || "Payment failed");
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === "succeeded") {
-      onSuccess(paymentIntent.id);
+      onSuccess({
+        paymentIntentId: paymentIntent.id,
+        consentRecordId: consentResult.consentRecordId,
+      });
+    } else {
+      setIsProcessing(false);
     }
   };
 
@@ -64,13 +85,19 @@ function CheckoutForm({ onSuccess, onError, customerEmail, agreeToTerms }: Check
         }}
       />
 
+      <PrePaymentConsentCheckbox
+        checked={consentChecked}
+        onCheckedChange={setConsentChecked}
+        disabled={isProcessing}
+        className="mt-4"
+      />
+
       {errorMessage && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
           {errorMessage}
         </div>
       )}
 
-      {/* Security badges */}
       <div className="mt-6 flex items-center gap-4 text-xs text-[#7e9a72]">
         <div className="flex items-center gap-1">
           <Shield className="w-4 h-4" />
@@ -84,10 +111,10 @@ function CheckoutForm({ onSuccess, onError, customerEmail, agreeToTerms }: Check
 
       <button
         type="submit"
-        disabled={!stripe || isProcessing || !agreeToTerms}
+        disabled={!stripe || isProcessing || !consentChecked}
         className={`
           w-full mt-6 flex items-center justify-center gap-2 px-8 py-4 rounded-full font-medium transition-all
-          ${stripe && !isProcessing && agreeToTerms
+          ${stripe && !isProcessing && consentChecked
             ? 'bg-[#c17a58] hover:bg-[#a86548] text-white shadow-lg'
             : 'bg-[#e8d5d5] text-[#9e8585] cursor-not-allowed'}
         `}
@@ -108,15 +135,15 @@ function CheckoutForm({ onSuccess, onError, customerEmail, agreeToTerms }: Check
 interface StripeCheckoutProps {
   clientSecret: string;
   customerEmail: string;
-  agreeToTerms: boolean;
-  onSuccess: (paymentIntentId: string) => void;
+  userId?: string;
+  onSuccess: (result: CheckoutPaymentSuccess) => void;
   onError: (error: string) => void;
 }
 
 export function StripeCheckout({
   clientSecret,
   customerEmail,
-  agreeToTerms,
+  userId,
   onSuccess,
   onError,
 }: StripeCheckoutProps) {
@@ -178,7 +205,7 @@ export function StripeCheckout({
         onSuccess={onSuccess}
         onError={onError}
         customerEmail={customerEmail}
-        agreeToTerms={agreeToTerms}
+        userId={userId}
       />
     </Elements>
   );

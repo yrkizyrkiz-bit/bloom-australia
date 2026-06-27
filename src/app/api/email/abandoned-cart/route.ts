@@ -74,9 +74,9 @@ function getAbandonedCartEmail(data: {
                   What you'll get
                 </p>
                 <ul style="margin: 0; padding: 0 0 0 20px; color: #2c3628;">
-                  <li style="margin-bottom: 8px;">Doctor video consultation</li>
-                  <li style="margin-bottom: 8px;">Personalised treatment plan</li>
-                  <li style="margin-bottom: 8px;">Prescription medication (if appropriate)</li>
+                  <li style="margin-bottom: 8px;">Doctor-led metabolic assessment</li>
+                  <li style="margin-bottom: 8px;">Personalised care plan</li>
+                  <li style="margin-bottom: 8px;">Care options discussed privately with your doctor if clinically appropriate</li>
                   <li style="margin-bottom: 8px;">Ongoing care partner support</li>
                 </ul>
               </div>

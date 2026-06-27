@@ -91,7 +91,7 @@ export function TreatmentsSection() {
         <p className="mt-10 text-center text-sm text-[#7e9a72]">
           Doctor consultation required. Treatment is only prescribed where clinically appropriate.
           <br />
-          All prescriptions are dispensed by Australian-registered pharmacies.
+          Where clinically appropriate, items are dispensed by Australian-registered pharmacies.
         </p>
       </div>
     </section>

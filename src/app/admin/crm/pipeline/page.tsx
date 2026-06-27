@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { deals, getPipelineStats, customerAccounts } from "@/data/crm-data";
-import { mockUsers } from "@/data/mock-data";
+import { useMemberDirectory } from "@/hooks/useMemberDirectory";
 import type { Deal, DealStage } from "@/types/crm";
 import { toast } from "sonner";
 import {
@@ -52,6 +52,7 @@ const stages: DealStage[] = ["lead", "qualified", "proposal", "negotiation", "cl
 const openStages: DealStage[] = ["lead", "qualified", "proposal", "negotiation"];
 
 export default function PipelinePage() {
+  const { members, getDisplayName } = useMemberDirectory();
   const [localDeals, setLocalDeals] = useState<Deal[]>(deals);
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
@@ -87,8 +88,7 @@ export default function PipelinePage() {
   const getCustomerName = (customerId: string) => {
     const customer = customerAccounts.find(c => c.id === customerId);
     if (!customer) return "Unknown";
-    const user = mockUsers.find(u => u.id === customer.userId);
-    return user ? `${user.firstName} ${user.lastName}` : "Unknown";
+    return getDisplayName(customer.userId);
   };
 
   const getDealsForStage = (stage: DealStage) => {
@@ -248,14 +248,11 @@ export default function PipelinePage() {
                     <SelectValue placeholder="Select customer..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {customerAccounts.map(c => {
-                      const user = mockUsers.find(u => u.id === c.userId);
-                      return (
-                        <SelectItem key={c.id} value={c.id}>
-                          {user?.firstName} {user?.lastName}
-                        </SelectItem>
-                      );
-                    })}
+                    {members.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.firstName} {member.lastName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

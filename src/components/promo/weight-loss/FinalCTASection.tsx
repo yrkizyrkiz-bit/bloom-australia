@@ -82,7 +82,7 @@ export function FinalCTASection() {
               Ready to start? Choose your plan
             </h2>
             <p className="text-white/70 text-center text-sm mb-8">
-              Both plans include medication if prescribed, doctor consultations, and full portal access.
+              Both plans include doctor consultations, clinical monitoring, and full portal access.
             </p>
 
             {/* Two CTA buttons */}
@@ -113,7 +113,7 @@ export function FinalCTASection() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">3</div>
-                <span className="text-white/90">Treatment delivered to your door</span>
+                <span className="text-white/90">Your personalised care plan begins</span>
               </div>
             </div>
 
@@ -146,7 +146,7 @@ export function FinalCTASection() {
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-[#7e9a72]">
             <span>AHPRA-registered doctors</span>
-            <span>Treatment if clinically appropriate</span>
+            <span>Doctor-led metabolic care</span>
             <span>Australian owned</span>
             <span>Secure & confidential</span>
           </div>
@@ -157,15 +157,14 @@ export function FinalCTASection() {
       <div className="bg-[#2c3628] py-8 px-4 sm:px-6 lg:px-8 border-t border-[#3d4f38]">
         <div className="max-w-4xl mx-auto">
           <div className="space-y-4 text-[10px] leading-relaxed text-[#7e9a72]">
-            {/* Citation for weight loss claim */}
-            {/* GAP-017: Removed public medication names for TGA compliance */}
+            {/* Evidence-based outcome disclaimer */}
             <p>
-              <span className="text-[#a8bb9e]">*</span> Average weight loss of approximately 12-15% of initial body weight observed in clinical trials of prescription weight management medications when combined with lifestyle modifications including reduced-calorie diet and increased physical activity. Results from peer-reviewed clinical studies published in <em>N Engl J Med</em>. Individual results may vary significantly. Weight loss is not guaranteed and depends on multiple factors including adherence to treatment, diet, exercise, and individual metabolic response. Specific treatment options are discussed privately with your Sanative doctor.
+              Sanative is designed to support clinically meaningful weight and metabolic health improvement as part of a doctor-led care plan. Individual results vary significantly based on biology, adherence, lifestyle, and clinical factors. Outcomes are not guaranteed. Treatment options, where clinically appropriate, are discussed privately with your Sanative doctor.
             </p>
 
             {/* General medical disclaimer */}
             <p className="pt-2 border-t border-[#3d4f38]">
-              <span className="text-[#a8bb9e] font-medium">Medical Disclaimer:</span> This website provides general health information only and does not constitute medical advice. All treatments are prescribed by AHPRA-registered medical practitioners following clinical assessment. Treatment is only prescribed when clinically appropriate. Results vary between individuals and are not guaranteed. Weight management medications are prescription-only medicines and are subject to availability. Always read the label and follow directions for use. If symptoms persist, consult your healthcare professional. Sanative Health Pty Ltd complies with the Therapeutic Goods Advertising Code and operates under Australian telehealth regulations.
+              <span className="text-[#a8bb9e] font-medium">Medical Disclaimer:</span> This website provides general health information only and does not constitute medical advice. All care plans are developed by AHPRA-registered medical practitioners following clinical assessment. Care is only provided when clinically appropriate. Results vary between individuals and are not guaranteed. Always read the label and follow directions for use. If symptoms persist, consult your healthcare professional. Sanative Health Pty Ltd complies with the Therapeutic Goods Advertising Code and operates under Australian telehealth regulations.
             </p>
           </div>
         </div>

@@ -45,7 +45,7 @@ export function BentoHero() {
               </p>
             </div>
             <div className="flex items-center gap-2 text-white mt-6">
-              <span className="text-sm font-medium">Find your treatment</span>
+              <span className="text-sm font-medium">Start assessment</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
             {/* Decorative */}
@@ -107,17 +107,17 @@ export function BentoHero() {
                 </span>
               </div>
               <h3 className="text-xl lg:text-2xl font-serif text-[#2c3628] leading-tight">
-                Grow fuller
-                <br /><span className="text-[#c17a58]">hair</span>
+                Doctor-led
+                <br /><span className="text-[#c17a58]">hair health</span>
               </h3>
               <p className="text-[#5c4a3d] text-sm mt-3 leading-relaxed">
-                Clinically proven treatments to regrow thicker, healthier hair.
+                Assessment-first care with options discussed privately if clinically appropriate.
               </p>
             </div>
 
             <div className="relative flex items-center justify-between mt-4">
               <div className="flex items-center gap-2 text-[#34412f]">
-                <span className="text-sm font-medium">Start treatment</span>
+                <span className="text-sm font-medium">Learn more</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
               <div className="w-14 h-14 bg-[#c17a58]/20 rounded-full flex items-center justify-center">
@@ -201,7 +201,7 @@ export function BentoHero() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />
-            <span>Discreet Delivery</span>
+            <span>Pharmacy dispensing when prescribed</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />

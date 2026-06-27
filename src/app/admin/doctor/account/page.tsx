@@ -62,6 +62,8 @@ export default function DoctorAccountPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [providerNumber, setProviderNumber] = useState("");
+  const [savingProvider, setSavingProvider] = useState(false);
 
   useEffect(() => {
     async function loadAccount() {
@@ -70,6 +72,7 @@ export default function DoctorAccountPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load account");
         setDoctor(data.doctor);
+        setProviderNumber(data.doctor.registrationNumber || "");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to load account");
       } finally {
@@ -79,6 +82,43 @@ export default function DoctorAccountPage() {
 
     loadAccount();
   }, []);
+
+  const saveProviderNumber = async () => {
+    const trimmed = providerNumber.trim();
+    if (!trimmed) {
+      toast.error("Enter your Medicare provider number");
+      return;
+    }
+
+    setSavingProvider(true);
+    try {
+      const res = await fetch("/api/admin/doctor/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ medicareProviderNumber: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save provider number");
+
+      setDoctor((prev) =>
+        prev
+          ? {
+              ...prev,
+              registrationNumber: trimmed,
+              registrationSource: "Doctor account profile",
+            }
+          : prev
+      );
+      if (doctor?.id) {
+        localStorage.setItem(`sanative-doctor-provider-${doctor.id}`, trimmed);
+      }
+      toast.success("Medicare provider number saved for pathology referrals");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save provider number");
+    } finally {
+      setSavingProvider(false);
+    }
+  };
 
   const resetPassword = async () => {
     if (newPassword.length < 8) {
@@ -200,21 +240,44 @@ export default function DoctorAccountPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
               <div className="flex items-start gap-3">
                 <BadgeCheck className="w-5 h-5 text-blue-700 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-blue-900">Registration number</p>
-                  <p className="text-sm text-blue-800 mt-1">
-                    {doctor.registrationNumber || "Not recorded"}
-                  </p>
-                  <p className="text-xs text-blue-700 mt-2">
-                    {doctor.registrationSource
-                      ? `Source: ${doctor.registrationSource}`
-                      : "Add a dedicated AHPRA / registration field to the staff profile if this must be stored directly on the doctor account."}
+                <div className="flex-1">
+                  <p className="font-semibold text-blue-900">Medicare provider number</p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Used on pathology referrals and prescriptions. Saved to your doctor profile.
                   </p>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="providerNumber">Your provider number</Label>
+                <Input
+                  id="providerNumber"
+                  value={providerNumber}
+                  onChange={(e) => setProviderNumber(e.target.value)}
+                  placeholder="e.g. 1234567A"
+                  className="bg-white"
+                />
+                {doctor.registrationSource && (
+                  <p className="text-xs text-blue-700">
+                    Current source: {doctor.registrationSource}
+                  </p>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={saveProviderNumber}
+                disabled={savingProvider || !providerNumber.trim()}
+              >
+                {savingProvider ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <BadgeCheck className="w-4 h-4 mr-2" />
+                )}
+                Save provider number
+              </Button>
             </div>
           </CardContent>
         </Card>

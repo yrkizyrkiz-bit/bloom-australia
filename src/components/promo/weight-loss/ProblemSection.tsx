@@ -123,7 +123,7 @@ export function ProblemSection() {
           <div className="w-16 h-px bg-[#cdd8c6] mx-auto mb-6" />
           <p className="text-lg lg:text-xl text-[#5c7a52] leading-relaxed">
             That&apos;s why we take a different approach — one that works{" "}
-            <span className="text-[#34412f] font-medium">with your biology</span>, not against it. Our doctors assess your individual situation and, where appropriate, prescribe evidence-based treatments designed to address the underlying factors.
+            <span className="text-[#34412f] font-medium">with your biology</span>, not against it. Our doctors assess your individual situation and develop a doctor-led metabolic care plan guided by your health profile and biomarkers.
           </p>
         </div>
       </div>

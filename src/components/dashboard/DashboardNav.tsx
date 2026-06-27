@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { hasPortalFeature } from "@/components/portal/ProgramFeatureGate";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,55 +16,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   LayoutDashboard,
-  FlaskConical,
-  Settings,
   LogOut,
   ChevronDown,
-  Activity,
   User,
   History,
   Target,
-  Home,
-  Bean,
-  Droplets,
   Heart,
-  Flame,
-  TestTubes,
-  Sparkles,
   LineChart,
-  Scale,
-  BookOpen,
   MessageSquare,
   HelpCircle,
   CreditCard,
   Grid3X3,
 } from "lucide-react";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
-import { ORGAN_CARE_CARD } from "@/lib/programs/catalog";
-import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 import { RealTimeNotificationBell } from "./RealTimeNotificationBell";
 
 const navItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/weight-management", label: "Weight", icon: Scale },
   { href: "/dashboard/trends", label: "Trends", icon: LineChart },
   { href: "/dashboard/goals", label: "Goals", icon: Target },
   { href: "/dashboard/reports", label: "Reports", icon: History },
-];
-
-const biomarkerLinks = [
-  { href: "/dashboard/biomarkers", label: "My Biomarkers", icon: FlaskConical, color: "text-[#1D9E75]" },
-  { href: "/dashboard/biomarkers/learn", label: "Learn about Biomarkers", icon: BookOpen, color: "text-emerald-600" },
-];
-
-const healthTests = [
-  { href: "/dashboard/blood-panel", label: "Full Blood Panel", icon: TestTubes, color: "text-[#1D9E75]" },
-  { href: "/dashboard/liver-test", label: "Liver Function", icon: Bean, color: "text-lime-600" },
-  { href: "/dashboard/kidney-test", label: "Kidney Function", icon: Droplets, color: "text-cyan-600" },
-  { href: "/dashboard/heart-test", label: "Heart Health", icon: Heart, color: "text-red-500" },
-  { href: "/dashboard/thyroid-test", label: "Thyroid Function", icon: Activity, color: "text-blue-600" },
-  { href: "/dashboard/hormone-test", label: "Hormone Health", icon: Sparkles, color: "text-purple-500" },
-  { href: "/dashboard/metabolic-panel", label: "Metabolic Panel", icon: Flame, color: "text-orange-500" },
 ];
 
 export function DashboardNav() {
@@ -73,14 +42,10 @@ export function DashboardNav() {
   const { user, logout } = useAuth();
   const { data: portal } = usePortalContext();
   const biomarkersUnlocked = hasPortalFeature(portal, "biomarkerResults");
-  const organCareEntitled = isOrganCareEntitled(portal?.membership);
 
   const initials = user
     ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
     : "U";
-
-  const isHealthTestActive = healthTests.some(test => pathname.startsWith(test.href));
-  const isBiomarkerActive = pathname.startsWith("/dashboard/biomarkers");
 
   return (
     <nav className="bg-white/80 backdrop-blur-md border-b border-[#e6ebe3]/60 sticky top-0 z-50">
@@ -124,89 +89,7 @@ export function DashboardNav() {
               </Link>
             )}
 
-            {/* Biomarkers Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`gap-2 rounded-xl ${isBiomarkerActive ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
-                >
-                  <FlaskConical className="w-4 h-4" />
-                  Biomarkers
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52 rounded-xl border-[#e6ebe3] shadow-lg">
-                {!biomarkersUnlocked && (
-                  <DropdownMenuLabel className="text-xs text-[#5c7a52] font-normal py-2">
-                    Unlocks when your panel is active.{" "}
-                    <Link href={MEMBER_PROGRAMS_HOME} className="text-[#1D9E75] underline">
-                      View programs
-                    </Link>
-                  </DropdownMenuLabel>
-                )}
-                {biomarkerLinks.map((link) => {
-                  const isActive = pathname === link.href;
-                  const href = link.href;
-                  return (
-                    <DropdownMenuItem key={link.href} asChild>
-                      <Link
-                        href={href}
-                        className={`flex items-center gap-2 cursor-pointer rounded-lg ${isActive ? "bg-[#1D9E75]/10" : ""}`}
-                      >
-                        <link.icon className={`w-4 h-4 ${link.color}`} />
-                        {link.label}
-                      </Link>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Health Tests Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`gap-2 rounded-xl ${isHealthTestActive ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
-                >
-                  <TestTubes className="w-4 h-4" />
-                  Organ & Metabolic Health
-                  {!biomarkersUnlocked && (
-                    <span className="text-[10px] uppercase tracking-wide text-[#7e9a72]">Explore</span>
-                  )}
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 rounded-xl border-[#e6ebe3] shadow-lg">
-                <DropdownMenuLabel className="text-xs text-[#5c7a52] font-medium">
-                  {organCareEntitled
-                    ? biomarkersUnlocked
-                      ? "Organ-Specific Tests"
-                      : "Explore health panels"
-                    : "Add Organ Care to unlock"}
-                </DropdownMenuLabel>
-                {healthTests.map((test) => {
-                  const isActive = pathname.startsWith(test.href);
-                  const href = organCareEntitled ? test.href : ORGAN_CARE_CARD.quizRoute;
-                  return (
-                    <DropdownMenuItem key={test.href} asChild>
-                      <Link
-                        href={href}
-                        className={`flex items-center gap-2 cursor-pointer rounded-lg ${isActive ? "bg-[#1D9E75]/10" : ""} ${!organCareEntitled ? "opacity-50" : ""}`}
-                      >
-                        <test.icon className={`w-4 h-4 ${test.color}`} />
-                        {test.label}
-                      </Link>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {navItems.slice(1).map((item) => {
+            {navItems.map((item) => {
               const isActive = pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
               return (

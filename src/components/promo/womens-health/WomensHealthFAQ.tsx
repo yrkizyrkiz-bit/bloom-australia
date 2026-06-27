@@ -15,7 +15,7 @@ const faqs: FAQ[] = [
   },
   {
     question: "Is hormone replacement therapy (HRT) safe?",
-    answer: "Modern body-identical HRT has been shown to be safe and effective for most women when prescribed appropriately. Our doctors carefully assess your medical history, risk factors, and symptoms to determine if HRT is suitable for you. We use TGA-approved bioidentical hormones and monitor your treatment regularly. The benefits often outweigh the risks, especially when started within 10 years of menopause."
+    answer: "Hormone therapy suitability depends on your individual health history, symptoms, and risk factors. Our doctors assess these carefully in consultation before recommending any treatment. Benefits and risks are discussed openly so you can make an informed decision with your doctor."
   },
   {
     question: "What can I expect during a 30-minute consultation?",
@@ -27,8 +27,8 @@ const faqs: FAQ[] = [
     answer: "Initial consultations are $149 for a comprehensive 30-minute telehealth appointment with one of our women's health specialists. Follow-up consultations are $99. Some patients may be able to claim part of eligible services depending on their cover. Please check directly with your insurer."
   },
   {
-    question: "Can you prescribe the contraceptive pill via telehealth?",
-    answer: "Yes, our doctors can prescribe oral contraceptives, the mini-pill, and other hormonal contraceptives via telehealth. We'll discuss your health history, lifestyle, and preferences to find the best option for you. For methods requiring insertion (like IUDs or implants), we can provide referrals to local providers."
+    question: "Can you help with contraception via telehealth?",
+    answer: "Yes, our doctors provide contraception consultations via telehealth. We discuss your health history, lifestyle, and preferences to identify suitable options. Any prescriptions are issued only when clinically appropriate and discussed privately with you."
   },
   {
     question: "What is PCOS and how can you help?",

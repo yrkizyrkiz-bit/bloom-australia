@@ -15,13 +15,13 @@ const steps = [
     number: "2",
     icon: Stethoscope,
     title: "Doctor review",
-    description: "An AHPRA-registered doctor reviews your profile and prescribes treatment if appropriate.",
+    description: "An AHPRA-registered doctor reviews your profile and creates a personalised care plan if appropriate.",
   },
   {
     number: "3",
     icon: Package,
-    title: "Medication delivered",
-    description: "Your personalised program begins with ongoing clinical support.",
+    title: "Personalised care plan",
+    description: "Your doctor-led program begins with ongoing clinical support and monitoring.",
   },
 ];
 
@@ -120,7 +120,7 @@ export function HowSanativeWorks() {
           `}
         >
           <p className="text-[#5c7a52] font-medium">
-            Your plan is continuously guided and adjusted — not a one-time prescription.
+            Your plan is continuously guided and adjusted — not a one-off consult.
           </p>
         </div>
 

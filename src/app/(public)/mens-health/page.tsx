@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
+import { PublicComplianceBlock } from "@/components/legal/PublicComplianceBlock";
 import {
   ArrowRight,
   Zap,
@@ -15,15 +16,12 @@ import {
   ChevronUp,
   Beaker,
   Stethoscope,
-  Clock,
   Sparkles,
-  Star,
-  Target,
   Lock,
-  Truck,
   MessageSquare,
-  Package,
   Phone,
+  Users,
+  HeartHandshake,
 } from "lucide-react";
 
 // FAQ Item Component
@@ -71,7 +69,7 @@ function TreatmentSection({
   subtitle,
   description,
   symptoms,
-  treatments,
+  focusAreas,
   image,
   link,
   linkText,
@@ -84,7 +82,7 @@ function TreatmentSection({
   subtitle: string;
   description: string;
   symptoms: string[];
-  treatments: string[];
+  focusAreas: string[];
   image: string;
   link: string;
   linkText: string;
@@ -128,19 +126,19 @@ function TreatmentSection({
               </div>
             </div>
 
-            {/* Treatments */}
+            {/* Assessment focus */}
             <div className="mb-8">
               <h3 className="text-sm font-medium text-[#2c3628] uppercase tracking-wider mb-4">
-                Treatment options
+                Assessment focus
               </h3>
               <div className="grid sm:grid-cols-2 gap-3">
-                {treatments.map((treatment) => (
+                {focusAreas.map((area) => (
                   <div
-                    key={treatment}
+                    key={area}
                     className="flex items-center gap-3 text-[#5c7a52]"
                   >
                     <CheckCircle className="w-5 h-5 text-[#5c7a52] flex-shrink-0" />
-                    <span>{treatment}</span>
+                    <span>{area}</span>
                   </div>
                 ))}
               </div>
@@ -176,93 +174,72 @@ function TreatmentSection({
 export default function MensHealthPage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(0);
 
-  // Treatment sections - PE and Energy only (ED has its own full section)
+  // Energy & vitality — sexual health has its own section below
   const treatmentSections = [
-    {
-      id: "premature-ejaculation",
-      icon: Clock,
-      title: "Premature Ejaculation",
-      subtitle: "Evidence-based solutions",
-      description: "Premature ejaculation (PE) is characterised by ejaculation that occurs sooner than desired, often with minimal stimulation. Our evidence-based treatments can help you gain better control and enjoy more satisfying intimacy — all prescribed discreetly by Australian-registered doctors.",
-      symptoms: ["Ejaculating within 1-2 minutes", "Inability to delay ejaculation", "Feelings of frustration", "Avoiding intimacy", "Relationship tension"],
-      treatments: ["Prescription oral medications", "Topical treatments", "Behavioural techniques", "Combination approaches"],
-      image: "https://images.pexels.com/photos/4101143/pexels-photo-4101143.jpeg?auto=compress&cs=tinysrgb&w=800",
-      link: "/mens-health/assessment?concern=premature-ejaculation",
-      linkText: "Start PE assessment",
-      bgColor: "bg-[#f4f7f2]",
-    },
     {
       id: "energy",
       icon: Zap,
       title: "Energy & Vitality",
-      subtitle: "Optimise your wellbeing",
-      description: "Feeling constantly tired isn't normal. Through comprehensive biomarker testing, we identify nutritional deficiencies, hormonal imbalances, and metabolic issues that may be affecting your energy levels — then create a plan to address them.",
+      subtitle: "Doctor-led metabolic wellbeing",
+      description:
+        "Feeling constantly tired is worth investigating properly. Through health assessment and biomarker testing where clinically appropriate, your doctor reviews factors that may affect energy, recovery, and overall vitality — then discusses a personalised care plan if suitable.",
       symptoms: ["Chronic fatigue", "Poor sleep quality", "Afternoon crashes", "Difficulty concentrating", "Slow recovery", "Brain fog"],
-      treatments: ["Vitamin optimisation", "Sleep support", "Metabolic health protocols", "Stress management"],
+      focusAreas: ["Sleep and stress patterns", "Nutrient and thyroid markers", "Metabolic health", "Lifestyle and recovery habits"],
       image: "https://images.pexels.com/photos/4720309/pexels-photo-4720309.jpeg?auto=compress&cs=tinysrgb&w=800",
-      link: "/mens-health/assessment?concern=energy",
+      link: "/mens-health/assessment?concern=energy-vitality",
       linkText: "Start assessment",
       bgColor: "bg-[#fdfbf7]",
     },
   ];
 
-  // ED Process Steps
-  const edProcessSteps = [
+  const sexualHealthSteps = [
     {
       number: "01",
       icon: MessageSquare,
-      title: "Online Assessment",
-      description: "Complete a quick health questionnaire from your phone or computer. It takes about 5 minutes.",
+      title: "Clinical assessment",
+      description:
+        "Complete a confidential health questionnaire covering symptoms, medical history, medications, and lifestyle factors relevant to sexual wellbeing.",
     },
     {
       number: "02",
       icon: Phone,
-      title: "Doctor Consultation",
-      description: "An AHPRA-registered doctor reviews your assessment and may call to discuss treatment options if appropriate.",
+      title: "Doctor review",
+      description:
+        "An AHPRA-registered doctor reviews your assessment and evaluates whether a personalised care plan is clinically appropriate for you.",
     },
     {
       number: "03",
-      icon: Package,
-      title: "Discreet Delivery",
-      description: "If prescribed, your treatment is delivered in unmarked packaging to your door. Free shipping Australia-wide.",
+      icon: Stethoscope,
+      title: "Personalised care planning",
+      description:
+        "If appropriate, your doctor discusses suitable care options privately in consultation. Care options are never advertised on this website.",
     },
   ];
 
-  // ED Treatment Info
-  const edTreatmentInfo = [
-    {
-      name: "Short-acting treatment",
-      brandName: "As-needed option",
-      description: "Works within 30-60 minutes. Effects typically last 4-6 hours. Take as needed before sexual activity.",
-    },
-    {
-      name: "Long-acting treatment",
-      brandName: "Flexible option",
-      description: "Works within 30-60 minutes. Effects can last up to 36 hours, providing more flexibility and spontaneity.",
-    },
-  ];
-
-  // ED Benefits
-  const edBenefits = [
+  const sexualHealthBenefits = [
     {
       icon: Stethoscope,
-      title: "Doctor-Prescribed",
-      description: "All treatments are prescribed by AHPRA-registered Australian doctors after a thorough health assessment.",
+      title: "AHPRA-registered doctors",
+      description:
+        "Every consultation is with an Australian-registered doctor who reviews your full health profile before any clinical decisions.",
     },
     {
       icon: Lock,
-      title: "100% Confidential",
-      description: "Your health information is protected by Australian privacy laws. Discreet service from start to finish.",
+      title: "Confidential care",
+      description:
+        "Your health information is protected by Australian privacy laws. Confidential service from assessment through to ongoing support.",
     },
     {
-      icon: Truck,
-      title: "Free Delivery",
-      description: "Medications shipped in plain, unmarked packaging. No one will know what's inside.",
+      icon: Beaker,
+      title: "Biomarker-guided where appropriate",
+      description:
+        "Blood tests may be recommended where they help your doctor understand contributing factors — not as a one-size-fits-all requirement.",
     },
     {
       icon: MessageSquare,
-      title: "Ongoing Support",
-      description: "Message your care team anytime with questions. Unlimited support included with your treatment.",
+      title: "Care team support",
+      description:
+        "Message your care team with questions between appointments. Ongoing clinical support is part of your program.",
     },
   ];
 
@@ -297,70 +274,49 @@ export default function MensHealthPage() {
     {
       number: "03",
       title: "Doctor Consultation",
-      description: "An Australian-registered doctor reviews your results, explains findings, and creates a personalised treatment plan.",
-      details: ["AHPRA-registered doctors", "Doctor consultation", "Results interpretation", "Treatment planning"],
+      description: "An Australian-registered doctor reviews your results, explains findings, and determines whether a personalised care plan is clinically appropriate.",
+      details: ["AHPRA-registered doctors", "Doctor consultation", "Results interpretation", "Care plan suitability assessment"],
     },
     {
       number: "04",
-      title: "Treatment & Monitoring",
-      description: "Begin your treatment with ongoing clinical support. Regular check-ins ensure optimal results and adjustments as needed.",
-      details: ["Discreet home delivery", "Progress tracking", "Dose optimisation", "Unlimited messaging"],
+      title: "Ongoing clinical support",
+      description: "Your journey continues with regular check-ins and care plan reviews. Suitable care options are discussed privately with your doctor if clinically appropriate.",
+      details: ["Care team messaging", "Progress tracking", "Clinical review", "Biomarker monitoring where indicated"],
     },
   ];
 
   const faqs = [
     {
-      question: "What conditions do you treat?",
-      answer: "We offer treatments for erectile dysfunction, premature ejaculation, hair loss, weight management, and energy/vitality concerns. All treatments are prescribed by AHPRA-registered doctors after a thorough health assessment.",
+      question: "What areas of men's health do you support?",
+      answer: "We offer doctor-led programs for sexual health, energy and vitality, hair loss, and weight management. Each pathway starts with clinical assessment. Care options are discussed privately with your doctor if clinically appropriate — they are not advertised on this website.",
     },
     {
       question: "How does the consultation process work?",
-      answer: "You start with an online health assessment, which takes about 10 minutes. Based on your responses, we may recommend blood tests to understand your health better. An Australian-registered doctor then reviews everything and discusses treatment options with you via telehealth consultation.",
+      answer: "You start with an online health assessment. Based on your responses, we may recommend blood tests where clinically appropriate. An Australian-registered doctor then reviews everything and discusses whether a personalised care plan is suitable for you via telehealth consultation.",
     },
     {
-      question: "Are the treatments safe?",
-      answer: "All treatments we prescribe are TGA-approved and prescribed by qualified Australian doctors. We conduct thorough health assessments and regular monitoring to ensure safety. Potential risks and side effects are discussed during your consultation.",
+      question: "Is care provided by real Australian doctors?",
+      answer: "Yes. Every Sanative doctor is AHPRA-registered and practising in Australia. Your doctor reviews your health profile, discusses your symptoms, and determines what is clinically appropriate for you individually.",
     },
     {
-      question: "Are the treatments prescription-only?",
-      answer: "Yes, most treatments we offer require a prescription from an Australian-registered doctor. This ensures safety and appropriateness for your individual health profile. Our doctors review your health assessment and test results before prescribing any medication.",
+      question: "What about care options after assessment?",
+      answer: "Care options are discussed privately with your doctor if clinically appropriate. Your program fee covers clinical assessment, monitoring, and portal access — not medicine bundles.",
     },
     {
       question: "Is everything confidential?",
-      answer: "Absolutely. All consultations, test results, and treatments are completely confidential. Medications are delivered in discreet, unmarked packaging. Your health information is protected under Australian privacy laws and stored securely.",
+      answer: "Absolutely. All consultations, test results, and care plans are confidential. Your health information is protected under Australian privacy laws and stored securely.",
     },
     {
-      question: "How much does treatment cost?",
-      answer: "Costs vary depending on your treatment plan. Initial consultations start from $49, and ongoing treatment programs vary depending on medications and support level. Blood testing is included for members or available separately. We provide transparent pricing with no hidden fees.",
+      question: "How much does the program cost?",
+      answer: "Costs vary depending on your program. Initial consultations start from $49, and ongoing programs vary depending on clinical support level. Blood testing may be recommended where clinically appropriate. We provide transparent pricing with no hidden fees.",
+    },
+    {
+      question: "What is your refund policy?",
+      answer: "If your Sanative doctor determines after assessment that a program is not clinically appropriate for you, your first-month payment will be refunded in accordance with our Refund Policy.",
     },
   ];
 
-  const testimonials = [
-    {
-      quote: "The whole process was much easier than I expected. The doctors actually take time to explain everything and I felt comfortable discussing my concerns.",
-      name: "James M.",
-      age: 42,
-      location: "Sydney",
-      treatment: "Men's Health",
-      initials: "JM",
-    },
-    {
-      quote: "I've been using the hair treatment for 6 months now and I'm happy with the progress. The team has been supportive throughout.",
-      name: "Michael R.",
-      age: 35,
-      location: "Melbourne",
-      treatment: "Hair Program",
-      initials: "MR",
-    },
-    {
-      quote: "Discreet, professional, and effective. I appreciate how confidential the whole service is.",
-      name: "David L.",
-      age: 48,
-      location: "Brisbane",
-      treatment: "Sexual Health",
-      initials: "DL",
-    },
-  ];
+  // Patient testimonials removed for AHPRA/TGA compliance — see PublicComplianceBlock below
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -454,7 +410,7 @@ export default function MensHealthPage() {
                     Hair <span className="text-[#c17a58]">Loss</span>
                   </h3>
                   <p className="text-[#7e9a72] text-sm mt-2">
-                    Clinically proven treatments for regrowth
+                    Doctor-led hair health assessment and care planning
                   </p>
                 </div>
                 <div className="flex items-center justify-between mt-4">
@@ -465,20 +421,29 @@ export default function MensHealthPage() {
                 </div>
               </Link>
 
-              {/* Premature Ejaculation - Small Card */}
-              <button
-                type="button"
-                onClick={() => scrollToSection("premature-ejaculation")}
-                className="group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] p-6 lg:p-8 min-h-[160px] flex flex-col justify-between transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:from-[#a8bb9e] hover:to-[#7e9a72] text-left"
+              {/* Sexual health — wide card */}
+              <Link
+                href="/mens-health/sexual-health"
+                className="md:col-span-2 group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#34412f] to-[#2c3628] p-6 lg:p-8 min-h-[160px] flex items-center justify-between transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:from-[#2c3628] hover:to-[#1f261c] text-left"
               >
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-serif text-[#2c3628]">
-                    Premature <span className="text-[#5c7a52]">Ejaculation</span>
+                <div>
+                  <span className="inline-block px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-[#c17a58] text-white rounded-full mb-2">
+                    Confidential care
+                  </span>
+                  <h3 className="text-xl lg:text-2xl font-serif text-white">
+                    Sexual <span className="text-[#a8bb9e]">health</span>
                   </h3>
-                  <ArrowRight className="w-5 h-5 text-[#34412f] group-hover:translate-x-1 transition-transform" />
+                  <p className="text-[#7e9a72] text-sm mt-2">
+                    Doctor-led assessment — care options discussed privately if clinically appropriate
+                  </p>
                 </div>
-                <p className="text-[#4a6243] text-sm">Evidence-based solutions</p>
-              </button>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                    <Heart className="w-6 h-6 text-[#a8bb9e]" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
 
               {/* Energy & Vitality - Small Card */}
               <button
@@ -492,32 +457,7 @@ export default function MensHealthPage() {
                   </h3>
                   <ArrowRight className="w-5 h-5 text-[#34412f] group-hover:translate-x-1 transition-transform" />
                 </div>
-                <p className="text-[#5c7a52] text-sm">Optimise your wellbeing</p>
-              </button>
-
-              {/* Erectile Dysfunction - Wide Card */}
-              <button
-                type="button"
-                onClick={() => scrollToSection("erectile-dysfunction")}
-                className="md:col-span-2 group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#34412f] to-[#2c3628] p-6 lg:p-8 min-h-[160px] flex items-center justify-between transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:from-[#2c3628] hover:to-[#1f261c] text-left"
-              >
-                <div>
-                  <span className="inline-block px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-[#c17a58] text-white rounded-full mb-2">
-                    Discreet Treatment
-                  </span>
-                  <h3 className="text-xl lg:text-2xl font-serif text-white">
-                    Erectile <span className="text-[#a8bb9e]">Dysfunction</span>
-                  </h3>
-                  <p className="text-[#7e9a72] text-sm mt-2">
-                    Clinically-proven treatments prescribed by Australian doctors
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-[#a8bb9e]" />
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
-                </div>
+                <p className="text-[#5c7a52] text-sm">Doctor-led vitality support</p>
               </button>
             </div>
 
@@ -533,22 +473,16 @@ export default function MensHealthPage() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />
-                <span>Discreet Delivery</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />
-                <span>Australian Pharmacy</span>
+                <span>Ongoing care team support</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ========== FULL ERECTILE DYSFUNCTION SECTION ========== */}
-        <section id="erectile-dysfunction" className="py-20 lg:py-28 bg-[#fdfbf7]">
+        {/* Sexual health */}
+        <section id="sexual-health" className="py-20 lg:py-28 bg-[#fdfbf7]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* ED Hero */}
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center mb-20">
-              {/* Content */}
               <div>
                 <div className="inline-flex items-center gap-2 bg-[#e6ebe3] rounded-full px-4 py-2 mb-6">
                   <Shield className="w-4 h-4 text-[#5c7a52]" />
@@ -556,61 +490,60 @@ export default function MensHealthPage() {
                 </div>
 
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] leading-tight mb-6">
-                  Erectile dysfunction{" "}
-                  <span className="text-[#5c7a52] italic">treatment</span>
+                  Doctor-led{" "}
+                  <span className="text-[#5c7a52] italic">sexual health</span>{" "}
+                  assessment
                 </h2>
 
                 <p className="text-lg text-[#5c7a52] leading-relaxed mb-8">
-                  Clinically-proven ED treatments prescribed by Australian doctors and delivered discreetly to your door. Start your online assessment today.
+                  Sanative offers confidential, doctor-led assessment for men's sexual health concerns. Your doctor reviews your health profile and discusses what is clinically appropriate for you — individually, and in private consultation.
                 </p>
 
                 <div className="space-y-3 mb-8">
                   <div className="flex items-center gap-3 text-[#2c3628]">
                     <CheckCircle className="w-5 h-5 text-[#5c7a52]" />
-                    <span>Prescribed by AHPRA-registered doctors</span>
+                    <span>Clinical assessment before any care plan</span>
                   </div>
                   <div className="flex items-center gap-3 text-[#2c3628]">
                     <CheckCircle className="w-5 h-5 text-[#5c7a52]" />
-                    <span>Free, discreet delivery Australia-wide</span>
+                    <span>Care options discussed privately if clinically appropriate</span>
                   </div>
                   <div className="flex items-center gap-3 text-[#2c3628]">
                     <CheckCircle className="w-5 h-5 text-[#5c7a52]" />
-                    <span>Ongoing medical support included</span>
+                    <span>Ongoing care team support in your portal</span>
                   </div>
                 </div>
 
                 <Link
-                  href="/mens-health/assessment?concern=erectile-dysfunction"
+                  href="/mens-health/assessment?concern=sexual-health"
                   className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4"
                 >
-                  Start online assessment
+                  Start assessment
                   <ArrowRight className="w-5 h-5" />
                 </Link>
               </div>
 
-              {/* Image */}
               <div className="relative">
                 <div className="relative aspect-[4/3] lg:aspect-square rounded-3xl overflow-hidden shadow-xl">
                   <Image
                     src="https://images.pexels.com/photos/5384445/pexels-photo-5384445.jpeg?auto=compress&cs=tinysrgb&w=800"
-                    alt="Happy couple - Erectile dysfunction treatment"
+                    alt="Men's sexual health — doctor-led assessment"
                     fill
                     className="object-cover object-center"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#34412f]/30 to-transparent" />
                 </div>
 
-                {/* Trust badges */}
                 <div className="absolute -bottom-6 left-6 right-6 bg-white rounded-2xl p-4 shadow-lg border border-[#e6ebe3]">
                   <div className="flex items-center justify-around text-center">
                     <div>
-                      <p className="text-xs text-[#7e9a72]">Delivery</p>
-                      <p className="text-sm font-medium text-[#2c3628]">Free & Discreet</p>
+                      <p className="text-xs text-[#7e9a72]">Assessment</p>
+                      <p className="text-sm font-medium text-[#2c3628]">Confidential</p>
                     </div>
                     <div className="w-px h-8 bg-[#e6ebe3]" />
                     <div>
                       <p className="text-xs text-[#7e9a72]">Support</p>
-                      <p className="text-sm font-medium text-[#2c3628]">Unlimited</p>
+                      <p className="text-sm font-medium text-[#2c3628]">Care team</p>
                     </div>
                     <div className="w-px h-8 bg-[#e6ebe3]" />
                     <div>
@@ -621,124 +554,80 @@ export default function MensHealthPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* ED Trust Bar */}
-        <section className="py-6 bg-[#34412f]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-wrap justify-center gap-8 lg:gap-16 text-white">
-              <div className="flex items-center gap-3">
-                <Truck className="w-5 h-5 text-[#a8bb9e]" />
-                <span className="text-sm">Free delivery</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Lock className="w-5 h-5 text-[#a8bb9e]" />
-                <span className="text-sm">100% confidential</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Stethoscope className="w-5 h-5 text-[#a8bb9e]" />
-                <span className="text-sm">Australian doctors</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <MessageSquare className="w-5 h-5 text-[#a8bb9e]" />
-                <span className="text-sm">Ongoing support</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* What is ED Section */}
-        <section className="py-20 lg:py-28 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-              {/* Info Card */}
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start mb-20">
               <div className="bg-gradient-to-br from-[#f4f7f2] to-[#e6ebe3] rounded-3xl p-8 lg:p-10">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-14 h-14 rounded-2xl bg-[#5c7a52]/20 flex items-center justify-center">
                     <Heart className="w-7 h-7 text-[#5c7a52]" />
                   </div>
                   <h3 className="text-2xl lg:text-3xl font-serif text-[#2c3628]">
-                    What is erectile dysfunction?
+                    A whole-person approach
                   </h3>
                 </div>
-
                 <p className="text-[#5c7a52] leading-relaxed mb-6">
-                  Erectile Dysfunction (ED) is the inability to get or keep an erection firm enough to have sexual intercourse. It&apos;s a common condition that can affect men at any age, though it becomes more prevalent with age.
+                  Sexual wellbeing can be influenced by stress, sleep, hormones, cardiovascular health, medications, and mental health — often in combination. Our doctors review the full picture, not just a single symptom.
                 </p>
-
-                <p className="text-[#5c7a52] leading-relaxed mb-6">
-                  ED can be caused by various factors including:
-                </p>
-
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-start gap-3 text-[#5c7a52]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52] mt-2 flex-shrink-0" />
-                    <span>Cardiovascular conditions and blood flow issues</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-[#5c7a52]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52] mt-2 flex-shrink-0" />
-                    <span>Diabetes and metabolic conditions</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-[#5c7a52]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52] mt-2 flex-shrink-0" />
-                    <span>Hormonal imbalances including low testosterone</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-[#5c7a52]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52] mt-2 flex-shrink-0" />
-                    <span>Psychological factors: stress, anxiety, depression</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-[#5c7a52]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52] mt-2 flex-shrink-0" />
-                    <span>Lifestyle factors: smoking, alcohol, lack of exercise</span>
-                  </li>
+                <ul className="space-y-3">
+                  {[
+                    "Stress, anxiety, and relationship factors",
+                    "Sleep quality and recovery",
+                    "Hormonal and metabolic markers",
+                    "Cardiovascular health",
+                    "Current medications and medical history",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3 text-[#5c7a52]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52] mt-2 flex-shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
                 </ul>
-
-                <p className="text-[#2c3628] font-medium">
-                  ED is treatable. Speak with a doctor to understand your options.
-                </p>
               </div>
 
-              {/* Content */}
               <div>
                 <span className="inline-block px-4 py-1.5 text-sm font-medium bg-[#e6ebe3] text-[#5c7a52] rounded-full mb-4">
-                  Evidence-based treatment
+                  Individual care
                 </span>
                 <h3 className="text-3xl sm:text-4xl font-serif text-[#2c3628] mb-6">
-                  How ED medications{" "}
-                  <span className="text-[#5c7a52] italic">work</span>
+                  Your doctor reviews{" "}
+                  <span className="text-[#5c7a52] italic">what fits you</span>
                 </h3>
-
                 <p className="text-lg text-[#5c7a52] leading-relaxed mb-6">
-                  ED medications like Sildenafil and Tadalafil are known as PDE5 inhibitors. They work by helping to relax blood vessels in the penis, allowing increased blood flow when you&apos;re sexually aroused.
+                  People enter Sanative with different health profiles, goals, and medical histories. There is no one-size-fits-all pathway — your doctor determines what is clinically appropriate after reviewing your assessment.
                 </p>
-
-                <p className="text-[#5c7a52] leading-relaxed mb-8">
-                  These medications don&apos;t cause an automatic erection — sexual arousal is still required. They simply help your body respond naturally to stimulation by improving blood flow to the area.
+                <p className="text-[#5c7a52] leading-relaxed">
+                  Individual results vary and are not guaranteed. Suitable care options, if any, are discussed privately in consultation — not advertised on this website.
                 </p>
-
-                <div className="space-y-4">
-                  {edTreatmentInfo.map((treatment) => (
-                    <div
-                      key={treatment.name}
-                      className="bg-[#fdfbf7] border border-[#e6ebe3] rounded-2xl p-5"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-medium text-[#2c3628]">{treatment.name}</h4>
-                        <span className="text-xs bg-[#e6ebe3] text-[#5c7a52] px-2 py-1 rounded-full">
-                          {treatment.brandName}
-                        </span>
-                      </div>
-                      <p className="text-sm text-[#5c7a52]">{treatment.description}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ED How It Works Section */}
+        {/* Sexual health trust bar */}
+        <section className="py-6 bg-[#34412f]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-wrap justify-center gap-8 lg:gap-16 text-white">
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-[#a8bb9e]" />
+                <span className="text-sm">Confidential assessment</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Stethoscope className="w-5 h-5 text-[#a8bb9e]" />
+                <span className="text-sm">Australian doctors</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Beaker className="w-5 h-5 text-[#a8bb9e]" />
+                <span className="text-sm">Biomarker-guided where appropriate</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-5 h-5 text-[#a8bb9e]" />
+                <span className="text-sm">Care team support</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Sexual health — how it works */}
         <section className="py-20 lg:py-28 bg-[#f4f7f2]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
@@ -750,15 +639,14 @@ export default function MensHealthPage() {
                 <span className="text-[#5c7a52] italic">works</span>
               </h3>
               <p className="text-lg text-[#5c7a52] max-w-2xl mx-auto">
-                Get started from your phone or computer. No waiting rooms, no awkward conversations.
+                A streamlined clinical pathway — thorough medical evaluation at every step.
               </p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-8">
-              {edProcessSteps.map((step, index) => (
+              {sexualHealthSteps.map((step, index) => (
                 <div key={step.number} className="relative">
-                  {/* Connection line */}
-                  {index < edProcessSteps.length - 1 && (
+                  {index < sexualHealthSteps.length - 1 && (
                     <div className="hidden md:block absolute top-12 left-[60%] w-[80%] h-px bg-[#cdd8c6]" />
                   )}
 
@@ -771,12 +659,8 @@ export default function MensHealthPage() {
                         <step.icon className="w-6 h-6 text-[#5c7a52]" />
                       </div>
                     </div>
-                    <h4 className="text-xl font-serif text-[#2c3628] mb-3">
-                      {step.title}
-                    </h4>
-                    <p className="text-[#5c7a52] leading-relaxed">
-                      {step.description}
-                    </p>
+                    <h4 className="text-xl font-serif text-[#2c3628] mb-3">{step.title}</h4>
+                    <p className="text-[#5c7a52] leading-relaxed">{step.description}</p>
                   </div>
                 </div>
               ))}
@@ -784,7 +668,7 @@ export default function MensHealthPage() {
 
             <div className="mt-12 text-center">
               <Link
-                href="/mens-health/assessment?concern=erectile-dysfunction"
+                href="/mens-health/assessment?concern=sexual-health"
                 className="btn-primary inline-flex items-center gap-2"
               >
                 Start your assessment
@@ -794,7 +678,7 @@ export default function MensHealthPage() {
           </div>
         </section>
 
-        {/* ED Benefits Section */}
+        {/* Sexual health — why Sanative */}
         <section className="py-20 lg:py-28 bg-[#fdfbf7]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
@@ -802,13 +686,13 @@ export default function MensHealthPage() {
                 Why choose us
               </span>
               <h3 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-6">
-                Treatment delivered{" "}
-                <span className="text-[#5c7a52] italic">discreetly</span>
+                Doctor-led care,{" "}
+                <span className="text-[#5c7a52] italic">built around you</span>
               </h3>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {edBenefits.map((benefit) => (
+              {sexualHealthBenefits.map((benefit) => (
                 <div
                   key={benefit.title}
                   className="bg-white rounded-2xl p-6 border border-[#e6ebe3] hover:shadow-lg transition-shadow"
@@ -816,21 +700,15 @@ export default function MensHealthPage() {
                   <div className="w-14 h-14 rounded-2xl bg-[#5c7a52]/10 flex items-center justify-center mb-4">
                     <benefit.icon className="w-7 h-7 text-[#5c7a52]" />
                   </div>
-                  <h4 className="text-lg font-serif text-[#2c3628] mb-2">
-                    {benefit.title}
-                  </h4>
-                  <p className="text-sm text-[#5c7a52] leading-relaxed">
-                    {benefit.description}
-                  </p>
+                  <h4 className="text-lg font-serif text-[#2c3628] mb-2">{benefit.title}</h4>
+                  <p className="text-sm text-[#5c7a52] leading-relaxed">{benefit.description}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ========== END OF FULL ED SECTION ========== */}
-
-        {/* Other Treatment Sections (PE and Energy) */}
+        {/* Energy & vitality */}
         {treatmentSections.map((section, index) => (
           <TreatmentSection
             key={section.id}
@@ -852,7 +730,7 @@ export default function MensHealthPage() {
                   <span className="text-[#a8bb9e] italic">Know your numbers.</span>
                 </h2>
                 <p className="text-lg text-[#a8bb9e] mb-8">
-                  Every man&apos;s biology is different. Our comprehensive blood panels measure the hormones, nutrients, and markers that matter — giving your doctor the data needed to create a treatment plan that works for you.
+                  Every man&apos;s biology is different. Our comprehensive blood panels measure the hormones, nutrients, and markers that matter — giving your doctor the data needed to personalise your care plan where clinically appropriate.
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 mb-8">
@@ -910,11 +788,11 @@ export default function MensHealthPage() {
                 Simple process
               </span>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-6">
-                From symptoms to{" "}
-                <span className="text-[#5c7a52] italic">solutions</span>
+                From assessment to{" "}
+                <span className="text-[#5c7a52] italic">care planning</span>
               </h2>
               <p className="text-lg text-[#5c7a52] max-w-2xl mx-auto">
-                Our streamlined process gets you from assessment to treatment quickly, while ensuring thorough medical evaluation at every step.
+                Our streamlined process gets you from assessment to doctor review quickly, while ensuring thorough clinical evaluation at every step.
               </p>
             </div>
 
@@ -957,51 +835,7 @@ export default function MensHealthPage() {
           </div>
         </section>
 
-        {/* Testimonials Section */}
-        <section className="py-20 lg:py-28 bg-[#f4f7f2]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <span className="inline-block px-4 py-1.5 text-sm font-medium bg-[#5c7a52]/20 text-[#5c7a52] rounded-full mb-4">
-                Patient experiences
-              </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-6">
-                Men who took{" "}
-                <span className="text-[#5c7a52] italic">control</span>
-              </h2>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {testimonials.map((testimonial) => (
-                <div
-                  key={testimonial.name}
-                  className="bg-white rounded-3xl p-6 shadow-sm border border-[#e6ebe3]"
-                >
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-[#c17a58] text-[#c17a58]" />
-                    ))}
-                  </div>
-                  <blockquote className="text-[#2c3628] leading-relaxed mb-6">
-                    &ldquo;{testimonial.quote}&rdquo;
-                  </blockquote>
-                  <div className="flex items-center gap-3 pt-4 border-t border-[#e6ebe3]">
-                    <div className="w-10 h-10 rounded-full bg-[#34412f] flex items-center justify-center text-white text-sm font-medium">
-                      {testimonial.initials}
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#2c3628]">{testimonial.name}, {testimonial.age}</p>
-                      <p className="text-sm text-[#7e9a72]">{testimonial.location} · {testimonial.treatment}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-8 text-center text-sm text-[#7e9a72]">
-              Individual results may vary. Testimonials are from real patients.
-            </p>
-          </div>
-        </section>
+        <PublicComplianceBlock title="Doctor-led men's health care" />
 
         {/* Trust Section */}
         <section className="py-20 lg:py-28 bg-[#e6ebe3]">
@@ -1023,17 +857,17 @@ export default function MensHealthPage() {
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 rounded-2xl bg-[#5c7a52]/20 flex items-center justify-center mx-auto mb-4">
-                  <Truck className="w-8 h-8 text-[#5c7a52]" />
+                  <HeartHandshake className="w-8 h-8 text-[#5c7a52]" />
                 </div>
-                <h3 className="text-lg font-serif text-[#2c3628] mb-2">Discreet Delivery</h3>
-                <p className="text-sm text-[#5c7a52]">Unmarked packaging delivered to your door</p>
+                <h3 className="text-lg font-serif text-[#2c3628] mb-2">Ongoing support</h3>
+                <p className="text-sm text-[#5c7a52]">Continuous care throughout your journey</p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 rounded-2xl bg-[#5c7a52]/20 flex items-center justify-center mx-auto mb-4">
-                  <Clock className="w-8 h-8 text-[#5c7a52]" />
+                  <Users className="w-8 h-8 text-[#5c7a52]" />
                 </div>
-                <h3 className="text-lg font-serif text-[#2c3628] mb-2">Ongoing Support</h3>
-                <p className="text-sm text-[#5c7a52]">Unlimited messaging with your care team</p>
+                <h3 className="text-lg font-serif text-[#2c3628] mb-2">Personalised care</h3>
+                <p className="text-sm text-[#5c7a52]">Care plans tailored to your unique biology</p>
               </div>
             </div>
           </div>
@@ -1073,14 +907,14 @@ export default function MensHealthPage() {
               <span className="text-[#a8bb9e] italic">Start today.</span>
             </h2>
             <p className="text-lg text-[#a8bb9e] mb-10 max-w-2xl mx-auto">
-              Complete a free health assessment and get matched with the right treatment plan. Our doctors are ready to help you feel your best.
+              Complete a health assessment and book a doctor consultation. Your Sanative doctor reviews your profile and discusses what is clinically appropriate for you.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/mens-health/assessment"
                 className="btn-white inline-flex items-center justify-center gap-2 text-lg px-8 py-4"
               >
-                Start free assessment
+                Start assessment
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
@@ -1092,7 +926,7 @@ export default function MensHealthPage() {
             </div>
             {/* GAP-026: Removed 'No commitment' - payment required */}
             <p className="mt-6 text-sm text-[#7e9a72]">
-              Free assessment · Refund if not suitable · Australian doctors
+              Refund if not suitable · Australian doctors · Confidential care
             </p>
           </div>
         </section>

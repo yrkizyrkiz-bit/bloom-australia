@@ -133,3 +133,66 @@ export function extractPortalQuizResultSummary(result: unknown): {
     suggestedPanel: typeof r.suggestedPanel === "string" ? r.suggestedPanel : undefined,
   };
 }
+
+export type PortalQuizSubmissionLike = {
+  id: string;
+  programKey: string;
+  submittedAt: string;
+};
+
+/** Group portal quiz rows by program — each list sorted newest first. */
+export function groupPortalQuizSubmissionsByProgram<T extends PortalQuizSubmissionLike>(
+  submissions: T[]
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const submission of submissions) {
+    const list = grouped.get(submission.programKey) ?? [];
+    list.push(submission);
+    grouped.set(submission.programKey, list);
+  }
+  for (const [key, list] of grouped) {
+    grouped.set(
+      key,
+      [...list].sort(
+        (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+      )
+    );
+  }
+  return grouped;
+}
+
+const QUIZ_ASSESSMENT_TAB_ORDER = [
+  "WEIGHT_MANAGEMENT",
+  ...PORTAL_QUIZ_TAB_ORDER.filter((key) => key !== "WEIGHT_MANAGEMENT"),
+] as const;
+
+export function quizAssessmentProgramTabLabel(programKey: string): string {
+  if (programKey === "WEIGHT_MANAGEMENT") return "Weight Management";
+  return portalQuizTabLabel(programKey);
+}
+
+/** Ordered program keys that have quiz / assessment content for the member form. */
+export function resolveQuizAssessmentProgramTabs(input: {
+  portalSubmissions: PortalQuizSubmissionLike[];
+  hasWeightManagementAssessment?: boolean;
+  hasHairLegacyQuestionnaire?: boolean;
+}): string[] {
+  const keys = new Set<string>();
+  if (input.hasWeightManagementAssessment) {
+    keys.add("WEIGHT_MANAGEMENT");
+  }
+  for (const submission of input.portalSubmissions) {
+    keys.add(submission.programKey);
+  }
+  if (input.hasHairLegacyQuestionnaire && !keys.has("HAIR_LOSS")) {
+    keys.add("HAIR_LOSS");
+  }
+  return QUIZ_ASSESSMENT_TAB_ORDER.filter((key) => keys.has(key));
+}
+
+export function formatQuizCompletedDate(submittedAt: string): string {
+  return new Date(submittedAt).toLocaleString("en-AU", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}

@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useReminders, apiPost, apiPatch, apiDelete } from "@/hooks/useApi";
-import { getRemindersForUser } from "@/data/mock-data";
 import type { Reminder, ReminderType, ReminderFrequency } from "@/types";
 import { toast } from "sonner";
 import {
@@ -57,9 +56,8 @@ export function RemindersCard({ userId, compact = false }: RemindersCardProps) {
         completedAt: r.completedAt,
         createdAt: r.createdAt,
       })));
-    } else if (!isLoading && userId) {
-      // Fallback to mock data if no API data
-      setReminders(getRemindersForUser(userId));
+    } else if (!isLoading) {
+      setReminders([]);
     }
   }, [apiData, isLoading, userId]);
 

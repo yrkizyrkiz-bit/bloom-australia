@@ -35,7 +35,7 @@ const videoTestimonials: VideoTestimonial[] = [
     duration: "4 months",
     thumbnail: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&h=400&fit=crop",
     videoUrl: "https://assets.grok.com/users/23b82be6-9a02-443c-be1b-f160ab6a367b/generated/3546db14-af63-4d51-b5f3-3363281a54f5/generated_video.mp4?cache=1",
-    quote: "After years of trying different approaches, Sanative's doctor-led program finally worked. The medication combined with proper monitoring made all the difference.",
+    quote: "After years of trying different approaches, Sanative's doctor-led program finally worked. The clinical monitoring and support made all the difference.",
     initials: "MT",
   },
 ];

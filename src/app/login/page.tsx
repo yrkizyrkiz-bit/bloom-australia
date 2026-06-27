@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { resolveStaffPortalHome } from "@/lib/portal/staff-home";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -42,9 +43,10 @@ export default function LoginPage() {
   useEffect(() => {
     if (user && !isAuthLoading) {
       setIsRedirecting(true);
-      // Redirect admin, care partners, and doctors to admin area
-      const adminRoles = ["admin", "ADMIN", "CARE_PARTNER", "DOCTOR"];
-      const targetPath = adminRoles.includes(user.role) ? "/admin" : MEMBER_PROGRAMS_HOME;
+      const targetPath =
+        user.role === "DOCTOR" || ["admin", "ADMIN", "CARE_PARTNER"].includes(user.role)
+          ? resolveStaffPortalHome(user.role)
+          : MEMBER_PROGRAMS_HOME;
       router.push(targetPath);
     }
   }, [user, isAuthLoading, router]);
@@ -332,6 +334,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="pt-4 border-t border-[#e6ebe3]">
+                  {process.env.NODE_ENV !== "production" && (
                   <div className="text-xs text-center text-[#7e9a72] space-y-3 promo-body">
                     <p className="font-medium text-[#5c7a52]">Demo Credentials:</p>
                     <div className="grid grid-cols-2 gap-3">
@@ -363,6 +366,7 @@ export default function LoginPage() {
                       </button>
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             </div>

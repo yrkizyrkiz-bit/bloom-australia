@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -127,6 +128,7 @@ model User {
   sideEffectReports               SideEffectReport[]
   entitlements                    Entitlement[]
   portalQuizSubmissions           PortalQuizSubmission[]
+  consentRecords                  ConsentRecord[]
 
   @@index([email])
   @@index([role])
@@ -1272,6 +1274,17 @@ model VerificationCode {
 
   @@unique([contact, type])
   @@index([expiresAt])
+}
+
+model RateLimitBucket {
+  id        String   @id @default(cuid())
+  bucketKey String   @unique
+  hits      Int      @default(1)
+  resetAt   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
 }
 
 model MembershipSubscription {
@@ -2433,4 +2446,21 @@ enum EntitlementSource {
   ADMIN_GRANT
   BUNDLE
   PORTAL_PURCHASE
+}
+
+model ConsentRecord {
+  id             String   @id @default(cuid())
+  userId         String?
+  email          String?
+  consentType    String
+  consentVersion String
+  sourcePage     String
+  payload        Json?
+  acceptedAt     DateTime @default(now())
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([email])
+  @@index([consentType])
+  @@index([acceptedAt])
 }

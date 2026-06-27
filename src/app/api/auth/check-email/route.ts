@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
+import {
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
 
 export async function POST(req: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      req,
+      "check-email:ip",
+      RATE_LIMITS.checkEmailIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const { email } = await req.json();
 
     if (!email || typeof email !== "string") {

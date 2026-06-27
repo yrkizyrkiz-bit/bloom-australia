@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Non-admins can only view their own scores
     if (userId !== session.user.id && session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (latest) {
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Non-admins can only calculate their own scores
     if (userId !== session.user.id && session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get user info

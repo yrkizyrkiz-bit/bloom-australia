@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const [user, setUser] = useState<User | null>(null);
-  const isLoading = status === "loading";
+  const isLoading = status === "loading" && !session;
 
   useEffect(() => {
     if (session?.user) {

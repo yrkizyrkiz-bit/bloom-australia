@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
+import { PublicComplianceBlock } from "@/components/legal/PublicComplianceBlock";
 import {
   ArrowRight,
   Microscope,
@@ -29,105 +30,6 @@ import {
   Droplets,
   Leaf,
 } from "lucide-react";
-
-// Before/After Slider Component
-function BeforeAfterSlider({
-  beforeImage,
-  afterImage,
-  beforeLabel = "Before",
-  afterLabel = "After 6 Months",
-}: {
-  beforeImage: string;
-  afterImage: string;
-  beforeLabel?: string;
-  afterLabel?: string;
-}) {
-  const [sliderPosition, setSliderPosition] = useState(50);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
-
-  const handleMove = (clientX: number) => {
-    if (!containerRef.current || !isDragging.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    setSliderPosition(percentage);
-  };
-
-  const handleMouseDown = () => {
-    isDragging.current = true;
-  };
-
-  const handleMouseUp = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    handleMove(e.clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    handleMove(e.touches[0].clientX);
-  };
-
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      isDragging.current = false;
-    };
-    window.addEventListener("mouseup", handleGlobalMouseUp);
-    return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
-  }, []);
-
-  return (
-    <div
-      ref={containerRef}
-      className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden cursor-ew-resize select-none"
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      onMouseMove={handleMouseMove}
-      onTouchStart={handleMouseDown}
-      onTouchEnd={handleMouseUp}
-      onTouchMove={handleTouchMove}
-    >
-      {/* After Image (Background) */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${afterImage})` }}
-      />
-
-      {/* Before Image (Foreground with clip) */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `url(${beforeImage})`,
-          clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
-        }}
-      />
-
-      {/* Slider Line */}
-      <div
-        className="absolute top-0 bottom-0 w-1 bg-white shadow-lg z-10"
-        style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
-      >
-        {/* Slider Handle */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center">
-          <div className="flex items-center gap-0.5">
-            <ChevronDown className="w-4 h-4 text-[#34412f] -rotate-90" />
-            <ChevronDown className="w-4 h-4 text-[#34412f] rotate-90" />
-          </div>
-        </div>
-      </div>
-
-      {/* Labels */}
-      <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-[#34412f]/90 text-white text-sm font-medium rounded-full">
-        {beforeLabel}
-      </div>
-      <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-[#5c7a52]/90 text-white text-sm font-medium rounded-full">
-        {afterLabel}
-      </div>
-    </div>
-  );
-}
 
 // FAQ Item Component
 function FAQItem({
@@ -242,14 +144,14 @@ function HairHealthPageContent() {
       icon: Pill,
       title: "Evidence-Based Treatment",
       subtitle: "Stimulation at the cellular level",
-      description: "Our therapies combine doctor-prescribed medications with a holistic approach — for genuine, lasting transformation.",
+      description: "Our approach combines doctor-led assessment with lifestyle and nutritional support tailored to your health profile.",
       image: "/images/supplements-pills.png",
     },
     {
       icon: HeartPulse,
       title: "Ongoing Support",
       subtitle: "Strong from the inside out",
-      description: "Individually developed supplements based on your biomarker profile and hormone status — daily, measurably effective.",
+      description: "Supplement recommendations may be discussed when clinically appropriate, based on your biomarker profile and doctor assessment.",
       image: "/images/ongoing-support.png",
     },
   ];
@@ -397,7 +299,7 @@ function HairHealthPageContent() {
       icon: Activity,
       title: "Hormonal Balance",
       description: "Fluctuating hormones during menstruation, pregnancy, postpartum, and menopause significantly impact hair. PCOS and thyroid disorders are common hormonal causes of hair loss.",
-      tips: ["Regular hormone panel blood tests", "Monitor thyroid function (TSH, T3, T4)", "Consider bioidentical hormone therapy if needed"],
+      tips: ["Regular hormone panel blood tests", "Monitor thyroid function (TSH, T3, T4)", "Discuss hormone health with your doctor if needed"],
       color: "bg-[#7e9a72]",
     },
     {
@@ -457,7 +359,7 @@ function HairHealthPageContent() {
       title: "Treatment & Monitoring",
       description: "Begin your personalised treatment with ongoing clinical support. Regular check-ins ensure your progress is on track and adjustments are made as needed.",
       details: [
-        "Discreet delivery to your door",
+        "Ongoing clinical monitoring",
         "Scheduled progress reviews",
         "Photo tracking app",
         "Dose optimisation support",
@@ -467,21 +369,21 @@ function HairHealthPageContent() {
 
   const treatments = [
     {
-      name: "Minoxidil",
-      type: "Topical Solution",
-      description: "Clinically-proven treatment that stimulates hair follicles and promotes regrowth. Available in various strengths.",
+      name: "Topical treatment options",
+      type: "Doctor-led care",
+      description: "Clinically used treatments that may stimulate hair follicles and support regrowth. Suitability is assessed by your doctor.",
       forWho: ["Men", "Women"],
     },
     {
-      name: "Finasteride",
-      type: "Oral Medication",
-      description: "Blocks DHT hormone that causes male pattern baldness. Clinically proven to stop hair loss and promote regrowth.",
+      name: "Oral treatment options",
+      type: "Doctor-led care",
+      description: "Prescription options for male pattern hair loss may be considered when clinically appropriate. Your doctor will advise privately.",
       forWho: ["Men"],
     },
     {
-      name: "Spironolactone",
-      type: "Oral Medication",
-      description: "Anti-androgen treatment for female pattern hair loss. Reduces the effects of hormones that cause thinning.",
+      name: "Hormonal treatment options",
+      type: "Doctor-led care",
+      description: "Anti-androgen approaches for female pattern hair loss may be considered when clinically appropriate. Discussed in consultation.",
       forWho: ["Women"],
     },
     {
@@ -494,7 +396,7 @@ function HairHealthPageContent() {
 
   const effectivenessData = [
     { label: "Our Holistic Approach", percentage: 90, color: "bg-[#5c7a52]" },
-    { label: "Medication Alone", percentage: 65, color: "bg-[#a8bb9e]" },
+    { label: "Treatment alone", percentage: 65, color: "bg-[#a8bb9e]" },
     { label: "OTC Supplements Only", percentage: 35, color: "bg-[#cdd8c6]" },
     { label: "No Treatment", percentage: 5, color: "bg-[#e6ebe3]" },
   ];
@@ -502,11 +404,11 @@ function HairHealthPageContent() {
   const faqs = [
     {
       question: "How quickly will I see results?",
-      answer: "Most patients begin to notice reduced shedding within 2-3 months. Visible regrowth typically appears between 4-6 months, with optimal results at 12 months. Hair growth is a gradual process, and consistency with treatment is key to success.",
+      answer: "Hair changes vary widely between individuals. Your doctor will discuss realistic expectations and review progress during follow-up consultations.",
     },
     {
       question: "Are these treatments safe?",
-      answer: "All treatments we prescribe have been extensively studied and approved for use in Australia. Our AHPRA-registered doctors carefully review your health history to ensure suitability. Side effects are generally mild and uncommon, and we monitor your progress throughout treatment.",
+      answer: "Treatment approaches are assessed individually by our AHPRA-registered doctors based on your health history. Side effects are discussed in consultation and we monitor your progress throughout care.",
     },
     {
       question: "Do I need a blood test?",
@@ -518,49 +420,15 @@ function HairHealthPageContent() {
     },
     {
       question: "Is treatment different for men and women?",
-      answer: "Yes, the causes and treatments for hair loss differ between men and women. Men often benefit from DHT-blocking medications like finasteride, while women may require different approaches such as anti-androgens or hormonal treatments. We personalise every treatment plan.",
+      answer: "Yes, the causes and treatment approaches for hair loss differ between men and women. Your doctor will assess your profile and discuss suitable options privately during consultation.",
     },
     {
       question: "How much does treatment cost?",
-      answer: "Treatment costs vary depending on your personalised plan. Basic treatments start from $59/month, while comprehensive programs including supplements and ongoing support range from $99-199/month. All prices include doctor consultations and delivery.",
+      answer: "Costs depend on your personalised plan after doctor assessment. Consultation and program fees are discussed before you proceed. Any prescribed items are dispensed by Australian pharmacies when clinically appropriate.",
     },
   ];
 
-  // Before/After images - using actual patient photos
-  const beforeAfterImages = {
-    men: [
-      {
-        before: "/images/men-before-1.jpg",
-        after: "/images/men-after-1.jpg",
-        name: "James M.",
-        treatment: "Finasteride + Minoxidil",
-        duration: "8 months",
-      },
-      {
-        before: "/images/men-before-2.jpg",
-        after: "/images/men-after-2.jpg",
-        name: "Michael R.",
-        treatment: "Complete Hair Program",
-        duration: "12 months",
-      },
-    ],
-    women: [
-      {
-        before: "/images/female-before-1.webp",
-        after: "/images/female-after-1.jpg",
-        name: "Sarah L.",
-        treatment: "Minoxidil + Supplements",
-        duration: "6 months",
-      },
-      {
-        before: "/images/female-before-2.webp",
-        after: "/images/female-after-2.jpg",
-        name: "Emma T.",
-        treatment: "Spironolactone + Biotin",
-        duration: "10 months",
-      },
-    ],
-  };
+  // Before/after patient marketing removed for AHPRA compliance — see PublicComplianceBlock below
 
   return (
     <>
@@ -604,13 +472,11 @@ function HairHealthPageContent() {
                 </div>
 
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-[#2c3628] leading-tight mb-6">
-                  Grow{" "}
-                  <span className="text-[#5c7a52] italic">fuller</span>,{" "}
-                  <span className="text-[#5c7a52] italic">healthier</span>{" "}
-                  hair
+                  Doctor-led{" "}
+                  <span className="text-[#5c7a52] italic">hair health</span>
                 </h1>
                 <p className="text-lg text-[#5c7a52] max-w-lg">
-                  Personalised treatment plans backed by biomarker analysis. Prescribed by Australian-registered doctors, delivered to your door.
+                  Personalised assessment and care plans led by Australian-registered doctors. Treatment options are discussed privately if clinically appropriate.
                 </p>
               </div>
 
@@ -631,8 +497,8 @@ function HairHealthPageContent() {
                   <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-sm rounded-2xl p-5 shadow-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-[#7e9a72]">Average results after 6 months</p>
-                        <p className="text-2xl font-serif text-[#2c3628]">83% see visible improvement</p>
+                        <p className="text-sm text-[#7e9a72]">Assessment-first care</p>
+                        <p className="text-lg font-serif text-[#2c3628]">Your doctor reviews what is clinically appropriate for you</p>
                       </div>
                       <div className="w-14 h-14 rounded-full bg-[#5c7a52]/20 flex items-center justify-center">
                         <Sparkles className="w-7 h-7 text-[#5c7a52]" />
@@ -653,7 +519,7 @@ function HairHealthPageContent() {
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
-                    <span>Discreet Delivery</span>
+                    <span>Pharmacy dispensing when prescribed</span>
                   </div>
                 </div>
 
@@ -956,83 +822,7 @@ function HairHealthPageContent() {
           </section>
         )}
 
-        {/* Before/After Results Section */}
-        <section className="py-20 lg:py-28 bg-[#34412f]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <span className="inline-block px-4 py-1.5 text-sm font-medium bg-white/10 text-[#a8bb9e] rounded-full mb-4">
-                Real experiences
-              </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-white mb-6">
-                Visible results,{" "}
-                <span className="text-[#a8bb9e] italic">real people</span>
-              </h2>
-              <p className="text-lg text-[#a8bb9e] max-w-2xl mx-auto mb-8">
-                Drag the slider to see the transformation. These are real patients who followed their personalised treatment plans.
-              </p>
-
-              {/* Gender Toggle */}
-              <div className="flex justify-center mb-12">
-                <div className="flex bg-white/10 rounded-full p-1">
-                  <button
-                    type="button"
-                    onClick={() => setGender("women")}
-                    className={`px-8 py-2.5 rounded-full text-sm font-medium transition-all ${
-                      gender === "women"
-                        ? "bg-white text-[#34412f]"
-                        : "text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Women&apos;s Results
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGender("men")}
-                    className={`px-8 py-2.5 rounded-full text-sm font-medium transition-all ${
-                      gender === "men"
-                        ? "bg-white text-[#34412f]"
-                        : "text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Men&apos;s Results
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-              {beforeAfterImages[gender].map((result, index) => (
-                <div key={result.name} className="bg-white/5 rounded-3xl p-6 backdrop-blur-sm">
-                  <BeforeAfterSlider
-                    beforeImage={result.before}
-                    afterImage={result.after}
-                    beforeLabel="Before"
-                    afterLabel={`After ${result.duration}`}
-                  />
-                  <div className="mt-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xl font-serif text-white">{result.name}</h3>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-[#c17a58] text-[#c17a58]" />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-[#a8bb9e] text-sm">
-                      <span className="text-white font-medium">{result.treatment}</span> · {result.duration}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center mt-12">
-              <p className="text-sm text-[#7e9a72]">
-                Individual results may vary. Photos are from consenting patients.
-              </p>
-            </div>
-          </div>
-        </section>
+        <PublicComplianceBlock dark className="bg-[#34412f]" title="Individual care, not one-size-fits-all" />
 
         {/* How It Works Section */}
         <section id="how-it-works" className="py-20 lg:py-28 bg-[#fdfbf7]">
@@ -1173,7 +963,7 @@ function HairHealthPageContent() {
                 <span className="text-[#5c7a52] italic">solutions</span>
               </h2>
               <p className="text-lg text-[#5c7a52] max-w-2xl mx-auto">
-                Doctor-prescribed medications and supplements, prescribed by AHPRA-registered doctors based on your unique biomarker profile.
+                Doctor-led treatment plans and supplements, tailored by AHPRA-registered doctors based on your unique biomarker profile.
               </p>
             </div>
 
@@ -1222,14 +1012,14 @@ function HairHealthPageContent() {
                   <ShieldCheck className="w-8 h-8 text-[#5c7a52]" />
                 </div>
                 <h3 className="text-lg font-serif text-[#2c3628] mb-2">Australian Pharmacy</h3>
-                <p className="text-sm text-[#5c7a52]">All medications are dispensed by licensed Australian pharmacies</p>
+                <p className="text-sm text-[#5c7a52]">Any prescribed items are dispensed by licensed Australian pharmacies</p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 rounded-2xl bg-[#5c7a52]/20 flex items-center justify-center mx-auto mb-4">
                   <Users className="w-8 h-8 text-[#5c7a52]" />
                 </div>
-                <h3 className="text-lg font-serif text-[#2c3628] mb-2">10,000+ Patients</h3>
-                <p className="text-sm text-[#5c7a52]">Trusted by thousands of Australians on their hair regrowth journey</p>
+                <h3 className="text-lg font-serif text-[#2c3628] mb-2">Doctor-led programs</h3>
+                <p className="text-sm text-[#5c7a52]">Assessment-first care with ongoing clinical support from AHPRA-registered doctors</p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 rounded-2xl bg-[#5c7a52]/20 flex items-center justify-center mx-auto mb-4">

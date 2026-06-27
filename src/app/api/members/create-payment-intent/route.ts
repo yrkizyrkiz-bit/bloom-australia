@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getPublicOrganCareAnnualPricing } from "@/lib/billing/portal-pricing";
 import { ORGAN_CARE_CHECKOUT_DESCRIPTION } from "@/lib/programs/organ-care-public-offer";
+import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
+import {
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
 let stripeClient: Stripe | null = null;
@@ -20,6 +25,15 @@ function getStripeClient(): Stripe {
 
 export async function POST(request: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      request,
+      "create-payment-intent:ip",
+      RATE_LIMITS.checkoutIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const stripe = getStripeClient();
     const body = await request.json();
     const { email, firstName, lastName, program } = body;

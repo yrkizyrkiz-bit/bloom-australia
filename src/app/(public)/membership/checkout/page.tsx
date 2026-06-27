@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -9,127 +9,18 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { Check, Shield, Lock, ArrowRight, Mail, Phone, Loader2, Calendar, ExternalLink, Heart, Activity, Droplets } from "lucide-react";
+import { Check, Shield, Lock, ArrowRight, Mail, Phone, Loader2, Calendar, Heart, Activity, Droplets } from "lucide-react";
 import Link from "next/link";
+import { MembershipConsultationBooking } from "@/components/membership/MembershipConsultationBooking";
 import { ORGAN_CARE_PUBLIC_OFFER, ORGAN_CARE_CHECKOUT_PREFILL_KEY, type OrganCareCheckoutPrefill } from "@/lib/programs/organ-care-public-offer";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import {
+  ensurePrePaymentConsentRecorded,
+  paymentSourcePage,
+} from "@/lib/legal/ensure-pre-payment-consent";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-
-// Cal.com configuration
-const CALCOM_USERNAME = process.env.NEXT_PUBLIC_CALCOM_USERNAME || "sanative";
-const CALCOM_EVENT_SLUG = process.env.NEXT_PUBLIC_CALCOM_EVENT_SLUG || "initial-consultation";
-
-// ─── Cal.com Embed Hook ────────────────────────────────────────────────────
-function useCalEmbed() {
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    if ((window as WindowWithCal).Cal) {
-      setIsLoaded(true);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://app.cal.com/embed/embed.js";
-    script.async = true;
-    script.onload = () => {
-      const Cal = (window as WindowWithCal).Cal;
-      if (Cal) {
-        Cal("init", { origin: "https://app.cal.com" });
-        setIsLoaded(true);
-      }
-    };
-    document.head.appendChild(script);
-  }, []);
-
-  return isLoaded;
-}
-
-// ─── Cal.com Inline Embed Component ────────────────────────────────────────
-function CalComEmbed({
-  email,
-  name,
-  onBookingComplete,
-}: {
-  email: string;
-  name: string;
-  onBookingComplete: () => void;
-}) {
-  const isCalLoaded = useCalEmbed();
-  const [showFallback, setShowFallback] = useState(false);
-
-  useEffect(() => {
-    const Cal = (window as WindowWithCal).Cal;
-    if (!isCalLoaded || !Cal) return;
-
-    Cal("inline", {
-      elementOrSelector: "#cal-inline-embed",
-      calLink: `${CALCOM_USERNAME}/${CALCOM_EVENT_SLUG}`,
-      config: {
-        name: name,
-        email: email,
-        theme: "light",
-      },
-    });
-
-    Cal("on", {
-      action: "bookingSuccessful",
-      callback: () => {
-        onBookingComplete();
-      },
-    });
-
-    const timeout = setTimeout(() => {
-      const embed = document.getElementById("cal-inline-embed");
-      if (embed && embed.childElementCount === 0) {
-        setShowFallback(true);
-      }
-    }, 5000);
-
-    return () => clearTimeout(timeout);
-  }, [isCalLoaded, email, name, onBookingComplete]);
-
-  if (!isCalLoaded) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div
-        id="cal-inline-embed"
-        className="min-h-[500px] rounded-xl overflow-hidden border border-gray-200"
-        style={{ width: "100%" }}
-      />
-      {showFallback && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-xl text-center">
-          <p className="text-sm text-gray-600 mb-3">
-            Having trouble loading the calendar?
-          </p>
-          <a
-            href={`https://cal.com/${CALCOM_USERNAME}/${CALCOM_EVENT_SLUG}?email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white
-              rounded-lg text-sm font-medium hover:bg-black transition-colors"
-          >
-            <Calendar className="w-4 h-4" />
-            Open booking page
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Type for window with Cal
-interface WindowWithCal extends Window {
-  Cal?: (action: string, ...args: unknown[]) => void;
-}
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type Step = "verify" | "payment" | "onboard" | "booking" | "complete";
@@ -153,13 +44,18 @@ const ORGAN_SUMMARY_ICONS = [
 function PaymentForm({
   onSuccess,
   amountAud,
+  customerEmail,
+  userId,
 }: {
-  onSuccess: (paymentIntentId: string) => void;
+  onSuccess: (result: CheckoutPaymentSuccess) => void;
   amountAud: number;
+  customerEmail?: string;
+  userId?: string;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,6 +64,19 @@ function PaymentForm({
 
     setIsProcessing(true);
     setError(null);
+
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      email: customerEmail,
+      userId,
+    });
+
+    if (!consentResult.ok) {
+      setError(consentResult.error);
+      setIsProcessing(false);
+      return;
+    }
 
     const { error: submitError, paymentIntent } = await stripe.confirmPayment({
       elements,
@@ -184,7 +93,10 @@ function PaymentForm({
     }
 
     if (paymentIntent?.status === "succeeded") {
-      onSuccess(paymentIntent.id);
+      onSuccess({
+        paymentIntentId: paymentIntent.id,
+        consentRecordId: consentResult.consentRecordId,
+      });
     } else {
       setError("Payment was not completed. Please try again.");
     }
@@ -198,6 +110,13 @@ function PaymentForm({
           layout: "tabs",
         }}
       />
+
+      <PrePaymentConsentCheckbox
+        checked={consentChecked}
+        onCheckedChange={setConsentChecked}
+        disabled={isProcessing}
+      />
+
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
           {error}
@@ -205,7 +124,7 @@ function PaymentForm({
       )}
       <button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={!stripe || isProcessing || !consentChecked}
         className="w-full py-4 bg-[#f97316] hover:bg-[#ea580c] disabled:opacity-50
           text-white font-semibold rounded-xl text-base transition-colors
           flex items-center justify-center gap-2"
@@ -250,6 +169,7 @@ function MembershipCheckoutPageContent() {
   const [postcode, setPostcode] = useState("");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [consentRecordId, setConsentRecordId] = useState<string | null>(null);
   const [organCarePriceAud, setOrganCarePriceAud] = useState(
     ORGAN_CARE_PUBLIC_OFFER.priceAud
   );
@@ -268,8 +188,9 @@ function MembershipCheckoutPageContent() {
   const [suburb, setSuburb] = useState("");
   const [state, setState] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
+  const [consultationBooked, setConsultationBooked] = useState(false);
 
-  // Booking state - now handled by Cal.com embed
+  // Booking state — internal availability picker (same as WM funnel)
 
   useEffect(() => {
     fetch("/api/public/organ-care-pricing")
@@ -406,8 +327,9 @@ function MembershipCheckoutPageContent() {
     }
   };
 
-  const handlePaymentSuccess = async (paymentId: string) => {
-    setPaymentIntentId(paymentId);
+  const handlePaymentSuccess = async (result: CheckoutPaymentSuccess) => {
+    setPaymentIntentId(result.paymentIntentId ?? null);
+    setConsentRecordId(result.consentRecordId);
     setStep("onboard");
   };
 
@@ -421,6 +343,7 @@ function MembershipCheckoutPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paymentIntentId,
+          consentRecordId,
           sessionToken,
           firstName,
           lastName,
@@ -439,16 +362,12 @@ function MembershipCheckoutPageContent() {
       if (!res.ok) throw new Error(data.error);
 
       setUserId(data.userId);
-      setStep("booking");
-      // Booking is now handled by Cal.com embed
-    } catch (err) {
+      setStep("booking");    } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete onboarding");
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Note: Booking is now handled by Cal.com embed, no manual slot management needed
 
   // ─── Render Steps ────────────────────────────────────────────────────────
 
@@ -682,7 +601,12 @@ function MembershipCheckoutPageContent() {
             },
           }}
         >
-          <PaymentForm onSuccess={handlePaymentSuccess} amountAud={organCarePriceAud} />
+          <PaymentForm
+            onSuccess={handlePaymentSuccess}
+            amountAud={organCarePriceAud}
+            customerEmail={existingUser?.email || (verifyMethod === "email" ? contact : email) || undefined}
+            userId={existingUser?.id}
+          />
         </Elements>
       )}
     </div>
@@ -856,13 +780,8 @@ function MembershipCheckoutPageContent() {
     </div>
   );
 
-  // Get user's full name and email for Cal.com
-  const fullName = `${firstName} ${lastName}`.trim();
+  // Get user's email for booking
   const userEmail = email || (verifyMethod === "email" ? contact : "");
-
-  const handleBookingComplete = useCallback(() => {
-    setStep("complete");
-  }, []);
 
   const renderBookingStep = () => (
     <div className="space-y-6">
@@ -887,15 +806,33 @@ function MembershipCheckoutPageContent() {
         </p>
       </div>
 
-      {/* Cal.com Embed */}
-      <CalComEmbed
-        email={userEmail}
-        name={fullName}
-        onBookingComplete={handleBookingComplete}
-      />
+      {userId && paymentIntentId && consentRecordId ? (
+        <MembershipConsultationBooking
+          userId={userId}
+          paymentIntentId={paymentIntentId}
+          consentRecordId={consentRecordId}
+          firstName={firstName}
+          lastName={lastName}
+          email={userEmail}
+          phone={phone}
+          postcode={postcode}
+          onComplete={() => {
+            setConsultationBooked(true);
+            setStep("complete");
+          }}
+        />
+      ) : (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        </div>
+      )}
 
       <button
-        onClick={() => setStep("complete")}
+        type="button"
+        onClick={() => {
+          setConsultationBooked(false);
+          setStep("complete");
+        }}
         className="w-full text-sm text-gray-500 hover:text-gray-700"
       >
         Skip for now - I&apos;ll book later
@@ -917,17 +854,32 @@ function MembershipCheckoutPageContent() {
         </p>
       </div>
 
-      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-left">
-        <div className="flex items-center gap-2 mb-1">
-          <Calendar className="w-4 h-4 text-green-600" />
-          <p className="text-sm font-medium text-green-900">
-            Consultation confirmed
+      {consultationBooked ? (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-left">
+          <div className="flex items-center gap-2 mb-1">
+            <Calendar className="w-4 h-4 text-green-600" />
+            <p className="text-sm font-medium text-green-900">
+              Consultation confirmed
+            </p>
+          </div>
+          <p className="text-sm text-green-700">
+            You&apos;ll receive a calendar invite with all the details shortly.
           </p>
         </div>
-        <p className="text-sm text-green-700">
-          You&apos;ll receive a calendar invite with all the details shortly.
-        </p>
-      </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
+          <div className="flex items-center gap-2 mb-1">
+            <Calendar className="w-4 h-4 text-amber-700" />
+            <p className="text-sm font-medium text-amber-900">
+              Consultation not booked yet
+            </p>
+          </div>
+          <p className="text-sm text-amber-800">
+            Your membership is active. Book your initial consultation from your
+            dashboard when you&apos;re ready — we&apos;ll email you a reminder.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-3">
         <Link

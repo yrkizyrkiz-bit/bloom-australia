@@ -10,8 +10,9 @@ import {
 } from "@/lib/australia-timezone";
 import { buildAssessmentFromQuizData } from "@/lib/quiz-assessment";
 import { resolvePlanTierFromStrings } from "@/lib/billing/catalog";
-import { getLatestPortalQuizSubmissions } from "@/lib/portal-quiz-submissions";
-import { ensurePublicFunnelQuizOnMember } from "@/lib/portal/public-funnel-quiz-submission";
+import { getLatestPortalQuizSubmissions, getAllPortalQuizSubmissions } from "@/lib/portal-quiz-submissions";
+import { getMemberBillingOverview, billingSummaryToAdminSubscription } from "@/lib/billing/member-billing-summary";
+import { calculateBiomarkerStatus } from "@/lib/biomarker-status";
 
 export async function GET(req: NextRequest) {
   try {
@@ -64,24 +65,44 @@ export async function GET(req: NextRequest) {
         include: userInclude,
       });
 
-    let user;
-    try {
-      user = await fetchUser();
-    } catch (firstError) {
-      const code = (firstError as { code?: string })?.code;
-      if (code === "P1001") {
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        user = await fetchUser();
-      } else {
+    const [userResult, programMemberResult, wmIntake] = await Promise.all([
+      fetchUser().catch(async (firstError) => {
+        const code = (firstError as { code?: string })?.code;
+        if (code === "P1001") {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          return fetchUser();
+        }
         throw firstError;
-      }
-    }
+      }),
+      prisma.programMember.findFirst({
+        where: {
+          OR: [{ userId }],
+        },
+      }).catch((e) => {
+        console.log("ProgramMember lookup failed:", e);
+        return null;
+      }),
+      prisma.weightManagementIntake.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        select: { quizData: true, completedAt: true, createdAt: true, selectedPlan: true },
+      }),
+    ]);
+
+    const user = userResult;
+    let programMember = programMemberResult;
 
     if (!user) {
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
       );
+    }
+
+    if (!programMember && user.email) {
+      programMember = await prisma.programMember.findFirst({
+        where: { email: user.email },
+      });
     }
 
     const patientTimezone =
@@ -96,23 +117,6 @@ export async function GET(req: NextRequest) {
 
     const formatBookingTime = (scheduledAt: Date) =>
       formatTimeInTimezone(scheduledAt, patientTimezone);
-
-    let programMember = null;
-    try {
-      programMember = await prisma.programMember.findFirst({
-        where: {
-          OR: [{ email: user.email }, { userId }],
-        },
-      });
-    } catch (e) {
-      console.log("ProgramMember lookup failed:", e);
-    }
-
-    const wmIntake = await prisma.weightManagementIntake.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { quizData: true, completedAt: true, createdAt: true },
-    });
 
     const quizData =
       (programMember?.intakeData as Record<string, unknown> | null) ||
@@ -240,13 +244,20 @@ export async function GET(req: NextRequest) {
 
     const rawSurveyData = quizData;
 
-    // Fetch additional data for customer detail page
-    const [biomarkerResults, weightLogs, healthScores, prescriptions, membershipSubscription] = await Promise.all([
+    const [
+      biomarkerResults,
+      weightLogs,
+      healthScores,
+      prescriptions,
+      membershipSubscription,
+      portalQuizzes,
+      portalQuizAllSubmissions,
+      billingOverview,
+    ] = await Promise.all([
       prisma.biomarkerResult.findMany({
         where: { userId },
         include: { biomarker: true },
-        orderBy: { testedAt: "desc" },
-        take: 50,
+        orderBy: [{ testedAt: "desc" }, { biomarkerId: "asc" }],
       }),
       prisma.weightLog.findMany({
         where: { userId },
@@ -271,25 +282,36 @@ export async function GET(req: NextRequest) {
       prisma.membershipSubscription.findUnique({
         where: { userId },
       }),
+      getLatestPortalQuizSubmissions(userId).catch((e) => {
+        console.warn("[customer-assessment] PortalQuizSubmission lookup failed:", e);
+        return [];
+      }),
+      getAllPortalQuizSubmissions(userId).catch((e) => {
+        console.warn("[customer-assessment] PortalQuizSubmission history lookup failed:", e);
+        return [];
+      }),
+      getMemberBillingOverview(userId).catch((billingError) => {
+        console.error("Billing summary failed for customer assessment:", billingError);
+        return null;
+      }),
     ]);
 
-    let billingOverview = null;
+    const biomarkersForResponse = biomarkerResults.map((result) => ({
+      ...result,
+      status: calculateBiomarkerStatus(
+        result.value,
+        result.biomarker,
+        user.gender
+      ),
+    }));
+
     let billingSummary = null;
-    let programSubscriptions: ReturnType<
-      typeof import("@/lib/billing/member-billing-summary").billingSummaryToAdminSubscription
-    >[] = [];
-    try {
-      const {
-        getMemberBillingOverview,
-        billingSummaryToAdminSubscription,
-      } = await import("@/lib/billing/member-billing-summary");
-      billingOverview = await getMemberBillingOverview(userId);
+    let programSubscriptions: ReturnType<typeof billingSummaryToAdminSubscription>[] = [];
+    if (billingOverview) {
       billingSummary = billingOverview.programs[0] ?? null;
       programSubscriptions = billingOverview.programs.map((program) =>
         billingSummaryToAdminSubscription(program, membershipSubscription)
       );
-    } catch (billingError) {
-      console.error("Billing summary failed for customer assessment:", billingError);
     }
 
     const paidInvoices = (user.invoices || []).filter((inv) => inv.status === "PAID");
@@ -339,26 +361,21 @@ export async function GET(req: NextRequest) {
           }
         : null;
 
-    let portalQuizzes: Awaited<ReturnType<typeof getLatestPortalQuizSubmissions>> = [];
-    try {
-      if (programMember?.intakeData) {
-        await ensurePublicFunnelQuizOnMember({
-          userId,
-          program: programMember.program,
-          intakeData: programMember.intakeData as Record<string, unknown>,
-        });
-      }
-      portalQuizzes = await getLatestPortalQuizSubmissions(userId);
-    } catch (e) {
-      console.warn("[customer-assessment] PortalQuizSubmission lookup failed:", e);
-    }
-
     return NextResponse.json({
       assessment,
       orders,
       biomarkerPurchases,
       rawSurveyData,
       portalQuizzes: portalQuizzes.map((q) => ({
+        id: q.id,
+        programKey: q.programKey,
+        answers: q.answers,
+        result: q.result,
+        intent: q.intent,
+        source: q.source,
+        submittedAt: q.submittedAt.toISOString(),
+      })),
+      portalQuizAllSubmissions: portalQuizAllSubmissions.map((q) => ({
         id: q.id,
         programKey: q.programKey,
         answers: q.answers,
@@ -374,7 +391,7 @@ export async function GET(req: NextRequest) {
       program: programMember?.program || user.subscriptionTier,
       // Additional data for customer detail page
       notes: user.internalNotes || [],
-      biomarkers: biomarkerResults,
+      biomarkers: biomarkersForResponse,
       weightLogs,
       healthScores,
       prescriptions,

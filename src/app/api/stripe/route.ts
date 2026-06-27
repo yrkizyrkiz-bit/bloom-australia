@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
+import {
+  assertCanAccessPaymentIntent,
+  assertUserEligibleForCheckout,
+  blockStripeTestRouteInProduction,
+  isProductionEnvironment,
+} from "@/lib/stripe/route-guards";
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
 let stripeClient: Stripe | null = null;
@@ -25,6 +31,13 @@ const PROGRAM_NAMES: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
+    if (isProductionEnvironment()) {
+      return NextResponse.json(
+        { error: "This payment endpoint is deprecated. Use /api/stripe/subscription." },
+        { status: 410 }
+      );
+    }
+
     const stripe = getStripeClient();
     const { amount, userId, program, discount, discountType } = await req.json();
 
@@ -33,6 +46,11 @@ export async function POST(req: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    const eligibility = await assertUserEligibleForCheckout(userId);
+    if ("error" in eligibility) {
+      return eligibility.error;
     }
 
     // Get user info
@@ -121,6 +139,11 @@ export async function GET(req: NextRequest) {
   try {
     const stripe = getStripeClient();
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    const access = await assertCanAccessPaymentIntent(paymentIntent.metadata?.userId);
+    if ("error" in access) {
+      return access.error;
+    }
 
     return NextResponse.json({
       status: paymentIntent.status,

@@ -5,22 +5,18 @@ import { deriveBiomarkersForEpisode, normalizeDeriveGender } from "@/lib/derived
 
 // Next.js route segment config - increase timeout to 60 seconds
 // Note: Platform gateway may have its own lower timeout (nginx ~30-60s)
-export const maxDuration = 60;
+export const maxDuration = 120;
 export const dynamic = 'force-dynamic';
 
-// Maximum file size in bytes (2MB for faster processing)
-const MAX_FILE_SIZE = 2 * 1024 * 1024;
+// Claude accepts PDFs up to 32MB (request body) and images up to 5MB
+const MAX_PDF_SIZE = 10 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 // Initialize Anthropic Claude AI with timeout
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
-  timeout: 55000, // 55 second timeout (less than gateway timeout)
+  timeout: 90000, // 90s for larger multi-page PDFs
 });
-
-// Helper: Compress base64 image by reducing quality
-// For PNG/JPEG images, we can't easily compress without sharp/canvas
-// But we can check if the base64 is too large and warn
-const MAX_BASE64_SIZE = 1.5 * 1024 * 1024; // 1.5MB base64 limit for faster processing
 
 // Build a comprehensive reference list of biomarkers for the AI with common aliases
 const biomarkerReference = biomarkerDefinitions.map(b => {
@@ -263,14 +259,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
+    const isImage = file.type.startsWith("image/");
+    const isPdf = file.type === "application/pdf";
+    const maxFileSize = isPdf ? MAX_PDF_SIZE : MAX_IMAGE_SIZE;
+
+    if (!isImage && !isPdf) {
+      return NextResponse.json(
+        { error: "Unsupported file type. Please upload an image or PDF." },
+        { status: 400 }
+      );
+    }
+
+    // Check file size against Claude's limits
+    if (file.size > maxFileSize) {
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
-      console.log(`[Blood Test Parser] ❌ File too large: ${fileSizeMB}MB (max: ${maxSizeMB}MB)`);
+      const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(0);
+      const fileTypeLabel = isPdf ? "PDF" : "image";
+      console.log(`[Blood Test Parser] ❌ File too large: ${fileSizeMB}MB (max: ${maxSizeMB}MB for ${fileTypeLabel})`);
       return NextResponse.json({
         success: false,
-        error: `File too large (${fileSizeMB}MB). Maximum size is ${maxSizeMB}MB. Please compress your PDF or use a lower resolution scan.`,
+        error: `File too large (${fileSizeMB}MB). Maximum ${fileTypeLabel} size is ${maxSizeMB}MB.`,
         mode: "error",
       }, { status: 413 });
     }
@@ -298,32 +306,8 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
     const mimeType = file.type;
-    const base64Size = base64.length;
 
-    // Determine if it's an image or PDF
-    const isImage = mimeType.startsWith("image/");
-    const isPdf = mimeType === "application/pdf";
-
-    if (!isImage && !isPdf) {
-      return NextResponse.json(
-        { error: "Unsupported file type. Please upload an image or PDF." },
-        { status: 400 }
-      );
-    }
-
-    console.log(`[Blood Test Parser] Processing ${file.name} (${mimeType}, ${bytes.byteLength} bytes, base64: ${(base64Size / 1024).toFixed(0)}KB)`);
-
-    // Check if base64 is too large (causes slow processing and timeouts)
-    if (base64Size > MAX_BASE64_SIZE) {
-      const sizeMB = (base64Size / (1024 * 1024)).toFixed(1);
-      console.log(`[Blood Test Parser] ⚠️ File base64 too large: ${sizeMB}MB`);
-      return NextResponse.json({
-        success: false,
-        error: `File is too large for fast processing (${sizeMB}MB encoded). Please use a smaller image or lower resolution scan. Maximum recommended size is 1MB.`,
-        mode: "error",
-        suggestion: "Try taking a photo of just the results table, or use a PDF under 1MB.",
-      }, { status: 413 });
-    }
+    console.log(`[Blood Test Parser] Processing ${file.name} (${mimeType}, ${bytes.byteLength} bytes)`);
 
     // Build content array based on file type
     type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
