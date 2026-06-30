@@ -155,6 +155,25 @@ describe("computeDesiredEntitlements", () => {
     expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")?.status).toBe("ACTIVE");
   });
 
+  it("explicit mens_health_vitality tier is not overridden by a sexual ProgramMember row", () => {
+    const desired = computeDesiredEntitlements({
+      subscriptionTier: "mens_health_vitality",
+      subscriptionStatus: "ACTIVE",
+      programMembers: [
+        {
+          program: "MENS_HEALTH",
+          membershipStatus: "ACTIVE",
+          intakeData: {
+            canonicalProgramKey: "MENS_HEALTH_SEXUAL",
+            concern: "premature-ejaculation",
+          },
+        },
+      ],
+    });
+    expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")?.status).toBe("ACTIVE");
+    expect(find(desired, "PROGRAM", "MENS_HEALTH_SEXUAL")).toBeUndefined();
+  });
+
   it("program member maps men's health PE concern to sexual health focus", () => {
     const desired = computeDesiredEntitlements({
       subscriptionTier: "mens_health",

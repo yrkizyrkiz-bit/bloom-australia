@@ -45,6 +45,14 @@ function writeCache(data: PortalContextPayload) {
   }
 }
 
+function clearCache() {
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function PortalContextProvider({ children }: { children: ReactNode }) {
   const cached = useRef(readCache());
   const [data, setData] = useState<PortalContextPayload | null>(cached.current);
@@ -59,7 +67,8 @@ export function PortalContextProvider({ children }: { children: ReactNode }) {
       if (!background) setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/portal/context");
+        if (!background) clearCache();
+        const res = await fetch("/api/portal/context", { cache: "no-store" });
         if (!res.ok) {
           throw new Error(`Failed to load portal context (${res.status})`);
         }

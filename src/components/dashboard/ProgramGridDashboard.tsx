@@ -17,6 +17,7 @@ import {
 import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
 import type { EntitlementState } from "@/lib/membership/biomarker-readiness";
 import type { ProgramKey } from "@/lib/membership/keys";
+import { hasProgramMembership } from "@/lib/membership/program-access";
 import { cn } from "@/lib/utils";
 
 type TileCta = {
@@ -81,7 +82,7 @@ function programTileCta(
 ): TileCta {
   const program = membership?.programs?.[card.key as ProgramKey];
 
-  if (!program?.hasEntitlement || program.state === "inactive" || program.status === "INACTIVE") {
+  if (!hasProgramMembership(membership, card.key as ProgramKey)) {
     if (program?.status === "INACTIVE" || program?.state === "inactive") {
       return {
         badgeLabel: "Paused",
@@ -100,13 +101,13 @@ function programTileCta(
 
   return {
     badgeLabel: getEnrollmentBadgeLabel(
-      program.hasEntitlement,
-      program.status,
-      program.state
+      program!.hasEntitlement,
+      program!.status,
+      program!.state
     ),
     ctaLabel: "Open program",
     href: card.dashboardRoute,
-    state: program.state,
+    state: program!.state,
   };
 }
 

@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PortalStateBadge } from "@/components/portal/PortalInsightState";
 import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 import { usePortalContext } from "@/hooks/usePortalContext";
+import { hasProgramMembership } from "@/lib/membership/program-access";
 import type { EntitlementState } from "@/lib/membership/biomarker-readiness";
 
 type PortalData = {
@@ -118,10 +119,7 @@ export function MensSexualHealthDashboard() {
 
   const programState: EntitlementState =
     portal?.membership?.programs?.MENS_HEALTH_SEXUAL?.state ?? "locked_upgrade";
-  const entitled =
-    programState === "ready" ||
-    programState === "partial" ||
-    programState === "pending_results";
+  const entitled = hasProgramMembership(portal?.membership, "MENS_HEALTH_SEXUAL");
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -42,27 +42,25 @@ export function invoiceMatchesProgram(
     case "MENS_HEALTH_VITALITY":
       return (
         text.includes("vitality") ||
-        text.includes("men's health") ||
-        text.includes("mens health")
+        text.includes("energy") ||
+        ((text.includes("men's health") || text.includes("mens health")) &&
+          !text.includes("sexual"))
       );
     case "WOMENS_HEALTH_VITALITY":
       return (
         text.includes("vitality") ||
-        text.includes("women's health") ||
-        text.includes("womens health")
+        text.includes("energy") ||
+        ((text.includes("women's health") || text.includes("womens health")) &&
+          !text.includes("sexual"))
       );
     case "MENS_HEALTH_SEXUAL":
       return (
         text.includes("sexual") ||
-        text.includes("men's health") ||
-        text.includes("mens health")
+        text.includes("erectile") ||
+        text.includes("premature")
       );
     case "WOMENS_HEALTH_SEXUAL":
-      return (
-        text.includes("sexual") ||
-        text.includes("women's health") ||
-        text.includes("womens health")
-      );
+      return text.includes("sexual");
     default:
       return false;
   }

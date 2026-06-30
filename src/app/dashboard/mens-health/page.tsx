@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 import { MensHealthProgramModuleCard } from "@/components/dashboard/MensHealthProgramModuleCard";
 import { isProgramEntitled } from "@/lib/membership/program-access";
+import { PROGRAM_CARDS } from "@/lib/programs/catalog";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import {
   loadVitalityCheckIns,
@@ -74,6 +75,14 @@ export default function MensHealthPage() {
   const vitalityEntitled = isProgramEntitled(portal?.membership, "MENS_HEALTH_VITALITY");
   const sexualEntitled = isProgramEntitled(portal?.membership, "MENS_HEALTH_SEXUAL");
 
+  const programQuizRoutes = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const card of PROGRAM_CARDS) {
+      map.set(card.key, card.quizRoute);
+    }
+    return map;
+  }, []);
+
   useEffect(() => {
     setMotivation(motivations[Math.floor(Math.random() * motivations.length)]);
     const dayIndex = new Date().getDate() % dailyTips.length;
@@ -130,6 +139,7 @@ export default function MensHealthPage() {
         description: "Track progress & manage treatment",
         icon: Sparkles,
         href: "/dashboard/mens-health/hair-loss",
+        quizRoute: programQuizRoutes.get("HAIR_LOSS") ?? "/dashboard/programs/hair_loss",
         gradient: "from-violet-600 to-purple-700",
         entitled: hairEntitled,
         stats: {
@@ -146,6 +156,7 @@ export default function MensHealthPage() {
         description: "Energy, testosterone & wellness",
         icon: Zap,
         href: "/dashboard/mens-health/vitality",
+        quizRoute: programQuizRoutes.get("MENS_HEALTH_VITALITY") ?? "/dashboard/programs/mens_health_vitality",
         gradient: "from-amber-500 to-orange-600",
         entitled: vitalityEntitled,
         stats: {
@@ -164,6 +175,7 @@ export default function MensHealthPage() {
         description: "Private, personalized care",
         icon: Heart,
         href: "/dashboard/mens-health/sexual-health",
+        quizRoute: programQuizRoutes.get("MENS_HEALTH_SEXUAL") ?? "/dashboard/programs/mens_health_sexual",
         gradient: "from-slate-700 to-teal-800",
         entitled: sexualEntitled,
         stats: {
@@ -173,7 +185,7 @@ export default function MensHealthPage() {
         image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=200&h=150&fit=crop",
       },
     ],
-    [hairEntitled, vitalityEntitled, sexualEntitled, hairData, sexualData, todayVitality, vitalityCheckIns.length, weeklyEnergy]
+    [hairEntitled, vitalityEntitled, sexualEntitled, hairData, sexualData, todayVitality, vitalityCheckIns.length, weeklyEnergy, programQuizRoutes]
   );
 
   const quickActions = [
@@ -313,6 +325,7 @@ export default function MensHealthPage() {
               key={module.id}
               module={module}
               entitled={module.entitled}
+              unlockHref={module.quizRoute}
             />
           ))}
         </div>

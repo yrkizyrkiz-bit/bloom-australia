@@ -26,6 +26,7 @@ import {
 import { getPublicFunnelQuizSteps } from "@/lib/programs/quizzes/public-funnel-quizzes";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
+import { hasProgramMembership } from "@/lib/membership/program-access";
 import { PortalPaymentForm } from "@/components/portal/PortalPaymentForm";
 
 const PROGRAMS_HUB = "/dashboard/programs";
@@ -56,7 +57,7 @@ export default function InPortalProgramPage() {
   const params = useParams<{ program: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { data: portal, isLoading: portalLoading } = usePortalContext();
+  const { data: portal, isLoading: portalLoading, refetch: refetchPortal } = usePortalContext();
   const programKey = useMemo(
     () => normalizeProgramKey(params?.program) as ProgramKey | null,
     [params?.program]
@@ -64,11 +65,7 @@ export default function InPortalProgramPage() {
 
   const existingProgram = programKey ? portal?.membership?.programs?.[programKey] : null;
   const shouldRedirectToDashboard =
-    Boolean(
-      existingProgram?.hasEntitlement &&
-        existingProgram.status !== "INACTIVE" &&
-        existingProgram.state !== "inactive"
-    );
+    Boolean(programKey && hasProgramMembership(portal?.membership, programKey));
 
   useEffect(() => {
     if (portalLoading || !programKey || !shouldRedirectToDashboard) return;
@@ -188,6 +185,7 @@ export default function InPortalProgramPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Could not confirm payment");
+    await refetchPortal();
     setPaymentComplete(true);
   };
 

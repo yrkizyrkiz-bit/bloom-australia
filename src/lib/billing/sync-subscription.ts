@@ -9,6 +9,8 @@ import {
   findDefaultRecurringPrice,
   resolvePlanTierFromStrings,
 } from "./catalog";
+import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
+import { PROGRAM_SLUG } from "./program-slugs";
 
 function getSubscriptionPeriod(subscription: Stripe.Subscription): {
   start: Date;
@@ -250,11 +252,21 @@ export async function syncMemberSubscriptionFromStripe(
   });
 
   if (status === "ACTIVE") {
+    const programFromMetadata = normalizeProgramKey(
+      subscription.metadata?.programKey || subscription.metadata?.sanativeProgram
+    );
+    const subscriptionTier =
+      programFromMetadata && programFromMetadata !== "WEIGHT_MANAGEMENT"
+        ? PROGRAM_SLUG[programFromMetadata as ProgramKey]
+        : programFromMetadata === "WEIGHT_MANAGEMENT"
+          ? `sanative_${planTier.toLowerCase()}`
+          : user.subscriptionTier || `sanative_${planTier.toLowerCase()}`;
+
     await prisma.user.update({
       where: { id: userId },
       data: {
         subscriptionStatus: "ACTIVE",
-        subscriptionTier: `sanative_${planTier.toLowerCase()}`,
+        subscriptionTier,
         renewalDate: period.end,
       },
     });

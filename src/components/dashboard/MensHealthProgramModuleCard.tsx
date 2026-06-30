@@ -7,14 +7,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
-
 export type MensHealthModuleConfig = {
   id: string;
   title: string;
   description: string;
   icon: LucideIcon;
   href: string;
+  quizRoute?: string;
   gradient: string;
   stats: { label: string; value: string };
   image: string;
@@ -23,11 +22,14 @@ export type MensHealthModuleConfig = {
 type MensHealthProgramModuleCardProps = {
   module: MensHealthModuleConfig;
   entitled: boolean;
+  /** When locked, send the member straight to this program's in-portal quiz. */
+  unlockHref?: string;
 };
 
 export function MensHealthProgramModuleCard({
   module,
   entitled,
+  unlockHref,
 }: MensHealthProgramModuleCardProps) {
   const card = (
     <Card
@@ -76,7 +78,7 @@ export function MensHealthProgramModuleCard({
             variant="secondary"
             className="mt-3 bg-white/90 text-slate-900 hover:bg-white"
           >
-            <Link href={MEMBER_PROGRAMS_HOME}>Join program</Link>
+            <Link href={unlockHref ?? module.quizRoute ?? module.href}>Start quiz</Link>
           </Button>
         </div>
       )}

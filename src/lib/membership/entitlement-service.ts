@@ -142,14 +142,23 @@ function resolveLegacyTierProgramKey(
   const tierProgram = normalizeProgramKey(tier);
   if (!tierProgram) return null;
 
+  const tierNorm = (tier || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+
+  // Explicit focus in the subscription tier — never override with another ProgramMember row.
+  if (tierNorm.includes("sex") && tierNorm.includes("mens")) return "MENS_HEALTH_SEXUAL";
+  if (tierNorm.includes("sex") && tierNorm.includes("women")) return "WOMENS_HEALTH_SEXUAL";
+  if (tierNorm.includes("vitality") && tierNorm.includes("mens")) return "MENS_HEALTH_VITALITY";
+  if (tierNorm.includes("vitality") && tierNorm.includes("women")) return "WOMENS_HEALTH_VITALITY";
+  if (tierNorm.includes("hair")) return "HAIR_LOSS";
+
   const members = programMembers || [];
-  if (tierProgram === "MENS_HEALTH_VITALITY") {
+  if (tierProgram === "MENS_HEALTH_VITALITY" || tierProgram === "MENS_HEALTH_SEXUAL") {
     for (const pm of members) {
       const key = resolveProgramMemberProgramKey(pm);
       if (key?.startsWith("MENS_HEALTH_")) return key;
     }
   }
-  if (tierProgram === "WOMENS_HEALTH_VITALITY") {
+  if (tierProgram === "WOMENS_HEALTH_VITALITY" || tierProgram === "WOMENS_HEALTH_SEXUAL") {
     for (const pm of members) {
       const key = resolveProgramMemberProgramKey(pm);
       if (key?.startsWith("WOMENS_HEALTH_")) return key;
@@ -220,6 +229,24 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
   for (const pm of input.programMembers || []) {
     const programKey = resolveProgramMemberProgramKey(pm);
     if (!programKey) continue;
+
+    // When subscription tier pins a men's/women's focus, ignore stale ProgramMember rows
+    // for the sibling program (e.g. vitality tier must not also grant sexual from intake).
+    if (
+      tierProgram?.startsWith("MENS_HEALTH_") &&
+      programKey.startsWith("MENS_HEALTH_") &&
+      programKey !== tierProgram
+    ) {
+      continue;
+    }
+    if (
+      tierProgram?.startsWith("WOMENS_HEALTH_") &&
+      programKey.startsWith("WOMENS_HEALTH_") &&
+      programKey !== tierProgram
+    ) {
+      continue;
+    }
+
     let status = programMemberStatus(pm.membershipStatus);
     if (programKey === "WEIGHT_MANAGEMENT" && weightJourneyPaid && status !== "INACTIVE") {
       status = "ACTIVE";
