@@ -1,108 +1,105 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
-import { ArrowRight, ArrowLeft, Check, Beaker, Heart, Zap, Brain, Droplets, Activity, MapPin } from "lucide-react";
+import { ArrowRight, ArrowLeft, Beaker, Heart, Zap, Brain, Droplets, Activity, Clock } from "lucide-react";
+import { BiomarkerSubscriptionPlanCards } from "@/components/promo/BiomarkerSubscriptionPlanCards";
+import { PanelBiomarkerPreview } from "@/components/biomarkers/PanelBiomarkerPreview";
+import {
+  getBiomarkerSubscriptionPlan,
+  getTierCategoryPreview,
+  type BiomarkerSubscriptionTier,
+} from "@/lib/biomarkers/public-subscription-panels";
+import {
+  countBiomarkersByCategory,
+  getTierBiomarkersForDisplay,
+} from "@/lib/biomarkers/panel-biomarker-display";
+import type { BloodPanelCategoryKey } from "@/data/bloodPanelConfig";
 
-const biomarkerCategories = [
-  {
-    id: "metabolic",
-    name: "Metabolic Health",
-    icon: Zap,
-    markers: ["Fasting Glucose", "HbA1c", "Insulin", "Cholesterol Panel", "Triglycerides"],
-    color: "bg-amber-500",
-  },
-  {
-    id: "hormones",
-    name: "Hormones",
-    icon: Activity,
-    markers: ["Thyroid Panel", "Cortisol", "Oestrogen", "Progesterone", "Testosterone"],
-    color: "bg-pink-500",
-  },
-  {
-    id: "inflammation",
-    name: "Inflammation",
-    icon: Heart,
-    markers: ["CRP", "ESR", "Ferritin", "Homocysteine"],
-    color: "bg-red-500",
-  },
-  {
-    id: "nutrients",
-    name: "Nutrients",
-    icon: Beaker,
-    markers: ["Vitamin D", "Vitamin B12", "Iron Studies", "Folate", "Zinc"],
-    color: "bg-emerald-500",
-  },
-  {
-    id: "liver-kidney",
-    name: "Liver & Kidney",
-    icon: Droplets,
-    markers: ["ALT", "AST", "GGT", "Creatinine", "eGFR"],
-    color: "bg-sky-500",
-  },
-  {
-    id: "thyroid",
-    name: "Thyroid Function",
-    icon: Brain,
-    markers: ["TSH", "Free T3", "Free T4", "Thyroid Antibodies"],
-    color: "bg-purple-500",
-  },
-];
+const categoryIcons: Record<string, { icon: typeof Zap; color: string }> = {
+  metabolic: { icon: Zap, color: "bg-amber-500" },
+  hormones: { icon: Activity, color: "bg-pink-500" },
+  inflammation: { icon: Heart, color: "bg-red-500" },
+  nutrients: { icon: Beaker, color: "bg-emerald-500" },
+  "liver-kidney": { icon: Droplets, color: "bg-sky-500" },
+  thyroid: { icon: Brain, color: "bg-purple-500" },
+  "biological-clock": { icon: Clock, color: "bg-indigo-500" },
+};
+
+/** Map intake category ids to blood panel category keys for counts. */
+const INTAKE_TO_PANEL_CATEGORIES: Record<string, BloodPanelCategoryKey[]> = {
+  metabolic: ["metabolism"],
+  heart: ["heart"],
+  hormones: ["hormones"],
+  inflammation: ["inflammation"],
+  nutrients: ["nutrients"],
+  "liver-kidney": ["liver", "kidney"],
+  thyroid: ["thyroid"],
+  "biological-clock": ["blood", "inflammation", "metabolism"],
+};
 
 function BiomarkerIntakeContent() {
   const searchParams = useSearchParams();
   const concern = searchParams.get("concern");
   const service = searchParams.get("service");
+  const packageFromUrl = searchParams.get("package");
   const [step, setStep] = useState(1);
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<BiomarkerSubscriptionTier | null>(() => {
+    if (packageFromUrl === "essential" || packageFromUrl === "advanced" || packageFromUrl === "complete") {
+      return packageFromUrl;
+    }
+    return null;
+  });
 
-  const packages = [
-    {
-      id: "essential",
-      name: "Essential Panel",
-      description: "Core biomarkers for general health assessment",
-      markers: 40,
-      price: 199,
-      popular: false,
-    },
-    {
-      id: "advanced",
-      name: "Advanced Panel",
-      description: "Comprehensive testing including hormones and inflammation",
-      markers: 65,
-      price: 349,
-      popular: true,
-    },
-    {
-      id: "complete",
-      name: "Complete Panel",
-      description: "Full health audit with all biomarker categories",
-      markers: 85,
-      price: 499,
-      popular: false,
-    },
-  ];
+  const selectedPlan = selectedPackage ? getBiomarkerSubscriptionPlan(selectedPackage) : null;
+  const tierBiomarkers = useMemo(
+    () => (selectedPackage ? getTierBiomarkersForDisplay(selectedPackage) : []),
+    [selectedPackage]
+  );
+  const categoryCounts = useMemo(
+    () => countBiomarkersByCategory(tierBiomarkers),
+    [tierBiomarkers]
+  );
+
+  const tierCategories = selectedPackage
+    ? getTierCategoryPreview(selectedPackage)
+        .filter((category) => categoryIcons[category.id])
+        .map((category) => {
+          const panelKeys = INTAKE_TO_PANEL_CATEGORIES[category.id] ?? [];
+          const markerCount = panelKeys.reduce(
+            (sum, key) => sum + (categoryCounts[key] ?? 0),
+            0
+          );
+          return {
+            ...category,
+            ...categoryIcons[category.id]!,
+            markerCount,
+          };
+        })
+    : [];
+
+  const containerWidth = step === 2 ? "max-w-6xl" : "max-w-4xl";
 
   return (
     <>
       <Header />
       <main className="min-h-screen bg-gradient-to-b from-[#f4f7f2] to-white py-12 lg:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className={`${containerWidth} mx-auto px-4 sm:px-6 lg:px-8 transition-all`}>
           {/* Progress Bar */}
           <div className="mb-12">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-[#5c7a52]">Step {step} of 3</span>
+              <span className="text-sm text-[#5c7a52]">Step {step} of 2</span>
               <span className="text-sm text-[#5c7a52]">
-                {step === 1 ? "Select Package" : step === 2 ? "Review Biomarkers" : "Book Collection"}
+                {step === 1 ? "Select Package" : "Review Biomarkers"}
               </span>
             </div>
             <div className="h-2 bg-[#e6ebe3] rounded-full overflow-hidden">
               <div
                 className="h-full bg-[#5c7a52] rounded-full transition-all duration-500"
-                style={{ width: `${(step / 3) * 100}%` }}
+                style={{ width: `${(step / 2) * 100}%` }}
               />
             </div>
           </div>
@@ -130,38 +127,11 @@ function BiomarkerIntakeContent() {
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-6">
-                {packages.map((pkg) => (
-                  <button
-                    key={pkg.id}
-                    type="button"
-                    onClick={() => setSelectedPackage(pkg.id)}
-                    className={`relative p-6 rounded-2xl border-2 text-left transition-all ${
-                      selectedPackage === pkg.id
-                        ? "border-[#5c7a52] bg-[#f4f7f2]"
-                        : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"
-                    }`}
-                  >
-                    {pkg.popular && (
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#c17a58] text-white text-xs font-medium rounded-full">
-                        Most Popular
-                      </span>
-                    )}
-                    <h3 className="text-xl font-serif text-[#2c3628] mb-2">{pkg.name}</h3>
-                    <p className="text-sm text-[#5c7a52] mb-4">{pkg.description}</p>
-                    <p className="text-sm text-[#7e9a72] mb-4">{pkg.markers} tests & markers*</p>
-                    <p className="text-2xl font-serif text-[#34412f]">
-                      ${pkg.price}
-                      <span className="text-sm font-normal text-[#7e9a72]"> AUD</span>
-                    </p>
-                    {selectedPackage === pkg.id && (
-                      <div className="absolute top-4 right-4 w-6 h-6 bg-[#5c7a52] rounded-full flex items-center justify-center">
-                        <Check className="w-4 h-4 text-white" />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
+              <BiomarkerSubscriptionPlanCards
+                variant="select"
+                selectedId={selectedPackage}
+                onSelect={setSelectedPackage}
+              />
 
               <p className="mt-4 text-xs text-[#7e9a72] text-center">
                 *Includes individual biomarkers plus panel tests (e.g., lipid panel, metabolic panel) which measure multiple values.
@@ -182,105 +152,83 @@ function BiomarkerIntakeContent() {
           )}
 
           {/* Step 2: Review Biomarkers */}
-          {step === 2 && (
+          {step === 2 && selectedPackage && selectedPlan && (
             <div>
               <div className="text-center mb-10">
                 <h1 className="text-3xl lg:text-4xl font-serif text-[#2c3628] mb-4">
                   Your biomarker categories
                 </h1>
-                <p className="text-[#5c7a52]">
-                  Here&apos;s what we&apos;ll test based on your selected panel
+                <p className="text-[#5c7a52] max-w-2xl mx-auto">
+                  Here&apos;s what we&apos;ll test based on your {selectedPlan.name} panel
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {biomarkerCategories.map((category) => (
-                  <div
-                    key={category.id}
-                    className="p-5 bg-white rounded-2xl border border-[#e6ebe3]"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className={`w-10 h-10 rounded-xl ${category.color} flex items-center justify-center`}>
-                        <category.icon className="w-5 h-5 text-white" />
+              {/* Category overview — above panel detail */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-10">
+                {tierCategories.map((category) => {
+                  const Icon = category.icon;
+                  return (
+                    <div
+                      key={category.id}
+                      className="p-4 sm:p-5 bg-white rounded-2xl border border-[#e6ebe3] hover:border-[#cdd8c6] transition-colors"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${category.color} flex items-center justify-center flex-shrink-0`}>
+                          <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                        </div>
+                        <h3 className="font-medium text-[#2c3628] text-sm sm:text-base leading-tight">
+                          {category.name}
+                        </h3>
                       </div>
-                      <h3 className="font-medium text-[#2c3628]">{category.name}</h3>
+                      <p className="text-xs sm:text-sm text-[#7e9a72]">
+                        {category.markerCount > 0
+                          ? `${category.markerCount} marker${category.markerCount === 1 ? "" : "s"}`
+                          : "Included via panel"}
+                      </p>
                     </div>
-                    <ul className="space-y-1">
-                      {category.markers.map((marker) => (
-                        <li key={marker} className="text-sm text-[#5c7a52] flex items-center gap-2">
-                          <span className="w-1 h-1 rounded-full bg-[#7e9a72]" />
-                          {marker}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div className="mt-10 flex justify-between">
+              <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="font-serif text-xl text-[#2c3628] sm:text-2xl">
+                  Here&apos;s what we test for
+                </h2>
+                <Link
+                  href={`/biomarkers/checkout?package=${selectedPackage}`}
+                  className="btn-primary flex w-full items-center justify-center gap-2 sm:w-auto"
+                >
+                  Continue to checkout
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+              </div>
+
+              {/* Visual biomarker grid — scroll inside panel so CTA stays reachable */}
+              <div className="max-h-[min(52vh,560px)] overflow-y-auto overscroll-contain rounded-3xl">
+                <PanelBiomarkerPreview
+                  tier={selectedPackage}
+                  planName={selectedPlan.name}
+                  planTagline={selectedPlan.tagline}
+                  markerCount={selectedPlan.markerCount}
+                />
+              </div>
+
+              <div className="mt-10 flex flex-col-reverse sm:flex-row sm:justify-between gap-4">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="btn-secondary flex items-center gap-2"
+                  className="btn-secondary flex items-center justify-center gap-2"
                 >
                   <ArrowLeft className="w-5 h-5" />
                   Back
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  className="btn-primary flex items-center gap-2"
+                <Link
+                  href={`/biomarkers/checkout?package=${selectedPackage}`}
+                  className="btn-primary flex items-center justify-center gap-2"
                 >
-                  Continue
+                  Continue to checkout
                   <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Book Collection */}
-          {step === 3 && (
-            <div>
-              <div className="text-center mb-10">
-                <div className="w-16 h-16 rounded-full bg-[#5c7a52] flex items-center justify-center mx-auto mb-6">
-                  <Check className="w-8 h-8 text-white" />
-                </div>
-                <h1 className="text-3xl lg:text-4xl font-serif text-[#2c3628] mb-4">
-                  You&apos;re all set!
-                </h1>
-                <p className="text-[#5c7a52] max-w-md mx-auto">
-                  Book your blood sample collection at a pathology centre near you
-                </p>
-              </div>
-
-              <div className="max-w-lg mx-auto">
-                <div className="p-8 bg-white rounded-2xl border border-[#e6ebe3] text-center shadow-sm">
-                  <div className="w-14 h-14 rounded-full bg-[#5c7a52]/10 flex items-center justify-center mx-auto mb-4">
-                    <MapPin className="w-7 h-7 text-[#5c7a52]" />
-                  </div>
-                  <h3 className="text-xl font-serif text-[#2c3628] mb-2">Blood Sample Collection</h3>
-                  <p className="text-sm text-[#5c7a52] mb-6">
-                    Visit one of our 500+ partner pathology centres across Australia for a quick and easy blood sample collection.
-                  </p>
-                  <Link href={`/checkout?method=pathology&package=${selectedPackage || 'advanced'}`} className="btn-primary w-full inline-flex items-center justify-center gap-2">
-                    Find a centre near you
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                  <p className="text-xs text-[#7e9a72] mt-4">
-                    Results delivered to your app within 5-7 business days
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-10 flex justify-start">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="btn-secondary flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  Back
-                </button>
+                </Link>
               </div>
             </div>
           )}

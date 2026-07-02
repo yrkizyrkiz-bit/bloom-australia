@@ -27,6 +27,10 @@ import { createProgramPreTriageTask } from "@/lib/funnel/program-pre-triage";
 import { savePublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
 import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
 import { verifyOrganCareMembershipBookingPayment } from "@/lib/stripe/verify-organ-care-booking-payment";
+import {
+  isBiomarkersPanelBookingNotes,
+  verifyBiomarkersPanelBookingPayment,
+} from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
 import { validatePrePaymentConsent } from "@/lib/legal/consent-record";
 import { syncEntitlementsFromSignals } from "@/lib/membership/entitlement-service";
 
@@ -674,6 +678,7 @@ export async function POST(req: NextRequest) {
     }
 
     const isOrganCareBooking = (booking.notes || "").includes("Organ & Metabolic Care");
+    const isBiomarkersBooking = isBiomarkersPanelBookingNotes(booking.notes);
 
     const paymentVerification = isOrganCareBooking
       ? await (async () => {
@@ -688,16 +693,33 @@ export async function POST(req: NextRequest) {
           return {
             paymentIntent: organCarePayment.paymentIntent,
             expectedAmountCents: organCarePayment.paymentIntent.amount,
-            normalizedPlan: null as const,
+            normalizedPlan: null,
             bookingId: bookingHoldId,
           };
         })()
-      : await verifyFirstMonthPaymentForBooking({
-          paymentIntentId,
-          userId: bookingUserId,
-          bookingHoldId,
-          selectedPlan: selectedPlan || booking.selectedPlan,
-        });
+      : isBiomarkersBooking
+        ? await (async () => {
+            const biomarkersPayment = await verifyBiomarkersPanelBookingPayment({
+              paymentIntentId,
+              userId: bookingUserId,
+              bookingHoldId,
+            });
+            if (!biomarkersPayment.ok) {
+              return biomarkersPayment;
+            }
+            return {
+              paymentIntent: biomarkersPayment.paymentIntent,
+              expectedAmountCents: biomarkersPayment.paymentIntent.amount,
+              normalizedPlan: null,
+              bookingId: bookingHoldId,
+            };
+          })()
+        : await verifyFirstMonthPaymentForBooking({
+            paymentIntentId,
+            userId: bookingUserId,
+            bookingHoldId,
+            selectedPlan: selectedPlan || booking.selectedPlan,
+          });
 
     if ("error" in paymentVerification) {
       return NextResponse.json(

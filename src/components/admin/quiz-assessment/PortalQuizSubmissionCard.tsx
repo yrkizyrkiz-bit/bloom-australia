@@ -10,6 +10,17 @@ import {
 } from "@/lib/portal-quiz-display";
 import type { PortalQuizSubmissionView } from "@/components/admin/quiz-assessment/types";
 
+function medicareBadgeClass(eligibility?: string) {
+  switch (eligibility) {
+    case "medicare_with_indication":
+      return "bg-amber-100 text-amber-900 border-amber-200";
+    case "derived":
+      return "bg-slate-100 text-slate-700 border-slate-200";
+    default:
+      return "bg-emerald-100 text-emerald-900 border-emerald-200";
+  }
+}
+
 export function PortalQuizSubmissionCard({
   submission,
   memberGender,
@@ -37,6 +48,11 @@ export function PortalQuizSubmissionCard({
           )}
           {submission.intent && (
             <Badge variant="secondary">{submission.intent.replace(/_/g, " ")}</Badge>
+          )}
+          {parsed.publicPanelTier && (
+            <Badge variant="outline" className="capitalize">
+              {parsed.publicPanelTier} panel
+            </Badge>
           )}
         </div>
         <p className="text-sm text-muted-foreground">
@@ -91,6 +107,34 @@ export function PortalQuizSubmissionCard({
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {parsed.panelMedicareBreakdown.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Panel tests — Medicare eligibility</p>
+            <p className="text-xs text-muted-foreground">
+              For clinical team review only. Not shown to members during checkout.
+            </p>
+            <div className="rounded-lg border divide-y max-h-80 overflow-y-auto">
+              {parsed.panelMedicareBreakdown.map((row) => (
+                <div
+                  key={row.biomarkerId ?? row.name}
+                  className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium">{row.name}</span>
+                  <Badge
+                    variant="outline"
+                    className={medicareBadgeClass(row.eligibility)}
+                  >
+                    {row.eligibilityLabel ??
+                      (row.eligibility === "medicare_with_indication"
+                        ? "Medicare with indication"
+                        : "Medicare")}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

@@ -91,43 +91,43 @@ const SECTION_META: Record<
   { title: string; description: string; categoryName: string }
 > = {
   intro: {
-    title: "Your goals",
-    description: "Helps us prioritise what matters most for your first panel.",
+    title: "About you",
+    description: "A few quick questions so we can personalise your panel.",
     categoryName: "General",
   },
   heart: {
-    title: "Heart health",
-    description: "Cardiovascular risk markers — lipids, inflammation, glucose.",
+    title: "Heart & circulation",
+    description: "Cholesterol, blood pressure, and related markers.",
     categoryName: "Heart Health",
   },
   metabolic: {
-    title: "Metabolic health",
-    description: "Blood sugar, insulin resistance and metabolic syndrome markers.",
+    title: "Blood sugar & weight",
+    description: "Diabetes risk, weight around the middle, and energy.",
     categoryName: "Metabolic Panel",
   },
   thyroid: {
-    title: "Thyroid function",
-    description: "TSH and thyroid hormones when symptoms or risk factors apply.",
+    title: "Thyroid & energy",
+    description: "How your thyroid may affect weight, mood, and temperature.",
     categoryName: "Thyroid Function",
   },
   hormones: {
-    title: "Hormone health",
-    description: "Sex and stress hormones when clinically indicated.",
+    title: "Hormones & wellbeing",
+    description: "Periods, menopause, testosterone, stress, and related symptoms.",
     categoryName: "Hormone Health",
   },
   liver: {
-    title: "Liver function",
-    description: "LFTs when hepatic disease or medication effects are suspected.",
+    title: "Liver health",
+    description: "Alcohol, medications, and symptoms that can affect the liver.",
     categoryName: "Liver Function",
   },
   kidney: {
-    title: "Kidney function",
-    description: "Renal panel when CKD risk or monitoring is clinically appropriate.",
+    title: "Kidney health",
+    description: "Blood pressure, diabetes, swelling, and urine changes.",
     categoryName: "Kidney Function",
   },
   nutrients: {
-    title: "Nutrients & inflammation",
-    description: "Iron, B12, vitamin D and inflammatory markers when indicated.",
+    title: "Vitamins, iron & inflammation",
+    description: "Diet, tiredness, immunity, and joint discomfort.",
     categoryName: "Nutrients & Inflammation",
   },
 };
@@ -177,21 +177,21 @@ function metabolicQuestion(gender: BiomarkersQuizGender): BiomarkersQuizQuestion
   return q(
     "metabolic",
     "metabolicRisk",
-    "Any metabolic or diabetes-related concerns?",
+    "Do any of these relate to blood sugar, weight, or diabetes?",
     isFemale
       ? [
-          { id: "diabetes-family", label: "Family history of type 2 diabetes" },
-          { id: "weight-waist", label: "Weight gain around the waist or difficulty losing weight" },
-          { id: "polydipsia", label: "Excessive thirst, hunger or frequent urination" },
-          { id: "pcos", label: "PCOS, irregular cycles or insulin resistance" },
-          { id: "gestational-diabetes", label: "History of gestational diabetes or pregnancy-related glucose issues" },
+          { id: "diabetes-family", label: "Diabetes runs in my family" },
+          { id: "weight-waist", label: "Weight gain around my middle, or hard to lose weight" },
+          { id: "polydipsia", label: "Very thirsty, very hungry, or peeing much more than usual" },
+          { id: "pcos", label: "PCOS, irregular periods, or weight/hormone issues" },
+          { id: "gestational-diabetes", label: "Diabetes during pregnancy (or glucose problems when pregnant)" },
           { id: "none", label: "None of these" },
         ]
       : [
-          { id: "diabetes-family", label: "Family history of type 2 diabetes" },
-          { id: "weight-waist", label: "Weight gain around the waist or difficulty losing weight" },
-          { id: "polydipsia", label: "Excessive thirst, hunger or frequent urination" },
-          { id: "low-t-metabolic", label: "Low energy with reduced muscle or central weight gain" },
+          { id: "diabetes-family", label: "Diabetes runs in my family" },
+          { id: "weight-waist", label: "Weight gain around my middle, or hard to lose weight" },
+          { id: "polydipsia", label: "Very thirsty, very hungry, or peeing much more than usual" },
+          { id: "low-t-metabolic", label: "Low energy with less muscle or weight around my middle" },
           { id: "none", label: "None of these" },
         ],
     isFemale
@@ -210,7 +210,7 @@ function metabolicQuestion(gender: BiomarkersQuizGender): BiomarkersQuizQuestion
           "low-t-metabolic": ["metabolic-androgen", "hba1c-indicated", "testosterone-indicated"],
           none: [],
         },
-    "HbA1c and fasting glucose may be Medicare-eligible with clinical indication (MBS 66551).",
+    "Select all that apply.",
     true
   );
 }
@@ -220,21 +220,21 @@ function nutrientsQuestion(gender: BiomarkersQuizGender): BiomarkersQuizQuestion
   return q(
     "nutrients",
     "nutrientsInflammation",
-    "Nutrient or inflammation concerns?",
+    "Do any of these sound like you?",
     isFemale
       ? [
-          { id: "restricted-diet", label: "Vegan, vegetarian or restricted diet" },
-          { id: "fatigue-iron", label: "Fatigue, breathlessness or heavy periods" },
-          { id: "pregnancy-nutrients", label: "Pregnant, breastfeeding or planning pregnancy" },
-          { id: "frequent-illness", label: "Frequent infections or slow recovery" },
-          { id: "joint-pain", label: "Joint pain or unexplained inflammation" },
+          { id: "restricted-diet", label: "Vegan, vegetarian, or a very restricted diet" },
+          { id: "fatigue-iron", label: "Often tired or short of breath (or heavy periods)" },
+          { id: "pregnancy-nutrients", label: "Pregnant, breastfeeding, or planning a pregnancy" },
+          { id: "frequent-illness", label: "Get sick often or take a long time to recover" },
+          { id: "joint-pain", label: "Joint pain or aches without a clear cause" },
           { id: "none", label: "None of these" },
         ]
       : [
-          { id: "restricted-diet", label: "Vegan, vegetarian or restricted diet" },
-          { id: "fatigue-iron", label: "Fatigue, breathlessness or reduced exercise tolerance" },
-          { id: "frequent-illness", label: "Frequent infections or slow recovery" },
-          { id: "joint-pain", label: "Joint pain or unexplained inflammation" },
+          { id: "restricted-diet", label: "Vegan, vegetarian, or a very restricted diet" },
+          { id: "fatigue-iron", label: "Often tired or short of breath when active" },
+          { id: "frequent-illness", label: "Get sick often or take a long time to recover" },
+          { id: "joint-pain", label: "Joint pain or aches without a clear cause" },
           { id: "none", label: "None of these" },
         ],
     isFemale
@@ -253,7 +253,7 @@ function nutrientsQuestion(gender: BiomarkersQuizGender): BiomarkersQuizQuestion
           "joint-pain": ["inflammation", "crp-indicated"],
           none: [],
         },
-    "Iron studies, B12/folate and CRP are often privately billed unless specific criteria are met.",
+    "Select all that apply.",
     true
   );
 }
@@ -264,8 +264,8 @@ function hormonesQuestion(gender: BiomarkersQuizGender): BiomarkersQuizQuestion 
     "hormones",
     "hormoneConcerns",
     isFemale
-      ? "Any menstrual, menopause or hormone-related concerns?"
-      : "Any testosterone, vitality or hormone-related concerns?",
+      ? "Any concerns about your periods, menopause, or hormones?"
+      : "Any concerns about testosterone, energy, or hormones?",
     isFemale ? womensHormoneOptions() : mensHormoneOptions(),
     isFemale
       ? {
@@ -279,9 +279,7 @@ function hormonesQuestion(gender: BiomarkersQuizGender): BiomarkersQuizQuestion 
           "mood-stress": ["hormone-cortisol", "hormone-panel-indicated"],
           none: [],
         },
-    isFemale
-      ? "Female hormone panels may include estradiol, progesterone, FSH/LH and SHBG when clinically indicated."
-      : "Male hormone panels may include total/free testosterone and SHBG when clinically indicated.",
+    "Select all that apply.",
     true
   );
 }
@@ -289,29 +287,29 @@ function hormonesQuestion(gender: BiomarkersQuizGender): BiomarkersQuizQuestion 
 const CLINICAL_SEX_QUESTION = q(
   "intro",
   "clinicalSex",
-  "For clinical reference, which sex were you assigned at birth?",
+  "Which sex were you assigned at birth?",
   [
-    { id: "female", label: "Female", description: "Panels aligned to female reference ranges" },
-    { id: "male", label: "Male", description: "Panels aligned to male reference ranges" },
+    { id: "female", label: "Female", description: "We use female reference ranges for your results" },
+    { id: "male", label: "Male", description: "We use male reference ranges for your results" },
   ],
   { female: [], male: [] },
-  "This helps us recommend the right reference ranges and Medicare indications."
+  "This helps us compare your results to the right normal ranges."
 );
 
 function mensHormoneOptions(): QuizOption[] {
   return [
-    { id: "low-t", label: "Low energy, libido or muscle strength", description: "Possible androgen deficiency symptoms" },
-    { id: "mood-stress", label: "Stress, poor sleep or mood changes", description: "Cortisol / adrenal axis review" },
-    { id: "none", label: "None of these apply" },
+    { id: "low-t", label: "Low energy, sex drive, or strength", description: "May relate to testosterone levels" },
+    { id: "mood-stress", label: "High stress, poor sleep, or mood changes", description: "May relate to stress hormones" },
+    { id: "none", label: "None of these" },
   ];
 }
 
 function womensHormoneOptions(): QuizOption[] {
   return [
-    { id: "perimenopause", label: "Hot flushes, sleep or cycle changes", description: "Perimenopause / menopause review" },
-    { id: "cycle-fertility", label: "Irregular periods or fertility concerns", description: "Ovarian / cycle hormone panel" },
-    { id: "fatigue-mood", label: "Fatigue, low mood or weight change", description: "Thyroid-adjacent hormone screen" },
-    { id: "none", label: "None of these apply" },
+    { id: "perimenopause", label: "Hot flushes, night sweats, or sleep problems", description: "Common around menopause" },
+    { id: "cycle-fertility", label: "Irregular periods or trying to conceive", description: "May relate to cycle hormones" },
+    { id: "fatigue-mood", label: "Ongoing tiredness, low mood, or weight changes", description: "Can overlap with thyroid or hormones" },
+    { id: "none", label: "None of these" },
   ];
 }
 
@@ -320,12 +318,12 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
     q(
       "intro",
       "primaryGoal",
-      "What is your main reason for testing?",
+      "What’s the main reason you want blood tests?",
       [
-        { id: "biological-age", label: "Understand my biological age", description: "Core ageing biomarkers panel" },
-        { id: "prevention", label: "Preventive health check", description: "Baseline whole-body screen" },
-        { id: "symptoms", label: "I have symptoms I want explained", description: "Symptom-directed testing" },
-        { id: "doctor-referred", label: "My doctor suggested blood tests", description: "GP-aligned panel" },
+        { id: "biological-age", label: "Understand my biological age", description: "How fast your body is ageing on the inside" },
+        { id: "prevention", label: "General health check", description: "Stay on top of things before problems show up" },
+        { id: "symptoms", label: "I have symptoms I want explained", description: "Something feels off and you want answers" },
+        { id: "doctor-referred", label: "My doctor asked me to get tests", description: "Following up on your GP’s advice" },
       ],
       {
         "biological-age": ["goal-ageing"],
@@ -337,12 +335,12 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
     q(
       "heart",
       "heartRisk",
-      "Any cardiovascular risk factors?",
+      "Do any of these apply to your heart or circulation?",
       [
-        { id: "family-cvd", label: "Family history of heart attack or stroke before 60" },
-        { id: "hypertension", label: "High blood pressure (treated or untreated)" },
-        { id: "known-lipids", label: "Previously high cholesterol or triglycerides" },
-        { id: "smoker", label: "Current or recent smoker" },
+        { id: "family-cvd", label: "Heart attack or stroke in close family before age 60" },
+        { id: "hypertension", label: "High blood pressure (diagnosed or on medication)" },
+        { id: "known-lipids", label: "Told I have high cholesterol or triglycerides before" },
+        { id: "smoker", label: "I smoke, or quit within the last few years" },
         { id: "none", label: "None of these" },
       ],
       {
@@ -352,19 +350,19 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
         smoker: ["cvd-smoking", "lipids-indicated"],
         none: [],
       },
-      "Supports lipid panel and cardiovascular risk assessment (MBS 66503 / 66597 when clinically indicated).",
+      "Select all that apply.",
       true
     ),
     metabolicQuestion(gender),
     q(
       "thyroid",
       "thyroidSymptoms",
-      "Any thyroid-related symptoms?",
+      "Have you noticed any of these?",
       [
-        { id: "fatigue-weight", label: "Unexplained fatigue with weight change" },
-        { id: "temperature", label: "Feeling unusually cold or hot" },
-        { id: "palpitations", label: "Palpitations, tremor or anxiety" },
-        { id: "hair-skin", label: "Hair thinning, dry skin or constipation" },
+        { id: "fatigue-weight", label: "Unexplained tiredness with weight going up or down" },
+        { id: "temperature", label: "Often feel unusually cold or hot compared to others" },
+        { id: "palpitations", label: "Heart racing, shaky hands, or feeling very anxious" },
+        { id: "hair-skin", label: "Hair thinning, dry skin, or constipation" },
         { id: "none", label: "None of these" },
       ],
       {
@@ -374,19 +372,19 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
         "hair-skin": ["thyroid-hypo", "tsh-indicated"],
         none: [],
       },
-      "TSH testing may be Medicare-eligible when thyroid dysfunction is suspected (MBS 66732).",
+      "These can sometimes relate to your thyroid — select all that apply.",
       true
     ),
     hormonesQuestion(gender),
     q(
       "liver",
       "liverRisk",
-      "Any liver-related risk factors?",
+      "Do any of these apply to your liver?",
       [
-        { id: "alcohol", label: "Regular alcohol above recommended limits" },
-        { id: "fatty-liver", label: "Fatty liver, NAFLD or metabolic syndrome" },
-        { id: "meds", label: "Regular medications that can affect the liver" },
-        { id: "jaundice", label: "Yellowing of skin/eyes or upper abdominal pain" },
+        { id: "alcohol", label: "I drink more alcohol than health guidelines suggest" },
+        { id: "fatty-liver", label: "Diagnosed fatty liver, or told I have fat in my liver" },
+        { id: "meds", label: "I take regular medication long-term (including over-the-counter)" },
+        { id: "jaundice", label: "Yellow skin/eyes, or pain under ribs on the right side" },
         { id: "none", label: "None of these" },
       ],
       {
@@ -396,18 +394,18 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
         jaundice: ["liver-acute", "lft-indicated", "urgent-review"],
         none: [],
       },
-      "LFTs may be Medicare-eligible when hepatic disease is suspected (MBS 66548).",
+      "Select all that apply.",
       true
     ),
     q(
       "kidney",
       "kidneyRisk",
-      "Any kidney-related concerns?",
+      "Do any of these apply to your kidneys?",
       [
-        { id: "hypertension-diabetes", label: "Diabetes or high blood pressure" },
-        { id: "swelling", label: "Ankle swelling or puffiness around eyes" },
-        { id: "urine-changes", label: "Foamy urine or reduced urine output" },
-        { id: "family-ckd", label: "Family history of kidney disease" },
+        { id: "hypertension-diabetes", label: "I have diabetes or high blood pressure" },
+        { id: "swelling", label: "Swollen ankles or puffy eyes" },
+        { id: "urine-changes", label: "Foamy urine or peeing much less than usual" },
+        { id: "family-ckd", label: "Kidney disease runs in my family" },
         { id: "none", label: "None of these" },
       ],
       {
@@ -417,19 +415,19 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
         "family-ckd": ["ckd-family", "renal-indicated"],
         none: [],
       },
-      "U&E, creatinine and eGFR may be Medicare-eligible for CKD monitoring (MBS 66572).",
+      "Select all that apply.",
       true
     ),
     nutrientsQuestion(gender),
     q(
       "intro",
       "lastBloods",
-      "When did you last have comprehensive blood tests?",
+      "When did you last have a full blood test?",
       [
         { id: "never", label: "Never, or not in the last 2 years" },
         { id: "1-2-years", label: "Within the last 1–2 years" },
         { id: "recent", label: "Within the last 6 months" },
-        { id: "ongoing", label: "I have regular monitoring already" },
+        { id: "ongoing", label: "I get blood tests regularly already" },
       ],
       {
         never: ["bloods-overdue", "baseline-panel"],
@@ -437,7 +435,7 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
         recent: ["bloods-recent"],
         ongoing: ["bloods-monitored"],
       },
-      "Helps your doctor decide whether repeat testing is clinically appropriate."
+      "A full panel is more than a quick finger-prick or single test."
     ),
   ];
 }

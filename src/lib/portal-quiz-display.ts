@@ -1,5 +1,7 @@
 import { PROGRAM_LABELS, SCOPE_LABELS, type ProgramKey, type ScopeKey } from "@/lib/membership/keys";
 import { getBiomarkersQuizQuestions, parseBiomarkersAnswer } from "@/lib/programs/quizzes/biomarkers-intake-quiz";
+import { getPublicBiomarkersPanelQuizQuestions } from "@/lib/biomarkers/public-biomarkers-panel-quiz";
+import { isValidPublicPanelTier } from "@/lib/biomarkers/public-checkout-tier-map";
 import { getOrganCareQuizQuestions } from "@/lib/programs/quizzes/organ-care-intake-quiz";
 import { getPublicFunnelQuizSteps } from "@/lib/programs/quizzes/public-funnel-quizzes";
 import { getSexualHealthQuizSteps, isSexualHealthProgram } from "@/lib/programs/quizzes/sexual-health-quiz";
@@ -38,6 +40,14 @@ function resolveQuizSteps(programKey: string, gender?: string | null, answers?: 
     );
   }
   if (programKey === "BIOLOGICAL_CLOCK") {
+    const tierRaw = answers?._publicPanelTier;
+    if (typeof tierRaw === "string" && isValidPublicPanelTier(tierRaw)) {
+      return getPublicBiomarkersPanelQuizQuestions(
+        tierRaw,
+        gender,
+        answers as Record<string, string> | undefined
+      );
+    }
     return getBiomarkersQuizQuestions(
       gender,
       answers as Record<string, string> | undefined
@@ -95,6 +105,7 @@ export function formatPortalQuizAnswers(
   }
 
   for (const [key, value] of Object.entries(answers)) {
+    if (key.startsWith("_")) continue;
     if (steps.some((s) => s.id === key)) continue;
     if (value == null || value === "") continue;
     rows.push({
@@ -115,22 +126,37 @@ export type PortalQuizResultSection = {
   medicareNotes?: string[];
 };
 
+export type PanelMedicareBreakdownRow = {
+  biomarkerId?: string;
+  name?: string;
+  eligibility?: string;
+  eligibilityLabel?: string;
+};
+
 export function extractPortalQuizResultSummary(result: unknown): {
   summary?: string;
   sections: PortalQuizResultSection[];
   suggestedPanel?: string;
+  publicPanelTier?: string;
+  panelMedicareBreakdown: PanelMedicareBreakdownRow[];
 } {
   if (!result || typeof result !== "object") {
-    return { sections: [] };
+    return { sections: [], panelMedicareBreakdown: [] };
   }
   const r = result as Record<string, unknown>;
   const sections = Array.isArray(r.sections)
     ? (r.sections as PortalQuizResultSection[])
     : [];
+  const panelMedicareBreakdown = Array.isArray(r.panelMedicareBreakdown)
+    ? (r.panelMedicareBreakdown as PanelMedicareBreakdownRow[])
+    : [];
   return {
     summary: typeof r.doctorSummary === "string" ? r.doctorSummary : undefined,
     sections,
     suggestedPanel: typeof r.suggestedPanel === "string" ? r.suggestedPanel : undefined,
+    publicPanelTier:
+      typeof r.publicPanelTier === "string" ? r.publicPanelTier : undefined,
+    panelMedicareBreakdown,
   };
 }
 

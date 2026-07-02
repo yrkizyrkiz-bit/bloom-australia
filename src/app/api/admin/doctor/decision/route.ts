@@ -7,6 +7,10 @@ import { recordSecurityAudit } from "@/lib/security/audit-log";
 import type { SecurityActionType } from "@/lib/security/audit-log";
 import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
 import { verifyOrganCareMembershipBookingPayment } from "@/lib/stripe/verify-organ-care-booking-payment";
+import {
+  isBiomarkersPanelBookingNotes,
+  verifyBiomarkersPanelBookingPayment,
+} from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
 
 async function auditDoctorDecision(
   request: NextRequest,
@@ -378,6 +382,7 @@ export async function POST(request: NextRequest) {
       }
 
       const isOrganCareBooking = (consultation.notes || "").includes("Organ & Metabolic Care");
+      const isBiomarkersBooking = isBiomarkersPanelBookingNotes(consultation.notes);
 
       if (isOrganCareBooking) {
         const organCareResult = await verifyOrganCareMembershipBookingPayment({
@@ -389,6 +394,18 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             { error: organCareResult.error },
             { status: organCareResult.status }
+          );
+        }
+      } else if (isBiomarkersBooking) {
+        const biomarkersResult = await verifyBiomarkersPanelBookingPayment({
+          paymentIntentId: consultation.paymentIntentId,
+          userId,
+          bookingHoldId: consultationId,
+        });
+        if (!biomarkersResult.ok) {
+          return NextResponse.json(
+            { error: biomarkersResult.error },
+            { status: biomarkersResult.status }
           );
         }
       } else {

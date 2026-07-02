@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { BiomarkerHoneycomb } from "@/components/promo/BiomarkerHoneycomb";
+import { BiomarkerSubscriptionPlanCards } from "@/components/promo/BiomarkerSubscriptionPlanCards";
 import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
 import {
   ArrowRight,
@@ -67,7 +68,7 @@ const faqs = [
   },
   {
     question: "What do the plans test for?",
-    answer: "Our comprehensive panels include 80+ tests and markers across 8 vital health areas: heart health, hormones, metabolism, inflammation, stress, liver function, kidney function, and nutrients. Results help identify early indicators of 1,000+ health conditions.",
+    answer: "Choose Essential (core health assessment), Advanced (adds Biological Clock and all Organ Care), or Complete (full 97-marker catalog). Panels cover heart, metabolic, liver, kidney, thyroid, hormones, nutrients and inflammation — tier-dependent.",
   },
   {
     question: "How do you count the number of tests?",
@@ -141,7 +142,7 @@ function LabsPageContent() {
               </h1>
 
               <p className="mt-6 text-lg lg:text-xl text-white/80 max-w-lg">
-                80+ biomarkers tested at NATA-accredited Australian labs. Results reviewed by an AHPRA-registered doctor. Understand what&apos;s driving your weight, fatigue, hormones, and more — before starting any treatment.
+                Three annual panels — Essential (core health assessment), Advanced (Biological Clock + Organ Care), or Complete (full catalog). NATA-accredited labs, doctor-reviewed results.
               </p>
 
               <div className="mt-8">
@@ -297,7 +298,7 @@ function LabsPageContent() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">
-                80+ biomarkers across
+                Up to 97 biomarkers across
                 <br />
                 <span className="text-[#5c7a52] italic">10 vital health areas</span>
               </h2>
@@ -781,70 +782,42 @@ function LabsPageContent() {
           </div>
         </section>
 
-        {/* Labs Pricing Section */}
+        {/* Biomarker subscription plans */}
         <section className="py-20 lg:py-28 bg-gradient-to-b from-[#e6ebe3] via-[#cdd8c6] to-[#a8bb9e]">
-          <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Pricing Card */}
-            <div className="relative bg-white rounded-[32px] shadow-2xl overflow-hidden">
-              <div className="p-8 lg:p-10">
-                {/* Header */}
-                <div className="text-center mb-8">
-                  <p className="text-sm text-[#5c7a52] mb-2">Or get the complete picture</p>
-                  <h3 className="text-2xl font-serif text-[#2c3628] mb-2">Full biomarker panel</h3>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-5xl lg:text-6xl font-serif text-[#2c3628]">$299</span>
-                  </div>
-                  <p className="mt-2 text-sm text-[#7e9a72]">One-time payment</p>
-                </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <p className="text-sm font-medium uppercase tracking-wide text-[#5c7a52] mb-2">
+                Annual biomarker membership
+              </p>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">
+                Choose your <span className="text-[#5c7a52] italic">panel</span>
+              </h2>
+              <p className="mt-4 text-lg text-[#5c7a52] max-w-2xl mx-auto">
+                Essential covers core biomarkers for general health assessment. Advanced adds Biological Clock
+                and full Organ Care. Complete unlocks the entire My Biomarkers catalog.
+              </p>
+            </div>
 
-                {/* What's Included */}
-                <div className="space-y-3 mb-8">
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-[#f4f7f2]">
-                    <div className="w-5 h-5 rounded-full bg-[#5c7a52] flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-[#34412f] text-sm">80+ biomarkers across heart, metabolism, hormones, thyroid, liver, and nutrients</span>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-[#f4f7f2]">
-                    <div className="w-5 h-5 rounded-full bg-[#5c7a52] flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-[#34412f] text-sm">NATA-accredited Australian lab analysis</span>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-[#f4f7f2]">
-                    <div className="w-5 h-5 rounded-full bg-[#5c7a52] flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-[#34412f] text-sm">Doctor-reviewed results within 48 hours</span>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-[#f4f7f2]">
-                    <div className="w-5 h-5 rounded-full bg-[#5c7a52] flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-[#34412f] text-sm">Personalised action plan</span>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-[#f4f7f2]">
-                    <div className="w-5 h-5 rounded-full bg-[#5c7a52] flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-[#34412f] text-sm">Sample collected at a centre near you</span>
-                  </div>
-                </div>
+            <BiomarkerSubscriptionPlanCards variant="pricing" ctaBasePath="/biomarkers/checkout" />
 
-                {/* CTA */}
-                <Link
-                  href="/biomarker-intake"
-                  className="group flex items-center justify-center gap-3 btn-primary text-lg w-full py-4"
-                >
-                  Book my test
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
+            <p className="mt-6 text-xs text-[#7e9a72] text-center max-w-2xl mx-auto">
+              *Includes individual biomarkers plus panel tests (e.g. lipid panel, FBE) which measure
+              multiple values. Portal calculates derived markers such as eGFR and HOMA-IR where applicable.
+            </p>
 
-                {/* Fine Print */}
-                <p className="mt-6 text-center text-xs text-[#7e9a72]">
-                  No prescription required. No commitment to any program.
-                </p>
-              </div>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-[#34412f]">
+              <span className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#5c7a52]" />
+                NATA-accredited Australian labs
+              </span>
+              <span className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#5c7a52]" />
+                Doctor-reviewed results
+              </span>
+              <span className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#5c7a52]" />
+                500+ collection centres nationwide
+              </span>
             </div>
           </div>
         </section>

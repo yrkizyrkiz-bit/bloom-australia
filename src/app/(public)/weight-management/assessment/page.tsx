@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactNode, type RefObject } from "react";
 import { toast } from "sonner";
 import { scoreWeightManagement, fetchBiomarkerCampaigns, getBiomarkerFlags, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
@@ -383,6 +383,9 @@ function hasAbsoluteContraindication(seriousConditions: string[]): boolean {
 /** Steps using viewport-first shell (header fixed, options scroll, footer in flex column) */
 const VIEWPORT_QUIZ_STEPS = new Set([1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
 
+/** BMI animation, email gate, graph reveal, and qualification — fill viewport without page scroll */
+const FULLSCREEN_IMMERSIVE_STEPS = new Set([5, 6, 7, 18]);
+
 const QUIZ_PHASES = [
   { id: 1, label: "Your goal", steps: [1, 2, 3, 4, 5, 6, 7] },
   { id: 2, label: "About you", steps: [8, 9, 10, 11] },
@@ -448,7 +451,7 @@ function QuizPhaseProgress({
   );
 }
 
-const SHOW_QUIZ_PHASE_PROGRESS = (step: number) => step >= 1 && step <= 21;
+const SHOW_QUIZ_PHASE_PROGRESS = (step: number) => step >= 1 && step <= 20;
 
 function parseDobParts(dob: string) {
   if (dob.length !== 10) return { day: "", month: "", year: "" };
@@ -676,7 +679,7 @@ function CircularProgressScreen({
 
   return (
     <div
-      className="min-h-[calc(100dvh-4.75rem)] flex flex-col items-center justify-center px-4 py-6"
+      className="flex flex-1 min-h-0 flex-col items-center justify-center px-4 py-4"
       style={{ background: '#f5f5f5' }}
     >
       {/* Ring */}
@@ -898,8 +901,7 @@ function EmailGateScreen({
 
   return (
     <div
-      className="bg-[#fdfbf7] relative overflow-hidden flex flex-col"
-      style={{ minHeight: 'calc(100dvh - 4.75rem)' }}
+      className="flex flex-col flex-1 min-h-0 h-full bg-[#fdfbf7] relative overflow-hidden"
     >
       <div className="absolute inset-0 pointer-events-none select-none" style={{ filter: 'blur(8px)', transform: 'scale(1.05)' }} aria-hidden="true">
         <BlurredGraphPreview currentWeight={currentWeight} targetWeight={targetWeight} />
@@ -1043,7 +1045,7 @@ function WeightLossGraph({
     requestAnimationFrame(animate);
   }, []);
 
-  const W = 390, H = 200;
+  const W = 390, H = 140;
   const minW = targetWeight - 3;
   const maxW = currentWeight + 4;
   const toY = (w: number) => H - ((w - minW) / (maxW - minW)) * H * 0.85 - H * 0.04;
@@ -1072,24 +1074,24 @@ function WeightLossGraph({
   const lastPt = points[points.length - 1] || { x: 0, y: toY(currentWeight) };
 
   return (
-    <div className="min-h-[calc(100dvh-4.75rem)] bg-[#fdfbf7] px-4 py-4 sm:py-6 flex flex-col">
-      <div className="max-w-md mx-auto flex-1 flex flex-col justify-center w-full">
-        <div className="mb-4 sm:mb-6">
-          <p className="text-sm font-semibold text-[#2c3628] mb-2">
-            Let&apos;s start your program with this Goal!
+    <div className="flex flex-col flex-1 min-h-0 h-full bg-[#fdfbf7] px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col">
+        <div className="mb-3 shrink-0">
+          <p className="mb-1.5 text-sm font-semibold text-[#2c3628]">
+            Let&apos;s start your program with this goal!
           </p>
-          <div className="flex items-baseline gap-3">
-            <span className="text-5xl font-serif text-[#2c3628]">{currentWeight}</span>
-            <span className="text-2xl text-[#7e9a72]">→</span>
-            <span className="text-5xl font-serif text-[#5c7a52]">{Math.round(targetWeight)}</span>
-            <span className="text-lg text-[#7e9a72]">kg</span>
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="font-serif text-4xl text-[#2c3628]">{currentWeight}</span>
+            <span className="text-xl text-[#7e9a72]">→</span>
+            <span className="font-serif text-4xl text-[#5c7a52]">{Math.round(targetWeight)}</span>
+            <span className="text-base text-[#7e9a72]">kg</span>
           </div>
-          <p className="text-lg font-medium text-[#c17a58] mt-1">
+          <p className="mt-0.5 text-base font-medium text-[#c17a58]">
             –{weightLoss.toFixed(1)} kg in {goalMonths} months
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-[#e6ebe3] mb-6">
+        <div className="mb-3 shrink-0 rounded-2xl border border-[#e6ebe3] bg-white p-3">
           <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="graphGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1107,27 +1109,36 @@ function WeightLossGraph({
           </svg>
         </div>
 
-        <div className="bg-[#f4f7f2] rounded-2xl p-5 mb-6">
-          <p className="text-base font-semibold text-[#2c3628] mb-3">What happens next</p>
-          <p className="text-sm text-[#5c7a52] leading-relaxed mb-4">
-            {CLINICAL_INDIVIDUALITY_COPY}
-          </p>
-          <div className="flex gap-3 items-start">
-            <Stethoscope className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-[#2c3628]">Doctor-led care plan review</p>
-              <p className="text-sm text-[#7e9a72] mt-0.5">
-                Your doctor will review your health profile and discuss suitable care options privately if clinically appropriate — alongside lifestyle guidance to support your goals.
-              </p>
+        <div className="mb-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="rounded-2xl bg-[#f4f7f2] p-3.5">
+            <p className="mb-2 text-sm font-semibold text-[#2c3628]">What happens next</p>
+            <p className="mb-3 text-xs leading-relaxed text-[#5c7a52] sm:text-sm">
+              {CLINICAL_INDIVIDUALITY_COPY}
+            </p>
+            <div className="flex items-start gap-2.5">
+              <Stethoscope className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+              <div>
+                <p className="text-xs font-semibold text-[#2c3628] sm:text-sm">
+                  Doctor-led care plan review
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-[#7e9a72] sm:text-sm">
+                  Your doctor will review your health profile and discuss suitable care options
+                  privately if clinically appropriate — alongside lifestyle guidance to support
+                  your goals.
+                </p>
+              </div>
             </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-[#7e9a72] sm:text-xs">
+              Individual results vary and are not guaranteed.
+            </p>
           </div>
-          <p className="text-xs text-[#7e9a72] mt-3 leading-relaxed">
-            Individual results vary and are not guaranteed.
-          </p>
         </div>
 
-        <button onClick={onContinue} className="w-full py-4 bg-[#5c7a52] hover:bg-[#4a6343] text-white font-semibold rounded-full text-base transition-colors flex items-center justify-center gap-2">
-          Continue <ArrowRight className="w-5 h-5" />
+        <button
+          onClick={onContinue}
+          className="flex w-full shrink-0 items-center justify-center gap-2 rounded-full bg-[#5c7a52] py-3.5 text-base font-semibold text-white transition-colors hover:bg-[#4a6343]"
+        >
+          Continue <ArrowRight className="h-5 w-5" />
         </button>
       </div>
 
@@ -1366,6 +1377,24 @@ interface AddressSuggestion {
 }
 
 // ─── ShippingInfoScreen Component ────────────────────────────────────────────
+const SHIPPING_FIELD_LABELS: Record<string, string> = {
+  lastName: "Last name",
+  phone: "Mobile number",
+  address: "Street address",
+  suburb: "Suburb",
+  state: "State / territory",
+  postcode: "Postcode",
+};
+
+const SHIPPING_ADDRESS_FIELD_KEYS = new Set(["address", "suburb", "state", "postcode"]);
+
+function formatShippingValidationSummary(errs: Record<string, string>): string {
+  const labels = Object.keys(errs).map((key) => SHIPPING_FIELD_LABELS[key] ?? key);
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return `Please complete: ${labels[0]}.`;
+  return `Please complete the following: ${labels.join(", ")}.`;
+}
+
 function ShippingInfoScreen({
   formData,
   onSave,
@@ -1379,7 +1408,7 @@ function ShippingInfoScreen({
     suburb: string;
     state: string;
     postcode: string;
-  }) => void | Promise<void>;
+  }) => void | Promise<void | boolean>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const [localLastName, setLocalLastName] = useState(formData.lastName || '');
@@ -1393,14 +1422,38 @@ function ShippingInfoScreen({
     Boolean(formData.streetAddress && formData.suburb)
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Address autocomplete state
+  const lastNameRef = useRef<HTMLDivElement>(null);
+  const phoneRef = useRef<HTMLDivElement>(null);
+  const postcodeRef = useRef<HTMLDivElement>(null);
+  const addressRef = useRef<HTMLDivElement>(null);
+  const suburbRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef<HTMLDivElement>(null);
+
+  const fieldRefs: Record<string, RefObject<HTMLDivElement | null>> = {
+    lastName: lastNameRef,
+    phone: phoneRef,
+    postcode: postcodeRef,
+    address: addressRef,
+    suburb: suburbRef,
+    state: stateRef,
+  };
+
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+    setSubmitError(null);
+  };
   const [addressQuery, setAddressQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout>();
-  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   // Fetch address suggestions from Nominatim (OpenStreetMap)
   const fetchSuggestions = async (query: string, postcode: string) => {
@@ -1486,12 +1539,21 @@ function ShippingInfoScreen({
     setAddressQuery(streetAddress);
     setShowSuggestions(false);
     setAddressExpanded(true);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.address;
+      delete next.suburb;
+      delete next.state;
+      delete next.postcode;
+      return next;
+    });
+    setSubmitError(null);
   };
 
   // Close suggestions on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+      if (addressRef.current && !addressRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
       }
     };
@@ -1499,34 +1561,58 @@ function ShippingInfoScreen({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const validateFields = () => {
+  const validateFields = (): Record<string, string> => {
     const errs: Record<string, string> = {};
-    if (!localLastName.trim()) errs.lastName = 'Last name is required';
-    if (!localPhone.trim()) errs.phone = 'Mobile number is required';
-    else if (!/^(\+61|0)[4-9]\d{8}$/.test(localPhone.replace(/\s/g, ''))) {
-      errs.phone = 'Enter a valid Australian mobile number';
+    if (!localLastName.trim()) errs.lastName = "Last name is required";
+    if (!localPhone.trim()) errs.phone = "Mobile number is required";
+    else if (!/^(\+61|0)[4-9]\d{8}$/.test(localPhone.replace(/\s/g, ""))) {
+      errs.phone = "Enter a valid Australian mobile number";
     }
-    if (!localAddress.trim()) errs.address = 'Address is required';
-    if (!localSuburb.trim()) errs.suburb = 'Suburb is required';
-    if (!localState.trim()) errs.state = 'State is required';
-    if (!localPostcode.trim()) errs.postcode = 'Postcode is required';
-    setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
+    if (!localPostcode.trim()) errs.postcode = "Postcode is required";
+    else if (!/^\d{4}$/.test(localPostcode.trim())) {
+      errs.postcode = "Enter a valid 4-digit postcode";
+    }
+    if (!localAddress.trim()) errs.address = "Street address is required";
+    if (!localSuburb.trim()) errs.suburb = "Suburb is required";
+    if (!localState.trim()) errs.state = "State / territory is required";
+    return errs;
+  };
+
+  const scrollToFirstError = (errs: Record<string, string>) => {
+    const order = ["lastName", "phone", "postcode", "address", "suburb", "state"];
+    const firstKey = order.find((key) => errs[key]);
+    const target = firstKey ? fieldRefs[firstKey]?.current : null;
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const handleShippingContinue = async () => {
-    if (!validateFields()) return;
+    const errs = validateFields();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      if (Object.keys(errs).some((key) => SHIPPING_ADDRESS_FIELD_KEYS.has(key))) {
+        setAddressExpanded(true);
+      }
+      setSubmitError(formatShippingValidationSummary(errs));
+      requestAnimationFrame(() => scrollToFirstError(errs));
+      return;
+    }
+
+    setFieldErrors({});
+    setSubmitError(null);
     setIsSaving(true);
     try {
-      await onSave({
-        lastName: localLastName,
-        phone: localPhone,
-        streetAddress: localAddress,
-        addressUnit: localUnit,
-        suburb: localSuburb,
-        state: localState,
-        postcode: localPostcode,
+      const saved = await onSave({
+        lastName: localLastName.trim(),
+        phone: localPhone.trim(),
+        streetAddress: localAddress.trim(),
+        addressUnit: localUnit.trim(),
+        suburb: localSuburb.trim(),
+        state: localState.trim(),
+        postcode: localPostcode.trim(),
       });
+      if (saved === false) {
+        setSubmitError("We couldn't save your details. Please check the fields above and try again.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -1569,12 +1655,15 @@ function ShippingInfoScreen({
         {/* Form Fields */}
         <div className="space-y-4">
           {/* Last Name */}
-          <div>
+          <div ref={lastNameRef}>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Last name</label>
             <input
               type="text"
               value={localLastName}
-              onChange={(e) => setLocalLastName(e.target.value)}
+              onChange={(e) => {
+                setLocalLastName(e.target.value);
+                clearFieldError("lastName");
+              }}
               placeholder="Enter your last name"
               autoComplete="family-name"
               className={`w-full border-2 rounded-2xl px-5 py-4 text-base outline-none transition-colors ${
@@ -1585,12 +1674,15 @@ function ShippingInfoScreen({
           </div>
 
           {/* Phone */}
-          <div>
+          <div ref={phoneRef}>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Mobile number</label>
             <input
               type="tel"
               value={localPhone}
-              onChange={(e) => setLocalPhone(e.target.value)}
+              onChange={(e) => {
+                setLocalPhone(e.target.value);
+                clearFieldError("phone");
+              }}
               placeholder="0400 000 000"
               autoComplete="tel"
               className={`w-full border-2 rounded-2xl px-5 py-4 text-base outline-none transition-colors ${
@@ -1608,7 +1700,7 @@ function ShippingInfoScreen({
             </div>
 
             {/* Postcode first */}
-            <div className="mb-3">
+            <div className="mb-3" ref={postcodeRef}>
               <label className="block text-sm font-medium text-[#2c3628] mb-1.5">Postcode</label>
               <input
                 type="text"
@@ -1618,6 +1710,7 @@ function ShippingInfoScreen({
                 onChange={(e) => {
                   const next = e.target.value.replace(/\D/g, "").slice(0, 4);
                   setLocalPostcode(next);
+                  clearFieldError("postcode");
                   if (next.length !== 4) {
                     setAddressExpanded(false);
                     setShowSuggestions(false);
@@ -1635,7 +1728,7 @@ function ShippingInfoScreen({
             </div>
 
             {/* Address search — after postcode */}
-            <div className="mb-3 relative" ref={suggestionsRef}>
+            <div className="mb-3 relative" ref={addressRef}>
               <label className="block text-sm font-medium text-[#2c3628] mb-1.5">Street address</label>
               <div className="relative">
                 <input
@@ -1650,6 +1743,8 @@ function ShippingInfoScreen({
                   onChange={(e) => {
                     handleAddressInput(e.target.value);
                     setLocalAddress(e.target.value);
+                    clearFieldError("address");
+                    if (e.target.value.trim()) setAddressExpanded(true);
                   }}
                   onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                   autoComplete="off"
@@ -1698,12 +1793,15 @@ function ShippingInfoScreen({
                   className="w-full border-2 border-[#e6ebe3] focus:border-[#5c7a52] rounded-2xl px-5 py-4 text-base outline-none transition-colors mb-3"
                 />
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
+                  <div ref={suburbRef}>
                     <input
                       type="text"
                       placeholder="Suburb"
                       value={localSuburb}
-                      onChange={(e) => setLocalSuburb(e.target.value)}
+                      onChange={(e) => {
+                        setLocalSuburb(e.target.value);
+                        clearFieldError("suburb");
+                      }}
                       className={`w-full border-2 rounded-2xl px-4 py-4 text-base outline-none transition-colors ${
                         fieldErrors.suburb ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
                       }`}
@@ -1722,9 +1820,13 @@ function ShippingInfoScreen({
                     />
                   </div>
                 </div>
+                <div ref={stateRef}>
                 <select
                   value={localState}
-                  onChange={(e) => setLocalState(e.target.value)}
+                  onChange={(e) => {
+                    setLocalState(e.target.value);
+                    clearFieldError("state");
+                  }}
                   className={`w-full border-2 rounded-2xl px-5 py-4 text-base outline-none transition-colors bg-white appearance-none ${
                     fieldErrors.state ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
                   }`}
@@ -1739,6 +1841,7 @@ function ShippingInfoScreen({
                 {fieldErrors.state && (
                   <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.state}</p>
                 )}
+                </div>
               </>
             )}
 
@@ -1773,6 +1876,15 @@ function ShippingInfoScreen({
           </div>
         )}
         <div className="p-4">
+          {submitError && (
+            <div
+              className="mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5"
+              role="alert"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
+              <p className="text-sm leading-snug text-red-700">{submitError}</p>
+            </div>
+          )}
           <button
             onClick={handleShippingContinue}
             disabled={isSaving}
@@ -2495,109 +2607,98 @@ export default function WeightLossAssessmentPage() {
     );
 
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #f8faf8 0%, #ffffff 100%)' }}>
-        <div className="flex-1 px-6 pt-6 pb-6">
-          {/* Status Badge */}
-          <div className="flex items-center justify-center mb-6">
-            {!hasHardStop ? (
-              <div className="flex items-center gap-2 px-4 py-2 bg-[#5c7a52]/10 border border-[#5c7a52]/20 rounded-full">
-                <Stethoscope className="w-5 h-5 text-[#5c7a52]" />
-                <span className="text-sm font-semibold text-[#5c7a52]">Preliminary assessment complete</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
-                <span className="text-sm font-semibold text-amber-800">Additional review needed</span>
-              </div>
-            )}
-          </div>
-
-          {/* Main Message - Compliant copy */}
-          <div className="text-center mb-8">
+      <div className="flex h-full min-h-0 flex-1 flex-col bg-gradient-to-b from-[#f8faf8] to-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
+        <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col">
+          <div className="mb-3 shrink-0 text-center">
             {!hasHardStop ? (
               <>
-                <h1 className="text-2xl sm:text-3xl font-serif text-[#2c3628] leading-tight mb-4">
-                  Your assessment is complete
+                <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-full bg-[#5c7a52]/10">
+                  <Stethoscope className="h-5 w-5 text-[#5c7a52]" />
+                </div>
+                <h1 className="font-serif text-xl leading-tight text-[#2c3628] sm:text-2xl">
+                  Preliminary assessment complete
                 </h1>
-                <p className="text-[#5c7a52] leading-relaxed">
-                  The next step is to book a phone consultation with an Australian doctor, who will review your assessment and confirm whether the program is clinically appropriate for you.
+                <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">
+                  Book a phone consultation with an Australian doctor to review your assessment and
+                  confirm whether the program is clinically appropriate for you.
                 </p>
               </>
             ) : (
               <>
-                <h1 className="text-2xl sm:text-3xl font-serif text-[#2c3628] leading-tight mb-4">
-                  Thanks for completing your assessment
+                <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-full bg-amber-50">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                </div>
+                <h1 className="font-serif text-xl leading-tight text-[#2c3628] sm:text-2xl">
+                  Additional review needed
                 </h1>
-                <p className="text-[#5c7a52] leading-relaxed">
-                  Please proceed to book your doctor&apos;s consultation to discuss your care plan and how the Sanative
-                  program can support your metabolic health goals.
+                <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">
+                  Please book your doctor&apos;s consultation to discuss your care plan and how the
+                  Sanative program can support your metabolic health goals.
                 </p>
               </>
             )}
           </div>
 
-          {/* Next steps — conversion-focused */}
-          <div className="bg-white rounded-3xl border border-[#e6ebe3] shadow-lg p-6 mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#5c7a52] to-[#7e9a72] flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-white" />
+          <div className="mb-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="rounded-2xl border border-[#e6ebe3] bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center gap-2.5">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5c7a52] to-[#7e9a72]">
+                  <Calendar className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#2c3628]">You&apos;re one step away</p>
+                  <p className="text-xs text-[#7e9a72]">Book your consultation now</p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-[#2c3628]">You&apos;re one step away</p>
-                <p className="text-sm text-[#7e9a72]">Book your consultation now</p>
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-[#2c3628]">
-                  <span className="font-semibold">Reserve your doctor call</span> — pick a time that suits you in under 2 minutes
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-[#2c3628]">
-                  <span className="font-semibold">Personalised care plan</span> — your doctor reviews your assessment and discusses options with you privately
-                </p>
-              </div>
-              <div className="flex items-start gap-3 rounded-xl bg-gradient-to-br from-[#f4f7f2] to-[#eef4eb] border border-[#5c7a52]/25 p-3.5">
-                <FlaskConical className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-[#2c3628]">
-                  <span className="font-semibold">Biomarker-guided care — what makes Sanative different</span>
-                  {" "}— when clinically appropriate, your doctor may request targeted blood tests so your plan
-                  is shaped by real metabolic data, grounded in established clinical practice for weight and
-                  metabolic health — not guesswork alone.
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-[#2c3628]">
-                  <span className="font-semibold">$100 off your first month</span> — applied at checkout when your doctor confirms the program is clinically suitable for you
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-[#2c3628]">
-                  <span className="font-semibold">Ongoing support</span> — lifestyle guidance and care team check-ins throughout your program
-                </p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                  <p className="text-xs text-[#2c3628] sm:text-sm">
+                    <span className="font-semibold">Reserve your doctor call</span> — pick a time in
+                    under 2 minutes
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                  <p className="text-xs text-[#2c3628] sm:text-sm">
+                    <span className="font-semibold">Personalised care plan</span> — your doctor
+                    reviews your assessment and discusses options with you privately
+                  </p>
+                </div>
+                <div className="flex items-start gap-2 rounded-lg border border-[#5c7a52]/20 bg-[#f4f7f2] p-2.5">
+                  <FlaskConical className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                  <p className="text-xs text-[#2c3628] sm:text-sm">
+                    <span className="font-semibold">Biomarker-guided care</span> — when clinically
+                    appropriate, targeted blood tests help shape your plan with real metabolic data
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                  <p className="text-xs text-[#2c3628] sm:text-sm">
+                    <span className="font-semibold">$100 off your first month</span> — applied at
+                    checkout when your doctor confirms suitability
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* CTA */}
-          <button
-            onClick={() => animateToStep(19, 'forward')}
-            className="w-full py-4 bg-[#5c7a52] hover:bg-[#4a6343] text-white font-semibold rounded-full text-lg transition-colors flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(92,122,82,0.35)]"
-          >
-            Book my doctor consultation
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <div className="shrink-0 space-y-2">
+            <button
+              onClick={() => animateToStep(19, "forward")}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#5c7a52] py-3.5 text-base font-semibold text-white shadow-[0_4px_20px_rgba(92,122,82,0.35)] transition-colors hover:bg-[#4a6343]"
+            >
+              Book my doctor consultation
+              <ArrowRight className="h-5 w-5" />
+            </button>
 
-          <p className="text-center text-sm text-[#5c7a52] mt-4 leading-relaxed">
-            <span className="font-semibold text-[#2c3628]">Secure your spot today.</span>{" "}
-            AHPRA-registered Australian doctors · Cancel anytime · Full refund if the program isn&apos;t clinically suitable for you
-          </p>
+            <p className="text-center text-[10px] leading-relaxed text-[#7e9a72] sm:text-xs">
+              <span className="font-semibold text-[#2c3628]">Secure your spot today.</span>{" "}
+              AHPRA-registered Australian doctors · Cancel anytime · Full refund if the program
+              isn&apos;t clinically suitable for you
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -2613,7 +2714,7 @@ export default function WeightLossAssessmentPage() {
       suburb: string;
       state: string;
       postcode: string;
-    }) => {
+    }): Promise<boolean> => {
       // Update form data first
       const updatedFormData = {
         ...formData,
@@ -2646,24 +2747,26 @@ export default function WeightLossAssessmentPage() {
         if (response.ok) {
           setUserId(responseData.userId);
           toast.success("Details saved!", { description: "Your information has been recorded." });
-        } else {
-          console.error("Intake API error:", response.status, responseData);
-          toast.error("Could not save your details", {
-            description:
-              responseData.error ||
-              responseData.detail ||
-              responseData.message ||
-              "Please try again or contact support.",
-          });
+          animateToStep(20, "forward");
+          return true;
         }
+
+        console.error("Intake API error:", response.status, responseData);
+        toast.error("Could not save your details", {
+          description:
+            responseData.error ||
+            responseData.detail ||
+            responseData.message ||
+            "Please try again or contact support.",
+        });
+        return false;
       } catch (error) {
         console.error("Error saving user:", error);
         toast.error("Connection error", {
-          description: "Please check your internet connection and try again."
+          description: "Please check your internet connection and try again.",
         });
+        return false;
       }
-
-      animateToStep(20, 'forward');
     };
 
     return (
@@ -3064,76 +3167,72 @@ export default function WeightLossAssessmentPage() {
     const buttonText = portalMagicLink ? "Activate my portal" : "Go to my program";
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#5c7a52] to-[#4a6343] flex flex-col">
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-          {/* Success Icon */}
-          <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mb-8">
-            <CheckCircle2 className="w-12 h-12 text-white" />
-          </div>
-
-          <h1 className="text-3xl font-serif text-white mb-4">
-            Thank you, {formData.firstName}!
-          </h1>
-
-          <p className="text-white/90 text-lg mb-8 max-w-sm">
-            Your consultation is booked. Activate your portal to follow your program journey.
-          </p>
-
-          {/* Confirmation Card */}
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl mb-8">
-            <div className="flex items-center gap-3 pb-4 border-b border-[#e6ebe3]">
-              <Calendar className="w-6 h-6 text-[#5c7a52]" />
-              <div className="text-left">
-                <p className="text-sm text-[#7e9a72]">Your consultation</p>
-                <p className="font-semibold text-[#2c3628]">{formData.consultationDate}</p>
-                <p className="text-[#5c7a52]">{formData.consultationTime}</p>
-              </div>
+      <div className="flex h-full min-h-0 flex-1 flex-col bg-gradient-to-b from-[#5c7a52] to-[#4a6343]">
+        <div className="mx-auto flex w-full max-w-sm min-h-0 flex-1 flex-col px-4 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+          <div className="shrink-0 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+              <CheckCircle2 className="h-8 w-8 text-white" />
             </div>
-
-            <div className="pt-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#f4f7f2] flex items-center justify-center">
-                  <MessageCircle className="w-4 h-4 text-[#5c7a52]" />
-                </div>
-                <p className="text-sm text-[#5c7a52]">Confirmation email sent to {formData.email}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#f4f7f2] flex items-center justify-center">
-                  <Stethoscope className="w-4 h-4 text-[#5c7a52]" />
-                </div>
-                <p className="text-sm text-[#5c7a52]">Doctor will confirm your care plan during consultation</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#f4f7f2] flex items-center justify-center">
-                  <Package className="w-4 h-4 text-[#5c7a52]" />
-                </div>
-                <p className="text-sm text-[#5c7a52]">Care partner will reach out within 24 hours</p>
-              </div>
-            </div>
-          </div>
-
-          {/* What's Next - Compliant copy */}
-          <div className="text-white/80 text-sm max-w-xs">
-            <p className="mb-2 font-medium text-white">What happens next?</p>
-            <p className="leading-relaxed">
-              Use the button below to set your password and open your weight program home. Progress tracking unlocks once your doctor confirms your care plan. During your appointment, your doctor will discuss suitable options privately if clinically appropriate.
+            <h1 className="font-serif text-2xl text-white sm:text-3xl">
+              Thank you, {formData.firstName}!
+            </h1>
+            <p className="mt-2 text-sm text-white/90 sm:text-base">
+              Your consultation is booked. Activate your portal to follow your program journey.
             </p>
           </div>
-        </div>
 
-        {/* Bottom CTA */}
-        <div className="p-6">
-          <a
-            href={portalLink}
-            className="block w-full py-4 bg-white text-[#2c3628] font-semibold rounded-full text-lg text-center hover:bg-white/95 transition-colors"
-          >
-            {buttonText}
-          </a>
-          {!portalMagicLink && (
-            <p className="text-center text-white/70 text-sm mt-3">
-              Check your email for your activation link, or sign in if you already have an account
-            </p>
-          )}
+          <div className="my-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="rounded-2xl bg-white p-4 shadow-2xl">
+              <div className="flex items-center gap-3 border-b border-[#e6ebe3] pb-3">
+                <Calendar className="h-5 w-5 flex-shrink-0 text-[#5c7a52]" />
+                <div className="text-left">
+                  <p className="text-xs text-[#7e9a72]">Your consultation</p>
+                  <p className="text-sm font-semibold text-[#2c3628]">{formData.consultationDate}</p>
+                  <p className="text-sm text-[#5c7a52]">{formData.consultationTime}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 pt-3">
+                <div className="flex items-start gap-2.5">
+                  <MessageCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                  <p className="text-xs text-[#5c7a52] sm:text-sm">
+                    Confirmation email sent to {formData.email}
+                  </p>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Stethoscope className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                  <p className="text-xs text-[#5c7a52] sm:text-sm">
+                    Your doctor will confirm your care plan during the consultation
+                  </p>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Package className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                  <p className="text-xs text-[#5c7a52] sm:text-sm">
+                    A care partner will reach out within 24 hours
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-3 border-t border-[#e6ebe3] pt-3 text-xs leading-relaxed text-[#7e9a72] sm:text-sm">
+                Set your password to open your weight program home. Progress tracking unlocks once
+                your doctor confirms your care plan.
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 space-y-2">
+            <a
+              href={portalLink}
+              className="block w-full rounded-full bg-white py-3.5 text-center text-base font-semibold text-[#2c3628] transition-colors hover:bg-white/95"
+            >
+              {buttonText}
+            </a>
+            {!portalMagicLink && (
+              <p className="text-center text-xs text-white/70 sm:text-sm">
+                Check your email for your activation link, or sign in if you already have an account
+              </p>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -3727,18 +3826,22 @@ export default function WeightLossAssessmentPage() {
   };
 
   const useViewportLayout = VIEWPORT_QUIZ_STEPS.has(step);
+  const isThankYouStep = step === 21;
+  const useFullscreenImmersive = FULLSCREEN_IMMERSIVE_STEPS.has(step) || isThankYouStep;
   const useCreamTheme = step === 19 || step === 20;
 
   return (
     <div
       className={
-        useViewportLayout
-          ? "h-[100dvh] flex flex-col overflow-hidden bg-white"
+        useFullscreenImmersive || useViewportLayout
+          ? `h-[100dvh] flex flex-col overflow-hidden ${
+              isThankYouStep ? "bg-[#5c7a52]" : "bg-[#fdfbf7]"
+            }`
           : useCreamTheme
           ? "min-h-screen bg-[#fdfbf7] overflow-y-auto"
           : "min-h-screen bg-white overflow-y-auto"
       }
-      style={useViewportLayout ? undefined : { WebkitOverflowScrolling: "touch" }}
+      style={useFullscreenImmersive || useViewportLayout ? undefined : { WebkitOverflowScrolling: "touch" }}
     >
       {/* UAT8-GAP-010: Legacy Intro Offer Popup - REMOVED
        * The old $50 promotion conflicted with the current $100 first-month discount.
@@ -3750,15 +3853,16 @@ export default function WeightLossAssessmentPage() {
        * The showIntroOffer state is now set to false by default.
        */}
 
+      {!isThankYouStep && (
       <header
-        className={`${useViewportLayout || useCreamTheme ? "flex-shrink-0" : "sticky top-0"} ${
-          useCreamTheme ? "bg-[#fdfbf7]/95" : "bg-white/95"
+        className={`${useViewportLayout || useFullscreenImmersive || useCreamTheme ? "flex-shrink-0" : "sticky top-0"} ${
+          useCreamTheme || useFullscreenImmersive ? "bg-[#fdfbf7]/95" : "bg-white/95"
         } backdrop-blur-sm z-40 border-b border-[#e6ebe3]`}
       >
         <div
-          className={`${step === 20 ? "max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${useViewportLayout ? "pt-3 pb-0" : "pt-4 pb-0"} flex items-center justify-between`}
+          className={`${step === 20 ? "max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${useViewportLayout || useFullscreenImmersive ? "pt-3 pb-0" : "pt-4 pb-0"} flex items-center justify-between`}
         >
-          <Link href="/" className={`font-serif text-[#34412f] ${useViewportLayout ? "text-xl" : "text-2xl"}`}>
+          <Link href="/" className={`font-serif text-[#34412f] ${useViewportLayout || useFullscreenImmersive ? "text-xl" : "text-2xl"}`}>
             Sanative
           </Link>
           <button
@@ -3773,19 +3877,22 @@ export default function WeightLossAssessmentPage() {
         {SHOW_QUIZ_PHASE_PROGRESS(step) && (
           <QuizPhaseProgress
             step={step}
-            compact={useViewportLayout}
+            compact={useViewportLayout || useFullscreenImmersive}
             wide={step === 20}
           />
         )}
       </header>
+      )}
 
       {/* Main content - full width on immersive steps (5–7) and checkout (20) */}
       <main
         className={
           step === 20
             ? "relative z-10 bg-[#fdfbf7]"
-            : [5, 6, 7].includes(step)
-            ? "relative z-10 w-full max-w-none p-0 overflow-hidden bg-[#fdfbf7]"
+            : isThankYouStep
+            ? "relative z-10 flex flex-1 min-h-0 w-full max-w-none flex-col overflow-hidden p-0"
+            : useFullscreenImmersive
+            ? "relative z-10 flex flex-1 min-h-0 w-full max-w-none flex-col overflow-hidden bg-[#fdfbf7] p-0"
             : step === 19
             ? "max-w-2xl mx-auto px-4 py-6 relative z-10 bg-[#fdfbf7]"
             : useViewportLayout
@@ -3795,7 +3902,7 @@ export default function WeightLossAssessmentPage() {
       >
         <div
           className={`transition-all duration-300 ease-out ${
-            useViewportLayout ? "flex flex-col flex-1 min-h-0" : ""
+            useViewportLayout || useFullscreenImmersive ? "flex flex-col flex-1 min-h-0" : ""
           } ${
             isAnimating
               ? animationDirection === 'forward'

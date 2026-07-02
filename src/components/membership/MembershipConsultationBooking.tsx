@@ -20,6 +20,8 @@ type Props = {
   email: string;
   phone?: string;
   postcode?: string;
+  programType?: "ORGAN_CARE" | "BIOLOGICAL_CLOCK";
+  riskFlags?: string[];
   onComplete: () => void;
 };
 
@@ -81,6 +83,8 @@ export function MembershipConsultationBooking({
   email,
   phone,
   postcode,
+  programType = "ORGAN_CARE",
+  riskFlags = ["ORGAN_CARE_MEMBERSHIP"],
   onComplete,
 }: Props) {
   const patientTimezone = resolveAustralianTimezone(null, postcode || "");
@@ -166,9 +170,9 @@ export function MembershipConsultationBooking({
         body: JSON.stringify({
           userId,
           slotId: slot.slotId,
-          programType: "ORGAN_CARE",
+          programType,
           patientPhone: phone || undefined,
-          riskFlags: ["ORGAN_CARE_MEMBERSHIP"],
+          riskFlags,
         }),
       });
 

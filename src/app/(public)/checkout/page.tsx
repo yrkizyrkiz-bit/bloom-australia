@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
@@ -62,17 +62,20 @@ const timeSlots = [
   "3:30 PM", "4:00 PM", "4:30 PM", "5:00 PM"
 ];
 
-// Package details
-const packages: Record<string, { name: string; price: number; markers: number }> = {
-  essential: { name: "Essential Panel", price: 199, markers: 40 },
-  advanced: { name: "Advanced Panel", price: 349, markers: 65 },
-  complete: { name: "Complete Panel", price: 499, markers: 85 },
-};
+import { getBiomarkerSubscriptionPlan } from "@/lib/biomarkers/public-subscription-panels";
+import { isValidPublicPanelTier } from "@/lib/biomarkers/public-checkout-tier-map";
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const method = searchParams.get("method");
   const packageId = searchParams.get("package") || "advanced";
+
+  useEffect(() => {
+    if (isValidPublicPanelTier(packageId)) {
+      router.replace(`/biomarkers/checkout?package=${packageId}`);
+    }
+  }, [packageId, router]);
 
   const [step, setStep] = useState(1);
   const [selectedCentre, setSelectedCentre] = useState<string | null>(null);
@@ -96,7 +99,7 @@ function CheckoutContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
-  const selectedPackage = packages[packageId] || packages.advanced;
+  const selectedPackage = getBiomarkerSubscriptionPlan(packageId);
 
   // Generate available dates (next 14 days, excluding Sundays)
   const availableDates = Array.from({ length: 14 }, (_, i) => {
@@ -252,11 +255,11 @@ function CheckoutContent() {
                   <Beaker className="w-6 h-6 text-[#5c7a52]" />
                 </div>
                 <div>
-                  <p className="font-medium text-[#2c3628]">{selectedPackage.name}</p>
-                  <p className="text-sm text-[#7e9a72]">{selectedPackage.markers} biomarkers</p>
+                  <p className="font-medium text-[#2c3628]">{selectedPackage.name} Panel</p>
+                  <p className="text-sm text-[#7e9a72]">{selectedPackage.markerCount} biomarkers</p>
                 </div>
               </div>
-              <p className="text-2xl font-serif text-[#2c3628]">${selectedPackage.price}</p>
+              <p className="text-2xl font-serif text-[#2c3628]">${selectedPackage.priceAud}</p>
             </div>
           </div>
 
@@ -614,8 +617,8 @@ function CheckoutContent() {
 
                     <div className="space-y-3 pb-4 border-b border-[#e6ebe3]">
                       <div className="flex justify-between text-sm">
-                        <span className="text-[#5c7a52]">{selectedPackage.name}</span>
-                        <span className="text-[#2c3628]">${selectedPackage.price}</span>
+                        <span className="text-[#5c7a52]">{selectedPackage.name} Panel</span>
+                        <span className="text-[#2c3628]">${selectedPackage.priceAud}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-[#5c7a52]">Pathology collection</span>
@@ -625,7 +628,7 @@ function CheckoutContent() {
 
                     <div className="flex justify-between py-4 border-b border-[#e6ebe3]">
                       <span className="font-medium text-[#2c3628]">Total</span>
-                      <span className="text-2xl font-serif text-[#2c3628]">${selectedPackage.price}</span>
+                      <span className="text-2xl font-serif text-[#2c3628]">${selectedPackage.priceAud}</span>
                     </div>
 
                     <button
@@ -642,7 +645,7 @@ function CheckoutContent() {
                       ) : (
                         <>
                           <Lock className="w-4 h-4" />
-                          Pay ${selectedPackage.price}
+                          Pay ${selectedPackage.priceAud}
                         </>
                       )}
                     </button>
