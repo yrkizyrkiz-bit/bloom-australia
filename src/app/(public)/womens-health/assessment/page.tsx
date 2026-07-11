@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { scoreWomensHealth, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import {
@@ -8,7 +8,16 @@ import {
   type UnifiedSlot,
 } from "@/components/checkout/UnifiedCheckoutScreen";
 import { resolveAustralianTimezone } from "@/lib/australia-timezone";
-import { WOMENS_CHECKOUT_PRICING } from "@/lib/funnel/public-consult-programs";
+import {
+  WOMENS_CHECKOUT_PRICING,
+  resolveWomensHealthCanonicalKey,
+} from "@/lib/funnel/public-consult-programs";
+import { resolveRequiredPanelTier } from "@/lib/biomarkers/program-panel-requirements";
+import {
+  getBiomarkerSubscriptionPlan,
+  type BiomarkerSubscriptionTier,
+} from "@/lib/biomarkers/public-subscription-panels";
+import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
 import {
@@ -18,8 +27,9 @@ import {
 } from "@/lib/funnel/intake-response";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, ArrowLeft, Check, X, Info, Heart, Stethoscope, MessageCircle, Package, AlertTriangle, Calendar, Clock, CreditCard, Loader2, Shield, Flame, Pill, Baby, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, X, Info, Heart, HeartPulse, Stethoscope, MessageCircle, Package, AlertTriangle, Calendar, Clock, CreditCard, Loader2, Shield, Flame, Pill, Baby, Sparkles } from "lucide-react";
 import { generateAvailableDates, generateTimeSlots, formatDate } from "@/lib/availability";
+
 
 // Processing Step Component with animation
 function ProcessingStep({ categoryName, onComplete }: { categoryName: string; onComplete: () => void }) {
@@ -129,6 +139,10 @@ interface FormData {
   selectedSlotId: string;
   selectedDate: Date | null;
   selectedTime: string;
+  /** Canonical program key, or "" when unsure (doctor classifies). */
+  resolvedProgram: string;
+  /** Public panel tier resolved at analyse step. */
+  panelTier: BiomarkerSubscriptionTier | "";
 }
 
 const healthCategories = [
@@ -136,7 +150,8 @@ const healthCategories = [
   { id: "hrt", label: "Hormone Replacement Therapy", description: "Starting, adjusting, or reviewing HRT", icon: Pill, color: "#8b6b8b" },
   { id: "contraception", label: "Contraception", description: "Birth control options and advice", icon: Shield, color: "#5a8b8b" },
   { id: "fertility", label: "Fertility & Hormonal Health", description: "PCOS, cycle issues, preconception", icon: Baby, color: "#c17a58" },
-  { id: "general", label: "General Women's Health", description: "Other concerns not listed above", icon: Heart, color: "#c17a58" },
+  { id: "sexual", label: "Sexual Health & Intimacy", description: "Libido, intimacy, comfort and desire", icon: HeartPulse, color: "#a86548" },
+  { id: "unsure", label: "Not sure where to start", description: "Fatigue, mood, cycles, weight — or just not feeling yourself", icon: Heart, color: "#c17a58" },
 ];
 
 const primaryConcernsByCategory: Record<string, string[]> = {
@@ -144,7 +159,15 @@ const primaryConcernsByCategory: Record<string, string[]> = {
   hrt: ["Starting HRT", "Reviewing current HRT", "Adjusting dosage", "Switching HRT type", "Managing side effects", "HRT safety questions"],
   contraception: ["Starting contraception", "Changing method", "Side effects", "Emergency contraception", "Post-pregnancy", "Long-acting options"],
   fertility: ["Irregular periods", "PCOS symptoms", "Trying to conceive", "Preconception health", "Hormonal imbalance", "Endometriosis"],
-  general: ["Hormonal concerns", "Menstrual issues", "Pelvic pain", "Breast health", "Sexual health", "Other"],
+  sexual: [
+    "Low libido or reduced desire",
+    "Discomfort or pain with intimacy",
+    "Desire or arousal changes",
+    "Menopause-related sexual changes",
+    "Vaginal dryness affecting intimacy",
+    "Other intimacy concerns",
+  ],
+  unsure: ["Hormonal concerns", "Menstrual issues", "Pelvic pain", "Breast health", "Fatigue or low energy", "Mood or sleep", "Other"],
 };
 
 const symptomDurationOptions = ["Less than 1 month", "1-3 months", "3-6 months", "6-12 months", "More than 1 year", "Several years"];
@@ -157,8 +180,14 @@ const goalsOptions = [{ id: "symptoms", label: "Relieve symptoms" }, { id: "unde
 function WomensHealthAssessmentContent() {
   const searchParams = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
-  const validCategories = ["menopause", "hrt", "contraception", "fertility", "general"];
-  const preselectedCategory = categoryFromUrl && validCategories.includes(categoryFromUrl) ? categoryFromUrl : "";
+  const validCategories = ["menopause", "hrt", "contraception", "fertility", "sexual", "unsure"];
+  // Legacy ?category=general maps to unsure (undiagnosed path).
+  const normalizedUrlCategory =
+    categoryFromUrl === "general" ? "unsure" : categoryFromUrl;
+  const preselectedCategory =
+    normalizedUrlCategory && validCategories.includes(normalizedUrlCategory)
+      ? normalizedUrlCategory
+      : "";
 
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({
@@ -167,6 +196,8 @@ function WomensHealthAssessmentContent() {
     menstrualStatus: "", familyHistory: [], goals: [], postcode: "", address: "",
     consultationDate: "", consultationTime: "", selectedSlotId: "",
     selectedDate: null, selectedTime: "",
+    resolvedProgram: "",
+    panelTier: "",
   });
   const [showFAQ, setShowFAQ] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -232,7 +263,35 @@ function WomensHealthAssessmentContent() {
   // Get category display info
   const selectedCategoryInfo = healthCategories.find(c => c.id === formData.category);
 
-  const updateFormData = (field: keyof FormData, value: string | string[] | Date | null) => setFormData(prev => ({ ...prev, [field]: value }));
+  const updateFormData = (
+    field: keyof FormData,
+    value: string | string[] | Date | null
+  ) => setFormData((prev) => ({ ...prev, [field]: value }));
+
+  const handleAnalyseComplete = useCallback(() => {
+    const program = resolveWomensHealthCanonicalKey(formData.category);
+    const tier = resolveRequiredPanelTier(program);
+    setFormData((prev) => ({
+      ...prev,
+      resolvedProgram: program ?? "",
+      panelTier: tier,
+    }));
+    setStep(14);
+  }, [formData.category]);
+
+  const resolvedPanelPlan = formData.panelTier
+    ? getBiomarkerSubscriptionPlan(formData.panelTier)
+    : null;
+  const checkoutPlanName =
+    formData.resolvedProgram === "WOMENS_HEALTH_SEXUAL"
+      ? "Women's Sexual Health Program"
+      : formData.resolvedProgram === "WOMENS_HEALTH_VITALITY"
+        ? "Women's Vitality Program"
+        : "Women's Health Program";
+  const checkoutPricing = {
+    ...WOMENS_CHECKOUT_PRICING,
+    planName: checkoutPlanName,
+  };
 
   const toggleArrayField = (field: keyof FormData, value: string) => {
     setFormData(prev => {
@@ -324,6 +383,12 @@ function WomensHealthAssessmentContent() {
         programType: "WOMENS_HEALTH",
         ...formData,
         selectedDate: formData.selectedDate?.toISOString(),
+        resolvedProgram: formData.resolvedProgram || null,
+        panelTier: formData.panelTier || null,
+        billingPanelTier: formData.panelTier
+          ? publicTierToBillingTier(formData.panelTier)
+          : null,
+        undiagnosed: !formData.resolvedProgram,
       });
 
       if (result.ok) {
@@ -603,7 +668,7 @@ function WomensHealthAssessmentContent() {
       case 6: return (
         <div className="space-y-6">
           <div className="text-center"><h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">What are your main concerns?</h1><p className="mt-3 text-[#5c7a52]">Select all that apply.</p></div>
-          <div className="space-y-3 mt-8 max-h-[50vh] overflow-y-auto pr-2">{(primaryConcernsByCategory[formData.category] || primaryConcernsByCategory.general).map(o => renderCheckboxOption(o, "primaryConcerns", formData.primaryConcerns.includes(o)))}</div>
+          <div className="space-y-3 mt-8 max-h-[50vh] overflow-y-auto pr-2">{(primaryConcernsByCategory[formData.category] || primaryConcernsByCategory.unsure).map(o => renderCheckboxOption(o, "primaryConcerns", formData.primaryConcerns.includes(o)))}</div>
         </div>
       );
 
@@ -650,7 +715,12 @@ function WomensHealthAssessmentContent() {
         </div>
       );
 
-      case 13: return <ProcessingStep categoryName={selectedCategoryInfo?.label || "women's health"} onComplete={() => setStep(14)} />;
+      case 13: return (
+        <ProcessingStep
+          categoryName={selectedCategoryInfo?.label || "women's health"}
+          onComplete={handleAnalyseComplete}
+        />
+      );
 
       case 14: return (
         <div className="space-y-8">
@@ -679,6 +749,22 @@ function WomensHealthAssessmentContent() {
                 We&apos;ve reviewed your responses and we&apos;re ready to help you with your
                 <span className="text-white font-medium"> {selectedCategoryInfo?.label.toLowerCase() || "health"} {formData.category === "contraception" ? "options" : "journey"}</span>.
               </p>
+
+              {resolvedPanelPlan && (
+                <p className="mt-5 text-base text-[#e6ebe3] max-w-lg mx-auto leading-relaxed">
+                  Your care starts with our{" "}
+                  <span className="text-white font-semibold">
+                    {resolvedPanelPlan.name} panel
+                  </span>{" "}
+                  — {resolvedPanelPlan.markerCount}+ markers including hormones, thyroid and iron.
+                </p>
+              )}
+
+              {!formData.resolvedProgram && (
+                <p className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-sm text-[#a8bb9e]">
+                  Unassigned — doctor to classify after your consultation
+                </p>
+              )}
             </div>
           </div>
 
@@ -722,10 +808,12 @@ function WomensHealthAssessmentContent() {
                 </div>
                 <div>
                   <p className="font-semibold text-[#2c3628] mb-1">
-                    ${WOMENS_CHECKOUT_PRICING.dueToday} first month — consultation included
+                    ${checkoutPricing.dueToday} first month — consultation included
                   </p>
                   <p className="text-sm text-[#5c7a52]">
-                    Book your doctor consultation and start your program for ${WOMENS_CHECKOUT_PRICING.dueToday} today, then ${WOMENS_CHECKOUT_PRICING.ongoingPrice}/mo after your first month.
+                    Book your doctor consultation and start with the{" "}
+                    {resolvedPanelPlan?.name ?? "Advanced"} panel for ${checkoutPricing.dueToday} today,
+                    then ${checkoutPricing.ongoingPrice}/mo after your first month.
                   </p>
                 </div>
               </div>
@@ -745,7 +833,7 @@ function WomensHealthAssessmentContent() {
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-serif text-[#2c3628]">${WOMENS_CHECKOUT_PRICING.dueToday}</span>
+                <span className="text-2xl font-serif text-[#2c3628]">${checkoutPricing.dueToday}</span>
                 <p className="text-xs text-[#7e9a72]">first month</p>
               </div>
             </div>
@@ -804,10 +892,16 @@ function WomensHealthAssessmentContent() {
             onPaymentSuccess={handleCheckoutPaymentSuccess}
             onPaymentError={handleCheckoutPaymentError}
             patientTimezone={patientTimezone}
-            pricing={WOMENS_CHECKOUT_PRICING}
+            pricing={checkoutPricing}
             valueProps={[
-              "Doctor-led women's health assessment",
-              "Treatment if clinically prescribed",
+              `${resolvedPanelPlan?.name ?? "Advanced"} panel included (${
+                resolvedPanelPlan?.markerCount ?? 60
+              }+ markers)`,
+              formData.resolvedProgram === "WOMENS_HEALTH_SEXUAL"
+                ? "Confidential sexual health care"
+                : formData.resolvedProgram
+                  ? "Doctor-led women's vitality care"
+                  : "Doctor classifies your care plan after consult",
               "Care team support in your portal",
             ]}
             programType="womens_health"

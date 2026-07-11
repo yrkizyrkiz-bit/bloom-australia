@@ -81,3 +81,30 @@ describe("resolveWomensHealthCanonicalKey", () => {
     expect(resolveWomensHealthCanonicalKey("sexual")).toBe("WOMENS_HEALTH_SEXUAL");
   });
 });
+
+describe("women's assessment panel resolution (step 13)", () => {
+  it("resolves advanced panel for every women's category including unsure", async () => {
+    const { resolveRequiredPanelTier } = await import(
+      "@/lib/biomarkers/program-panel-requirements"
+    );
+    const { publicTierToBillingTier } = await import(
+      "@/lib/biomarkers/public-checkout-tier-map"
+    );
+
+    const categories = [
+      "menopause",
+      "hrt",
+      "contraception",
+      "fertility",
+      "sexual",
+      "unsure",
+    ] as const;
+
+    for (const category of categories) {
+      const program = resolveWomensHealthCanonicalKey(category);
+      const tier = resolveRequiredPanelTier(program);
+      expect(tier).toBe("advanced");
+      expect(publicTierToBillingTier(tier)).toBe("extended");
+    }
+  });
+});

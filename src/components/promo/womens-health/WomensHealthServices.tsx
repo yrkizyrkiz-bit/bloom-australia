@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Flame, Pill, Shield, Baby, Heart, Stethoscope } from "lucide-react";
+import { ArrowRight, Flame, Pill, Shield, Baby, Heart, HeartPulse, Stethoscope } from "lucide-react";
 
 interface ServiceCard {
   id: string;
@@ -84,7 +84,24 @@ const services: ServiceCard[] = [
     borderColor: "border-[#e8c4b4]/40",
     iconBg: "bg-[#c17a58]",
     href: "/womens-health/assessment?category=fertility"
-  }
+  },
+  {
+    id: "sexual",
+    title: "Sexual Health & Intimacy",
+    subtitle: "Private, judgement-free care",
+    description: "Confidential support for libido, desire, comfort and intimacy — including menopause-related changes. Discreet care with a doctor who listens.",
+    features: [
+      "Low libido & desire",
+      "Comfort & arousal",
+      "Menopause-related intimacy",
+      "Hormone-informed care"
+    ],
+    icon: HeartPulse,
+    gradient: "from-[#f8e1e1] via-[#f5d5d0] to-[#fef4f0]",
+    borderColor: "border-[#e8b4b4]/40",
+    iconBg: "bg-[#a86548]",
+    href: "/womens-health/assessment?category=sexual"
+  },
 ];
 
 export function WomensHealthServices() {
@@ -171,10 +188,10 @@ export function WomensHealthServices() {
             <Stethoscope className="w-6 h-6 text-[#c17a58]" />
             <span className="text-[#2c3628]">Not sure where to start?</span>
             <Link
-              href="/womens-health/assessment"
+              href="/womens-health/assessment?category=unsure"
               className="font-medium text-[#c17a58] hover:text-[#a86548] transition-colors flex items-center gap-1"
             >
-              Take our general assessment
+              Take our assessment
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

@@ -33,6 +33,8 @@ export function Header() {
         { label: "Menopause & hormone care", href: "/womens-health/assessment?category=hrt" },
         { label: "Contraception", href: "/womens-health/assessment?category=contraception" },
         { label: "Fertility Support", href: "/womens-health/assessment?category=fertility" },
+        { label: "Sexual Health & Intimacy", href: "/womens-health/assessment?category=sexual" },
+        { label: "Not sure where to start", href: "/womens-health/assessment?category=unsure" },
       ],
     },
     {
