@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { scoreHairLoss, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import {
@@ -9,6 +9,12 @@ import {
   type UnifiedCheckoutPricing,
 } from "@/components/checkout/UnifiedCheckoutScreen";
 import { resolveAustralianTimezone } from "@/lib/australia-timezone";
+import {
+  getBiomarkerSubscriptionPlan,
+  type BiomarkerSubscriptionTier,
+} from "@/lib/biomarkers/public-subscription-panels";
+import { resolveRequiredPanelTier } from "@/lib/biomarkers/program-panel-requirements";
+import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -16,7 +22,6 @@ import {
   Check,
   ChevronDown,
   Shield,
-  Truck,
   MessageCircle,
   Clock,
   X,
@@ -25,6 +30,7 @@ import {
   Leaf,
   Stethoscope,
   Package,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
@@ -57,6 +63,67 @@ interface FormData {
   consultationTime: string;
   selectedSlotId: string;
   howHeard: string;
+  /** Public panel tier resolved at analyse step. */
+  panelTier: BiomarkerSubscriptionTier | "";
+}
+
+function HairAnalyseStep({ onComplete }: { onComplete: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const [currentMessage, setCurrentMessage] = useState(0);
+  const messages = [
+    "Analysing your hair health profile...",
+    "Matching biomarkers to your answers...",
+    "Selecting the right panel for care...",
+    "Preparing your recommendations...",
+  ];
+
+  useEffect(() => {
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(onComplete, 400);
+          return 100;
+        }
+        return prev + 2;
+      });
+    }, 50);
+    const messageInterval = setInterval(() => {
+      setCurrentMessage((prev) => (prev + 1) % messages.length);
+    }, 700);
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(messageInterval);
+    };
+  }, [onComplete, messages.length]);
+
+  return (
+    <div className="space-y-8 py-12 text-center">
+      <div className="w-24 h-24 mx-auto mb-6 relative">
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#5c7a52] to-[#34412f] animate-pulse" />
+        <div className="absolute inset-0 rounded-2xl flex items-center justify-center">
+          <Sparkles className="w-12 h-12 text-white animate-bounce" />
+        </div>
+      </div>
+      <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Analysing your responses</h1>
+      <p className="text-[#5c7a52] max-w-md mx-auto">
+        Reviewing your hair assessment to confirm the biomarker panel your care plan needs.
+      </p>
+      <div className="max-w-sm mx-auto">
+        <div className="h-2 bg-[#e6ebe3] rounded-full overflow-hidden">
+          <div
+            className="h-full bg-[#5c7a52] rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-sm text-[#7e9a72] mt-2">{progress}% complete</p>
+      </div>
+      <p className="text-sm text-[#5c7a52] font-medium animate-pulse flex items-center justify-center gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        {messages[currentMessage]}
+      </p>
+    </div>
+  );
 }
 
 type DaySlots = {
@@ -80,12 +147,6 @@ const HAIR_CHECKOUT_PRICING: UnifiedCheckoutPricing = {
   ongoingPrice: 79,
   discount: 30,
 };
-
-const HAIR_VALUE_PROPS = [
-  "Doctor-led hair assessment",
-  "Treatment if clinically prescribed",
-  "Care team support in your portal",
-];
 
 // Hair stages for men (Norwood scale)
 const maleHairStages = [
@@ -174,6 +235,7 @@ export default function HairAssessmentPage() {
     consultationTime: "",
     selectedSlotId: "",
     howHeard: "",
+    panelTier: "",
   });
   const [showFAQ, setShowFAQ] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -197,13 +259,34 @@ export default function HairAssessmentPage() {
     fetchBiomarkerCampaigns('HAIR_LOSS').then(setCampaigns);
   }, []);
 
+  // After postcode: analyse → BiomarkerSnapshot → shipping → checkout → thank you
   const postcodeStep = formData.gender === "female" ? 12 : 11;
-  const snapshotStep = postcodeStep + 1;
-  const shippingStep = postcodeStep + 2;
-  const checkoutStep = postcodeStep + 3;
-  const thankYouStep = postcodeStep + 4;
+  const analyseStep = postcodeStep + 1;
+  const snapshotStep = postcodeStep + 2;
+  const shippingStep = postcodeStep + 3;
+  const checkoutStep = postcodeStep + 4;
+  const thankYouStep = postcodeStep + 5;
   const totalSteps = thankYouStep;
   const progress = ((step + 1) / totalSteps) * 100;
+
+  const resolvedPanelTier = formData.panelTier || "advanced";
+  const resolvedPanelPlan = getBiomarkerSubscriptionPlan(resolvedPanelTier);
+  const hairCheckoutValueProps = useMemo(
+    () => [
+      `${resolvedPanelPlan.name} panel included (${resolvedPanelPlan.markerCount}+ markers)`,
+      "Doctor-led hair assessment",
+      "Treatment if clinically prescribed",
+      "Care team support in your portal",
+    ],
+    [resolvedPanelPlan]
+  );
+
+  const handleAnalyseComplete = useCallback(() => {
+    const panelTier = resolveRequiredPanelTier("HAIR_LOSS");
+    setFormData((prev) => ({ ...prev, panelTier }));
+    setStep(snapshotStep);
+    window.scrollTo(0, 0);
+  }, [snapshotStep]);
   const patientTimezone = useMemo(
     () => resolveAustralianTimezone(formData.state, formData.postcode),
     [formData.state, formData.postcode]
@@ -371,9 +454,12 @@ export default function HairAssessmentPage() {
     setSubmissionError(null);
     setShowExistingAccountPrompt(false);
     try {
+      const panelTier = formData.panelTier || resolveRequiredPanelTier("HAIR_LOSS");
       const result = await submitPublicIntake({
         programType: "HAIR_LOSS",
         ...formData,
+        panelTier,
+        billingPanelTier: publicTierToBillingTier(panelTier),
         selectedPlan: "hair_care",
         completedAt: new Date().toISOString(),
       });
@@ -532,31 +618,72 @@ export default function HairAssessmentPage() {
   };
 
   const renderStep = () => {
+    if (step === analyseStep) {
+      return <HairAnalyseStep onComplete={handleAnalyseComplete} />;
+    }
+
     if (step === snapshotStep) {
       const risks = scoreHairLoss(
         formData as unknown as Record<string, unknown>,
         campaigns
-      ).map((risk) =>
-        risk.crossSell?.toLowerCase().includes("vitality")
-          ? {
-              ...risk,
-              crossSell: undefined,
-              crossSellPath: undefined,
-              crossSellPrice: undefined,
-            }
-          : risk
-      );
+      ).map((risk) => ({
+        ...risk,
+        crossSell: undefined,
+        crossSellPath: undefined,
+        crossSellPrice: undefined,
+      }));
+      const panelPlan = resolvedPanelPlan;
+      const panelPackage = resolvedPanelTier;
+
       return (
         <BiomarkerSnapshot
           risks={risks}
           primaryProgram="Hair Loss Program"
           primaryPrice="$49 first month"
           firstName={formData.firstName}
+          offerMode="advancedPanel"
+          marketingHeadline="Biomarker analysis defines the biological starting point for your treatment plan"
+          marketingSubcopy={`Get your ${panelPlan.name}, book your doctor consultation, and unlock a precise action plan based on your results.`}
+          advancedPanel={{
+            name: panelPlan.name,
+            priceAud: panelPlan.priceAud,
+            billingLabel: panelPlan.billingLabel,
+            markerCount: panelPlan.markerCount,
+            tagline: panelPlan.tagline,
+            highlights: panelPlan.highlights,
+            onSelect: () => {
+              try {
+                sessionStorage.setItem(
+                  "hair_biomarkers_checkout",
+                  JSON.stringify({
+                    source: "hair_loss",
+                    skipQuiz: true,
+                    panelTier: panelPackage,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    email: formData.email,
+                    phone: formData.phone,
+                    dateOfBirth: formData.dateOfBirth,
+                    postcode: formData.postcode,
+                    gender: formData.gender,
+                    hairQuizAnswers: formData,
+                  })
+                );
+              } catch {
+                // sessionStorage may be unavailable; checkout still works without prefill
+              }
+              window.location.href =
+                `/biomarkers/checkout?package=${panelPackage}&source=hair_loss&skipQuiz=1`;
+            },
+          }}
           onPrimary={() => {
             setStep(shippingStep);
             window.scrollTo(0, 0);
           }}
-          onLabs={() => window.location.href = '/labs'}
+          onLabs={() => {
+            window.location.href =
+              `/biomarkers/checkout?package=${panelPackage}&source=hair_loss&skipQuiz=1`;
+          }}
         />
       );
     }
@@ -1215,7 +1342,7 @@ export default function HairAssessmentPage() {
       onPaymentError={handleCheckoutPaymentError}
       patientTimezone={patientTimezone}
       pricing={HAIR_CHECKOUT_PRICING}
-      valueProps={HAIR_VALUE_PROPS}
+      valueProps={hairCheckoutValueProps}
       programType="hair_loss"
     />
   );
@@ -1356,7 +1483,10 @@ export default function HairAssessmentPage() {
       </main>
 
       {/* Bottom navigation */}
-      {step < totalSteps && step !== snapshotStep && step !== checkoutStep && (
+      {step < totalSteps &&
+        step !== analyseStep &&
+        step !== snapshotStep &&
+        step !== checkoutStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
             {step > 0 && (
