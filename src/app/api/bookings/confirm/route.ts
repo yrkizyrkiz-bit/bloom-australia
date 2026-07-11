@@ -22,9 +22,15 @@ import {
   getTimezoneAbbreviation,
   isSameTimezone,
 } from "@/lib/australia-timezone";
-import { resolvePublicConsultProgramFromContext } from "@/lib/funnel/public-consult-programs";
-import { createProgramPreTriageTask } from "@/lib/funnel/program-pre-triage";
+import {
+  resolveMensHealthCanonicalKey,
+  resolvePublicConsultProgramFromContext,
+  resolveWomensHealthCanonicalKey,
+  type PublicConsultProgram,
+} from "@/lib/funnel/public-consult-programs";
+import { createProgramPreTriageTask, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
 import { savePublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
+import { grantProgramPanelEntitlementsAtPayment } from "@/lib/portal/grant-program-panel-at-payment";
 import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
 import { verifyOrganCareMembershipBookingPayment } from "@/lib/stripe/verify-organ-care-booking-payment";
 import {
@@ -33,8 +39,78 @@ import {
 } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
 import { validatePrePaymentConsent } from "@/lib/legal/consent-record";
 import { syncEntitlementsFromSignals } from "@/lib/membership/entitlement-service";
+import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
+
+/** Resolve program + panel tier hints from the latest ProgramMember intake. */
+async function resolvePanelGrantContext(
+  userId: string,
+  consultProgram: PublicConsultProgram
+): Promise<{
+  programKey: ProgramKey | null;
+  publicPanelTier: string | null;
+  billingPanelTier: string | null;
+  sourceProgram: string | null;
+}> {
+  const programMember = await prisma.programMember.findFirst({
+    where: { userId },
+    select: { program: true, intakeData: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const intake =
+    programMember?.intakeData && typeof programMember.intakeData === "object"
+      ? (programMember.intakeData as Record<string, unknown>)
+      : {};
+
+  const publicPanelTier =
+    typeof intake.panelTier === "string" ? intake.panelTier : null;
+  const billingPanelTier =
+    typeof intake.billingPanelTier === "string" ? intake.billingPanelTier : null;
+
+  if (typeof intake.canonicalProgramKey === "string" && intake.canonicalProgramKey) {
+    const canonical = normalizeProgramKey(intake.canonicalProgramKey);
+    if (canonical) {
+      return {
+        programKey: canonical,
+        publicPanelTier,
+        billingPanelTier,
+        sourceProgram: consultProgram.slug === "hair_loss" ? "hair_loss" : null,
+      };
+    }
+  }
+
+  if (intake.undiagnosed === true || intake.canonicalProgramKey === null) {
+    return {
+      programKey: null,
+      publicPanelTier,
+      billingPanelTier,
+      sourceProgram: null,
+    };
+  }
+
+  let programKey: ProgramKey | null = null;
+  if (consultProgram.slug === "weight_management") {
+    programKey = "WEIGHT_MANAGEMENT";
+  } else if (consultProgram.slug === "hair_loss") {
+    programKey = "HAIR_LOSS";
+  } else if (consultProgram.slug === "mens_health") {
+    programKey = resolveMensHealthCanonicalKey(
+      typeof intake.concern === "string" ? intake.concern : ""
+    );
+  } else if (consultProgram.slug === "womens_health") {
+    programKey = resolveWomensHealthCanonicalKey(
+      typeof intake.category === "string" ? intake.category : ""
+    );
+  }
+
+  return {
+    programKey,
+    publicPanelTier,
+    billingPanelTier,
+    sourceProgram: consultProgram.slug === "hair_loss" ? "hair_loss" : null,
+  };
+}
 export interface ConfirmRequest {
   bookingHoldId: string;
   paymentIntentId: string;
@@ -678,7 +754,10 @@ export async function POST(req: NextRequest) {
     }
 
     const isOrganCareBooking = (booking.notes || "").includes("Organ & Metabolic Care");
-    const isBiomarkersBooking = isBiomarkersPanelBookingNotes(booking.notes);
+    // Hair Advanced funnel books as Hair Loss but pays with a biomarkers PaymentIntent.
+    const isBiomarkersBooking =
+      isBiomarkersPanelBookingNotes(booking.notes) ||
+      (Array.isArray(booking.riskFlags) && booking.riskFlags.includes("BIOMARKERS_PANEL"));
 
     const paymentVerification = isOrganCareBooking
       ? await (async () => {
@@ -968,6 +1047,31 @@ export async function POST(req: NextRequest) {
         console.error("[bookings/confirm] entitlement sync failed:", err);
       });
 
+      // B1: grant clinically required panel at payment (consult-first Starts).
+      // Biomarkers / Organ Care checkouts grant via their own purchase paths.
+      if (!isOrganCareBooking && !isBiomarkersBooking) {
+        try {
+          const panelContext = await resolvePanelGrantContext(
+            bookingUserId,
+            consultProgram
+          );
+          await grantProgramPanelEntitlementsAtPayment({
+            userId: bookingUserId,
+            paymentIntentId,
+            programKey: panelContext.programKey,
+            publicPanelTier: panelContext.publicPanelTier,
+            billingPanelTier: panelContext.billingPanelTier,
+            sourceProgram: panelContext.sourceProgram,
+            source: "public_consult_booking",
+          });
+        } catch (panelGrantError) {
+          console.error(
+            "[bookings/confirm] program panel entitlement grant failed:",
+            panelGrantError
+          );
+        }
+      }
+
       await prisma.activityLog.create({
         data: {
           userId: bookingUserId,
@@ -1071,7 +1175,11 @@ export async function POST(req: NextRequest) {
         patientName,
         scheduledAt: booking.scheduledAt,
         intakeId: intakeId || booking.intakeId,
-        program: consultProgram,
+        program: resolvePreTriageProgramForBooking({
+          subscriptionTier: user.subscriptionTier,
+          bookingNotes: booking.notes,
+          paymentMetadata: paymentVerification.paymentIntent.metadata ?? {},
+        }),
       });
 
       if (!consultProgram.isWeightManagement) {
