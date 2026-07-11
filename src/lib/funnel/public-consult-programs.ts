@@ -159,24 +159,27 @@ export function resolveMensHealthCanonicalKey(concern: string): ProgramKey {
   return "MENS_HEALTH_VITALITY";
 }
 
-/** Map women's category / concerns → canonical program key. */
+/**
+ * Map women's public assessment category → canonical program key.
+ * Category alone determines the SKU; concerns are triage flags, not routers.
+ * `unsure` / unknown → null (doctor classifies at care plan).
+ */
 export function resolveWomensHealthCanonicalKey(
-  category: string,
-  primaryConcerns: string[] = []
-): ProgramKey {
-  const cat = category.toLowerCase();
-  const concerns = primaryConcerns.join(" ").toLowerCase();
-  const sexualHints = ["sexual", "libido", "pain with sex", "vaginal dryness"];
-  if (
-    cat === "general" &&
-    sexualHints.some((hint) => concerns.includes(hint))
-  ) {
-    return "WOMENS_HEALTH_SEXUAL";
+  category: string
+): ProgramKey | null {
+  switch (category.toLowerCase()) {
+    case "sexual":
+      return "WOMENS_HEALTH_SEXUAL";
+    case "menopause":
+    case "hrt":
+    case "fertility":
+    case "contraception":
+      return "WOMENS_HEALTH_VITALITY";
+    case "unsure":
+      return null;
+    default:
+      return null;
   }
-  if (cat === "general" && concerns.includes("sexual health")) {
-    return "WOMENS_HEALTH_SEXUAL";
-  }
-  return "WOMENS_HEALTH_VITALITY";
 }
 
 export const MENS_CHECKOUT_PRICING = {

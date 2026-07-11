@@ -74,8 +74,7 @@ function buildIntakePayload(
   }
   if (programType === "WOMENS_HEALTH") {
     payload.canonicalProgramKey = resolveWomensHealthCanonicalKey(
-      (data.category as string) || "",
-      (data.primaryConcerns as string[]) || []
+      (data.category as string) || ""
     );
   }
   return payload as Prisma.InputJsonValue;

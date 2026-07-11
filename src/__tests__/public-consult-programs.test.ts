@@ -5,6 +5,7 @@ import {
   resolvePublicConsultProgramFromBookingNotes,
   resolvePublicConsultProgramFromContext,
   resolvePublicConsultProgramFromPaymentMetadata,
+  resolveWomensHealthCanonicalKey,
 } from "@/lib/funnel/public-consult-programs";
 
 describe("public consult program resolution", () => {
@@ -51,5 +52,32 @@ describe("public consult program resolution", () => {
     });
     expect(program.slug).toBe("mens_health");
     expect(getPublicConsultProgram("mens_health").firstMonthAud).toBe(49);
+  });
+});
+
+describe("resolveWomensHealthCanonicalKey", () => {
+  it("maps vitality categories to WOMENS_HEALTH_VITALITY", () => {
+    for (const category of ["menopause", "hrt", "contraception", "fertility"] as const) {
+      expect(resolveWomensHealthCanonicalKey(category)).toBe("WOMENS_HEALTH_VITALITY");
+    }
+  });
+
+  it("maps sexual to WOMENS_HEALTH_SEXUAL", () => {
+    expect(resolveWomensHealthCanonicalKey("sexual")).toBe("WOMENS_HEALTH_SEXUAL");
+  });
+
+  it("maps unsure and unknown to null", () => {
+    expect(resolveWomensHealthCanonicalKey("unsure")).toBeNull();
+    expect(resolveWomensHealthCanonicalKey("general")).toBeNull();
+    expect(resolveWomensHealthCanonicalKey("")).toBeNull();
+  });
+
+  it("does not use concerns to reroute (category-only signature)", () => {
+    // Fertility + sexual-sounding concerns still Vitality — reproductive, not Sexual SKU.
+    expect(resolveWomensHealthCanonicalKey("fertility")).toBe("WOMENS_HEALTH_VITALITY");
+    expect(resolveWomensHealthCanonicalKey("contraception")).toBe("WOMENS_HEALTH_VITALITY");
+    expect(resolveWomensHealthCanonicalKey("menopause")).toBe("WOMENS_HEALTH_VITALITY");
+    // Only the sexual category yields Sexual Health.
+    expect(resolveWomensHealthCanonicalKey("sexual")).toBe("WOMENS_HEALTH_SEXUAL");
   });
 });

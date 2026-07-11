@@ -124,11 +124,9 @@ export function resolveProgramMemberProgramKey(
   }
   if (program === "WOMENS_HEALTH") {
     const category = typeof intake.category === "string" ? intake.category : "";
-    const primaryConcerns = Array.isArray(intake.primaryConcerns)
-      ? (intake.primaryConcerns as string[])
-      : [];
-    if (category || primaryConcerns.length > 0) {
-      return resolveWomensHealthCanonicalKey(category, primaryConcerns);
+    if (category) {
+      // May be null for unsure/undiagnosed — do not fall through to Vitality default.
+      return resolveWomensHealthCanonicalKey(category);
     }
   }
 
