@@ -278,12 +278,6 @@ export async function completePublicBiomarkersEnrollment(input: {
   const plan = getBiomarkerSubscriptionPlan(input.publicPanelTier);
   const fromHairLoss = input.sourceProgram === "hair_loss";
 
-  const sourceNote = input.sourceProgram
-    ? ` via ${input.sourceProgram}`
-    : input.skipQuiz
-      ? " (quiz skipped — prior program assessment)"
-      : "";
-
   const existingEntitlement = await prisma.entitlement.findFirst({
     where: {
       userId: input.userId,
