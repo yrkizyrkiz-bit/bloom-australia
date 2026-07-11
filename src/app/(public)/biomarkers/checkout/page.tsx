@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useLayoutEffect, useRef, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
@@ -54,10 +54,65 @@ const STEP_LABELS: Record<Step, string> = {
   activate: "Activate portal",
 };
 
-const STEP_ORDER: Step[] = ["details", "payment", "doctor", "quiz", "activate"];
+const FULL_STEP_ORDER: Step[] = ["details", "payment", "doctor", "quiz", "activate"];
+const SKIP_QUIZ_STEP_ORDER: Step[] = ["details", "payment", "doctor", "activate"];
 
-function stepIndex(step: Step) {
-  return STEP_ORDER.indexOf(step) + 1;
+type FunnelCheckoutPrefill = {
+  source?: string;
+  skipQuiz?: boolean;
+  panelTier?: string;
+  resolvedProgram?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  postcode?: string;
+  gender?: string;
+  /** Hair assessment answers */
+  hairQuizAnswers?: Record<string, unknown>;
+  /** Women's assessment answers */
+  womensQuizAnswers?: Record<string, unknown>;
+};
+
+function isWomensHealthSource(source: string | null | undefined): boolean {
+  return (
+    source === "womens_health" ||
+    source === "womens_health_sexual" ||
+    source === "womens_health_vitality"
+  );
+}
+
+function readFunnelCheckoutPrefill(
+  sourceParam: string | null
+): FunnelCheckoutPrefill | null {
+  if (typeof window === "undefined") return null;
+  const keys =
+    sourceParam === "hair_loss"
+      ? ["hair_biomarkers_checkout"]
+      : isWomensHealthSource(sourceParam)
+        ? ["womens_biomarkers_checkout"]
+        : ["hair_biomarkers_checkout", "womens_biomarkers_checkout"];
+  try {
+    for (const key of keys) {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) continue;
+      return JSON.parse(raw) as FunnelCheckoutPrefill;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Convert DD/MM/YYYY (hair quiz) to YYYY-MM-DD for date inputs. */
+function toIsoDateInput(value: string | undefined): string {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return "";
+  const [, day, month, year] = match;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 function BiomarkersPaymentForm({
@@ -156,12 +211,31 @@ function BiomarkersPaymentForm({
 function BiomarkersCheckoutContent() {
   const searchParams = useSearchParams();
   const packageParam = searchParams.get("package");
+  const sourceParam = searchParams.get("source");
+  const skipQuizParam = searchParams.get("skipQuiz");
   const panelTier: BiomarkerSubscriptionTier = isValidPublicPanelTier(packageParam)
     ? packageParam
     : "advanced";
 
+  const skipQuiz =
+    skipQuizParam === "1" ||
+    skipQuizParam === "true" ||
+    sourceParam === "hair_loss" ||
+    isWomensHealthSource(sourceParam);
+  const sourceProgram =
+    sourceParam === "hair_loss"
+      ? "hair_loss"
+      : isWomensHealthSource(sourceParam)
+        ? sourceParam || "womens_health"
+        : sourceParam || undefined;
+  const stepOrder = useMemo(
+    () => (skipQuiz ? SKIP_QUIZ_STEP_ORDER : FULL_STEP_ORDER),
+    [skipQuiz]
+  );
+
   const [step, setStep] = useState<Step>("details");
   const selectedPlan = getBiomarkerSubscriptionPlan(panelTier);
+  const [prefill, setPrefill] = useState<FunnelCheckoutPrefill | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -174,11 +248,82 @@ function BiomarkersCheckoutContent() {
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [consentRecordId, setConsentRecordId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [portalMagicLink, setPortalMagicLink] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const stepContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!skipQuiz && sourceParam !== "hair_loss" && !isWomensHealthSource(sourceParam)) {
+      return;
+    }
+    const stored = readFunnelCheckoutPrefill(sourceParam);
+    if (!stored) return;
+    setPrefill(stored);
+    if (stored.firstName) setFirstName(stored.firstName);
+    if (stored.lastName) setLastName(stored.lastName);
+    if (stored.email) setEmail(stored.email);
+    if (stored.phone) setPhone(stored.phone);
+    if (stored.postcode) setPostcode(stored.postcode);
+    if (stored.dateOfBirth) setDateOfBirth(toIsoDateInput(stored.dateOfBirth));
+  }, [skipQuiz, sourceParam]);
+
+  useLayoutEffect(() => {
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    stepContentRef.current?.scrollIntoView({ block: "start" });
+  }, [step]);
+
+  const stepIndex = (current: Step) => stepOrder.indexOf(current) + 1;
 
   const canProceedDetails =
     firstName.trim() && lastName.trim() && email.trim() && phone.trim() && postcode.length >= 4;
+
+  const finalizeEnrollment = async (answers: Record<string, string> = {}) => {
+    if (!userId || !paymentIntentId) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/public/biomarkers-checkout/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          paymentIntentId,
+          publicPanelTier: panelTier,
+          answers,
+          skipQuiz,
+          sourceProgram,
+          priorQuizAnswers:
+            prefill?.womensQuizAnswers ||
+            prefill?.hairQuizAnswers ||
+            (prefill?.resolvedProgram
+              ? { resolvedProgram: prefill.resolvedProgram }
+              : undefined),
+          clientOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to complete enrollment");
+      if (typeof data.magicLink === "string" && data.magicLink) {
+        setPortalMagicLink(data.magicLink);
+      }
+      try {
+        sessionStorage.removeItem("hair_biomarkers_checkout");
+        sessionStorage.removeItem("womens_biomarkers_checkout");
+      } catch {
+        // ignore
+      }
+      setStep("activate");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not complete enrollment");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const createPaymentIntent = async () => {
     setIsLoading(true);
@@ -194,6 +339,7 @@ function BiomarkersCheckoutContent() {
           email,
           phone,
           postcode,
+          sourceProgram,
         }),
       });
       const data = await res.json();
@@ -242,29 +388,15 @@ function BiomarkersCheckoutContent() {
   };
 
   const handleQuizComplete = async (answers: Record<string, string>) => {
-    if (!userId || !paymentIntentId) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/public/biomarkers-checkout/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          paymentIntentId,
-          publicPanelTier: panelTier,
-          answers,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to complete enrollment");
-      setStep("activate");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save questionnaire");
-      throw err;
-    } finally {
-      setIsLoading(false);
+    await finalizeEnrollment(answers);
+  };
+
+  const handleDoctorComplete = async () => {
+    if (skipQuiz) {
+      await finalizeEnrollment({});
+      return;
     }
+    setStep("quiz");
   };
 
   return (
@@ -275,17 +407,32 @@ function BiomarkersCheckoutContent() {
           <div className="mb-12">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm text-[#5c7a52]">
-                Step {stepIndex(step)} of {STEP_ORDER.length}
+                Step {stepIndex(step)} of {stepOrder.length}
               </span>
               <span className="text-sm text-[#5c7a52]">{STEP_LABELS[step]}</span>
             </div>
             <div className="h-2 bg-[#e6ebe3] rounded-full overflow-hidden">
               <div
                 className="h-full bg-[#5c7a52] rounded-full transition-all duration-500"
-                style={{ width: `${(stepIndex(step) / STEP_ORDER.length) * 100}%` }}
+                style={{ width: `${(stepIndex(step) / stepOrder.length) * 100}%` }}
               />
             </div>
           </div>
+
+          {skipQuiz && sourceProgram === "hair_loss" && (
+            <div className="mb-6 rounded-2xl border border-[#cdd8c6] bg-[#f4f7f2] p-4 text-sm text-[#34412f]">
+              Continuing from your hair assessment — your questionnaire is already complete.
+              After payment and your doctor consultation, we&apos;ll activate your Advanced panel.
+            </div>
+          )}
+
+          {skipQuiz && isWomensHealthSource(sourceProgram) && (
+            <div className="mb-6 rounded-2xl border border-[#f8e1e1] bg-[#fef4f0] p-4 text-sm text-[#34412f]">
+              Continuing from your women&apos;s health assessment — your questionnaire is already
+              complete. After payment and your doctor consultation, we&apos;ll activate your{" "}
+              {selectedPlan.name} panel.
+            </div>
+          )}
 
           <div className="bg-white rounded-2xl border border-[#e6ebe3] p-6 mb-8">
             <div className="flex items-center justify-between">
@@ -309,6 +456,8 @@ function BiomarkersCheckoutContent() {
               {error}
             </div>
           )}
+
+          <div ref={stepContentRef} className="scroll-mt-6" aria-hidden="true" />
 
           {step === "details" && (
             <div>
@@ -394,7 +543,16 @@ function BiomarkersCheckoutContent() {
               </div>
 
               <div className="flex justify-between pt-6 border-t border-[#e6ebe3]">
-                <Link href="/biomarker-intake" className="btn-secondary flex items-center gap-2">
+                <Link
+                  href={
+                    sourceProgram === "hair_loss"
+                      ? "/hair-assessment"
+                      : isWomensHealthSource(sourceProgram)
+                        ? "/womens-health/assessment"
+                        : "/biomarker-intake"
+                  }
+                  className="btn-secondary flex items-center gap-2"
+                >
                   <ArrowLeft className="w-5 h-5" />
                   Back
                 </Link>
@@ -443,9 +601,20 @@ function BiomarkersCheckoutContent() {
                       <span className="text-[#5c7a52]">{selectedPlan.name} Panel</span>
                       <span>${selectedPlan.priceAud}</span>
                     </div>
-                    <div className="flex justify-between text-sm mb-4">
-                      <span className="text-[#5c7a52]">Doctor consultation</span>
-                      <span className="text-[#5c7a52]">Included</span>
+                    <div className="mt-3 mb-4 space-y-2 rounded-xl border border-[#e6ebe3] bg-white/70 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#5c7a52]">
+                        Your price includes
+                      </p>
+                      {[
+                        "Your initial doctor consultation",
+                        "12-month access to Biological Age & Biomarkers Portal",
+                        "Comprehensive health overview for your treatment plan",
+                      ].map((item) => (
+                        <div key={item} className="flex items-start gap-2 text-sm text-[#34412f]">
+                          <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                          <span>{item}</span>
+                        </div>
+                      ))}
                     </div>
                     <div className="flex justify-between pt-4 border-t border-[#e6ebe3]">
                       <span className="font-medium">Total due today</span>
@@ -468,7 +637,7 @@ function BiomarkersCheckoutContent() {
             </div>
           )}
 
-          {step === "doctor" && userId && paymentIntentId && (
+          {step === "doctor" && userId && paymentIntentId && consentRecordId && (
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <Stethoscope className="w-7 h-7 text-[#5c7a52]" />
@@ -485,19 +654,40 @@ function BiomarkersCheckoutContent() {
                 <BiomarkersDoctorBooking
                   userId={userId}
                   paymentIntentId={paymentIntentId}
-                  consentRecordId={consentRecordId ?? ""}
+                  consentRecordId={consentRecordId}
                   firstName={firstName}
                   lastName={lastName}
                   email={email}
                   phone={phone}
                   postcode={postcode}
-                  onComplete={() => setStep("quiz")}
+                  sourceProgram={sourceProgram}
+                  onComplete={() => {
+                    void handleDoctorComplete();
+                  }}
                 />
               </div>
             </div>
           )}
 
-          {step === "quiz" && (
+          {step === "doctor" && userId && paymentIntentId && !consentRecordId && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+              <p className="font-semibold text-amber-900 mb-2">Payment consent required</p>
+              <p className="text-sm text-amber-800 mb-4">
+                We could not verify your payment consent for this session. Please return to payment
+                and complete checkout again.
+              </p>
+              <button
+                type="button"
+                onClick={() => setStep("payment")}
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to payment
+              </button>
+            </div>
+          )}
+
+          {step === "quiz" && !skipQuiz && (
             <div>
               <div className="mb-4 shrink-0">
                 <h1 className="text-2xl font-serif text-[#2c3628] lg:text-3xl">
@@ -522,8 +712,12 @@ function BiomarkersCheckoutContent() {
               </div>
               <h1 className="text-3xl font-serif text-[#2c3628] mb-4">Activate your portal</h1>
               <p className="text-[#5c7a52] mb-8">
-                Your {selectedPlan.name} biomarkers program is enrolled. Sign in to track results,
-                biological age, and your personalised care plan.
+                Your {selectedPlan.name} biomarkers program is enrolled.
+                {sourceProgram === "hair_loss"
+                  ? " Set your password to unlock Hair Loss and your Biomarkers portal."
+                  : isWomensHealthSource(sourceProgram)
+                    ? " Set your password to unlock Women's Health and your Biomarkers portal."
+                  : " Set your password to open your Biological Age and Biomarkers portal."}
               </p>
 
               <div className="bg-[#f4f7f2] rounded-2xl p-6 mb-8 text-left space-y-3">
@@ -533,24 +727,57 @@ function BiomarkersCheckoutContent() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-[#34412f]">
                   <Check className="w-4 h-4 text-[#5c7a52]" />
-                  Doctor consultation booked
+                  Initial doctor consultation included
                 </div>
                 <div className="flex items-center gap-2 text-sm text-[#34412f]">
                   <Check className="w-4 h-4 text-[#5c7a52]" />
-                  Clinical questionnaire submitted
+                  12-month Biological Age & Biomarkers Portal access
+                </div>
+                {sourceProgram === "hair_loss" && (
+                  <div className="flex items-center gap-2 text-sm text-[#34412f]">
+                    <Check className="w-4 h-4 text-[#5c7a52]" />
+                    Hair Loss program section unlocked
+                  </div>
+                )}
+                {isWomensHealthSource(sourceProgram) && (
+                  <div className="flex items-center gap-2 text-sm text-[#34412f]">
+                    <Check className="w-4 h-4 text-[#5c7a52]" />
+                    Women&apos;s Health program section unlocked
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-sm text-[#34412f]">
+                  <Check className="w-4 h-4 text-[#5c7a52]" />
+                  {skipQuiz
+                    ? isWomensHealthSource(sourceProgram)
+                      ? "Women's health questionnaire already completed"
+                      : sourceProgram === "hair_loss"
+                        ? "Hair assessment questionnaire already completed"
+                        : "Prior assessment questionnaire already completed"
+                    : "Clinical questionnaire submitted"}
                 </div>
               </div>
 
-              <Link
-                href={`/login?email=${encodeURIComponent(email)}`}
+              <a
+                href={
+                  portalMagicLink ||
+                  `/login?email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(
+                    sourceProgram === "hair_loss"
+                      ? "/dashboard/programs?onboarding=hair-biomarkers"
+                      : isWomensHealthSource(sourceProgram)
+                        ? "/dashboard/womens-health?onboarding=womens-biomarkers"
+                      : "/dashboard/programs"
+                  )}`
+                }
                 className="btn-primary inline-flex items-center gap-2 w-full justify-center py-4"
               >
                 <Sparkles className="w-5 h-5" />
-                Go to my portal
+                {portalMagicLink ? "Set password & activate portal" : "Go to my portal"}
                 <ArrowRight className="w-5 h-5" />
-              </Link>
+              </a>
               <p className="text-xs text-[#7e9a72] mt-4">
-                Use the email you provided ({email}) to sign in or set your password.
+                {portalMagicLink
+                  ? `We'll open a secure link for ${email} so you can choose your portal password — same as weight management.`
+                  : `Use the email you provided (${email}) to sign in or set your password.`}
               </p>
             </div>
           )}

@@ -23,6 +23,8 @@ import { getBiomarkerSubscriptionPlan } from "@/lib/biomarkers/public-subscripti
 import { syncMemberSubscriptionFromPaymentIntent } from "@/lib/billing/sync-payment-subscription";
 import { grantProgramPanelEntitlementsAtPayment } from "@/lib/portal/grant-program-panel-at-payment";
 import { savePublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
+import { resolveWomensHealthCanonicalKey } from "@/lib/funnel/public-consult-programs";
+import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
 
 export type PublicBiomarkersCheckoutDetails = {
   firstName: string;
@@ -277,6 +279,10 @@ export async function completePublicBiomarkersEnrollment(input: {
   const billingTier = publicTierToBillingTier(input.publicPanelTier);
   const plan = getBiomarkerSubscriptionPlan(input.publicPanelTier);
   const fromHairLoss = input.sourceProgram === "hair_loss";
+  const fromWomensHealth =
+    input.sourceProgram === "womens_health" ||
+    input.sourceProgram === "womens_health_sexual" ||
+    input.sourceProgram === "womens_health_vitality";
 
   const existingEntitlement = await prisma.entitlement.findFirst({
     where: {
@@ -327,7 +333,41 @@ export async function completePublicBiomarkersEnrollment(input: {
     });
   }
 
+  // Women's funnel: same pattern as hair — unlock program + Advanced panel at payment.
+  // Advanced/Complete still bundles Organ Care (unlike hair_loss).
+  if (fromWomensHealth) {
+    const womensProgramKey = resolveWomensProgramKeyFromPriorAnswers(
+      input.priorQuizAnswers,
+      input.sourceProgram
+    );
+    if (womensProgramKey) {
+      await grantEntitlement({
+        userId: input.userId,
+        type: "PROGRAM",
+        key: womensProgramKey,
+        status: "ACTIVE",
+        source: "PORTAL_PURCHASE",
+        notes: `Women's Health (${womensProgramKey}) unlocked with ${plan.name} biomarkers checkout. PI ${input.paymentIntentId}`,
+      });
+    }
+    await ensureWomensHealthMemberRecords({
+      userId: input.userId,
+      paymentIntentId: input.paymentIntentId,
+      priorQuizAnswers: input.priorQuizAnswers,
+      programKey: womensProgramKey,
+    });
+    await prisma.user.update({
+      where: { id: input.userId },
+      data: {
+        subscriptionTier: "womens_health",
+        journeyStatus: "PRE_TRIAGE_PENDING",
+        memberStatus: "MEMBER",
+      },
+    });
+  }
+
   if (existingEntitlement) {
+    // Program funnels already applied unlocks above; generic biomarkers is idempotent.
     await syncEntitlementsFromSignals(input.userId).catch(() => undefined);
     return { alreadyProcessed: true as const, userId: input.userId };
   }
@@ -335,10 +375,21 @@ export async function completePublicBiomarkersEnrollment(input: {
   await grantProgramPanelEntitlementsAtPayment({
     userId: input.userId,
     paymentIntentId: input.paymentIntentId,
-    programKey: fromHairLoss ? "HAIR_LOSS" : null,
+    programKey: fromHairLoss
+      ? "HAIR_LOSS"
+      : fromWomensHealth
+        ? resolveWomensProgramKeyFromPriorAnswers(
+            input.priorQuizAnswers,
+            input.sourceProgram
+          )
+        : null,
     publicPanelTier: input.publicPanelTier,
     billingPanelTier: billingTier,
-    sourceProgram: fromHairLoss ? "hair_loss" : input.sourceProgram,
+    sourceProgram: fromHairLoss
+      ? "hair_loss"
+      : fromWomensHealth
+        ? "womens_health"
+        : input.sourceProgram,
     source: "public_biomarkers",
   });
 
@@ -352,8 +403,11 @@ export async function completePublicBiomarkersEnrollment(input: {
   });
 
   // Public biomarkers checkout books a consult first; keep members in care-partner triage
-  // until the consult path advances them. Hair funnel must not jump to ACTIVE.
-  const journeyStatus = bookingLinkedTriage || fromHairLoss ? "PRE_TRIAGE_PENDING" : "ACTIVE";
+  // until the consult path advances them. Program funnels must not jump to ACTIVE.
+  const journeyStatus =
+    bookingLinkedTriage || fromHairLoss || fromWomensHealth
+      ? "PRE_TRIAGE_PENDING"
+      : "ACTIVE";
 
   await prisma.user.update({
     where: { id: input.userId },
@@ -362,6 +416,7 @@ export async function completePublicBiomarkersEnrollment(input: {
       subscriptionStatus: "ACTIVE",
       memberStatus: "MEMBER",
       ...(fromHairLoss ? { subscriptionTier: "hair_loss" } : {}),
+      ...(fromWomensHealth ? { subscriptionTier: "womens_health" } : {}),
     },
   });
 
@@ -375,11 +430,13 @@ export async function completePublicBiomarkersEnrollment(input: {
     amountAud,
     description: fromHairLoss
       ? `Hair Loss + ${plan.name} biomarkers panel (annual)`
+      : fromWomensHealth
+        ? `Women's Health + ${plan.name} biomarkers panel (annual)`
       : `Biomarkers: ${plan.name} panel (annual)`,
   }).catch(() => undefined);
 
   // Doctor booking already created the single pre-triage task — don't duplicate into Pre-Triage Queue.
-  if (!bookingLinkedTriage && !fromHairLoss) {
+  if (!bookingLinkedTriage && !fromHairLoss && !fromWomensHealth) {
     await enqueuePortalPurchaseTriage({
       source: "portal_biomarkers",
       userId: input.userId,
@@ -413,6 +470,9 @@ export async function completePublicBiomarkersEnrollment(input: {
       publicPanelTier: input.publicPanelTier,
       source: "public_biomarkers",
       ...(fromHairLoss ? { sourceProgram: "hair_loss", program: "hair_loss" } : {}),
+      ...(fromWomensHealth
+        ? { sourceProgram: "womens_health", program: "womens_health" }
+        : {}),
     },
   }).catch((err) =>
     console.error("[public_biomarkers] enrollment subscription sync failed:", err)
@@ -423,6 +483,128 @@ export async function completePublicBiomarkersEnrollment(input: {
   );
 
   return { alreadyProcessed: false as const, userId: input.userId };
+}
+
+function resolveWomensProgramKeyFromPriorAnswers(
+  priorQuizAnswers: Record<string, unknown> | undefined,
+  sourceProgram?: string
+): ProgramKey | null {
+  if (sourceProgram === "womens_health_sexual") return "WOMENS_HEALTH_SEXUAL";
+  if (sourceProgram === "womens_health_vitality") return "WOMENS_HEALTH_VITALITY";
+
+  const resolved =
+    typeof priorQuizAnswers?.resolvedProgram === "string"
+      ? priorQuizAnswers.resolvedProgram
+      : typeof priorQuizAnswers?.canonicalProgramKey === "string"
+        ? priorQuizAnswers.canonicalProgramKey
+        : null;
+  if (resolved) {
+    const normalized = normalizeProgramKey(resolved);
+    if (
+      normalized === "WOMENS_HEALTH_SEXUAL" ||
+      normalized === "WOMENS_HEALTH_VITALITY"
+    ) {
+      return normalized;
+    }
+  }
+
+  const category =
+    typeof priorQuizAnswers?.category === "string" ? priorQuizAnswers.category : "";
+  return resolveWomensHealthCanonicalKey(category);
+}
+
+async function ensureWomensHealthMemberRecords(input: {
+  userId: string;
+  paymentIntentId: string;
+  priorQuizAnswers?: Record<string, unknown>;
+  programKey: ProgramKey | null;
+}) {
+  const answers =
+    input.priorQuizAnswers && typeof input.priorQuizAnswers === "object"
+      ? input.priorQuizAnswers
+      : null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: input.userId },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      dateOfBirth: true,
+    },
+  });
+  if (!user) return;
+
+  const intakeData = {
+    ...(answers ?? {}),
+    programType: "WOMENS_HEALTH",
+    resolvedProgram: input.programKey,
+    canonicalProgramKey: input.programKey,
+    undiagnosed: !input.programKey,
+    completedAt:
+      (typeof answers?.completedAt === "string" && answers.completedAt) ||
+      new Date().toISOString(),
+    source: "womens_health_biomarkers_checkout",
+    paymentIntentId: input.paymentIntentId,
+  };
+
+  const existingMember = await prisma.programMember.findFirst({
+    where: {
+      OR: [
+        { userId: input.userId, program: "WOMENS_HEALTH" },
+        ...(user.email ? [{ email: user.email, program: "WOMENS_HEALTH" }] : []),
+      ],
+    },
+    select: { id: true, intakeData: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existingMember) {
+    const current =
+      existingMember.intakeData && typeof existingMember.intakeData === "object"
+        ? (existingMember.intakeData as Record<string, unknown>)
+        : {};
+    await prisma.programMember.update({
+      where: { id: existingMember.id },
+      data: {
+        userId: input.userId,
+        intakeData: { ...current, ...intakeData },
+        membershipStatus: "PENDING",
+      },
+    });
+  } else {
+    const membershipEnd = new Date();
+    membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+    await prisma.programMember.create({
+      data: {
+        userId: input.userId,
+        firstName: user.firstName || String(answers?.firstName || ""),
+        lastName: user.lastName || String(answers?.lastName || ""),
+        email: user.email,
+        mobile: user.phone || String(answers?.phone || ""),
+        dob: user.dateOfBirth || new Date(),
+        program: "WOMENS_HEALTH",
+        intakeData,
+        membershipStatus: "PENDING",
+        membershipStart: new Date(),
+        membershipEnd,
+      },
+    });
+  }
+
+  await savePublicFunnelQuizFromIntake({
+    userId: input.userId,
+    program: "WOMENS_HEALTH",
+    intakeData: {
+      ...intakeData,
+      canonicalProgramKey: input.programKey,
+    },
+    source: "public_funnel",
+  }).catch((err) =>
+    console.error("[public_biomarkers] women's quiz save failed:", err)
+  );
 }
 
 async function ensureHairLossMemberRecords(input: {

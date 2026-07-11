@@ -394,7 +394,7 @@ function WomensHealthAssessmentContent() {
       if (result.ok) {
         setUserId(result.userId);
         toast.success("Details saved", {
-          description: "Now choose your consultation time.",
+          description: "Continue to your Advanced panel checkout.",
         });
         return true;
       }
@@ -546,10 +546,40 @@ function WomensHealthAssessmentContent() {
 
   const handleContinueToCheckout = async () => {
     const saved = await saveWomensIntake();
-    if (saved) {
-      setStep(checkoutStep);
-      window.scrollTo(0, 0);
+    if (!saved) return;
+
+    const panelTier = formData.panelTier || "advanced";
+    try {
+      sessionStorage.setItem(
+        "womens_biomarkers_checkout",
+        JSON.stringify({
+          source: "womens_health",
+          skipQuiz: true,
+          panelTier,
+          resolvedProgram: formData.resolvedProgram || "",
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          dateOfBirth: formData.dateOfBirth,
+          postcode: formData.postcode,
+          womensQuizAnswers: {
+            ...formData,
+            selectedDate: formData.selectedDate?.toISOString?.() ?? formData.selectedDate,
+            panelTier,
+            billingPanelTier: publicTierToBillingTier(panelTier),
+            resolvedProgram: formData.resolvedProgram || null,
+            undiagnosed: !formData.resolvedProgram,
+          },
+        })
+      );
+    } catch {
+      // sessionStorage may be unavailable; checkout still works without prefill
     }
+
+    window.location.href = `/biomarkers/checkout?package=${encodeURIComponent(
+      panelTier
+    )}&source=womens_health&skipQuiz=1`;
   };
 
   const renderCheckboxOption = (option: string, field: keyof FormData, selected: boolean) => (
@@ -808,12 +838,13 @@ function WomensHealthAssessmentContent() {
                 </div>
                 <div>
                   <p className="font-semibold text-[#2c3628] mb-1">
-                    ${checkoutPricing.dueToday} first month — consultation included
+                    {resolvedPanelPlan?.name ?? "Advanced"} panel + doctor consultation
                   </p>
                   <p className="text-sm text-[#5c7a52]">
-                    Book your doctor consultation and start with the{" "}
-                    {resolvedPanelPlan?.name ?? "Advanced"} panel for ${checkoutPricing.dueToday} today,
-                    then ${checkoutPricing.ongoingPrice}/mo after your first month.
+                    Your care starts with the {resolvedPanelPlan?.name ?? "Advanced"} biomarker
+                    panel ({resolvedPanelPlan?.markerCount ?? 60}+ markers). Pay for your panel,
+                    book your doctor consultation, then activate your portal — same path as Hair
+                    Care Advanced checkout.
                   </p>
                 </div>
               </div>
@@ -828,13 +859,19 @@ function WomensHealthAssessmentContent() {
                   <Stethoscope className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[#2c3628]">Women&apos;s Health Consultation</h3>
-                  <p className="text-sm text-[#7e9a72]">30-minute consultation</p>
+                  <h3 className="font-semibold text-[#2c3628]">
+                    {resolvedPanelPlan?.name ?? "Advanced"} panel start
+                  </h3>
+                  <p className="text-sm text-[#7e9a72]">Panel + doctor consultation included</p>
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-serif text-[#2c3628]">${checkoutPricing.dueToday}</span>
-                <p className="text-xs text-[#7e9a72]">first month</p>
+                <span className="text-2xl font-serif text-[#2c3628]">
+                  ${resolvedPanelPlan?.priceAud ?? checkoutPricing.dueToday}
+                </span>
+                <p className="text-xs text-[#7e9a72]">
+                  {resolvedPanelPlan?.billingLabel ?? "first month"}
+                </p>
               </div>
             </div>
 
@@ -862,7 +899,7 @@ function WomensHealthAssessmentContent() {
             <div><label className="block text-sm font-medium text-[#2c3628] mb-2">Delivery address</label><input type="text" value={formData.address} onChange={e => updateFormData("address", e.target.value)} className="w-full px-4 py-3 rounded-xl border border-[#f8e1e1] focus:border-[#c17a58] outline-none bg-white" placeholder="Street address" /></div>
             {submissionError && <p className="text-sm text-red-600 mt-3">{submissionError}</p>}
             <button type="button" onClick={handleContinueToCheckout} disabled={isProcessing || !canProceed()} className="w-full mt-6 py-4 bg-[#c17a58] text-white font-medium rounded-xl hover:bg-[#a86548] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {isProcessing ? <><Loader2 className="w-5 h-5 animate-spin" />Saving...</> : <>Continue to book consultation<ArrowRight className="w-5 h-5" /></>}
+              {isProcessing ? <><Loader2 className="w-5 h-5 animate-spin" />Saving...</> : <>Continue to {resolvedPanelPlan?.name ?? "Advanced"} panel checkout<ArrowRight className="w-5 h-5" /></>}
             </button>
           </div>
         </div>
