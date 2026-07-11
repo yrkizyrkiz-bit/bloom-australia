@@ -29,9 +29,11 @@ export function getSexualHealthPublicStepBounds(quizStepCount: number) {
     quizStart: QUIZ_START,
     contact,
     consent: contact + 1,
-    checkout: contact + 2,
-    thankYou: contact + 3,
-    total: contact + 3,
+    /** Resolves program → required panel tier before checkout. */
+    analyse: contact + 2,
+    checkout: contact + 3,
+    thankYou: contact + 4,
+    total: contact + 4,
   };
 }
 

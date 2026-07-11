@@ -16,7 +16,17 @@ import {
   type UnifiedSlot,
 } from "@/components/checkout/UnifiedCheckoutScreen";
 import { resolveAustralianTimezone } from "@/lib/australia-timezone";
-import { MENS_CHECKOUT_PRICING } from "@/lib/funnel/public-consult-programs";
+import {
+  MENS_CHECKOUT_PRICING,
+  resolveMensHealthCanonicalKey,
+} from "@/lib/funnel/public-consult-programs";
+import {
+  getBiomarkerSubscriptionPlan,
+  type BiomarkerSubscriptionTier,
+} from "@/lib/biomarkers/public-subscription-panels";
+import { resolveRequiredPanelTier } from "@/lib/biomarkers/program-panel-requirements";
+import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
+import type { ProgramKey } from "@/lib/membership/keys";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
 import {
@@ -44,6 +54,8 @@ import {
   User,
   FileText,
   Wallet,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 
 // Types
@@ -78,6 +90,75 @@ interface FormData {
   cardExpiry: string;
   cardCvc: string;
   cardName: string;
+  /** Canonical program resolved at analyse step. */
+  resolvedProgram: ProgramKey | "";
+  /** Public panel tier resolved at analyse step. */
+  panelTier: BiomarkerSubscriptionTier | "";
+}
+
+function MensAnalyseStep({
+  concernLabel,
+  onComplete,
+}: {
+  concernLabel: string;
+  onComplete: () => void;
+}) {
+  const [progress, setProgress] = useState(0);
+  const [currentMessage, setCurrentMessage] = useState(0);
+  const messages = [
+    "Analysing your health profile...",
+    "Matching biomarkers to your answers...",
+    "Selecting the right panel for care...",
+    "Preparing your recommendations...",
+  ];
+
+  useEffect(() => {
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(onComplete, 400);
+          return 100;
+        }
+        return prev + 2;
+      });
+    }, 50);
+    const messageInterval = setInterval(() => {
+      setCurrentMessage((prev) => (prev + 1) % messages.length);
+    }, 700);
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(messageInterval);
+    };
+  }, [onComplete, messages.length]);
+
+  return (
+    <div className="space-y-8 py-12 text-center">
+      <div className="w-24 h-24 mx-auto mb-6 relative">
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#5c7a52] to-[#34412f] animate-pulse" />
+        <div className="absolute inset-0 rounded-2xl flex items-center justify-center">
+          <Sparkles className="w-12 h-12 text-white animate-bounce" />
+        </div>
+      </div>
+      <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Analysing your responses</h1>
+      <p className="text-[#5c7a52] max-w-md mx-auto">
+        Reviewing your {concernLabel} assessment to confirm the biomarker panel your care plan needs.
+      </p>
+      <div className="max-w-sm mx-auto">
+        <div className="h-2 bg-[#e6ebe3] rounded-full overflow-hidden">
+          <div
+            className="h-full bg-[#5c7a52] rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-sm text-[#7e9a72] mt-2">{progress}% complete</p>
+      </div>
+      <p className="text-sm text-[#5c7a52] font-medium animate-pulse flex items-center justify-center gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        {messages[currentMessage]}
+      </p>
+    </div>
+  );
 }
 
 // Energy & Vitality duration options
@@ -221,6 +302,8 @@ function AssessmentContent() {
     cardExpiry: "",
     cardCvc: "",
     cardName: "",
+    resolvedProgram: "",
+    panelTier: "",
   });
   const [showFAQ, setShowFAQ] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -275,12 +358,31 @@ function AssessmentContent() {
     cardName: false,
   });
 
-  const snapshotStep = isSexualFlow ? -1 : 18;
-  const checkoutStep = isSexualFlow ? sexualBounds.checkout : 19;
-  const thankYouStep = isSexualFlow ? sexualBounds.thankYou : 20;
+  // Vitality: consent(17) → analyse(18) → snapshot(19) → checkout(20) → thankYou(21)
+  // Sexual: consent → analyse → checkout → thankYou (via sexualBounds)
+  const analyseStep = isSexualFlow ? sexualBounds.analyse : 18;
+  const snapshotStep = isSexualFlow ? -1 : 19;
+  const checkoutStep = isSexualFlow ? sexualBounds.checkout : 20;
+  const thankYouStep = isSexualFlow ? sexualBounds.thankYou : 21;
   const totalSteps = thankYouStep;
   const progress = Math.min(((step + 1) / totalSteps) * 100, 100);
   const patientTimezone = resolveAustralianTimezone(null, formData.postcode);
+
+  const resolvedPanelTier = formData.panelTier || "advanced";
+  const resolvedPanelPlan = getBiomarkerSubscriptionPlan(resolvedPanelTier);
+  const mensCheckoutValueProps = useMemo(
+    () => [
+      `${resolvedPanelPlan.name} panel included (${resolvedPanelPlan.markerCount}+ markers)`,
+      isSexualFlow
+        ? "Doctor-led sexual health assessment"
+        : "Doctor-led men's health assessment",
+      isSexualFlow
+        ? "AHPRA-registered Australian doctors"
+        : "Treatment if clinically prescribed",
+      "Care team support in your portal",
+    ],
+    [isSexualFlow, resolvedPanelPlan]
+  );
 
   useEffect(() => {
     if (!holdExpiry) return;
@@ -320,7 +422,7 @@ function AssessmentContent() {
     if (step <= 3) return 1; // Personal Info
     if (step <= 15) return 2; // Health Assessment
     if (step === 16) return 2; // Contact details (still part of assessment)
-    if (step === 17) return 3;
+    if (step === 17 || step === analyseStep) return 3;
     if (step === snapshotStep || step === checkoutStep) return 4;
     if (step === thankYouStep) return 4;
     return 4;
@@ -503,6 +605,9 @@ function AssessmentContent() {
           if (step === sexualBounds.consent) {
             return formData.confirmedAccurate;
           }
+          if (step === sexualBounds.analyse) {
+            return true;
+          }
           return true;
       }
     }
@@ -526,6 +631,7 @@ function AssessmentContent() {
       case 15: return formData.otherConcerns.length > 0;
       case 16: return formData.phone.length >= 10 && formData.postcode.length >= 4;
       case 17: return formData.confirmedAccurate;
+      case analyseStep:
       case snapshotStep:
       case checkoutStep:
       case thankYouStep:
@@ -538,20 +644,13 @@ function AssessmentContent() {
     if (!canProceed()) return;
 
     if (isSexualFlow && step === sexualBounds.consent) {
-      void handleSexualConsentContinue();
+      setStep(sexualBounds.analyse);
+      window.scrollTo(0, 0);
       return;
     }
 
     if (step < totalSteps) {
       setStep(step + 1);
-      window.scrollTo(0, 0);
-    }
-  };
-
-  const handleSexualConsentContinue = async () => {
-    const saved = await saveMensIntake();
-    if (saved) {
-      setStep(sexualBounds.checkout);
       window.scrollTo(0, 0);
     }
   };
@@ -601,16 +700,33 @@ function AssessmentContent() {
     window.scrollTo(0, 0);
   };
 
-  const saveMensIntake = async (): Promise<boolean> => {
+  const saveMensIntake = async (
+    overrides?: {
+      resolvedProgram?: ProgramKey;
+      panelTier?: BiomarkerSubscriptionTier;
+    }
+  ): Promise<boolean> => {
     setIsSubmitting(true);
     setSubmissionError(null);
     setShowExistingAccountPrompt(false);
     try {
+      const resolvedProgram =
+        overrides?.resolvedProgram ||
+        formData.resolvedProgram ||
+        resolveMensHealthCanonicalKey(formData.concern);
+      const panelTier =
+        overrides?.panelTier ||
+        formData.panelTier ||
+        resolveRequiredPanelTier(resolvedProgram);
+
       const result = await submitPublicIntake({
         programType: "MENS_HEALTH",
         ...formData,
         ...quizAnswers,
         concern: normalizeSexualHealthConcern(formData.concern),
+        resolvedProgram,
+        panelTier,
+        billingPanelTier: publicTierToBillingTier(panelTier),
         cardNumber: undefined,
         cardExpiry: undefined,
         cardCvc: undefined,
@@ -644,6 +760,28 @@ function AssessmentContent() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleAnalyseComplete = async () => {
+    const program = resolveMensHealthCanonicalKey(formData.concern);
+    const panelTier = resolveRequiredPanelTier(program);
+    setFormData((prev) => ({
+      ...prev,
+      resolvedProgram: program,
+      panelTier,
+    }));
+
+    if (isSexualFlow) {
+      const saved = await saveMensIntake({ resolvedProgram: program, panelTier });
+      if (saved) {
+        setStep(sexualBounds.checkout);
+        window.scrollTo(0, 0);
+      }
+      return;
+    }
+
+    setStep(snapshotStep);
+    window.scrollTo(0, 0);
   };
 
   const formatSlotDate = (isoString: string) =>
@@ -1011,6 +1149,16 @@ function AssessmentContent() {
           </div>
         );
 
+      case sexualBounds.analyse:
+        return (
+          <MensAnalyseStep
+            concernLabel="sexual health"
+            onComplete={() => {
+              void handleAnalyseComplete();
+            }}
+          />
+        );
+
       case sexualBounds.checkout:
         return (
           <UnifiedCheckoutScreen
@@ -1036,11 +1184,7 @@ function AssessmentContent() {
             onPaymentError={handleCheckoutPaymentError}
             patientTimezone={patientTimezone}
             pricing={MENS_CHECKOUT_PRICING}
-            valueProps={[
-              "Doctor-led sexual health assessment",
-              "AHPRA-registered Australian doctors",
-              "Care team support in your portal",
-            ]}
+            valueProps={mensCheckoutValueProps}
             programType="mens_health"
           />
         );
@@ -1563,7 +1707,17 @@ function AssessmentContent() {
           </div>
         );
 
-      case 18: {
+      case 18:
+        return (
+          <MensAnalyseStep
+            concernLabel="energy and vitality"
+            onComplete={() => {
+              void handleAnalyseComplete();
+            }}
+          />
+        );
+
+      case 19: {
         const risks = scoreMensHealth(formData as unknown as Record<string, unknown>, campaigns);
         return (
           <BiomarkerSnapshot
@@ -1571,13 +1725,29 @@ function AssessmentContent() {
             primaryProgram="Men's Health Program"
             primaryPrice="$49 first month"
             firstName={formData.firstName}
+            offerMode="advancedPanel"
+            marketingHeadline="Biomarker analysis defines the biological starting point for your treatment plan"
+            marketingSubcopy={`Get your ${resolvedPanelPlan.name}, book your doctor consultation, and unlock a precise action plan based on your results.`}
+            advancedPanel={{
+              name: resolvedPanelPlan.name,
+              priceAud: resolvedPanelPlan.priceAud,
+              billingLabel: resolvedPanelPlan.billingLabel,
+              markerCount: resolvedPanelPlan.markerCount,
+              tagline: resolvedPanelPlan.tagline,
+              highlights: resolvedPanelPlan.highlights,
+              onSelect: () => {
+                window.location.href = `/biomarkers/checkout?package=${resolvedPanelTier}&source=mens_health&skipQuiz=1`;
+              },
+            }}
             onPrimary={handleSnapshotContinue}
-            onLabs={() => window.location.href = '/labs'}
+            onLabs={() => {
+              window.location.href = `/biomarkers/checkout?package=${resolvedPanelTier}&source=mens_health&skipQuiz=1`;
+            }}
           />
         );
       }
 
-      case 19:
+      case 20:
         return (
           <UnifiedCheckoutScreen
             formData={{
@@ -1602,16 +1772,12 @@ function AssessmentContent() {
             onPaymentError={handleCheckoutPaymentError}
             patientTimezone={patientTimezone}
             pricing={MENS_CHECKOUT_PRICING}
-            valueProps={[
-              "Doctor-led men's health assessment",
-              "Treatment if clinically prescribed",
-              "Care team support in your portal",
-            ]}
+            valueProps={mensCheckoutValueProps}
             programType="mens_health"
           />
         );
 
-      case 20:
+      case 21:
         return (
           <div className="text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center">
@@ -1680,7 +1846,11 @@ function AssessmentContent() {
       </main>
 
       {/* Bottom navigation */}
-      {step < totalSteps && step !== checkoutStep && step !== thankYouStep && (
+      {step < totalSteps &&
+        step !== analyseStep &&
+        step !== snapshotStep &&
+        step !== checkoutStep &&
+        step !== thankYouStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
             {step > 0 && (

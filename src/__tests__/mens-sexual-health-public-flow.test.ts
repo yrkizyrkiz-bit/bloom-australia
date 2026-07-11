@@ -17,11 +17,13 @@ describe("mens sexual health public flow", () => {
     expect(normalizeSexualHealthConcern("energy-vitality")).toBe("energy-vitality");
   });
 
-  it("maps ED branch to checkout without biomarker snapshot step", () => {
+  it("maps ED branch to checkout via analyse, without biomarker snapshot step", () => {
     const edSteps = 7; // treatmentFocus + 4 ED + 2 tail
     const bounds = getSexualHealthPublicStepBounds(edSteps);
     expect(bounds.contact).toBe(12);
-    expect(bounds.checkout).toBe(14);
-    expect(bounds.thankYou).toBe(15);
+    expect(bounds.consent).toBe(13);
+    expect(bounds.analyse).toBe(14);
+    expect(bounds.checkout).toBe(15);
+    expect(bounds.thankYou).toBe(16);
   });
 });
