@@ -117,13 +117,17 @@ function LabsPageContent() {
           {/* Background Image */}
           <div className="absolute inset-0">
             <Image
-              src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1600&q=80"
-              alt="Woman in nature"
+              src="/images/labs-hero.webp"
+              alt="Woman overlooking the coast with biomarker health markers"
               fill
-              className="object-cover"
+              className="object-cover object-center"
               priority
+              sizes="100vw"
+              quality={95}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#34412f]/90 via-[#34412f]/70 to-transparent" />
+            {/* Soft left scrim only — keeps photo colour rich while text stays readable */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1a2218]/55 via-[#1a2218]/25 to-transparent lg:via-[#1a2218]/15" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
           </div>
 
           {/* Content */}

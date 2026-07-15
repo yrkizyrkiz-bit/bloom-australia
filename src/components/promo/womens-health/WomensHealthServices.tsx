@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Flame, Pill, Shield, Baby, Heart, HeartPulse, Stethoscope } from "lucide-react";
+import { ArrowRight, Flame, Pill, Shield, Baby, Heart, HeartPulse } from "lucide-react";
 
 interface ServiceCard {
   id: string;
@@ -14,6 +14,7 @@ interface ServiceCard {
   borderColor: string;
   iconBg: string;
   href: string;
+  moreInfoHref?: string;
 }
 
 const services: ServiceCard[] = [
@@ -32,7 +33,8 @@ const services: ServiceCard[] = [
     gradient: "from-[#f8e1e1] via-[#fce4d8] to-[#fef4f0]",
     borderColor: "border-[#e8b4b4]/40",
     iconBg: "bg-[#c17a58]",
-    href: "/womens-health/assessment?category=menopause"
+    href: "/womens-health/assessment?category=menopause",
+    moreInfoHref: "/womens-health/menopause",
   },
   {
     id: "hrt",
@@ -49,7 +51,8 @@ const services: ServiceCard[] = [
     gradient: "from-[#e8d5e8] via-[#f0e4f0] to-[#f8f4f8]",
     borderColor: "border-[#c9b3c9]/40",
     iconBg: "bg-[#8b6b8b]",
-    href: "/womens-health/assessment?category=hrt"
+    href: "/womens-health/assessment?category=hrt",
+    moreInfoHref: "/womens-health/menopause",
   },
   {
     id: "contraception",
@@ -101,6 +104,24 @@ const services: ServiceCard[] = [
     borderColor: "border-[#e8b4b4]/40",
     iconBg: "bg-[#a86548]",
     href: "/womens-health/assessment?category=sexual"
+  },
+  {
+    id: "unsure",
+    title: "Not sure where to start?",
+    subtitle: "Take our assessment",
+    description:
+      "Fatigue, mood, cycles, weight — or just not feeling yourself. You don't need to know what's wrong; that's our job. Your doctor reviews your story and your bloods, then builds your plan",
+    features: [
+      "No need to self-diagnose",
+      "Doctor reviews your story",
+      "Bloods inform your plan",
+      "Personalised next steps"
+    ],
+    icon: Heart,
+    gradient: "from-[#f4f7f2] via-[#eef3eb] to-[#fdfbf7]",
+    borderColor: "border-[#cdd8c6]/50",
+    iconBg: "bg-[#5c7a52]",
+    href: "/womens-health/assessment?category=unsure"
   },
 ];
 
@@ -170,31 +191,27 @@ export function WomensHealthServices() {
                 ))}
               </ul>
 
-              {/* CTA */}
-              <Link
-                href={service.href}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white/80 hover:bg-white rounded-full text-[#2c3628] font-medium transition-all border border-white/50 shadow-sm group-hover:shadow-md"
-              >
-                Start Assessment
-                <ArrowRight className="w-4 h-4 text-[#c17a58] group-hover:translate-x-1 transition-transform" />
-              </Link>
+              {/* CTAs */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href={service.href}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white/80 hover:bg-white rounded-full text-[#2c3628] font-medium transition-all border border-white/50 shadow-sm group-hover:shadow-md"
+                >
+                  Start Assessment
+                  <ArrowRight className="w-4 h-4 text-[#c17a58] group-hover:translate-x-1 transition-transform" />
+                </Link>
+                {service.moreInfoHref ? (
+                  <Link
+                    href={service.moreInfoHref}
+                    className="inline-flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-[#c17a58] hover:text-[#a86548] transition-colors"
+                  >
+                    More info
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                ) : null}
+              </div>
             </div>
           ))}
-        </div>
-
-        {/* Bottom CTA */}
-        <div className="mt-16 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-4 bg-white rounded-2xl shadow-lg border border-[#f8e1e1]">
-            <Stethoscope className="w-6 h-6 text-[#c17a58]" />
-            <span className="text-[#2c3628]">Not sure where to start?</span>
-            <Link
-              href="/womens-health/assessment?category=unsure"
-              className="font-medium text-[#c17a58] hover:text-[#a86548] transition-colors flex items-center gap-1"
-            >
-              Take our assessment
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
         </div>
       </div>
     </section>

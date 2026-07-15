@@ -12,7 +12,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing paymentIntentId" }, { status: 400 });
     }
 
-    const { firstName, lastName, email, phone, postcode, dateOfBirth } = body ?? {};
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      postcode,
+      address,
+      dateOfBirth,
+      sourceProgram,
+      priorQuizAnswers,
+    } = body ?? {};
     if (!firstName?.trim() || !lastName?.trim() || !email?.trim() || !phone?.trim()) {
       return NextResponse.json({ error: "Missing required contact details" }, { status: 400 });
     }
@@ -33,12 +43,19 @@ export async function POST(request: Request) {
       paymentIntentId,
       consentRecordId,
       dateOfBirth: dateOfBirth ? String(dateOfBirth) : undefined,
+      sourceProgram:
+        typeof sourceProgram === "string" ? sourceProgram : undefined,
+      priorQuizAnswers:
+        typeof priorQuizAnswers === "object" && priorQuizAnswers
+          ? (priorQuizAnswers as Record<string, unknown>)
+          : undefined,
       details: {
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),
         email: String(email).trim(),
         phone: String(phone).trim(),
         postcode: postcode ? String(postcode).trim() : undefined,
+        address: address ? String(address).trim() : undefined,
       },
     });
 

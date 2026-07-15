@@ -29,7 +29,7 @@ export function Header() {
       label: "Women's Health",
       href: "/womens-health",
       dropdown: [
-        { label: "Menopause Care", href: "/womens-health/assessment?category=menopause" },
+        { label: "Menopause Care", href: "/womens-health/menopause" },
         { label: "Menopause & hormone care", href: "/womens-health/assessment?category=hrt" },
         { label: "Contraception", href: "/womens-health/assessment?category=contraception" },
         { label: "Fertility Support", href: "/womens-health/assessment?category=fertility" },

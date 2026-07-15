@@ -19,8 +19,8 @@ export function LabsSection() {
   ];
 
   return (
-    <section className="py-20 lg:py-28 bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="pt-20 pb-0 lg:pt-28 lg:pb-0 bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 lg:pb-12">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Content */}
           <div>
@@ -73,14 +73,10 @@ export function LabsSection() {
             <div className="absolute inset-0 bg-gradient-to-r from-[#cdd8c6] via-transparent to-[#cdd8c6] z-10 pointer-events-none" />
 
             <div className="relative flex flex-wrap gap-2 justify-center opacity-70">
-              {biomarkers.map((marker, i) => (
+              {biomarkers.map((marker) => (
                 <span
                   key={marker}
                   className="px-4 py-2 rounded-full bg-[#5c7a52]/10 text-[#5c7a52] text-sm whitespace-nowrap border border-[#5c7a52]/20"
-                  style={{
-                    opacity: 0.5 + Math.random() * 0.5,
-                    transform: `translateY(${Math.sin(i) * 10}px)`,
-                  }}
                 >
                   {marker}
                 </span>

@@ -24,19 +24,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid panel tier" }, { status: 400 });
     }
 
-    const { firstName, lastName, email, phone, postcode } = body ?? {};
+    const { firstName, lastName, email, phone, postcode, address, sourceProgram } = body ?? {};
     if (!firstName?.trim() || !lastName?.trim() || !email?.trim() || !phone?.trim()) {
       return NextResponse.json({ error: "Missing required contact details" }, { status: 400 });
     }
 
     const result = await createPublicBiomarkersPaymentIntent({
       publicPanelTier,
+      sourceProgram:
+        typeof sourceProgram === "string" && sourceProgram.trim()
+          ? sourceProgram.trim()
+          : undefined,
       details: {
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),
         email: String(email).trim(),
         phone: String(phone).trim(),
         postcode: postcode ? String(postcode).trim() : undefined,
+        address: address ? String(address).trim() : undefined,
       },
     });
 

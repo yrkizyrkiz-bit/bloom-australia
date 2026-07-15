@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Heart, Shield, Clock, Sparkles } from "lucide-react";
 
 export function WomensHealthHero() {
@@ -28,7 +29,7 @@ export function WomensHealthHero() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#f8e1e1]/60 border border-[#e8b4b4]/30 mb-8">
               <Sparkles className="w-4 h-4 text-[#c17a58]" />
               <span className="text-sm font-medium text-[#8b5a5a]">
-                Compassionate Women's Healthcare
+                Precise Women&apos;s Healthcare
               </span>
             </div>
 
@@ -82,60 +83,17 @@ export function WomensHealthHero() {
             </div>
           </div>
 
-          {/* Right - Service Cards Preview */}
+          {/* Right - Hero image */}
           <div className="relative">
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                {
-                  title: "Menopause",
-                  desc: "Symptom relief & support",
-                  color: "from-[#f8e1e1] to-[#fce4d8]",
-                  href: "/womens-health/assessment?category=menopause"
-                },
-                {
-                  title: "Hormone care",
-                  desc: "Menopause & hormone health",
-                  color: "from-[#e8d5e8] to-[#f0e4f0]",
-                  href: "/womens-health/assessment?category=hrt"
-                },
-                {
-                  title: "Contraception",
-                  desc: "Birth control options",
-                  color: "from-[#d8e8e8] to-[#e4f0f0]",
-                  href: "/womens-health/contraception"
-                },
-                {
-                  title: "Fertility",
-                  desc: "Hormonal support",
-                  color: "from-[#fce4d8] to-[#fef4f0]",
-                  href: "/womens-health/fertility"
-                },
-              ].map((service, index) => (
-                <Link
-                  key={service.title}
-                  href={service.href}
-                  className={`
-                    group relative p-6 rounded-3xl bg-gradient-to-br ${service.color}
-                    border border-white/50 shadow-lg hover:shadow-xl
-                    transition-all duration-300 hover:-translate-y-1
-                    ${index === 0 ? 'col-span-2 sm:col-span-1' : ''}
-                  `}
-                >
-                  <h3 className="text-lg font-serif text-[#2c3628] mb-1">
-                    {service.title}
-                  </h3>
-                  <p className="text-sm text-[#5c7a52]">{service.desc}</p>
-                  <ArrowRight className="absolute bottom-4 right-4 w-5 h-5 text-[#c17a58] opacity-0 group-hover:opacity-100 transition-opacity" />
-                </Link>
-              ))}
-            </div>
-
-            {/* Assessment-first care note */}
-            <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl p-4 shadow-xl border border-[#f8e1e1] max-w-[240px]">
-              <p className="text-sm text-[#5c7a52] leading-relaxed">
-                Your doctor reviews your assessment and discusses what is clinically appropriate for you.
-              </p>
-              <p className="text-xs text-[#7e9a72] mt-2">Doctor-led care</p>
+            <div className="relative aspect-[4/5] sm:aspect-[3/4] lg:aspect-[4/5] max-w-lg mx-auto lg:max-w-none rounded-3xl overflow-hidden shadow-xl border border-[#f8e1e1]/50">
+              <Image
+                src="/images/menopause-hero.png"
+                alt="Woman with personalised health dashboard showing hormone balance, sleep, energy, and care team support"
+                fill
+                className="object-cover object-center"
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
             </div>
           </div>
         </div>
