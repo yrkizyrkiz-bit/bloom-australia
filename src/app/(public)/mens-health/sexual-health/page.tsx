@@ -180,13 +180,21 @@ export default function SexualHealthPage() {
                   </div>
                 </div>
 
-                <Link
-                  href="/mens-health/assessment?concern=sexual-health"
-                  className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4"
-                >
-                  Start assessment
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Link
+                    href="/mens-health/assessment?concern=sexual-health"
+                    className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4"
+                  >
+                    Start assessment
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                  <Link
+                    href="/mens-health/erectile-dysfunction"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full border border-[#cdd8c6] text-[#2c3628] hover:bg-[#e6ebe3]/60 transition-colors font-medium"
+                  >
+                    Learn about ED
+                  </Link>
+                </div>
               </div>
 
               <div className="relative">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -20,7 +20,7 @@ type Props = {
   email: string;
   phone?: string;
   postcode?: string;
-  programType?: "ORGAN_CARE" | "BIOLOGICAL_CLOCK";
+  programType?: "ORGAN_CARE" | "BIOLOGICAL_CLOCK" | "HAIR_LOSS" | "WOMENS_HEALTH" | "MENS_HEALTH";
   riskFlags?: string[];
   onComplete: () => void;
 };
@@ -38,6 +38,28 @@ function formatSlotTime(isoString: string, timezone: string) {
     timeZone: timezone,
     hour: "numeric",
     minute: "2-digit",
+  });
+}
+
+function slotStatusForDoctorCount(availableDoctors: number): UnifiedSlot["availabilityStatus"] {
+  if (availableDoctors <= 0) return "BOOKED";
+  if (availableDoctors >= 2) return "AVAILABLE";
+  return "LIMITED";
+}
+
+function patchSlotCapacity(
+  slots: UnifiedSlot[],
+  slotId: string,
+  delta: number
+): UnifiedSlot[] {
+  return slots.map((slot) => {
+    if (slot.slotId !== slotId) return slot;
+    const availableDoctors = Math.max(0, slot.availableDoctors + delta);
+    return {
+      ...slot,
+      availableDoctors,
+      availabilityStatus: slotStatusForDoctorCount(availableDoctors),
+    };
   });
 }
 
@@ -103,27 +125,49 @@ export function MembershipConsultationBooking({
   const [creatingHold, setCreatingHold] = useState(false);
   const [selectingSlotId, setSelectingSlotId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
+  const holdRequestRef = useRef(0);
+  const bookingHoldIdRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
+
+  useEffect(() => {
+    bookingHoldIdRef.current = bookingHoldId;
+  }, [bookingHoldId]);
 
   const fetchSlots = useCallback(
-    async (offset: number) => {
+    async (offset: number, options?: { preserveDayIndex?: boolean }) => {
       setLoadingSlots(true);
       setSlotsError(null);
+      let advancing = false;
       try {
         const params = new URLSearchParams({
           appointmentType: "PHONE_CONSULT",
           dayOffset: String(offset),
           windowDays: String(WINDOW_DAYS),
+          userId,
         });
         const response = await fetch(`/api/bookings/availability?${params}`);
         if (!response.ok) throw new Error("Failed to load available times");
         const data = await response.json();
-        setAvailableSlots(data.slots || []);
+        const slots: UnifiedSlot[] = data.slots || [];
         setCanGoBack(Boolean(data.canGoBack));
         setCanGoForward(Boolean(data.canGoForward));
-        setActiveDayIndex(0);
 
-        const days = groupSlotsByDay(data.slots || [], patientTimezone);
+        // Skip empty windows so the calendar lands on the next date with slots
+        if (slots.length === 0 && data.canGoForward) {
+          advancing = true;
+          setDayWindowOffset(offset + WINDOW_DAYS);
+          return;
+        }
+
+        setAvailableSlots(slots);
+        if (!options?.preserveDayIndex) {
+          setActiveDayIndex(0);
+        }
+
+        const days = groupSlotsByDay(slots, patientTimezone);
         if (days.length >= 2) {
           setDayRangeLabel(`${days[0].dateStr} – ${days[1].dateStr}`);
         } else if (days.length === 1) {
@@ -135,15 +179,15 @@ export function MembershipConsultationBooking({
         setSlotsError("Unable to load available times. Please try again.");
         setAvailableSlots([]);
       } finally {
-        setLoadingSlots(false);
+        if (!advancing) setLoadingSlots(false);
       }
     },
-    [patientTimezone]
+    [patientTimezone, userId]
   );
 
   useEffect(() => {
     fetchSlots(dayWindowOffset);
-  }, [dayWindowOffset, slotsRefreshKey, fetchSlots]);
+  }, [dayWindowOffset, fetchSlots]);
 
   const groupedSlots = useMemo(
     () => groupSlotsByDay(availableSlots, patientTimezone),
@@ -152,18 +196,21 @@ export function MembershipConsultationBooking({
 
   const handleSlotSelection = async (slot: UnifiedSlot) => {
     if (slot.availabilityStatus === "BOOKED" || creatingHold) return;
-    if (selectedSlotId === slot.slotId) return;
+    if (selectedSlotId === slot.slotId && bookingHoldId) return;
 
-    const previousHoldId = bookingHoldId;
+    const requestId = ++holdRequestRef.current;
+    const previousSlotId = selectedSlotId;
+    const previousHoldId = bookingHoldIdRef.current;
+
     setCreatingHold(true);
     setSelectingSlotId(slot.slotId);
     setSlotsError(null);
 
-    try {
-      setSelectedSlotId(slot.slotId);
-      setConsultationDate(formatSlotDate(slot.startTime, patientTimezone));
-      setConsultationTime(formatSlotTime(slot.startTime, patientTimezone));
+    setSelectedSlotId(slot.slotId);
+    setConsultationDate(formatSlotDate(slot.startTime, patientTimezone));
+    setConsultationTime(formatSlotTime(slot.startTime, patientTimezone));
 
+    try {
       const response = await fetch("/api/bookings/hold", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -181,27 +228,67 @@ export function MembershipConsultationBooking({
         throw new Error(data.error || "Failed to reserve this time");
       }
 
-      setBookingHoldId(data.bookingHoldId);
-      setSlotsRefreshKey((k) => k + 1);
-
-      if (previousHoldId && previousHoldId !== data.bookingHoldId) {
-        fetch(`/api/bookings/hold?holdId=${previousHoldId}`, { method: "DELETE" }).catch(
+      if (requestId !== holdRequestRef.current) {
+        fetch(`/api/bookings/hold?holdId=${data.bookingHoldId}`, { method: "DELETE" }).catch(
           () => {}
         );
+        return;
+      }
+
+      setBookingHoldId(data.bookingHoldId);
+
+      if (previousSlotId && previousSlotId !== slot.slotId) {
+        setAvailableSlots((slots) => patchSlotCapacity(slots, previousSlotId, 1));
       }
     } catch (error) {
+      if (requestId !== holdRequestRef.current) {
+        return;
+      }
+
       const message =
         error instanceof Error ? error.message : "Failed to reserve this time";
       setSlotsError(message);
       toast.error("Could not reserve this slot", { description: message });
+
+      if (previousSlotId) {
+        setSelectedSlotId(previousSlotId);
+        const previousSlot = availableSlots.find((s) => s.slotId === previousSlotId);
+        if (previousSlot) {
+          setConsultationDate(formatSlotDate(previousSlot.startTime, patientTimezone));
+          setConsultationTime(formatSlotTime(previousSlot.startTime, patientTimezone));
+        }
+      } else {
+        setSelectedSlotId("");
+        setConsultationDate("");
+        setConsultationTime("");
+      }
+      setBookingHoldId(previousHoldId);
     } finally {
-      setCreatingHold(false);
-      setSelectingSlotId(null);
+      if (requestId === holdRequestRef.current) {
+        setCreatingHold(false);
+        setSelectingSlotId(null);
+      }
     }
   };
 
+  const resetHoldSelection = useCallback(() => {
+    setBookingHoldId(null);
+    setSelectedSlotId("");
+    setConsultationDate("");
+    setConsultationTime("");
+  }, []);
+
   const confirmBooking = async () => {
     if (!bookingHoldId) return;
+
+    if (!consentRecordId?.trim()) {
+      const message =
+        "Payment consent is missing. Please return to the payment step and try again.";
+      setSlotsError(message);
+      toast.error("Cannot confirm booking", { description: message });
+      return;
+    }
+
     setConfirming(true);
     setSlotsError(null);
 
@@ -232,6 +319,13 @@ export function MembershipConsultationBooking({
         error instanceof Error ? error.message : "Failed to confirm booking";
       setSlotsError(message);
       toast.error("Could not confirm booking", { description: message });
+
+      const staleHold =
+        /hold not found|not in held status|expired|no longer available/i.test(message);
+      if (staleHold) {
+        resetHoldSelection();
+        await fetchSlots(dayWindowOffset, { preserveDayIndex: true });
+      }
     } finally {
       setConfirming(false);
     }
@@ -256,7 +350,7 @@ export function MembershipConsultationBooking({
         activeDayIndex={Math.min(activeDayIndex, Math.max(0, groupedSlots.length - 1))}
         onActiveDayChange={setActiveDayIndex}
         onSlotSelect={handleSlotSelection}
-        onRetrySlots={() => fetchSlots(dayWindowOffset)}
+        onRetrySlots={() => fetchSlots(dayWindowOffset, { preserveDayIndex: true })}
         dayRangeLabel={dayRangeLabel}
         canGoBack={canGoBack}
         canGoForward={canGoForward}

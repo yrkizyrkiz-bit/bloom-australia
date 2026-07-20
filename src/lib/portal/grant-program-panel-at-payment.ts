@@ -28,7 +28,7 @@ export type GrantProgramPanelAtPaymentInput = {
   billingPanelTier?: string | null;
   /**
    * Funnel source for Organ Care bundling rules
-   * (e.g. hair_loss Advanced does not bundle Organ Care).
+   * (e.g. hair_loss / womens_health Advanced do not bundle Organ Care).
    */
   sourceProgram?: string | null;
   /** Entitlement notes / audit source label. */

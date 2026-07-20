@@ -1,6 +1,8 @@
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
-// Client-side Stripe promise
-export const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
-);
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() || "";
+
+// Client-side Stripe promise — null when publishable key is missing
+export const stripePromise: Promise<Stripe | null> | null = publishableKey
+  ? loadStripe(publishableKey)
+  : null;

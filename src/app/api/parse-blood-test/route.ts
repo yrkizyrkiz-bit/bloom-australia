@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { biomarkerDefinitions, getBiomarkerById } from "@/data/biomarkers";
 import { deriveBiomarkersForEpisode, normalizeDeriveGender } from "@/lib/derived-biomarkers";
+import { requireClinicalStaff } from "@/lib/auth/require-clinical-staff";
+import { isProductionEnvironment } from "@/lib/security/environment";
+import { RATE_LIMITS, rateLimitBucketKey } from "@/lib/security/rate-limit-config";
+import {
+  enforceDbRateLimit,
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
 
 // Next.js route segment config - increase timeout to 60 seconds
 // Note: Platform gateway may have its own lower timeout (nginx ~30-60s)
@@ -249,6 +257,28 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation.`;
 
 export async function POST(request: NextRequest) {
   try {
+    const staff = await requireClinicalStaff();
+    if ("error" in staff) {
+      return staff.error;
+    }
+
+    const ipLimited = await enforceIpRateLimit(
+      request,
+      "parse-blood-test:ip",
+      RATE_LIMITS.bloodTestParserIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
+    const userLimited = await enforceDbRateLimit(
+      rateLimitBucketKey("parse-blood-test:user", staff.userId),
+      RATE_LIMITS.bloodTestParserUser
+    );
+    if (!userLimited.allowed) {
+      return rateLimitExceededResponse(userLimited.retryAfterSec);
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -288,15 +318,27 @@ export async function POST(request: NextRequest) {
     const hasValidKey = apiKey && apiKey.length > 10 && apiKey.startsWith("sk-ant-");
 
     if (!hasValidKey) {
-      console.log("[Blood Test Parser] ⚠️ No valid Anthropic API key - using DEMO MODE");
+      console.log("[Blood Test Parser] ⚠️ No valid Anthropic API key");
       console.log("[Blood Test Parser] API Key status:", apiKey ? `Invalid format (${apiKey.substring(0, 10)}...)` : "Not set");
+
+      if (isProductionEnvironment()) {
+        return NextResponse.json(
+          {
+            success: false,
+            mode: "unavailable",
+            error: "Blood test parsing is temporarily unavailable.",
+          },
+          { status: 503 }
+        );
+      }
+
       return NextResponse.json({
         success: true,
         mode: "demo",
         aiProvider: null,
         aiModel: null,
         data: generateMockExtraction(),
-        message: "Running in DEMO MODE - no valid Anthropic API key configured"
+        message: "Running in DEMO MODE - no valid Anthropic API key configured",
       });
     }
 

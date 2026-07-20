@@ -8,6 +8,16 @@ import {
   resolveMensHealthCanonicalKey,
   resolveWomensHealthCanonicalKey,
 } from "@/lib/funnel/public-consult-programs";
+import {
+  appendPublicFunnelQuizFromIntake,
+  savePublicFunnelQuizFromIntake,
+} from "@/lib/portal/public-funnel-quiz-submission";
+import {
+  hasPaidMemberJourney,
+  isProspectiveEnrollment,
+} from "@/lib/funnel/member-enrollment-phase";
+import { verifyResumeVerificationToken } from "@/lib/funnel/resume-verification-token";
+import { findProgramMemberByUserOrEmail } from "@/lib/portal/program-member-upsert";
 
 // ─── Program type definitions ─────────────────────────────────────────────────
 
@@ -80,6 +90,107 @@ function buildIntakePayload(
   return payload as Prisma.InputJsonValue;
 }
 
+const ARCHITECTURE_A_PROGRAMS: ProgramType[] = [
+  "WOMENS_HEALTH",
+  "MENS_HEALTH",
+  "HAIR_LOSS",
+];
+
+function isArchitectureAProgram(programType: ProgramType): boolean {
+  return ARCHITECTURE_A_PROGRAMS.includes(programType);
+}
+
+function buildPrePaymentIntakePayload(
+  programType: ProgramType,
+  data: Record<string, unknown>
+): Prisma.InputJsonValue {
+  return buildIntakePayload(programType, {
+    ...data,
+    enrollmentPhase: "pre_payment",
+  });
+}
+
+async function persistPublicFunnelQuizAtIntake(
+  userId: string,
+  programType: ProgramType,
+  data: Record<string, unknown>
+) {
+  if (!isArchitectureAProgram(programType)) return;
+
+  const intakeData = buildIntakePayload(programType, {
+    ...data,
+    submittedAt:
+      (typeof data.submittedAt === "string" && data.submittedAt) ||
+      new Date().toISOString(),
+  }) as Record<string, unknown>;
+
+  await savePublicFunnelQuizFromIntake({
+    userId,
+    program: programType,
+    intakeData,
+    source: "public_funnel",
+  }).catch((err) =>
+    console.error("[Intake API] public funnel quiz save failed:", err)
+  );
+}
+
+async function upsertArchitectureAProgramMember(
+  userId: string,
+  email: string,
+  programType: ProgramType,
+  data: Record<string, unknown>
+) {
+  const intakePayload = buildPrePaymentIntakePayload(programType, {
+    ...data,
+    submittedAt:
+      (typeof data.submittedAt === "string" && data.submittedAt) ||
+      new Date().toISOString(),
+  }) as Record<string, unknown>;
+
+  const existingProgramMember = await findProgramMemberByUserOrEmail({
+    userId,
+    email,
+  });
+
+  if (existingProgramMember) {
+    const current =
+      existingProgramMember.intakeData && typeof existingProgramMember.intakeData === "object"
+        ? (existingProgramMember.intakeData as Record<string, unknown>)
+        : {};
+    await prisma.programMember.update({
+      where: { id: existingProgramMember.id },
+      data: {
+        userId,
+        program: programType,
+        firstName: String(data.firstName || "").trim(),
+        lastName: String(data.lastName || "").trim(),
+        mobile: String(data.phone || "").trim(),
+        dob: data.dateOfBirth ? parseDOB(String(data.dateOfBirth)) : undefined,
+        intakeData: { ...current, ...intakePayload } as Prisma.InputJsonValue,
+      },
+    });
+    return existingProgramMember.id;
+  }
+
+  const enrollmentPendingAt = new Date();
+  const created = await prisma.programMember.create({
+    data: {
+      userId,
+      firstName: String(data.firstName || "").trim(),
+      lastName: String(data.lastName || "").trim(),
+      email: email.toLowerCase().trim(),
+      mobile: String(data.phone || "").trim(),
+      dob: data.dateOfBirth ? parseDOB(String(data.dateOfBirth)) : new Date(),
+      program: programType,
+      intakeData: intakePayload as Prisma.InputJsonValue,
+      membershipStatus: "PENDING",
+      membershipStart: enrollmentPendingAt,
+      membershipEnd: enrollmentPendingAt,
+    },
+  });
+  return created.id;
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -91,7 +202,13 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const data = await req.json();
+    const body = await req.json();
+    const resumeVerificationToken =
+      typeof body.resumeVerificationToken === "string"
+        ? body.resumeVerificationToken.trim()
+        : "";
+    const data = { ...body } as Record<string, unknown>;
+    delete data.resumeVerificationToken;
 
     // Log incoming data for debugging
     console.log("[Intake API] Received data:", {
@@ -101,7 +218,7 @@ export async function POST(req: NextRequest) {
       programType: data.programType,
     });
 
-    const programType: ProgramType = data.programType || "WEIGHT_MANAGEMENT";
+    const programType: ProgramType = (data.programType as ProgramType) || "WEIGHT_MANAGEMENT";
     const config = PROGRAM_CONFIG[programType];
 
     if (!config) {
@@ -113,7 +230,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate required fields
-    if (!data.email || !data.email.includes("@")) {
+    if (!data.email || !String(data.email).includes("@")) {
       console.error("[Intake API] Invalid email:", data.email);
       return NextResponse.json(
         { error: "Valid email is required" },
@@ -123,7 +240,7 @@ export async function POST(req: NextRequest) {
 
     // Guard: prevent duplicate registrations for COMPLETED users
     const existing = await prisma.user.findUnique({
-      where: { email: data.email?.toLowerCase().trim() },
+      where: { email: String(data.email).toLowerCase().trim() },
       select: {
         id: true,
         firstName: true,
@@ -131,6 +248,7 @@ export async function POST(req: NextRequest) {
         phone: true,
         email: true,
         passwordHash: true,
+        memberStatus: true,
         journeyStatus: true,
         subscriptionStatus: true,
         dateOfBirth: true,
@@ -139,22 +257,26 @@ export async function POST(req: NextRequest) {
     });
 
     if (existing) {
-      // Check if this is a COMPLETED user (has password or has paid)
-      // vs an IN-PROGRESS intake (still filling out the quiz)
       const hasPassword = !!existing.passwordHash;
       const hasActiveSubscription = existing.subscriptionStatus === "ACTIVE";
-      const completedJourneyStatuses = [
-        "CONSULTATION_PAID", "PRE_TRIAGE_PENDING", "PRE_TRIAGE_COMPLETE",
-        "AWAITING_DOCTOR_CALL", "CONSULT_COMPLETED", "AWAITING_DOCTOR_DECISION",
-        "APPROVED", "DECLINED", "ACTIVE", "PAUSED", "CANCELLED"
-      ];
-      const hasCompletedJourney = completedJourneyStatuses.includes(existing.journeyStatus || "");
+      const hasCompletedJourney = hasPaidMemberJourney(existing.journeyStatus);
+      const canResumeProspectiveIntake = isProspectiveEnrollment({
+        memberStatus: existing.memberStatus,
+        journeyStatus: existing.journeyStatus,
+      });
 
-      // If user has completed registration, block updates (security)
-      if (hasPassword || hasActiveSubscription || hasCompletedJourney) {
-        console.log("[Intake API] Blocking update to completed user:", existing.email, {
+      // Block anyone who is not an in-progress prospective member (paid, portal login, etc.)
+      if (
+        hasPassword ||
+        hasActiveSubscription ||
+        hasCompletedJourney ||
+        !canResumeProspectiveIntake
+      ) {
+        console.log("[Intake API] Blocking update to protected user:", existing.email, {
           hasPassword,
           hasActiveSubscription,
+          hasCompletedJourney,
+          memberStatus: existing.memberStatus,
           journeyStatus: existing.journeyStatus,
         });
 
@@ -163,7 +285,29 @@ export async function POST(req: NextRequest) {
           code: "EMAIL_EXISTS",
           message: "Please log in to your existing account or use a different email address.",
           loginUrl: "/login",
-        }, { status: 409, headers }); // 409 Conflict
+        }, { status: 409, headers });
+      }
+
+      const resumeToken = resumeVerificationToken;
+      const tokenCheck = resumeToken
+        ? verifyResumeVerificationToken(resumeToken, existing.email)
+        : { valid: false as const };
+
+      if (
+        !tokenCheck.valid ||
+        (tokenCheck.userId && tokenCheck.userId !== existing.id)
+      ) {
+        console.log("[Intake API] Resume verification required:", existing.email);
+        return NextResponse.json(
+          {
+            error: "Email verification required to resume this application",
+            code: "RESUME_VERIFICATION_REQUIRED",
+            message: "Verify your email to continue your application.",
+            email: existing.email,
+            firstName: existing.firstName,
+          },
+          { status: 403, headers }
+        );
       }
 
       // User is still in intake flow - update User record with new personal details
@@ -199,7 +343,8 @@ export async function POST(req: NextRequest) {
         try {
           const userUpdateData: Record<string, unknown> = {};
 
-          // Personal details
+          // Personal details — keep User + ProgramMember in sync on resume
+          if (data.firstName) userUpdateData.firstName = data.firstName.trim();
           if (data.lastName) userUpdateData.lastName = data.lastName.trim();
           if (data.phone) userUpdateData.phone = data.phone.trim();
           if (data.dateOfBirth) userUpdateData.dateOfBirth = parseDOB(data.dateOfBirth);
@@ -352,6 +497,46 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      if (isArchitectureAProgram(programType)) {
+        await saveNotesForProgram(existing.id, programType, data);
+        try {
+          const intakePayload = buildIntakePayload(programType, fullQuizData) as Record<
+            string,
+            unknown
+          >;
+          await appendPublicFunnelQuizFromIntake({
+            userId: existing.id,
+            program: programType,
+            intakeData: intakePayload,
+            source: "public_funnel",
+          });
+          await upsertArchitectureAProgramMember(
+            existing.id,
+            existing.email,
+            programType,
+            fullQuizData
+          );
+          await prisma.activityLog.create({
+            data: {
+              userId: existing.id,
+              action: "PUBLIC_INTAKE_RESUBMITTED",
+              entity: "user",
+              entityId: existing.id,
+              details: {
+                programType,
+                email: existing.email,
+                submittedAt: fullQuizData.submittedAt,
+                fieldsUpdated: Object.keys(fullQuizData).filter(
+                  (key) => !["submittedAt", "programType"].includes(key)
+                ),
+              },
+            },
+          }).catch(console.error);
+        } catch (architectureAError) {
+          console.error("[Intake API] Architecture A program member/quiz save failed:", architectureAError);
+        }
+      }
+
       // Return success - user exists, intake may have been created/updated
       return NextResponse.json({
         userId: existing.id,
@@ -423,8 +608,14 @@ export async function POST(req: NextRequest) {
     // GAP-008: Patient can only become ACTIVE after all activation criteria are met
     let programMemberId: string | null = null;
     try {
-      const membershipEnd = new Date();
-      membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+      const enrollmentPendingAt = new Date();
+      const membershipEnd = isArchitectureAProgram(programType)
+        ? enrollmentPendingAt
+        : (() => {
+            const end = new Date();
+            end.setFullYear(end.getFullYear() + 1);
+            return end;
+          })();
 
       const programMember = await prisma.programMember.create({
         data: {
@@ -435,14 +626,20 @@ export async function POST(req: NextRequest) {
           mobile:           data.phone?.trim() || "",
           dob:              data.dateOfBirth ? parseDOB(data.dateOfBirth) : new Date(),
           program:          programType,
-          intakeData:       buildIntakePayload(programType, data),
+          intakeData:       isArchitectureAProgram(programType)
+            ? buildPrePaymentIntakePayload(programType, data)
+            : buildIntakePayload(programType, data),
           membershipStatus: "PENDING", // GAP-008: Not ACTIVE until activation criteria met
-          membershipStart:  new Date(),
-          membershipEnd:    membershipEnd,
+          membershipStart:  enrollmentPendingAt,
+          membershipEnd,
         }
       });
       programMemberId = programMember.id;
       console.log("[Intake API] Created ProgramMember:", programMemberId);
+      await persistPublicFunnelQuizAtIntake(user.id, programType, {
+        ...data,
+        submittedAt: new Date().toISOString(),
+      });
     } catch (memberError) {
       // Log but don't fail if ProgramMember creation fails
       console.error("Error creating ProgramMember:", memberError);

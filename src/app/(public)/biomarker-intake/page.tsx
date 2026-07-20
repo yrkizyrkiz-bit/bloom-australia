@@ -1,44 +1,81 @@
 "use client";
 
-import { useState, Suspense, useMemo } from "react";
+import { useState, Suspense, useMemo, useRef, useLayoutEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
-import { ArrowRight, ArrowLeft, Beaker, Heart, Zap, Brain, Droplets, Activity, Clock } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowLeft,
+  Beaker,
+  Heart,
+  Zap,
+  Brain,
+  Droplets,
+  Activity,
+  Clock,
+  Shield,
+  Venus,
+  Mars,
+  FlaskConical,
+  Waves,
+} from "lucide-react";
 import { BiomarkerSubscriptionPlanCards } from "@/components/promo/BiomarkerSubscriptionPlanCards";
 import { PanelBiomarkerPreview } from "@/components/biomarkers/PanelBiomarkerPreview";
 import {
   getBiomarkerSubscriptionPlan,
-  getTierCategoryPreview,
   type BiomarkerSubscriptionTier,
 } from "@/lib/biomarkers/public-subscription-panels";
-import {
-  countBiomarkersByCategory,
-  getTierBiomarkersForDisplay,
-} from "@/lib/biomarkers/panel-biomarker-display";
-import type { BloodPanelCategoryKey } from "@/data/bloodPanelConfig";
+import { getFunctionStyleCategoriesForTier } from "@/lib/biomarkers/panel-biomarker-display";
+
+function scrollPageToTop(anchor?: HTMLElement | null) {
+  if (typeof window === "undefined") return;
+
+  // Blur focused control so mobile browsers don't keep it in view.
+  const active = document.activeElement;
+  if (active instanceof HTMLElement) active.blur();
+
+  const top = 0;
+  window.scrollTo(top, top);
+  document.documentElement.scrollTop = top;
+  document.body.scrollTop = top;
+
+  if (anchor) {
+    anchor.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" });
+  }
+
+  // iOS Safari often restores scroll after paint — nudge again on next frames.
+  requestAnimationFrame(() => {
+    window.scrollTo(top, top);
+    document.documentElement.scrollTop = top;
+    document.body.scrollTop = top;
+    if (anchor) {
+      anchor.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" });
+    }
+  });
+  window.setTimeout(() => {
+    window.scrollTo(top, top);
+    document.documentElement.scrollTop = top;
+    document.body.scrollTop = top;
+  }, 50);
+}
 
 const categoryIcons: Record<string, { icon: typeof Zap; color: string }> = {
-  metabolic: { icon: Zap, color: "bg-amber-500" },
-  hormones: { icon: Activity, color: "bg-pink-500" },
-  inflammation: { icon: Heart, color: "bg-red-500" },
-  nutrients: { icon: Beaker, color: "bg-emerald-500" },
-  "liver-kidney": { icon: Droplets, color: "bg-sky-500" },
+  heart: { icon: Heart, color: "bg-red-500" },
   thyroid: { icon: Brain, color: "bg-purple-500" },
-  "biological-clock": { icon: Clock, color: "bg-indigo-500" },
-};
-
-/** Map intake category ids to blood panel category keys for counts. */
-const INTAKE_TO_PANEL_CATEGORIES: Record<string, BloodPanelCategoryKey[]> = {
-  metabolic: ["metabolism"],
-  heart: ["heart"],
-  hormones: ["hormones"],
-  inflammation: ["inflammation"],
-  nutrients: ["nutrients"],
-  "liver-kidney": ["liver", "kidney"],
-  thyroid: ["thyroid"],
-  "biological-clock": ["blood", "inflammation", "metabolism"],
+  immune: { icon: Shield, color: "bg-orange-500" },
+  "female-health": { icon: Venus, color: "bg-pink-500" },
+  "male-health": { icon: Mars, color: "bg-rose-600" },
+  metabolic: { icon: Zap, color: "bg-amber-500" },
+  nutrients: { icon: Beaker, color: "bg-teal-500" },
+  "stress-aging": { icon: Activity, color: "bg-violet-500" },
+  "biological-age": { icon: Clock, color: "bg-indigo-500" },
+  liver: { icon: FlaskConical, color: "bg-emerald-500" },
+  blood: { icon: Droplets, color: "bg-rose-500" },
+  kidneys: { icon: Waves, color: "bg-sky-500" },
+  electrolytes: { icon: Zap, color: "bg-cyan-600" },
+  urine: { icon: Droplets, color: "bg-blue-400" },
 };
 
 function BiomarkerIntakeContent() {
@@ -53,33 +90,31 @@ function BiomarkerIntakeContent() {
     }
     return null;
   });
+  const pageTopRef = useRef<HTMLDivElement>(null);
+  const isFirstStepRender = useRef(true);
+
+  const goToStep = useCallback((nextStep: number) => {
+    setStep(nextStep);
+    scrollPageToTop(pageTopRef.current);
+  }, []);
+
+  // Mobile: keep the new step pinned to the top after DOM swap (before paint).
+  useLayoutEffect(() => {
+    if (isFirstStepRender.current) {
+      isFirstStepRender.current = false;
+      return;
+    }
+    scrollPageToTop(pageTopRef.current);
+  }, [step]);
 
   const selectedPlan = selectedPackage ? getBiomarkerSubscriptionPlan(selectedPackage) : null;
-  const tierBiomarkers = useMemo(
-    () => (selectedPackage ? getTierBiomarkersForDisplay(selectedPackage) : []),
-    [selectedPackage]
-  );
-  const categoryCounts = useMemo(
-    () => countBiomarkersByCategory(tierBiomarkers),
-    [tierBiomarkers]
-  );
-
-  const tierCategories = selectedPackage
-    ? getTierCategoryPreview(selectedPackage)
-        .filter((category) => categoryIcons[category.id])
-        .map((category) => {
-          const panelKeys = INTAKE_TO_PANEL_CATEGORIES[category.id] ?? [];
-          const markerCount = panelKeys.reduce(
-            (sum, key) => sum + (categoryCounts[key] ?? 0),
-            0
-          );
-          return {
-            ...category,
-            ...categoryIcons[category.id]!,
-            markerCount,
-          };
-        })
-    : [];
+  const tierCategories = useMemo(() => {
+    if (!selectedPackage) return [];
+    return getFunctionStyleCategoriesForTier(selectedPackage).map((category) => ({
+      ...category,
+      ...(categoryIcons[category.id] ?? { icon: Beaker, color: "bg-[#5c7a52]" }),
+    }));
+  }, [selectedPackage]);
 
   const containerWidth = step === 2 ? "max-w-6xl" : "max-w-4xl";
 
@@ -88,8 +123,8 @@ function BiomarkerIntakeContent() {
       <Header />
       <main className="min-h-screen bg-gradient-to-b from-[#f4f7f2] to-white py-12 lg:py-20">
         <div className={`${containerWidth} mx-auto px-4 sm:px-6 lg:px-8 transition-all`}>
-          {/* Progress Bar */}
-          <div className="mb-12">
+          {/* Progress Bar — scroll target for step changes */}
+          <div ref={pageTopRef} className="mb-12 scroll-mt-24">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm text-[#5c7a52]">Step {step} of 2</span>
               <span className="text-sm text-[#5c7a52]">
@@ -140,7 +175,7 @@ function BiomarkerIntakeContent() {
               <div className="mt-8 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={() => goToStep(2)}
                   disabled={!selectedPackage}
                   className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -216,7 +251,7 @@ function BiomarkerIntakeContent() {
               <div className="mt-10 flex flex-col-reverse sm:flex-row sm:justify-between gap-4">
                 <button
                   type="button"
-                  onClick={() => setStep(1)}
+                  onClick={() => goToStep(1)}
                   className="btn-secondary flex items-center justify-center gap-2"
                 >
                   <ArrowLeft className="w-5 h-5" />

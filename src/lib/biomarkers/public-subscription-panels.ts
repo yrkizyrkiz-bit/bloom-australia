@@ -14,6 +14,7 @@ import {
 } from "@/lib/membership/biomarker-readiness";
 import { DEPRECATED_BIOMARKER_IDS } from "@/lib/catalog-biomarkers";
 import { DERIVED_BIOMARKER_IDS } from "@/lib/derived-biomarkers";
+import { FUNCTION_STYLE_CATEGORIES } from "@/lib/biomarkers/function-style-categories";
 
 export type BiomarkerSubscriptionTier = "essential" | "advanced" | "complete";
 
@@ -233,58 +234,15 @@ export function getBiomarkerTierMarkerIds(tier: BiomarkerSubscriptionTier): Set<
   }
 }
 
-/** Category highlights for intake step 2 — varies by tier. */
+/**
+ * Category highlights for intake step 2 — Function-style names.
+ * Prefer `getFunctionStyleCategoriesForTier` for counts + marker lists.
+ */
 export function getTierCategoryPreview(tier: BiomarkerSubscriptionTier) {
-  const all = [
-    {
-      id: "metabolic",
-      name: "Metabolic Health",
-      markers: ["Fasting glucose", "HbA1c", "Insulin", "HOMA-IR", "Uric acid"],
-      tiers: ["essential", "advanced", "complete"] as BiomarkerSubscriptionTier[],
-    },
-    {
-      id: "heart",
-      name: "Heart Health",
-      markers: ["Lipid panel", "hs-CRP", "Homocysteine"],
-      tiers: ["essential", "advanced", "complete"] as BiomarkerSubscriptionTier[],
-    },
-    {
-      id: "hormones",
-      name: "Hormones",
-      markers: ["Testosterone", "Estradiol", "Cortisol", "DHEA-S", "Prolactin"],
-      tiers: ["advanced", "complete"] as BiomarkerSubscriptionTier[],
-    },
-    {
-      id: "thyroid",
-      name: "Thyroid",
-      markers: ["TSH", "Free T3", "Free T4", "Thyroid antibodies"],
-      tiers: ["essential", "advanced", "complete"] as BiomarkerSubscriptionTier[],
-    },
-    {
-      id: "nutrients",
-      name: "Nutrients",
-      markers: ["Vitamin D", "Iron studies", "B12", "Folate", "Zinc", "Magnesium"],
-      tiers: ["advanced", "complete"] as BiomarkerSubscriptionTier[],
-    },
-    {
-      id: "inflammation",
-      name: "Inflammation",
-      markers: ["hs-CRP", "ESR", "Fibrinogen"],
-      tiers: ["advanced", "complete"] as BiomarkerSubscriptionTier[],
-    },
-    {
-      id: "liver-kidney",
-      name: "Liver & Kidney",
-      markers: ["LFTs", "eGFR", "Creatinine", "UACR", "Phosphate", "PTH"],
-      tiers: ["essential", "advanced", "complete"] as BiomarkerSubscriptionTier[],
-    },
-    {
-      id: "biological-clock",
-      name: "Biological Clock",
-      markers: ["Albumin", "CRP", "Lymphocyte %", "MCV", "RDW", "ALP", "WBC"],
-      tiers: ["advanced", "complete"] as BiomarkerSubscriptionTier[],
-    },
-  ];
-
-  return all.filter((c) => c.tiers.includes(tier));
+  return FUNCTION_STYLE_CATEGORIES.filter((c) => c.tiers.includes(tier)).map((c) => ({
+    id: c.id,
+    name: c.name,
+    markers: c.highlights,
+    tiers: c.tiers,
+  }));
 }

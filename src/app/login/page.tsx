@@ -332,42 +332,6 @@ export default function LoginPage() {
                     Get started
                   </Link>
                 </div>
-
-                <div className="pt-4 border-t border-[#e6ebe3]">
-                  {process.env.NODE_ENV !== "production" && (
-                  <div className="text-xs text-center text-[#7e9a72] space-y-3 promo-body">
-                    <p className="font-medium text-[#5c7a52]">Demo Credentials:</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEmail("demo@sanative.com.au");
-                          setPassword("demo123");
-                          setLoginError(null);
-                        }}
-                        className="p-3 rounded-xl bg-[#f4f7f2] hover:bg-[#e6ebe3] border border-[#e6ebe3] transition-colors text-left cursor-pointer"
-                      >
-                        <p className="font-medium text-[#2c3628] mb-1">Member</p>
-                        <p className="text-[#7e9a72]">demo@sanative.com.au</p>
-                        <p className="text-[#7e9a72]">demo123</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEmail("admin@sanative.com.au");
-                          setPassword("admin123");
-                          setLoginError(null);
-                        }}
-                        className="p-3 rounded-xl bg-[#c17a58]/10 hover:bg-[#c17a58]/20 border border-[#c17a58]/20 transition-colors text-left cursor-pointer"
-                      >
-                        <p className="font-medium text-[#c17a58] mb-1">Admin</p>
-                        <p className="text-[#7e9a72]">admin@sanative.com.au</p>
-                        <p className="text-[#7e9a72]">admin123</p>
-                      </button>
-                    </div>
-                  </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>

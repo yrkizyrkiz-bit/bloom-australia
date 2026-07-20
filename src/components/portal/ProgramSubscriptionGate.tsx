@@ -2,11 +2,12 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { AlertTriangle, CreditCard, Loader2 } from "lucide-react";
+import { AlertTriangle, CreditCard, Loader2, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { SubscriptionAccessStatus } from "@/lib/billing/paid-till";
+import type { SubscriptionGateAction } from "@/lib/billing/subscription-gate";
 
 type ProgramSubscriptionGateProps = {
   programSlug: string;
@@ -17,6 +18,8 @@ type ProgramSubscriptionResponse = {
   programLabel?: string;
   paidTill?: string | null;
   subscriptionAccess?: SubscriptionAccessStatus;
+  gateAction?: SubscriptionGateAction;
+  billingKnown?: boolean;
   found?: boolean;
 };
 
@@ -36,18 +39,31 @@ export function ProgramSubscriptionGate({
         const res = await fetch(
           `/api/account/program-subscription?program=${encodeURIComponent(programSlug)}`
         );
-        if (!res.ok) throw new Error("Failed to load subscription");
-        const json = (await res.json()) as ProgramSubscriptionResponse;
+        const json = (await res.json()) as ProgramSubscriptionResponse & { error?: string };
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setData({
+              gateAction: json.gateAction ?? "block_unknown",
+              billingKnown: json.billingKnown ?? false,
+              subscriptionAccess: json.subscriptionAccess,
+            });
+          }
+          return;
+        }
+
         if (!cancelled) setData(json);
       } catch {
         if (!cancelled) {
           setData({
-            found: false,
+            gateAction: "block_unknown",
+            billingKnown: false,
             subscriptionAccess: {
-              isActive: true,
+              isActive: false,
               isExpired: false,
               expiresAt: null,
-              message: null,
+              message:
+                "We couldn't verify your subscription right now. Please try again or contact support.",
             },
           });
         }
@@ -87,13 +103,45 @@ export function ProgramSubscriptionGate({
     );
   }
 
-  const access = data?.subscriptionAccess;
-  if (data?.found === false || !access?.isExpired) {
+  const gateAction = data?.gateAction ?? "allow";
+  if (gateAction === "allow") {
     return <>{children}</>;
   }
 
   const label = data?.programLabel || "this program";
-  const expiresAt = access.expiresAt || data?.paidTill;
+  const access = data?.subscriptionAccess;
+  const expiresAt = access?.expiresAt || data?.paidTill;
+
+  if (gateAction === "block_unknown") {
+    return (
+      <div className="mx-auto max-w-2xl py-8">
+        <Card className="border-slate-200 bg-slate-50/60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
+              <ShieldAlert className="h-5 w-5 text-slate-700" />
+              Subscription verification required
+            </CardTitle>
+            <CardDescription className="text-slate-800/80">
+              {access?.message ||
+                "We couldn't confirm billing for this program. Update your payment details or contact support."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button onClick={openPortal} disabled={portalLoading}>
+              <CreditCard className="mr-2 h-4 w-4" />
+              {portalLoading ? "Opening..." : "Review billing"}
+            </Button>
+            <Link href="/dashboard/billing">
+              <Button variant="outline">View billing</Button>
+            </Link>
+            <Link href="/dashboard/programs">
+              <Button variant="ghost">Back to programs</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl py-8">
@@ -104,7 +152,7 @@ export function ProgramSubscriptionGate({
             Subscription renewal required
           </CardTitle>
           <CardDescription className="text-amber-900/80">
-            {access.message ||
+            {access?.message ||
               `Update your subscription to continue accessing ${label}.`}
           </CardDescription>
         </CardHeader>

@@ -31,7 +31,7 @@ export const DEFAULT_JOURNEY_STEPS: JourneyTimelineStep[] = [
   },
   {
     key: "pending_tests",
-    label: "Health monitoring",
+    label: "Blood test and biomarkers reviewed",
     description: "Any ordered tests support your ongoing care",
     icon: Beaker,
   },

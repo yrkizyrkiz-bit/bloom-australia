@@ -11,8 +11,40 @@ export type PortalPurchaseTriagePayload = {
   label: string;
 };
 
-/** Enqueue care-partner pre-triage for an in-portal paid purchase. */
+/**
+ * True when the member already has a consult in care-partner triage
+ * (`PRE_TRIAGE_PENDING` + held/confirmed booking). Used to:
+ * - enqueue portal upsells into Pre-Triage Queue only when a consult exists
+ * - skip biomarker/program add-on tasks when they belong to that first booking
+ */
+export async function memberHasConsultInTriage(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { journeyStatus: true },
+  });
+  if (user?.journeyStatus !== "PRE_TRIAGE_PENDING") return false;
+
+  const booking = await prisma.consultationBooking.findFirst({
+    where: {
+      userId,
+      status: { in: ["BOOKING_CONFIRMED", "SLOT_HELD"] },
+    },
+    select: { id: true },
+  });
+  return Boolean(booking);
+}
+
+/**
+ * Enqueue care-partner Pre-Triage Queue for an in-portal paid purchase.
+ * Only when the member already has a consult In Triage — otherwise the purchase
+ * is access-only and does not need a booking task.
+ */
 export async function enqueuePortalPurchaseTriage(payload: PortalPurchaseTriagePayload) {
+  const inTriage = await memberHasConsultInTriage(payload.userId);
+  if (!inTriage) {
+    return { enqueued: false as const, reason: "no_consult_in_triage" as const };
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     select: { firstName: true, lastName: true, assignedCarePartnerId: true },
@@ -47,21 +79,18 @@ export async function enqueuePortalPurchaseTriage(payload: PortalPurchaseTriageP
   });
 
   if (assignedOwnerId) {
-    await prisma.notification.create({
-      data: {
-        userId: assignedOwnerId,
-        type: "INFO",
-        title: "Member added program",
-        message: `${user?.firstName ?? "Member"} ${user?.lastName ?? ""} purchased ${payload.label}. Book consultation.`,
-        actionUrl: "/admin/triage",
-      },
-    }).catch(() => undefined);
+    await prisma.notification
+      .create({
+        data: {
+          userId: assignedOwnerId,
+          type: "INFO",
+          title: "Member added program",
+          message: `${user?.firstName ?? "Member"} ${user?.lastName ?? ""} purchased ${payload.label}. Review with their existing consult in triage.`,
+          actionUrl: "/admin/triage",
+        },
+      })
+      .catch(() => undefined);
   }
 
-  if (!user?.assignedCarePartnerId && assignedOwnerId) {
-    await prisma.user.update({
-      where: { id: payload.userId },
-      data: { assignedCarePartnerId: assignedOwnerId, journeyStatus: "PRE_TRIAGE_PENDING" },
-    });
-  }
+  return { enqueued: true as const };
 }

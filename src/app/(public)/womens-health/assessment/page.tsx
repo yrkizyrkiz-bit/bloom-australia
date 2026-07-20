@@ -23,10 +23,8 @@ import {
   submitPublicIntake,
 } from "@/lib/funnel/intake-response";
 import Link from "next/link";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, ArrowLeft, Check, X, Info, Heart, HeartPulse, Stethoscope, MessageCircle, Package, AlertTriangle, Loader2, Shield, Flame, Pill, Baby, Sparkles } from "lucide-react";
-import womensHealthDoctor from "@/assets/images/womens-health-doctor.jpg";
 
 
 // Processing Step Component with animation
@@ -534,7 +532,7 @@ function WomensHealthAssessmentContent() {
 
       case 1: return (
         <div>
-          {questionTitle("Let's start with your name", "Required for prescriptions — kept confidential.")}
+          {questionTitle("Let's start with your name", "Required for any future prescriptions — kept confidential.")}
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-[#2c3628] mb-1.5">First name</label>
@@ -585,26 +583,16 @@ function WomensHealthAssessmentContent() {
             </p>
           </div>
 
-          {isMenopausePath ? (
-            <div className="relative mx-auto w-full max-w-sm min-h-[20rem] aspect-[3/4] overflow-hidden rounded-3xl shadow-lg border border-[#e8ebe3]">
-              <Image
-                src={womensHealthDoctor}
-                alt="AHPRA-registered doctor for menopause and perimenopause care"
-                fill
-                priority
-                sizes="(max-width: 640px) 92vw, 384px"
-                className="object-cover object-top"
-              />
-            </div>
-          ) : selectedCategoryInfo ? (
-            <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${selectedCategoryInfo.color}, ${selectedCategoryInfo.color}dd)` }}>
-              <selectedCategoryInfo.icon className="w-8 h-8 text-white" />
-            </div>
-          ) : (
-            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#c17a58] to-[#a86548] rounded-2xl flex items-center justify-center">
-              <Stethoscope className="w-8 h-8 text-white" />
-            </div>
-          )}
+          <div className="mx-auto w-full max-w-[280px] sm:max-w-xs">
+            {/* eslint-disable-next-line @next/next/no-img-element -- quiz step needs a reliable local public asset */}
+            <img
+              src="/images/womens-health-doctor.jpg"
+              alt="AHPRA-registered doctor for women's health care"
+              width={819}
+              height={1024}
+              className="w-full h-auto rounded-3xl shadow-lg border border-[#e8ebe3] bg-[#e8ebe3]"
+            />
+          </div>
 
           <div className="bg-[#fef4f0] rounded-xl p-3 max-w-sm mx-auto">
             <p className="text-sm text-[#5c7a52]">

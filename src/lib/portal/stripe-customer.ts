@@ -11,7 +11,11 @@ export async function getOrCreateStripeCustomer(userId: string) {
   });
   if (!user) throw new Error("User not found");
 
-  const existing = await stripe.customers.list({ email: user.email, limit: 1 });
+  const existing = await stripe.customers.list({ email: user.email, limit: 10 });
+  const byUserId = existing.data.find((c) => c.metadata?.userId === user.id);
+  if (byUserId) {
+    return { customerId: byUserId.id, user };
+  }
   if (existing.data.length > 0) {
     return { customerId: existing.data[0].id, user };
   }

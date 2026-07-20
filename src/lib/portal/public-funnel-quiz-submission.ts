@@ -53,21 +53,62 @@ export async function savePublicFunnelQuizFromIntake(input: {
   const programKey = resolvePublicFunnelProgramKey(input.program, input.intakeData);
   if (!programKey) return null;
 
+  const source = input.source ?? "public_funnel";
+
   const existing = await prisma.portalQuizSubmission.findFirst({
     where: {
       userId: input.userId,
       programKey,
-      source: input.source ?? "public_funnel",
+      source,
     },
     select: { id: true },
+    orderBy: { submittedAt: "desc" },
   });
   if (existing) return existing;
 
+  return createPublicFunnelQuizSubmission({
+    userId: input.userId,
+    program: input.program,
+    programKey,
+    intakeData: input.intakeData,
+    source,
+  });
+}
+
+/**
+ * Record a new public-funnel quiz submission (e.g. prospective member resuming intake).
+ * Creates a fresh row so CRM shows the latest answers and prior attempts remain in history.
+ */
+export async function appendPublicFunnelQuizFromIntake(input: {
+  userId: string;
+  program?: string | null;
+  intakeData: Record<string, unknown>;
+  source?: string;
+}) {
+  const programKey = resolvePublicFunnelProgramKey(input.program, input.intakeData);
+  if (!programKey) return null;
+
+  return createPublicFunnelQuizSubmission({
+    userId: input.userId,
+    program: input.program,
+    programKey,
+    intakeData: input.intakeData,
+    source: input.source ?? "public_funnel",
+  });
+}
+
+function createPublicFunnelQuizSubmission(input: {
+  userId: string;
+  program?: string | null;
+  programKey: ProgramKey;
+  intakeData: Record<string, unknown>;
+  source: string;
+}) {
   const answers = sanitizePublicFunnelIntakeAnswers(input.intakeData);
 
   return savePortalQuizSubmission({
     userId: input.userId,
-    programKey,
+    programKey: input.programKey,
     answers,
     result: {
       source: "public_funnel",
@@ -76,7 +117,7 @@ export async function savePublicFunnelQuizFromIntake(input: {
       completedAt: input.intakeData.completedAt ?? new Date().toISOString(),
     },
     intent: "public_assessment",
-    source: input.source ?? "public_funnel",
+    source: input.source,
   });
 }
 

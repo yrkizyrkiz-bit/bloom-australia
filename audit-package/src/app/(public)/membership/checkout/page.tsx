@@ -1,0 +1,1010 @@
+"use client";
+
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { Check, Shield, Lock, ArrowRight, Mail, Phone, Loader2, Calendar, Heart, Activity, Droplets } from "lucide-react";
+import Link from "next/link";
+import { MembershipConsultationBooking } from "@/components/membership/MembershipConsultationBooking";
+import { ORGAN_CARE_PUBLIC_OFFER, ORGAN_CARE_CHECKOUT_PREFILL_KEY, type OrganCareCheckoutPrefill } from "@/lib/programs/organ-care-public-offer";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import {
+  ensurePrePaymentConsentRecorded,
+  paymentSourcePage,
+} from "@/lib/legal/ensure-pre-payment-consent";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+// ─── Types ─────────────────────────────────────────────────────────────────
+type Step = "verify" | "payment" | "onboard" | "booking" | "complete";
+
+// ─── Constants ─────────────────────────────────────────────────────────────
+const MEMBERSHIP_BENEFITS = [
+  "12 month access to portal and organ care program",
+  "Heart, liver, kidney, thyroid, hormones & metabolic dashboards",
+  "Personalised protocol with nutrition, supplements & lifestyle guidance",
+  "Care partner support between appointments",
+  "24/7 AI Health Assistant in your member portal",
+];
+
+const ORGAN_SUMMARY_ICONS = [
+  { icon: Heart, label: "Heart", color: "text-rose-500", bg: "bg-rose-50" },
+  { icon: Activity, label: "Liver", color: "text-emerald-600", bg: "bg-emerald-50" },
+  { icon: Droplets, label: "Kidney", color: "text-cyan-600", bg: "bg-cyan-50" },
+] as const;
+
+// ─── Payment Form Component ────────────────────────────────────────────────
+function PaymentForm({
+  onSuccess,
+  amountAud,
+  customerEmail,
+  userId,
+}: {
+  onSuccess: (result: CheckoutPaymentSuccess) => void;
+  amountAud: number;
+  customerEmail?: string;
+  userId?: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    const consentResult = await ensurePrePaymentConsentRecorded({
+      consentChecked,
+      sourcePage: paymentSourcePage(),
+      email: customerEmail,
+      userId,
+    });
+
+    if (!consentResult.ok) {
+      setError(consentResult.error);
+      setIsProcessing(false);
+      return;
+    }
+
+    const { error: submitError, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/membership/checkout?step=complete`,
+      },
+      redirect: "if_required",
+    });
+
+    if (submitError) {
+      setError(submitError.message || "Payment failed");
+      setIsProcessing(false);
+      return;
+    }
+
+    if (paymentIntent?.status === "succeeded") {
+      onSuccess({
+        paymentIntentId: paymentIntent.id,
+        consentRecordId: consentResult.consentRecordId,
+      });
+    } else {
+      setError("Payment was not completed. Please try again.");
+    }
+    setIsProcessing(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement
+        options={{
+          layout: "tabs",
+        }}
+      />
+
+      <PrePaymentConsentCheckbox
+        checked={consentChecked}
+        onCheckedChange={setConsentChecked}
+        disabled={isProcessing}
+      />
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      <button
+        type="submit"
+        disabled={!stripe || isProcessing || !consentChecked}
+        className="w-full py-4 bg-[#f97316] hover:bg-[#ea580c] disabled:opacity-50
+          text-white font-semibold rounded-xl text-base transition-colors
+          flex items-center justify-center gap-2"
+      >
+        {isProcessing ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          <>
+            <Lock className="w-4 h-4" />
+            Pay ${amountAud} AUD
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
+
+// ─── Main Checkout Page ────────────────────────────────────────────────────
+function MembershipCheckoutPageContent() {
+  const searchParams = useSearchParams();
+  const funnelSource = searchParams.get("source");
+  const [step, setStep] = useState<Step>("verify");
+  const [verifyMethod, setVerifyMethod] = useState<"email" | "phone">("email");
+  const [contact, setContact] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [existingUser, setExistingUser] = useState<{
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+  } | null>(null);
+
+  // Payment state
+  const [postcode, setPostcode] = useState("");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [consentRecordId, setConsentRecordId] = useState<string | null>(null);
+  const [organCarePriceAud, setOrganCarePriceAud] = useState(
+    ORGAN_CARE_PUBLIC_OFFER.priceAud
+  );
+  const [organCarePriceLabel, setOrganCarePriceLabel] = useState(
+    ORGAN_CARE_PUBLIC_OFFER.priceLabel
+  );
+
+  // Onboarding state
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [suburb, setSuburb] = useState("");
+  const [state, setState] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Booking state — internal availability picker (same as WM funnel)
+
+  useEffect(() => {
+    fetch("/api/public/organ-care-pricing")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.amountAud === "number") {
+          setOrganCarePriceAud(data.amountAud);
+        }
+        if (typeof data.priceLabel === "string") {
+          setOrganCarePriceLabel(data.priceLabel);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(ORGAN_CARE_CHECKOUT_PREFILL_KEY);
+    if (!raw) return;
+
+    try {
+      const prefill = JSON.parse(raw) as OrganCareCheckoutPrefill;
+      const matchesSource = !funnelSource || prefill.source === funnelSource;
+      if (!matchesSource || !prefill.email) return;
+
+      setVerifyMethod("email");
+      setContact(prefill.email);
+      setEmail(prefill.email);
+      if (prefill.firstName) setFirstName(prefill.firstName);
+      if (prefill.lastName) setLastName(prefill.lastName);
+      if (prefill.phone) setPhone(prefill.phone);
+      if (prefill.dateOfBirth) setDateOfBirth(prefill.dateOfBirth);
+      if (prefill.postcode) setPostcode(prefill.postcode);
+    } catch {
+      // ignore malformed prefill
+    }
+  }, [funnelSource]);
+
+  // ─── Handlers ────────────────────────────────────────────────────────────
+
+  const sendVerificationCode = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/auth/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contact, type: verifyMethod }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setCodeSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send code");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/auth/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contact, type: verifyMethod, code }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setSessionToken(data.sessionToken);
+      if (data.existingUser) {
+        setExistingUser(data.existingUser);
+        setFirstName(data.existingUser.firstName || "");
+        setLastName(data.existingUser.lastName || "");
+        setEmail(data.existingUser.email || "");
+        setPhone(data.existingUser.phone || "");
+      } else if (verifyMethod === "email") {
+        setEmail(contact);
+      } else {
+        setPhone(contact);
+      }
+      setStep("payment");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to verify code");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createPaymentIntent = async () => {
+    if (!postcode || postcode.length !== 4) {
+      setError("Please enter a valid 4-digit postcode");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/stripe/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionToken,
+          email: email || (verifyMethod === "email" ? contact : null),
+          postcode,
+          firstName,
+          lastName,
+          phone: phone || (verifyMethod === "phone" ? contact : null),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setClientSecret(data.clientSecret);
+      if (typeof data.amountAud === "number") {
+        setOrganCarePriceAud(data.amountAud);
+      }
+      if (typeof data.priceLabel === "string") {
+        setOrganCarePriceLabel(data.priceLabel);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to initialize payment");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (result: CheckoutPaymentSuccess) => {
+    setPaymentIntentId(result.paymentIntentId ?? null);
+    setConsentRecordId(result.consentRecordId);
+    setStep("onboard");
+  };
+
+  const completeOnboarding = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/stripe/subscription", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentIntentId,
+          consentRecordId,
+          sessionToken,
+          firstName,
+          lastName,
+          email: email || (verifyMethod === "email" ? contact : null),
+          phone: phone || (verifyMethod === "phone" ? contact : null),
+          dateOfBirth,
+          addressLine1,
+          addressLine2,
+          suburb,
+          state,
+          postcode,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setUserId(data.userId);
+      setStep("booking");    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to complete onboarding");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ─── Render Steps ────────────────────────────────────────────────────────
+
+  const renderVerificationStep = () => (
+    <div className="space-y-6">
+      <div>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-800
+          rounded-full text-xs font-semibold mb-4">
+          1
+        </span>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Create your account</h3>
+        <p className="text-sm text-gray-500">
+          We&apos;ll send you a verification code to confirm your identity
+        </p>
+      </div>
+
+      {/* Method toggle */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            setVerifyMethod("email");
+            setCodeSent(false);
+            setCode("");
+            setError(null);
+          }}
+          className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
+            transition-all ${
+            verifyMethod === "email"
+              ? "border-gray-900 bg-gray-50"
+              : "border-gray-200 hover:border-gray-300"
+          }`}
+        >
+          <Mail className="w-4 h-4" />
+          <span className="font-medium">Email</span>
+        </button>
+        <button
+          onClick={() => {
+            setVerifyMethod("phone");
+            setCodeSent(false);
+            setCode("");
+            setError(null);
+          }}
+          className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
+            transition-all ${
+            verifyMethod === "phone"
+              ? "border-gray-900 bg-gray-50"
+              : "border-gray-200 hover:border-gray-300"
+          }`}
+        >
+          <Phone className="w-4 h-4" />
+          <span className="font-medium">Mobile</span>
+        </button>
+      </div>
+
+      {!codeSent ? (
+        <div className="space-y-4">
+          <input
+            type={verifyMethod === "email" ? "email" : "tel"}
+            placeholder={verifyMethod === "email" ? "Enter your email" : "Enter mobile (04xx xxx xxx)"}
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+              px-4 py-3.5 text-base outline-none transition-colors"
+            autoFocus
+          />
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+          <button
+            onClick={sendVerificationCode}
+            disabled={!contact || isLoading}
+            className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
+              text-white font-semibold rounded-xl transition-colors flex items-center
+              justify-center gap-2"
+          >
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                Send verification code
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+            <p className="text-sm text-green-800">
+              Code sent to{" "}
+              <span className="font-semibold">
+                {verifyMethod === "email" ? contact : `•••• ${contact.slice(-4)}`}
+              </span>
+            </p>
+          </div>
+          <div>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Enter 6-digit code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                px-4 py-3.5 text-base text-center tracking-widest font-mono outline-none
+                transition-colors"
+              autoFocus
+              maxLength={6}
+            />
+          </div>
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+          <button
+            onClick={verifyCode}
+            disabled={code.length !== 6 || isLoading}
+            className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
+              text-white font-semibold rounded-xl transition-colors flex items-center
+              justify-center gap-2"
+          >
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                Verify code
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              setCodeSent(false);
+              setCode("");
+              setError(null);
+            }}
+            className="w-full text-sm text-gray-500 hover:text-gray-700"
+          >
+            Use a different {verifyMethod}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderPaymentStep = () => (
+    <div className="space-y-6">
+      {/* Verified indicator */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200
+        rounded-xl">
+        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <Check className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-sm text-green-800">
+          Verified as{" "}
+          <span className="font-medium">
+            {verifyMethod === "email" ? contact : `•••• ${contact.slice(-4)}`}
+          </span>
+        </span>
+        <button
+          onClick={() => {
+            setStep("verify");
+            setCodeSent(false);
+            setCode("");
+            setClientSecret(null);
+          }}
+          className="ml-auto text-sm text-green-700 hover:text-green-900 font-medium"
+        >
+          Change
+        </button>
+      </div>
+
+      <div>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-800
+          rounded-full text-xs font-semibold mb-4">
+          2
+        </span>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Payment</h3>
+      </div>
+
+      {/* Postcode input */}
+      {!clientSecret && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Where are you located?
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Enter your postcode"
+              value={postcode}
+              onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                px-4 py-3.5 text-base outline-none transition-colors"
+              maxLength={4}
+            />
+          </div>
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+          <button
+            onClick={createPaymentIntent}
+            disabled={postcode.length !== 4 || isLoading}
+            className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
+              text-white font-semibold rounded-xl transition-colors flex items-center
+              justify-center gap-2"
+          >
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                Continue to payment
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Stripe payment form */}
+      {clientSecret && (
+        <Elements
+          stripe={stripePromise}
+          options={{
+            clientSecret,
+            appearance: {
+              theme: "stripe",
+              variables: {
+                colorPrimary: "#f97316",
+                borderRadius: "12px",
+              },
+            },
+          }}
+        >
+          <PaymentForm
+            onSuccess={handlePaymentSuccess}
+            amountAud={organCarePriceAud}
+            customerEmail={existingUser?.email || (verifyMethod === "email" ? contact : email) || undefined}
+            userId={existingUser?.id}
+          />
+        </Elements>
+      )}
+    </div>
+  );
+
+  const renderOnboardingStep = () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200
+        rounded-xl">
+        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <Check className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-sm text-green-800 font-medium">Payment successful</span>
+      </div>
+
+      <div>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-800
+          rounded-full text-xs font-semibold mb-4">
+          3
+        </span>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Complete your profile</h3>
+        <p className="text-sm text-gray-500">
+          We need a few more details to set up your membership
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                px-4 py-3 text-base outline-none transition-colors"
+              placeholder="First"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                px-4 py-3 text-base outline-none transition-colors"
+              placeholder="Last"
+            />
+          </div>
+        </div>
+
+        {verifyMethod !== "email" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                px-4 py-3 text-base outline-none transition-colors"
+              placeholder="you@example.com"
+            />
+          </div>
+        )}
+
+        {verifyMethod !== "phone" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                px-4 py-3 text-base outline-none transition-colors"
+              placeholder="04xx xxx xxx"
+            />
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Date of birth</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="DD/MM/YYYY"
+            value={dateOfBirth}
+            onChange={(e) => {
+              let value = e.target.value.replace(/\D/g, "");
+              if (value.length > 8) value = value.slice(0, 8);
+              if (value.length >= 2) value = value.slice(0, 2) + "/" + value.slice(2);
+              if (value.length >= 5) value = value.slice(0, 5) + "/" + value.slice(5);
+              setDateOfBirth(value);
+            }}
+            className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+              px-4 py-3 text-base outline-none transition-colors"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
+          <input
+            type="text"
+            value={addressLine1}
+            onChange={(e) => setAddressLine1(e.target.value)}
+            className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+              px-4 py-3 text-base outline-none transition-colors"
+            placeholder="123 Main St"
+          />
+        </div>
+
+        <div>
+          <input
+            type="text"
+            value={addressLine2}
+            onChange={(e) => setAddressLine2(e.target.value)}
+            className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+              px-4 py-3 text-base outline-none transition-colors"
+            placeholder="Unit / Apt (optional)"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Suburb</label>
+            <input
+              type="text"
+              value={suburb}
+              onChange={(e) => setSuburb(e.target.value)}
+              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                px-4 py-3 text-base outline-none transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+            <select
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                px-4 py-3 text-base outline-none transition-colors bg-white"
+            >
+              <option value="">Select</option>
+              {["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button
+          onClick={completeOnboarding}
+          disabled={!firstName || !lastName || !dateOfBirth || isLoading}
+          className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
+            text-white font-semibold rounded-xl transition-colors flex items-center
+            justify-center gap-2"
+        >
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <>
+              Continue
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  // Get user's email for booking
+  const userEmail = email || (verifyMethod === "email" ? contact : "");
+
+  const renderBookingStep = () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200
+        rounded-xl">
+        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <Check className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-sm text-green-800 font-medium">Profile completed</span>
+      </div>
+
+      <div>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-800
+          rounded-full text-xs font-semibold mb-4">
+          4
+        </span>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+          Book your initial consultation
+        </h3>
+        <p className="text-sm text-gray-500">
+          Choose a time to speak with your Care Health Partner
+        </p>
+      </div>
+
+      {userId && paymentIntentId && consentRecordId ? (
+        <MembershipConsultationBooking
+          userId={userId}
+          paymentIntentId={paymentIntentId}
+          consentRecordId={consentRecordId}
+          firstName={firstName}
+          lastName={lastName}
+          email={userEmail}
+          phone={phone}
+          postcode={postcode}
+          onComplete={() => setStep("complete")}
+        />
+      ) : (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setStep("complete")}
+        className="w-full text-sm text-gray-500 hover:text-gray-700"
+      >
+        Skip for now - I&apos;ll book later
+      </button>
+    </div>
+  );
+
+  const renderCompleteStep = () => (
+    <div className="text-center space-y-6 py-8">
+      <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+        <Check className="w-10 h-10 text-green-600" />
+      </div>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Welcome to Sanative!
+        </h2>
+        <p className="text-gray-500">
+          Your membership is now active. Check your email for next steps.
+        </p>
+      </div>
+
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-left">
+        <div className="flex items-center gap-2 mb-1">
+          <Calendar className="w-4 h-4 text-green-600" />
+          <p className="text-sm font-medium text-green-900">
+            Consultation confirmed
+          </p>
+        </div>
+        <p className="text-sm text-green-700">
+          You&apos;ll receive a calendar invite with all the details shortly.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Link
+          href="/dashboard"
+          className="block w-full py-3.5 bg-gray-900 hover:bg-black text-white
+            font-semibold rounded-xl transition-colors"
+        >
+          Go to Dashboard
+        </Link>
+        <Link
+          href="/"
+          className="block w-full py-3.5 border-2 border-gray-200 hover:border-gray-300
+            text-gray-700 font-semibold rounded-xl transition-colors"
+        >
+          Return Home
+        </Link>
+      </div>
+    </div>
+  );
+
+  // ─── Main Render ─────────────────────────────────────────────────────────
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <Link href="/" className="text-2xl font-serif text-gray-900">
+            Sanative
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-8 lg:py-12">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+          {/* Left column - Form */}
+          <div className="order-2 lg:order-1">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8">
+              {/* Membership badge */}
+              <div className="mb-6">
+                <span className="inline-block px-3 py-1 bg-[#f97316] text-white text-xs
+                  font-semibold rounded-full">
+                  Organ & Metabolic Care
+                </span>
+              </div>
+
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+                All organs, one membership
+              </h1>
+              <p className="text-gray-500 mb-6">
+                {ORGAN_CARE_PUBLIC_OFFER.tagline}. {organCarePriceLabel} — billed annually.
+              </p>
+
+              {/* Form steps */}
+              {step === "verify" && renderVerificationStep()}
+              {step === "payment" && renderPaymentStep()}
+              {step === "onboard" && renderOnboardingStep()}
+              {step === "booking" && renderBookingStep()}
+              {step === "complete" && renderCompleteStep()}
+            </div>
+
+            {/* Security badges */}
+            {step !== "complete" && (
+              <div className="flex items-center justify-center gap-4 mt-6 text-gray-400">
+                <div className="flex items-center gap-1.5">
+                  <Lock className="w-4 h-4" />
+                  <span className="text-xs">256-bit SSL</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Shield className="w-4 h-4" />
+                  <span className="text-xs">AHPRA Registered</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right column - Order summary */}
+          <div className="order-1 lg:order-2">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 sticky top-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+
+              <div className="rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50/80 to-emerald-50/50 p-5 mb-5">
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  {ORGAN_SUMMARY_ICONS.map(({ icon: Icon, label, color, bg }) => (
+                    <div key={label} className="flex flex-col items-center gap-1.5">
+                      <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${bg}`}>
+                        <Icon className={`h-5 w-5 ${color}`} />
+                      </div>
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-sm font-medium text-teal-900">
+                  12 month access to portal and organ care program
+                </p>
+                <p className="text-center text-xs text-teal-700/80 mt-1">
+                  Plus thyroid, hormones & metabolic dashboards
+                </p>
+              </div>
+
+              <h3 className="font-semibold text-gray-900 mb-2">Organ & Metabolic Care</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {ORGAN_CARE_PUBLIC_OFFER.billingNote}. One membership, every organ dashboard.
+              </p>
+
+              {/* Benefits list */}
+              <div className="space-y-2 mb-6">
+                {MEMBERSHIP_BENEFITS.slice(1).map((benefit, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-xs text-gray-600">{benefit}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Price */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-600">Organ & Metabolic Care</span>
+                  <span className="font-semibold">{organCarePriceLabel}</span>
+                </div>
+                <div className="flex items-center justify-between text-lg font-bold">
+                  <span>Total</span>
+                  <span>${organCarePriceAud}</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">All organs included · billed annually</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function MembershipCheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        </div>
+      }
+    >
+      <MembershipCheckoutPageContent />
+    </Suspense>
+  );
+}

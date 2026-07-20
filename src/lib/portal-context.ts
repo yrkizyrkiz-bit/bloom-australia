@@ -163,10 +163,16 @@ export function derivePortalContext(input: {
     (normalizeProgramKey(input.subscriptionTier) === "WEIGHT_MANAGEMENT" &&
       Boolean(input.hasPaidWeightIntake));
 
+  const hasBiomarkersScope = Boolean(
+    input.membership?.scopes?.BIOLOGICAL_CLOCK?.hasEntitlement &&
+      input.membership.scopes.BIOLOGICAL_CLOCK.status !== "INACTIVE"
+  );
+
   const features: PortalFeatures = {
     weightProgress: isActive,
     weightTreatmentFull: isActive || portalMode === "ACTIVATING",
-    biomarkerResults: isApproved,
+    // Approved WM journey OR purchased biomarkers scope unlocks biomarker portal areas.
+    biomarkerResults: isApproved || hasBiomarkersScope,
     mealPlanning: portalMode === "PRE_PROGRAM" || portalMode === "ACTIVATING" || isActive,
   };
 

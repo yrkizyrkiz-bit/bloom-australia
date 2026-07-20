@@ -22,6 +22,75 @@ export type QuizAssessment = {
   bmi: number | null;
 };
 
+const WEIGHT_MANAGEMENT_QUIZ_SIGNAL_FIELDS = [
+  "weightLossGoal",
+  "currentWeight",
+  "targetWeight",
+  "height",
+  "metabolicConditions",
+  "digestiveConditions",
+  "cardiovascularConditions",
+  "mentalHealthConditions",
+  "seriousConditions",
+  "motivations",
+  "selectedPlan",
+] as const;
+
+function hasQuizFieldValue(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "number") return Number.isFinite(value);
+  return value != null && value !== "";
+}
+
+/** True when intake/quiz payload is from the weight management assessment funnel. */
+export function isWeightManagementQuizData(
+  quizData: Record<string, unknown> | null | undefined
+): boolean {
+  if (!quizData || typeof quizData !== "object") return false;
+
+  const programType = quizData.programType;
+  if (typeof programType === "string" && programType !== "WEIGHT_MANAGEMENT") {
+    return false;
+  }
+
+  return WEIGHT_MANAGEMENT_QUIZ_SIGNAL_FIELDS.some((field) =>
+    hasQuizFieldValue(quizData[field])
+  );
+}
+
+export function resolveWeightManagementQuizData(input: {
+  wmIntakeQuizData?: Record<string, unknown> | null;
+  programMemberProgram?: string | null;
+  programMemberIntake?: Record<string, unknown> | null;
+}): Record<string, unknown> | null {
+  if (input.wmIntakeQuizData && isWeightManagementQuizData(input.wmIntakeQuizData)) {
+    return input.wmIntakeQuizData;
+  }
+
+  if (
+    input.programMemberProgram === "WEIGHT_MANAGEMENT" &&
+    input.programMemberIntake &&
+    isWeightManagementQuizData(input.programMemberIntake)
+  ) {
+    return input.programMemberIntake;
+  }
+
+  return null;
+}
+
+export function resolveLegacyHairSurveyData(input: {
+  programMemberProgram?: string | null;
+  programMemberIntake?: Record<string, unknown> | null;
+}): Record<string, unknown> | null {
+  const intake = input.programMemberIntake;
+  if (!intake) return null;
+  if (input.programMemberProgram === "HAIR_LOSS" || intake.programType === "HAIR_LOSS") {
+    return intake;
+  }
+  return null;
+}
+
 export function buildAssessmentFromQuizData(
   quizData: Record<string, unknown>,
   user?: {

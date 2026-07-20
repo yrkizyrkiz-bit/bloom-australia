@@ -145,10 +145,6 @@ function LabsPageContent() {
                 <span className="text-[#a8bb9e]">Own your health.</span>
               </h1>
 
-              <p className="mt-6 text-lg lg:text-xl text-white/80 max-w-lg">
-                Three annual panels — Essential (core health assessment), Advanced (Biological Clock + Organ Care), or Complete (full catalog). NATA-accredited labs, doctor-reviewed results.
-              </p>
-
               <div className="mt-8">
                 <Link
                   href="/biomarker-intake"
@@ -196,7 +192,7 @@ function LabsPageContent() {
         </div>
 
         {/* Get Insights Section */}
-        <section className="py-20 lg:py-28 bg-white">
+        <section id="from-sample-to-action-plan" className="py-20 lg:py-28 bg-white scroll-mt-28">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">

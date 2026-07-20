@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
+import { PaymentElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import { CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
@@ -11,60 +10,52 @@ import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
 } from "@/lib/legal/ensure-pre-payment-consent";
+import { stripePromise } from "@/lib/stripe-client";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
-
-const cardStyle = {
-  style: {
-    base: {
-      fontSize: "16px",
-      color: "#2c3628",
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      "::placeholder": {
-        color: "#7e9a72",
-      },
-    },
-    invalid: {
-      color: "#dc2626",
-      iconColor: "#dc2626",
-    },
-  },
-  hidePostalCode: true,
-};
+function friendlyPortalPaymentError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid api key") || lower.includes("api_key")) {
+    return "Payment system is misconfigured. Please contact support.";
+  }
+  if (lower.includes("processing error")) {
+    return "Your card could not be processed. Please check your details or try another card, then tap Subscribe again.";
+  }
+  if (lower.includes("token") && lower.includes("invalid")) {
+    return "Card details could not be verified. Please refresh the page and try again.";
+  }
+  return message;
+}
 
 type PortalPaymentFormProps = {
   clientSecret: string;
+  paymentIntentId: string;
   amountLabel: string;
   submitLabel: string;
   userId?: string;
   customerEmail?: string;
+  returnUrl: string;
   onConfirmed: (result: CheckoutPaymentSuccess) => Promise<void>;
+  onPaymentFailed?: () => void;
 };
 
 function CheckoutInner({
-  clientSecret,
   amountLabel,
   submitLabel,
   userId,
   customerEmail,
+  returnUrl,
   onConfirmed,
-}: PortalPaymentFormProps) {
+  onPaymentFailed,
+}: Omit<PortalPaymentFormProps, "paymentIntentId" | "clientSecret">) {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
-  const [cardReady, setCardReady] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      setError("Card input not found. Please refresh and try again.");
-      return;
-    }
 
     setProcessing(true);
     setError(null);
@@ -83,45 +74,55 @@ function CheckoutInner({
     }
 
     try {
-      const { error: paymentError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardElement },
+      const { error: paymentError, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: returnUrl,
+          receipt_email: customerEmail || undefined,
+        },
+        redirect: "if_required",
       });
 
       if (paymentError) {
-        setError(paymentError.message || "Payment failed");
+        const message = friendlyPortalPaymentError(
+          paymentError.message || "Payment failed"
+        );
+        setError(message);
+        onPaymentFailed?.();
         setProcessing(false);
         return;
       }
 
-      if (paymentIntent?.status === "requires_action") {
-        const { error: confirmError, paymentIntent: confirmedIntent } =
-          await stripe.confirmCardPayment(clientSecret);
-        if (confirmError) {
-          setError(confirmError.message || "Authentication failed");
-          setProcessing(false);
-          return;
-        }
-        if (confirmedIntent?.status === "succeeded") {
+      if (paymentIntent?.status === "succeeded") {
+        try {
           await onConfirmed({
-            paymentIntentId: confirmedIntent.id,
+            paymentIntentId: paymentIntent.id,
             consentRecordId: consentResult.consentRecordId,
           });
-          return;
+        } catch (err) {
+          console.error("[PortalPaymentForm] confirm failed after payment", err);
+          setError(
+            friendlyPortalPaymentError(
+              err instanceof Error
+                ? err.message
+                : "Payment succeeded but activation failed. Please contact support."
+            )
+          );
         }
+        return;
       }
 
-      if (paymentIntent?.status === "succeeded") {
-        await onConfirmed({
-          paymentIntentId: paymentIntent.id,
-          consentRecordId: consentResult.consentRecordId,
-        });
-      } else {
-        setError("Payment was not completed. Please try again.");
-        setProcessing(false);
-      }
+      setError("Payment was not completed. Please try again.");
+      onPaymentFailed?.();
     } catch (err) {
       console.error("[PortalPaymentForm]", err);
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setError(
+        friendlyPortalPaymentError(
+          err instanceof Error ? err.message : "An unexpected error occurred"
+        )
+      );
+      onPaymentFailed?.();
+    } finally {
       setProcessing(false);
     }
   };
@@ -142,22 +143,10 @@ function CheckoutInner({
 
         <div className="mb-3 flex items-center gap-2">
           <CreditCard className="h-4 w-4 text-[#5c7a52]" />
-          <span className="text-sm font-medium text-[#2c3628]">Card details</span>
+          <span className="text-sm font-medium text-[#2c3628]">Payment details</span>
         </div>
 
-        <div className="rounded-lg border border-[#e6ebe3] px-3 py-3 focus-within:border-[#5c7a52] focus-within:ring-1 focus-within:ring-[#5c7a52]/20">
-          <CardElement
-            options={cardStyle}
-            onReady={() => setCardReady(true)}
-            onChange={(event) => {
-              if (event.error) {
-                setError(event.error.message || "Card error");
-              } else {
-                setError(null);
-              }
-            }}
-          />
-        </div>
+        <PaymentElement options={{ layout: "tabs" }} />
       </div>
 
       <PrePaymentConsentCheckbox
@@ -168,7 +157,7 @@ function CheckoutInner({
 
       <Button
         type="submit"
-        disabled={!stripe || !cardReady || !consentChecked || processing}
+        disabled={!stripe || !elements || !consentChecked || processing}
         className="w-full bg-emerald-700 hover:bg-emerald-800"
       >
         {processing ? (
@@ -184,10 +173,19 @@ function CheckoutInner({
 }
 
 export function PortalPaymentForm(props: PortalPaymentFormProps) {
-  if (!props.clientSecret) return null;
+  if (!props.clientSecret || !props.paymentIntentId) return null;
+
+  if (!stripePromise) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        Payment is unavailable — Stripe is not configured for this environment.
+      </div>
+    );
+  }
 
   return (
     <Elements
+      key={props.paymentIntentId}
       stripe={stripePromise}
       options={{
         clientSecret: props.clientSecret,

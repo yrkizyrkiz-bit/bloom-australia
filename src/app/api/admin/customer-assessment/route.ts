@@ -8,11 +8,20 @@ import {
   formatTimeInTimezone,
   resolveAustralianTimezone,
 } from "@/lib/australia-timezone";
-import { buildAssessmentFromQuizData } from "@/lib/quiz-assessment";
+import {
+  buildAssessmentFromQuizData,
+  resolveLegacyHairSurveyData,
+  resolveWeightManagementQuizData,
+} from "@/lib/quiz-assessment";
 import { resolvePlanTierFromStrings } from "@/lib/billing/catalog";
 import { getLatestPortalQuizSubmissions, getAllPortalQuizSubmissions } from "@/lib/portal-quiz-submissions";
 import { getMemberBillingOverview, billingSummaryToAdminSubscription } from "@/lib/billing/member-billing-summary";
 import { calculateBiomarkerStatus } from "@/lib/biomarker-status";
+import {
+  hasPaidMemberJourney,
+  isProspectiveEnrollment,
+} from "@/lib/funnel/member-enrollment-phase";
+import { syncMemberQuizArtifacts } from "@/lib/portal/persist-prior-program-quiz";
 
 export async function GET(req: NextRequest) {
   try {
@@ -99,11 +108,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (!programMember && user.email) {
-      programMember = await prisma.programMember.findFirst({
-        where: { email: user.email },
-      });
-    }
+    await syncMemberQuizArtifacts(userId).catch((err) =>
+      console.warn("[customer-assessment] quiz artifact sync failed:", err)
+    );
+
+    programMember = await prisma.programMember.findFirst({
+      where: {
+        OR: [{ userId }, ...(user.email ? [{ email: user.email }] : [])],
+      },
+      orderBy: { updatedAt: "desc" },
+    });
 
     const patientTimezone =
       user.timezone ?? resolveAustralianTimezone(user.state, user.postcode) ?? CLINIC_TIMEZONE;
@@ -118,19 +132,28 @@ export async function GET(req: NextRequest) {
     const formatBookingTime = (scheduledAt: Date) =>
       formatTimeInTimezone(scheduledAt, patientTimezone);
 
-    const quizData =
-      (programMember?.intakeData as Record<string, unknown> | null) ||
-      (wmIntake?.quizData as Record<string, unknown> | null) ||
-      null;
+    const programIntakeData =
+      (programMember?.intakeData as Record<string, unknown> | null) || null;
+
+    const weightManagementQuizData = resolveWeightManagementQuizData({
+      wmIntakeQuizData: (wmIntake?.quizData as Record<string, unknown> | null) || null,
+      programMemberProgram: programMember?.program,
+      programMemberIntake: programIntakeData,
+    });
 
     const booking = user.consultationBookings?.[0];
 
-    // Build assessment data from quiz intake (ProgramMember or WeightManagementIntake)
+    // Build assessment data from weight management quiz intake only
     let assessment: Record<string, unknown> | null = null;
 
-    if (quizData) {
-      assessment = buildAssessmentFromQuizData(quizData, user, booking);
-    } else if (user.internalNotes && user.internalNotes.length > 0) {
+    if (weightManagementQuizData) {
+      assessment = buildAssessmentFromQuizData(weightManagementQuizData, user, booking);
+    } else if (
+      (user.subscriptionTier === "weight_management" ||
+        programMember?.program === "WEIGHT_MANAGEMENT") &&
+      user.internalNotes &&
+      user.internalNotes.length > 0
+    ) {
       // Build assessment from internal notes (created by intake API)
       const notes = user.internalNotes;
 
@@ -242,7 +265,10 @@ export async function GET(req: NextRequest) {
       }));
     }
 
-    const rawSurveyData = quizData;
+    const rawSurveyData = resolveLegacyHairSurveyData({
+      programMemberProgram: programMember?.program,
+      programMemberIntake: programIntakeData,
+    });
 
     const [
       biomarkerResults,
@@ -322,7 +348,9 @@ export async function GET(req: NextRequest) {
     });
 
     const fallbackSubscription =
-      !billingSummary && (firstPaidInvoice || user.subscriptionTier)
+      !billingSummary &&
+      (firstPaidInvoice ||
+        (user.subscriptionTier && hasPaidMemberJourney(user.journeyStatus)))
         ? {
             id: membershipSubscription?.id || null,
             planName:
@@ -407,6 +435,10 @@ export async function GET(req: NextRequest) {
       billingSummary,
       billingOverview,
       programSubscriptions,
+      isProspectiveEnrollment: isProspectiveEnrollment({
+        memberStatus: user.memberStatus,
+        journeyStatus: user.journeyStatus,
+      }),
       // Legacy subscription shape for backward compatibility
       subscription:
         programSubscriptions[0] ??

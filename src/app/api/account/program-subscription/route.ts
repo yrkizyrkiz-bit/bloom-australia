@@ -5,6 +5,7 @@ import {
   getBillingSummaryBySlug,
   getMemberBillingOverview,
 } from "@/lib/billing/member-billing-summary";
+import { resolveProgramSubscriptionGate } from "@/lib/billing/subscription-gate";
 
 export async function GET(request: Request) {
   try {
@@ -22,17 +23,26 @@ export async function GET(request: Request) {
     const summary = getBillingSummaryBySlug(overview, program);
 
     if (!summary) {
+      const gate = resolveProgramSubscriptionGate({
+        found: false,
+        programLabel: program,
+        reason: "not_found",
+      });
+
       return NextResponse.json({
         program,
         found: false,
-        subscriptionAccess: {
-          isActive: true,
-          isExpired: false,
-          expiresAt: null,
-          message: null,
-        },
+        billingKnown: gate.billingKnown,
+        gateAction: gate.gateAction,
+        subscriptionAccess: gate.subscriptionAccess,
       });
     }
+
+    const gate = resolveProgramSubscriptionGate({
+      found: true,
+      subscriptionAccess: summary.subscriptionAccess,
+      programLabel: summary.programLabel,
+    });
 
     return NextResponse.json({
       program: summary.program,
@@ -41,10 +51,26 @@ export async function GET(request: Request) {
       paidTill: summary.recurring.paidTill,
       recurringStatus: summary.recurring.status,
       found: true,
-      subscriptionAccess: summary.subscriptionAccess,
+      billingKnown: gate.billingKnown,
+      gateAction: gate.gateAction,
+      subscriptionAccess: gate.subscriptionAccess,
     });
   } catch (error) {
     console.error("[account/program-subscription]", error);
-    return NextResponse.json({ error: "Failed to load subscription" }, { status: 500 });
+
+    const gate = resolveProgramSubscriptionGate({
+      found: false,
+      reason: "load_error",
+    });
+
+    return NextResponse.json(
+      {
+        error: "Failed to load subscription",
+        billingKnown: gate.billingKnown,
+        gateAction: gate.gateAction,
+        subscriptionAccess: gate.subscriptionAccess,
+      },
+      { status: 500 }
+    );
   }
 }

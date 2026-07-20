@@ -338,8 +338,35 @@ export default function MensHealthPage() {
     <>
       <Header />
       <main className="min-h-screen bg-[#fdfbf7]">
-        {/* Hero Section - Bento Grid Layout */}
-        <section className="pt-4 pb-8 lg:pt-6 lg:pb-12 px-4 sm:px-6 lg:px-8 bg-[#fdfbf7]">
+        {/* Full-bleed hero — native 3:2 image ratio so desktop doesn't crop/zoom */}
+        <section className="relative w-full overflow-hidden bg-[#1a2218]">
+          <Image
+            src="/images/mens-health-hero.png"
+            alt="Man jogging at sunrise with Sanative biomarker health insights overlay"
+            width={1536}
+            height={1024}
+            priority
+            className="block w-full h-auto"
+            sizes="100vw"
+            quality={95}
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/40" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+
+          <div className="absolute inset-0 z-10 flex items-start justify-end px-5 sm:px-8 lg:px-14 pt-10 sm:pt-14 lg:pt-[8%] pb-8">
+            <div className="max-w-[min(100%,22rem)] sm:max-w-md lg:max-w-lg text-right animate-fade-in">
+              <h1 className="font-serif text-xl sm:text-2xl lg:text-3xl xl:text-4xl text-white leading-[1.15] drop-shadow-lg">
+                Better performance starts with better biomarkers
+              </h1>
+              <p className="mt-2 sm:mt-3 text-xs sm:text-sm lg:text-base text-white/85 leading-relaxed ml-auto max-w-sm">
+                Doctor-led men&apos;s health assessment guided by the markers that matter.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Program cards */}
+        <section id="programs" className="pt-10 pb-8 lg:pt-14 lg:pb-12 px-4 sm:px-6 lg:px-8 bg-[#fdfbf7]">
           <div className="max-w-7xl mx-auto">
             {/* Bento Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
@@ -353,7 +380,6 @@ export default function MensHealthPage() {
                   alt="Men's health - Weight management"
                   fill
                   className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
-                  priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#34412f]/90 via-[#34412f]/40 to-transparent transition-opacity duration-300 group-hover:from-[#34412f]/95" />
                 <div className="absolute inset-0 p-8 lg:p-10 flex flex-col justify-between">
@@ -378,7 +404,7 @@ export default function MensHealthPage() {
 
               {/* Biomarkers - Medium Card */}
               <Link
-                href="/labs"
+                href="/labs#from-sample-to-action-plan"
                 className="group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#4a6243] to-[#3d4f38] p-6 lg:p-8 min-h-[200px] lg:min-h-[320px] flex flex-col justify-between transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:from-[#3d4f38] hover:to-[#34412f] text-left"
               >
                 <div>
@@ -421,9 +447,9 @@ export default function MensHealthPage() {
                 </div>
               </Link>
 
-              {/* Sexual health — wide card */}
+              {/* Sexual health / ED — wide card */}
               <Link
-                href="/mens-health/sexual-health"
+                href="/mens-health/erectile-dysfunction"
                 className="md:col-span-2 group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#34412f] to-[#2c3628] p-6 lg:p-8 min-h-[160px] flex items-center justify-between transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:from-[#2c3628] hover:to-[#1f261c] text-left"
               >
                 <div>
@@ -431,10 +457,10 @@ export default function MensHealthPage() {
                     Confidential care
                   </span>
                   <h3 className="text-xl lg:text-2xl font-serif text-white">
-                    Sexual <span className="text-[#a8bb9e]">health</span>
+                    Erectile <span className="text-[#a8bb9e]">dysfunction</span>
                   </h3>
                   <p className="text-[#7e9a72] text-sm mt-2">
-                    Doctor-led assessment — care options discussed privately if clinically appropriate
+                    Symptoms, causes, and doctor-led assessment — care options discussed privately if clinically appropriate
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -514,13 +540,21 @@ export default function MensHealthPage() {
                   </div>
                 </div>
 
-                <Link
-                  href="/mens-health/assessment?concern=sexual-health"
-                  className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4"
-                >
-                  Start assessment
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Link
+                    href="/mens-health/assessment?concern=sexual-health"
+                    className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4"
+                  >
+                    Start assessment
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                  <Link
+                    href="/mens-health/erectile-dysfunction"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full border border-[#cdd8c6] text-[#2c3628] hover:bg-[#e6ebe3]/60 transition-colors font-medium"
+                  >
+                    Learn about ED
+                  </Link>
+                </div>
               </div>
 
               <div className="relative">

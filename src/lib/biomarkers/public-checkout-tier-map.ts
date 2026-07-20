@@ -22,8 +22,25 @@ export function billingTierToPublicTier(tier: BiomarkersPanelTier): BiomarkerSub
   }
 }
 
-/** Advanced and Complete panels bundle Organ Care entitlements. */
-export function panelIncludesOrganCare(tier: BiomarkerSubscriptionTier): boolean {
+/**
+ * Advanced and Complete public panels normally bundle Organ Care entitlements.
+ * Program funnels (hair / women's Advanced checkout) unlock biomarkers + that
+ * program only — not Organ Care.
+ */
+export function panelIncludesOrganCare(
+  tier: BiomarkerSubscriptionTier,
+  options?: { sourceProgram?: string | null }
+): boolean {
+  const source = options?.sourceProgram ?? null;
+  if (
+    source === "hair_loss" ||
+    source === "mens_health" ||
+    source === "womens_health" ||
+    source === "womens_health_sexual" ||
+    source === "womens_health_vitality"
+  ) {
+    return false;
+  }
   return tier === "advanced" || tier === "complete";
 }
 

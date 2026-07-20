@@ -80,6 +80,7 @@ export async function GET(req: NextRequest) {
     const dayOffset = Math.max(0, parseInt(searchParams.get("dayOffset") || "0", 10));
     const windowDays = Math.min(7, Math.max(1, parseInt(searchParams.get("windowDays") || "2", 10)));
     const staffMode = searchParams.get("staffMode") === "true";
+    const requestUserId = searchParams.get("userId")?.trim() || null;
 
     const now = new Date();
     const { windowStart, windowEnd, firstBookableDay } = getWindowBounds(
@@ -161,6 +162,7 @@ export async function GET(req: NextRequest) {
         scheduledAt: true,
         doctorId: true,
         status: true,
+        userId: true,
       },
     });
 
@@ -170,6 +172,15 @@ export async function GET(req: NextRequest) {
     const unifiedBookedTimes = new Set<number>();
 
     for (const booking of existingBookings) {
+      // Patient's own active hold should not block their selected slot in checkout
+      if (
+        requestUserId &&
+        booking.userId === requestUserId &&
+        booking.status === "SLOT_HELD"
+      ) {
+        continue;
+      }
+
       const timeKey = booking.scheduledAt.getTime();
 
       if (booking.doctorId) {

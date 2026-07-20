@@ -16,6 +16,7 @@ import {
 } from "@/lib/portal/stripe-subscription";
 import { prisma } from "@/lib/prisma";
 import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscription";
+import { syncMemberSubscriptionFromPaymentIntent } from "@/lib/billing/sync-payment-subscription";
 
 export type BiomarkersCheckoutIntentInput = {
   userId: string;
@@ -265,6 +266,19 @@ export async function activateBiomarkersPanelPurchase(params: {
   }
 
   if (
+    !params.addOrganCare
+  ) {
+    await syncMemberSubscriptionFromPaymentIntent({
+      userId: params.userId,
+      paymentIntentId: params.paymentIntentId,
+      changeType: "PORTAL_BIOMARKERS_PANEL",
+      extraMetadata: {
+        scope: "BIOLOGICAL_CLOCK",
+        panelTier: params.panelTier,
+        source: "portal_biomarkers",
+      },
+    }).catch((err) => console.error("[biomarkers] subscription sync failed:", err));
+  } else if (
     params.addOrganCare &&
     params.customerId &&
     params.panelBillingPriceId

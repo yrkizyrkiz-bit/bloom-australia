@@ -4,11 +4,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { scoreHairLoss, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import {
-  UnifiedCheckoutScreen,
-  type UnifiedSlot,
-  type UnifiedCheckoutPricing,
-} from "@/components/checkout/UnifiedCheckoutScreen";
-import { resolveAustralianTimezone } from "@/lib/australia-timezone";
+  navigateToProgramBiomarkersCheckout,
+  type ProgramBiomarkersCheckoutHandoff,
+} from "@/lib/funnel/program-biomarkers-checkout-handoff";
 import {
   getBiomarkerSubscriptionPlan,
   type BiomarkerSubscriptionTier,
@@ -34,6 +32,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
+import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
 import {
   buildLoginRedirectUrl,
   fetchExistingAccountFirstName,
@@ -126,26 +125,11 @@ function HairAnalyseStep({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-type DaySlots = {
-  date: Date;
-  dateStr: string;
-  dayName: string;
-  slots: UnifiedSlot[];
-};
-
 type GenderFilter = "all" | "male" | "female";
 
 type GenderedOption = {
   label: string;
   gender?: GenderFilter;
-};
-
-const HAIR_CHECKOUT_PRICING: UnifiedCheckoutPricing = {
-  planName: "Sanative Hair Care",
-  firstMonthList: 79,
-  dueToday: 49,
-  ongoingPrice: 79,
-  discount: 30,
 };
 
 // Hair stages for men (Norwood scale)
@@ -242,44 +226,54 @@ export default function HairAssessmentPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
+  const [showResumeVerification, setShowResumeVerification] = useState(false);
+  const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
   const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
-  const [bookingHoldId, setBookingHoldId] = useState<string | null>(null);
-  const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
-  const [holdCountdown, setHoldCountdown] = useState(0);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
-  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
-  const [creatingHold, setCreatingHold] = useState(false);
-  const [selectingSlotId, setSelectingSlotId] = useState<string | null>(null);
-  const [offerCountdown, setOfferCountdown] = useState(300);
-  const [portalMagicLink, setPortalMagicLink] = useState<string | null>(null);
 
   // Fetch biomarker campaigns on mount
   useEffect(() => {
     fetchBiomarkerCampaigns('HAIR_LOSS').then(setCampaigns);
   }, []);
 
-  // After postcode: analyse → BiomarkerSnapshot → shipping → checkout → thank you
+  // After postcode: analyse → BiomarkerSnapshot → biomarkers checkout (Architecture A)
   const postcodeStep = formData.gender === "female" ? 12 : 11;
   const analyseStep = postcodeStep + 1;
   const snapshotStep = postcodeStep + 2;
-  const shippingStep = postcodeStep + 3;
-  const checkoutStep = postcodeStep + 4;
-  const thankYouStep = postcodeStep + 5;
-  const totalSteps = thankYouStep;
+  const totalSteps = snapshotStep + 1;
   const progress = ((step + 1) / totalSteps) * 100;
 
   const resolvedPanelTier = formData.panelTier || "advanced";
   const resolvedPanelPlan = getBiomarkerSubscriptionPlan(resolvedPanelTier);
-  const hairCheckoutValueProps = useMemo(
-    () => [
-      `${resolvedPanelPlan.name} panel included (${resolvedPanelPlan.markerCount}+ markers)`,
-      "Doctor-led hair assessment",
-      "Treatment if clinically prescribed",
-      "Care team support in your portal",
-    ],
-    [resolvedPanelPlan]
-  );
+
+  const handleContinueToBiomarkersCheckout = async (options?: {
+    resumeVerificationToken?: string;
+  }) => {
+    const saved = await saveHairIntake(options);
+    if (!saved) return;
+
+    const panelTier = resolvedPanelTier;
+    const handoff: ProgramBiomarkersCheckoutHandoff = {
+      source: "hair_loss",
+      skipQuiz: true,
+      panelTier,
+      programLabel: "Hair Loss",
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      dateOfBirth: formData.dateOfBirth,
+      postcode: formData.postcode,
+      gender: formData.gender || undefined,
+      quizAnswers: {
+        ...formData,
+        panelTier,
+        billingPanelTier: publicTierToBillingTier(panelTier),
+        canonicalProgramKey: "HAIR_LOSS",
+      },
+    };
+    navigateToProgramBiomarkersCheckout(handoff);
+  };
 
   const handleAnalyseComplete = useCallback(() => {
     const panelTier = resolveRequiredPanelTier("HAIR_LOSS");
@@ -287,10 +281,6 @@ export default function HairAssessmentPage() {
     setStep(snapshotStep);
     window.scrollTo(0, 0);
   }, [snapshotStep]);
-  const patientTimezone = useMemo(
-    () => resolveAustralianTimezone(formData.state, formData.postcode),
-    [formData.state, formData.postcode]
-  );
   const filteredMedicalConditions = useMemo(
     () =>
       medicalConditions.filter(
@@ -323,36 +313,6 @@ export default function HairAssessmentPage() {
       pregnancyStatus: prev.gender === "female" ? prev.pregnancyStatus : "",
     }));
   }, [filteredMedicalConditions, filteredOtherConcernsOptions, formData.gender]);
-
-  useEffect(() => {
-    if (offerCountdown > 0 && step >= checkoutStep) {
-      const timer = setInterval(() => {
-        setOfferCountdown((prev) => Math.max(0, prev - 1));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [checkoutStep, offerCountdown, step]);
-
-  useEffect(() => {
-    if (!holdExpiry) return;
-    const timer = setInterval(() => {
-      const remaining = Math.max(
-        0,
-        Math.floor((holdExpiry.getTime() - Date.now()) / 1000)
-      );
-      setHoldCountdown(remaining);
-      if (remaining === 0) {
-        setBookingHoldId(null);
-        setHoldExpiry(null);
-        updateFormData("selectedSlotId", "");
-        updateFormData("consultationDate", "");
-        updateFormData("consultationTime", "");
-        setSlotsRefreshKey((k) => k + 1);
-        clearInterval(timer);
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [holdExpiry]);
 
   const updateFormData = (field: keyof FormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -408,26 +368,12 @@ export default function HairAssessmentPage() {
         if (formData.gender === "female") return formData.otherConcerns.length > 0;
         return formData.postcode.length >= 4;
       case 12: return formData.postcode.length >= 4;
-      case shippingStep:
-        return Boolean(
-          formData.phone.trim() &&
-          formData.lastName.trim() &&
-          formData.streetAddress.trim() &&
-          formData.suburb.trim() &&
-          formData.state.trim() &&
-          formData.postcode.length >= 4
-        );
-      case checkoutStep: return true;
       default: return true;
     }
   };
 
   const nextStep = async () => {
-    if (canProceed() && step < totalSteps) {
-      if (step === shippingStep) {
-        const saved = await saveHairIntake();
-        if (!saved) return;
-      }
+    if (canProceed() && step < totalSteps - 1) {
       setStep(step + 1);
       window.scrollTo(0, 0);
     }
@@ -442,45 +388,61 @@ export default function HairAssessmentPage() {
 
   const handleUseDifferentEmail = () => {
     setShowExistingAccountPrompt(false);
+    setShowResumeVerification(false);
     setExistingUserFirstName(null);
+    setResumeVerificationFirstName(null);
     setSubmissionError(null);
     updateFormData("email", "");
     setStep(2);
     window.scrollTo(0, 0);
   };
 
-  const saveHairIntake = async (): Promise<boolean> => {
+  const saveHairIntake = async (options?: {
+    resumeVerificationToken?: string;
+  }): Promise<boolean> => {
     setIsSubmitting(true);
     setSubmissionError(null);
     setShowExistingAccountPrompt(false);
     try {
       const panelTier = formData.panelTier || resolveRequiredPanelTier("HAIR_LOSS");
-      const result = await submitPublicIntake({
-        programType: "HAIR_LOSS",
-        ...formData,
-        panelTier,
-        billingPanelTier: publicTierToBillingTier(panelTier),
-        selectedPlan: "hair_care",
-        completedAt: new Date().toISOString(),
-      });
+      const result = await submitPublicIntake(
+        {
+          programType: "HAIR_LOSS",
+          ...formData,
+          panelTier,
+          billingPanelTier: publicTierToBillingTier(panelTier),
+          selectedPlan: "advanced_panel",
+          completedAt: new Date().toISOString(),
+        },
+        { resumeVerificationToken: options?.resumeVerificationToken }
+      );
 
       if (result.ok) {
         setUserId(result.userId);
-        toast.success("Details saved", {
-          description: "Now choose your consultation time.",
+        setShowResumeVerification(false);
+        toast.success("Assessment saved", {
+          description: "Continue to secure checkout and book your doctor consultation.",
         });
         return true;
       }
 
-      if (result.emailExists) {
+      if ("resumeVerificationRequired" in result && result.resumeVerificationRequired) {
+        setResumeVerificationFirstName(result.firstName ?? null);
+        setShowResumeVerification(true);
+        return false;
+      }
+
+      if ("emailExists" in result && result.emailExists) {
         const firstName = await fetchExistingAccountFirstName(formData.email);
         setExistingUserFirstName(firstName);
         setShowExistingAccountPrompt(true);
         return false;
       }
 
-      setSubmissionError(result.message);
-      toast.error("Could not save your details", { description: result.message });
+      setSubmissionError("message" in result ? result.message : "Could not save your details");
+      toast.error("Could not save your details", {
+        description: "message" in result ? result.message : undefined,
+      });
       return false;
     } catch (error) {
       const message =
@@ -491,130 +453,6 @@ export default function HairAssessmentPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const formatSlotDate = (isoString: string) =>
-    new Date(isoString).toLocaleDateString("en-AU", {
-      timeZone: patientTimezone,
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    });
-
-  const formatSlotTime = (isoString: string) =>
-    new Date(isoString).toLocaleTimeString("en-AU", {
-      timeZone: patientTimezone,
-      hour: "numeric",
-      minute: "2-digit",
-    });
-
-  const handleSlotSelection = async (slot: UnifiedSlot) => {
-    if (slot.availabilityStatus === "BOOKED" || creatingHold) return;
-    if (formData.selectedSlotId === slot.slotId) return;
-
-    const previousHoldId = bookingHoldId;
-    const previousSlotId = formData.selectedSlotId;
-    setCreatingHold(true);
-    setSelectingSlotId(slot.slotId);
-    setSlotsError(null);
-
-    try {
-      updateFormData("selectedSlotId", slot.slotId);
-      updateFormData("consultationDate", formatSlotDate(slot.startTime));
-      updateFormData("consultationTime", formatSlotTime(slot.startTime));
-
-      const response = await fetch("/api/bookings/hold", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userId || undefined,
-          slotId: slot.slotId,
-          programType: "HAIR_LOSS",
-          patientPhone: formData.phone || undefined,
-          riskFlags: ["HAIR_LOSS_PROGRAM"],
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to reserve this time");
-      }
-
-      setBookingHoldId(data.bookingHoldId);
-      setHoldExpiry(new Date(data.holdExpiryTime));
-      setSlotsRefreshKey((k) => k + 1);
-
-      if (previousHoldId && previousHoldId !== data.bookingHoldId) {
-        fetch(`/api/bookings/hold?holdId=${previousHoldId}`, {
-          method: "DELETE",
-        }).catch(() => {});
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to reserve this time";
-      setSlotsError(message);
-      updateFormData("selectedSlotId", previousSlotId);
-      if (!previousSlotId) {
-        updateFormData("consultationDate", "");
-        updateFormData("consultationTime", "");
-      }
-      setBookingHoldId(previousHoldId);
-      toast.error("Could not reserve this slot", { description: message });
-    } finally {
-      setCreatingHold(false);
-      setSelectingSlotId(null);
-    }
-  };
-
-  const handleCheckoutPaymentSuccess = async (result: {
-    paymentIntentId?: string;
-    consentRecordId: string;
-  }) => {
-    if (!bookingHoldId) {
-      setStep(thankYouStep);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/bookings/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookingHoldId,
-          paymentIntentId: result.paymentIntentId || "pi_hair_manual_confirmation",
-          consentRecordId: result.consentRecordId,
-          userId,
-          clientOrigin:
-            typeof window !== "undefined" ? window.location.origin : undefined,
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        if (data.magicLink) setPortalMagicLink(data.magicLink);
-        toast.success("Booking confirmed", {
-          description: `Your consultation is scheduled for ${formData.consultationDate} at ${formData.consultationTime}`,
-        });
-      } else {
-        toast.success("Payment successful", {
-          description: data.error || "Your consultation will be confirmed shortly.",
-        });
-      }
-    } catch (error) {
-      console.error("[Hair Assessment] Booking confirmation error:", error);
-      toast.success("Payment successful", {
-        description: "Your consultation will be confirmed shortly.",
-      });
-    } finally {
-      setBookingHoldId(null);
-      setHoldExpiry(null);
-      setStep(thankYouStep);
-      window.scrollTo(0, 0);
-    }
-  };
-
-  const handleCheckoutPaymentError = (error: string) => {
-    toast.error("Payment failed", { description: error });
   };
 
   const renderStep = () => {
@@ -652,52 +490,17 @@ export default function HairAssessmentPage() {
             tagline: panelPlan.tagline,
             highlights: panelPlan.highlights,
             onSelect: () => {
-              try {
-                sessionStorage.setItem(
-                  "hair_biomarkers_checkout",
-                  JSON.stringify({
-                    source: "hair_loss",
-                    skipQuiz: true,
-                    panelTier: panelPackage,
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    email: formData.email,
-                    phone: formData.phone,
-                    dateOfBirth: formData.dateOfBirth,
-                    postcode: formData.postcode,
-                    gender: formData.gender,
-                    hairQuizAnswers: formData,
-                  })
-                );
-              } catch {
-                // sessionStorage may be unavailable; checkout still works without prefill
-              }
-              window.location.href =
-                `/biomarkers/checkout?package=${panelPackage}&source=hair_loss&skipQuiz=1`;
+              void handleContinueToBiomarkersCheckout();
             },
           }}
           onPrimary={() => {
-            setStep(shippingStep);
-            window.scrollTo(0, 0);
+            void handleContinueToBiomarkersCheckout();
           }}
           onLabs={() => {
-            window.location.href =
-              `/biomarkers/checkout?package=${panelPackage}&source=hair_loss&skipQuiz=1`;
+            void handleContinueToBiomarkersCheckout();
           }}
         />
       );
-    }
-
-    if (step === shippingStep) {
-      return renderHairDetailsStep();
-    }
-
-    if (step === checkoutStep) {
-      return renderHairCheckoutStep();
-    }
-
-    if (step === thankYouStep) {
-      return renderThankYouStep();
     }
 
     switch (step) {
@@ -1197,192 +1000,6 @@ export default function HairAssessmentPage() {
     }
   };
 
-  const renderHairDetailsStep = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
-          Where should we send your treatment if prescribed?
-        </h1>
-        <p className="mt-3 text-[#5c7a52]">
-          We use this for delivery, timezone and care team triage.
-        </p>
-      </div>
-
-      {submissionError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">
-          {submissionError}
-        </div>
-      )}
-
-      <div className="space-y-4 mt-8">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-[#2c3628] mb-2">
-              Last name
-            </label>
-            <input
-              type="text"
-              value={formData.lastName}
-              onChange={(e) => updateFormData("lastName", e.target.value)}
-              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#2c3628] mb-2">
-              Mobile number
-            </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => updateFormData("phone", e.target.value)}
-              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
-              placeholder="04XX XXX XXX"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-[#2c3628] mb-2">
-            Street address
-          </label>
-          <input
-            type="text"
-            value={formData.streetAddress}
-            onChange={(e) => updateFormData("streetAddress", e.target.value)}
-            className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
-            placeholder="Street address"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-[#2c3628] mb-2">
-            Apartment/unit (optional)
-          </label>
-          <input
-            type="text"
-            value={formData.addressUnit}
-            onChange={(e) => updateFormData("addressUnit", e.target.value)}
-            className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
-          />
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-[#2c3628] mb-2">
-              Suburb
-            </label>
-            <input
-              type="text"
-              value={formData.suburb}
-              onChange={(e) => updateFormData("suburb", e.target.value)}
-              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#2c3628] mb-2">
-              State
-            </label>
-            <select
-              value={formData.state}
-              onChange={(e) => updateFormData("state", e.target.value)}
-              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
-            >
-              <option value="">Select</option>
-              {["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"].map((state) => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#2c3628] mb-2">
-              Postcode
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={formData.postcode}
-              onChange={(e) => updateFormData("postcode", e.target.value.replace(/\D/g, "").slice(0, 4))}
-              className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white"
-              maxLength={4}
-            />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-[#e6ebe3] p-4">
-          <p className="font-semibold text-[#2c3628]">Hair Care plan</p>
-          <p className="text-sm text-[#5c7a52] mt-1">
-            $49 first month with a $30 first-month discount, then $79/month if clinically approved.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderHairCheckoutStep = () => (
-    <UnifiedCheckoutScreen
-      formData={{
-        consultationDate: formData.consultationDate,
-        consultationTime: formData.consultationTime,
-        selectedSlotId: formData.selectedSlotId,
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-      }}
-      userId={userId}
-      bookingHoldId={bookingHoldId}
-      holdCountdown={holdCountdown}
-      offerCountdown={offerCountdown}
-      slotsError={slotsError}
-      slotsRefreshKey={slotsRefreshKey}
-      creatingHold={creatingHold}
-      selectingSlotId={selectingSlotId}
-      onSlotSelect={handleSlotSelection}
-      onSlotsError={setSlotsError}
-      onPaymentSuccess={handleCheckoutPaymentSuccess}
-      onPaymentError={handleCheckoutPaymentError}
-      patientTimezone={patientTimezone}
-      pricing={HAIR_CHECKOUT_PRICING}
-      valueProps={hairCheckoutValueProps}
-      programType="hair_loss"
-    />
-  );
-
-  const renderThankYouStep = () => (
-    <div className="text-center space-y-6">
-      <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center">
-        <Check className="w-10 h-10 text-white" />
-      </div>
-      <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
-        You're booked in
-      </h1>
-      <p className="text-[#5c7a52] max-w-md mx-auto">
-        Your hair care questionnaire is with our care team for triage. A doctor will review your suitability before treatment is prescribed.
-      </p>
-      <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5 text-left space-y-3">
-        <p className="font-semibold text-[#2c3628]">What happens next</p>
-        {[
-          "Care team triage with a Hair Loss badge",
-          "Doctor consultation at your selected time",
-          "Hair module access in your portal if clinically appropriate",
-        ].map((item) => (
-          <div key={item} className="flex items-center gap-2 text-sm text-[#5c7a52]">
-            <Check className="w-4 h-4" />
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-      {portalMagicLink && (
-        <a
-          href={portalMagicLink}
-          className="btn-primary inline-flex items-center justify-center gap-2"
-        >
-          Go to portal
-          <ArrowRight className="w-5 h-5" />
-        </a>
-      )}
-    </div>
-  );
-
   const renderOtherConcerns = () => (
     <div className="space-y-6">
       <div className="text-center">
@@ -1446,7 +1063,7 @@ export default function HairAssessmentPage() {
     </div>
   );
 
-  const isCheckoutLayout = step === checkoutStep;
+  const isCheckoutLayout = false;
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
@@ -1483,10 +1100,9 @@ export default function HairAssessmentPage() {
       </main>
 
       {/* Bottom navigation */}
-      {step < totalSteps &&
+      {step < totalSteps - 1 &&
         step !== analyseStep &&
-        step !== snapshotStep &&
-        step !== checkoutStep && (
+        step !== snapshotStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
             {step > 0 && (
@@ -1508,9 +1124,7 @@ export default function HairAssessmentPage() {
                 ? "Saving..."
                 : step === 0
                   ? "Let's begin"
-                  : step === shippingStep
-                    ? "Continue to booking"
-                    : "Continue"}
+                  : "Continue"}
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>
@@ -1568,6 +1182,16 @@ export default function HairAssessmentPage() {
         open={showExistingAccountPrompt}
         firstName={existingUserFirstName}
         loginHref={buildLoginRedirectUrl("/dashboard/mens-health/hair-loss")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+      />
+
+      <ProspectiveMemberResumeVerification
+        open={showResumeVerification}
+        email={formData.email}
+        firstName={resumeVerificationFirstName}
+        onVerified={async (sessionToken) => {
+          await handleContinueToBiomarkersCheckout({ resumeVerificationToken: sessionToken });
+        }}
         onUseDifferentEmail={handleUseDifferentEmail}
       />
 

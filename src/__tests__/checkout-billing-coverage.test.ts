@@ -70,20 +70,38 @@ describe("checkout billing coverage", () => {
     expect(source).toContain('status: "ACTIVE"');
   });
 
-  it("hair-loss public biomarkers path does not bundle Organ Care", () => {
+  it("hair-loss and women's public biomarkers paths do not bundle Organ Care", () => {
     const tierMap = readSource("lib/biomarkers/public-checkout-tier-map.ts");
     const purchase = readSource("lib/portal/public-biomarkers-purchase.ts");
-    expect(tierMap).toContain('sourceProgram === "hair_loss"');
+    expect(tierMap).toContain('source === "hair_loss"');
+    expect(tierMap).toContain('source === "womens_health"');
     expect(purchase).toContain("shouldBundleOrganCare");
     expect(purchase).toContain("revokeEntitlement");
+    expect(purchase).toContain("fromWomensHealth");
   });
 
-  it("hair-loss public biomarkers enrollment stays in pre-triage and saves hair quiz", () => {
+  it("hair-loss / women's / men's public biomarkers keep one In Triage booking", () => {
     const purchase = readSource("lib/portal/public-biomarkers-purchase.ts");
-    expect(purchase).toContain("ensureHairLossMemberRecords");
-    expect(purchase).toContain('journeyStatus: "PRE_TRIAGE_PENDING"');
-    expect(purchase).toContain("bookingLinkedTriage");
-    expect(purchase).toContain("savePublicFunnelQuizFromIntake");
+    const handoff = readSource("lib/funnel/program-biomarkers-checkout-handoff.ts");
+    const consultType = readSource("lib/funnel/resolve-consult-program-type.ts");
+    expect(handoff).toContain("navigateToProgramBiomarkersCheckout");
+    expect(handoff).toContain("PROGRAM_BIOMARKERS_CHECKOUT_KEY");
+    expect(consultType).toContain("resolveConsultProgramType");
+    expect(purchase).toContain("fromMensHealth");
+    expect(purchase).toContain("memberHasConsultInTriage");
+    expect(purchase).toContain("keepSingleInTriageBooking");
+  });
+
+  it("public consult promote sets In Triage without creating PreTriageTask", () => {
+    const source = readSource("lib/funnel/program-pre-triage.ts");
+    expect(source).toContain('journeyStatus: "PRE_TRIAGE_PENDING"');
+    expect(source).toContain("New ${input.program.label} in triage");
+    // createProgramPreTriageTask must not create queue rows (onboarding helper still may)
+    const createProgramFn = source.slice(
+      source.indexOf("export async function createProgramPreTriageTask"),
+      source.indexOf("export async function createOnboardingPreTriageTask")
+    );
+    expect(createProgramFn).not.toContain("preTriageTask.create");
   });
 
   it("consult-first and public biomarkers grant panel entitlements at payment", () => {

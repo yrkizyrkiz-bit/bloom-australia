@@ -16,6 +16,7 @@ import {
 } from "@/lib/portal/stripe-subscription";
 import { prisma } from "@/lib/prisma";
 import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscription";
+import { syncMemberSubscriptionFromPaymentIntent } from "@/lib/billing/sync-payment-subscription";
 
 export type OrganCareCheckoutIntentInput = {
   userId: string;
@@ -224,6 +225,7 @@ export async function activateOrganCarePurchase(params: {
   customerId?: string;
   organBillingPriceId?: string;
   panelBillingPriceId?: string;
+  subscriptionId?: string;
 }) {
   if (await hasProcessedPortalPayment(params.paymentIntentId)) {
     return { alreadyProcessed: true as const };
@@ -254,7 +256,18 @@ export async function activateOrganCarePurchase(params: {
     });
   }
 
-  if (params.customerId && params.organBillingPriceId) {
+  if (!params.addBiomarkers) {
+    await syncMemberSubscriptionFromPaymentIntent({
+      userId: params.userId,
+      paymentIntentId: params.paymentIntentId,
+      changeType: "PORTAL_ORGAN_CARE",
+      extraMetadata: {
+        scope: "ORGAN_CARE",
+        organCareTerm: params.organCareTerm,
+        source: "portal_organ_care",
+      },
+    }).catch((err) => console.error("[organ-care] subscription sync failed:", err));
+  } else if (params.customerId && params.organBillingPriceId) {
     await ensureOrganCareSubscriptions({
       userId: params.userId,
       customerId: params.customerId,
@@ -319,5 +332,6 @@ export async function confirmOrganCarePayment(params: {
     customerId: typeof pi.customer === "string" ? pi.customer : pi.customer?.id,
     organBillingPriceId: pi.metadata.organBillingPriceId,
     panelBillingPriceId: pi.metadata.panelBillingPriceId || undefined,
+    subscriptionId: pi.metadata.subscriptionId || undefined,
   });
 }

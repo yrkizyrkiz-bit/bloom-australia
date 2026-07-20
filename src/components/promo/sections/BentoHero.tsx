@@ -16,15 +16,64 @@ export function BentoHero() {
   };
 
   return (
-    <section className="py-8 lg:py-12 px-4 sm:px-6 lg:px-8 bg-[#fdfbf7]">
-      <div className="max-w-7xl mx-auto">
-        {/* Main Heading */}
-        <div className="text-center mb-8 lg:mb-12">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-[#2c3628] leading-tight">
-            Australia&apos;s finest doctors. One <span className="text-gradient italic">complete</span> care ecosystem.
-          </h1>
-        </div>
+    <section className="bg-[#fdfbf7]">
+      {/* Full-bleed responsive banner — replaces headline */}
+      <div className="relative w-full overflow-hidden">
+        <h1 className="sr-only">
+          Australia&apos;s finest doctors. One complete care ecosystem.
+        </h1>
+        <picture>
+          {/* Mobile — same composition as desktop so slogan placement stays aligned */}
+          <source
+            media="(max-width: 767px)"
+            srcSet={[
+              "/images/home/banner-mobile-480.webp?v=21 480w",
+              "/images/home/banner-mobile-768.webp?v=21 768w",
+              "/images/home/banner-mobile-1200.webp?v=21 1200w",
+            ].join(", ")}
+            sizes="100vw"
+          />
+          {/* Desktop / ultra-wide — include full-res source for sharpness */}
+          <source
+            media="(min-width: 768px)"
+            srcSet={[
+              "/images/home/banner-desktop-768.webp?v=21 768w",
+              "/images/home/banner-desktop-1200.webp?v=21 1200w",
+              "/images/home/banner-desktop-1600.webp?v=21 1600w",
+              "/images/home/banner-desktop-2160.webp?v=21 2160w",
+              "/images/home/banner-desktop-full.webp?v=21 2172w",
+            ].join(", ")}
+            sizes="100vw"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/home/banner-desktop-full.webp?v=21"
+            alt="Sanative biomarkers dashboard — Health Score, Biological Age, and biomarker insights"
+            width={2172}
+            height={724}
+            className="block h-auto w-full object-cover object-center"
+            decoding="async"
+            fetchPriority="high"
+          />
+        </picture>
 
+        {/* Slogan — Labs section type; inline offsets so it always overlays the image */}
+        <p
+          className="pointer-events-none absolute z-20 m-0 max-w-[55%] text-left font-serif leading-tight text-[#2c3628] sm:max-w-[42%] md:max-w-[38%]"
+          style={{
+            top: "14%",
+            left: "58%",
+            fontSize: "clamp(1rem, 2.8vw, 2.25rem)",
+            textShadow: "0 1px 2px rgba(253,251,247,0.85)",
+          }}
+        >
+          Doctor-led care with
+          <br />
+          <span className="italic text-[#5c7a52]">biomarker insights</span>
+        </p>
+      </div>
+
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
           {/* Weight Management - Large Card */}
           <Link
@@ -64,24 +113,17 @@ export function BentoHero() {
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#4a6243] text-white rounded-full">
                   <Beaker className="w-3 h-3" />
-                  80+ Biomarkers
+                  65+ Biomarkers
                 </span>
               </div>
               <h3 className="text-xl lg:text-2xl font-serif text-[#2c3628] leading-tight">
-                Biomarker
-                <br /><span className="text-[#4a6243]">Labs</span>
+                Check your health
+                <br /><span className="text-[#4a6243]">every year</span>
               </h3>
               <p className="text-[#4a6243] text-sm mt-3 leading-relaxed">
-                Comprehensive blood testing with AI-powered insights and personalised health reports.
+                Starting with 65+ lab tests detecting 500+ conditions. Just $350 per year—{" "}
+                <span className="italic font-medium text-[#2c3628]">under $1 per day</span>.
               </p>
-              <div className="mt-4 flex items-center gap-3">
-                <div className="flex -space-x-1">
-                  <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">L</div>
-                  <div className="w-6 h-6 rounded-full bg-sky-400 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">K</div>
-                  <div className="w-6 h-6 rounded-full bg-red-400 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">H</div>
-                </div>
-                <span className="text-[#4a6243] text-xs">Liver, Kidney, Heart & more</span>
-              </div>
             </div>
 
             <div className="relative flex items-center justify-between mt-4">

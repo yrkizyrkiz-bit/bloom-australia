@@ -149,6 +149,39 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     return;
   }
 
+  if (portalSource === "public_biomarkers") {
+    const userId = paymentIntent.metadata.userId;
+    if (userId) {
+      const { syncMemberSubscriptionFromPaymentIntent } = await import(
+        "@/lib/billing/sync-payment-subscription"
+      );
+      await syncMemberSubscriptionFromPaymentIntent({
+        userId,
+        paymentIntentId: paymentIntent.id,
+        changeType: "PUBLIC_BIOMARKERS_WEBHOOK",
+        extraMetadata: {
+          scope: "BIOLOGICAL_CLOCK",
+          source: "public_biomarkers",
+        },
+      }).catch((err) =>
+        console.error("[webhook] public_biomarkers subscription sync failed:", err)
+      );
+    }
+    return;
+  }
+
+  if (portalSource === "portal_organ_care") {
+    const { confirmOrganCarePayment } = await import("@/lib/portal/organ-care-purchase");
+    const userId = paymentIntent.metadata.userId;
+    if (userId) {
+      await confirmOrganCarePayment({
+        userId,
+        paymentIntentId: paymentIntent.id,
+      }).catch((err) => console.error("[webhook] portal_organ_care activation failed:", err));
+    }
+    return;
+  }
+
   if (paymentIntent.metadata?.type === "organ_care_membership") {
     const { activateOrganCarePublicMembership } = await import(
       "@/lib/portal/organ-care-membership"

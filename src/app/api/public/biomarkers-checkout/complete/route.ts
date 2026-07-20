@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completePublicBiomarkersEnrollment } from "@/lib/portal/public-biomarkers-purchase";
+import { loadPriorQuizAnswersForEnrollment } from "@/lib/portal/persist-prior-program-quiz";
 import {
   derivePublicBiomarkersPanelQuizResult,
   publicBiomarkersQuizMissingAnswers,
@@ -59,10 +60,14 @@ export async function POST(request: NextRequest) {
         }
       : derivePublicBiomarkersPanelQuizResult(publicPanelTier, answers, user.gender);
 
-    const priorQuizAnswers =
-      typeof body?.priorQuizAnswers === "object" && body.priorQuizAnswers
-        ? (body.priorQuizAnswers as Record<string, unknown>)
-        : undefined;
+    const priorQuizAnswers = await loadPriorQuizAnswersForEnrollment({
+      userId,
+      sourceProgram,
+      bodyPriorQuizAnswers:
+        typeof body?.priorQuizAnswers === "object" && body.priorQuizAnswers
+          ? (body.priorQuizAnswers as Record<string, unknown>)
+          : undefined,
+    });
 
     // Biomarkers panel quiz (or skip marker). Hair answers are saved separately as HAIR_LOSS.
     await savePortalQuizSubmission({

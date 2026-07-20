@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verify } from "jsonwebtoken";
 import { SYDNEY_TZ, toSydneyISO } from "@/lib/sydney-time";
+import { journeyStatusAfterSlotHold } from "@/lib/funnel/booking-hold-journey";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
 
@@ -269,11 +270,21 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Update user journey status
-      await prisma.user.update({
-        where: { id: userId },
-        data: { journeyStatus: "CONSULTATION_BOOKING_STARTED" },
-      });
+      // Update user journey status only during pre-payment booking — never regress triage.
+      const nextJourneyStatus = journeyStatusAfterSlotHold(
+        (
+          await prisma.user.findUnique({
+            where: { id: userId },
+            select: { journeyStatus: true },
+          })
+        )?.journeyStatus
+      );
+      if (nextJourneyStatus) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { journeyStatus: nextJourneyStatus },
+        });
+      }
     }
 
     const response: HoldResponse = {

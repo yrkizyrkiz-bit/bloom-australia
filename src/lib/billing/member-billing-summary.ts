@@ -28,6 +28,10 @@ import {
   type SubscriptionAccessStatus,
 } from "./paid-till";
 import { PROGRAM_SLUG } from "./program-slugs";
+import {
+  canDiscoverBillingFromProgramIntake,
+  PAID_MEMBER_JOURNEY_STATUSES,
+} from "@/lib/funnel/member-enrollment-phase";
 
 export { programSlugFromProgramKey } from "./program-slugs";
 
@@ -91,28 +95,7 @@ export type MemberBillingOverview = {
   journeyLabel: string;
 };
 
-const PAID_JOURNEY = new Set([
-  "CONSULTATION_PAID",
-  "PRE_TRIAGE_PENDING",
-  "PRE_TRIAGE_COMPLETE",
-  "AWAITING_DOCTOR_CALL",
-  "CONSULT_COMPLETED",
-  "AWAITING_DOCTOR_DECISION",
-  "APPROVED_PENDING_TESTS",
-  "TESTS_ORDERED",
-  "AWAITING_TESTS",
-  "RESULTS_RECEIVED",
-  "FINAL_DOCTOR_REVIEW",
-  "APPROVED",
-  "SCRIPT_WRITTEN",
-  "PHARMACY_PENDING",
-  "DISPENSING",
-  "SHIPPED",
-  "DELIVERED",
-  "ONBOARDING_PENDING",
-  "ONBOARDING_COMPLETE",
-  "ACTIVE",
-]);
+const PAID_JOURNEY = PAID_MEMBER_JOURNEY_STATUSES;
 
 const APPROVED_JOURNEY = new Set([
   "APPROVED",
@@ -228,12 +211,15 @@ function discoverBillingProgramKeys(input: {
   entitlements: Array<{ key: string; status: string }>;
   memberSubs: Array<{ product: { program: string } }>;
   hasWeightIntake: boolean;
+  journeyStatus: string;
 }): ProgramKey[] {
   const keys = new Set<ProgramKey>();
 
-  for (const pm of input.programMembers) {
-    const key = resolveProgramMemberProgramKey(pm);
-    if (key) keys.add(key);
+  if (canDiscoverBillingFromProgramIntake(input.journeyStatus)) {
+    for (const pm of input.programMembers) {
+      const key = resolveProgramMemberProgramKey(pm);
+      if (key) keys.add(key);
+    }
   }
 
   for (const entitlement of input.entitlements) {
@@ -900,6 +886,7 @@ export async function getMemberBillingOverview(
     entitlements: programEntitlements,
     memberSubs,
     hasWeightIntake: !!intake,
+    journeyStatus: user.journeyStatus,
   });
 
   const scopeKeys = discoverScopeBillingKeys({

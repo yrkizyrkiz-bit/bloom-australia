@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Info } from "lucide-react";
 import {
-  getTierBiomarkersForDisplay,
+  getFunctionStyleCategoriesForTier,
   type PanelBiomarkerDisplay,
 } from "@/lib/biomarkers/panel-biomarker-display";
 import type { BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscription-panels";
@@ -76,7 +76,7 @@ function BiomarkerCard({
 }
 
 export function PanelBiomarkerPreview({ tier, planName, planTagline, markerCount }: Props) {
-  const biomarkers = useMemo(() => getTierBiomarkersForDisplay(tier), [tier]);
+  const categories = useMemo(() => getFunctionStyleCategoriesForTier(tier), [tier]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
@@ -98,23 +98,36 @@ export function PanelBiomarkerPreview({ tier, planName, planTagline, markerCount
         </div>
       </div>
 
-      <div className="relative pt-2">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {biomarkers.map((marker) => (
-            <div key={marker.id} className="group relative">
-              <BiomarkerCard
-                marker={marker}
-                expanded={expandedId === marker.id}
-                onToggle={() =>
-                  setExpandedId((current) => (current === marker.id ? null : marker.id))
-                }
-              />
-              <div className="pointer-events-none absolute bottom-full left-0 right-0 z-20 mb-2 hidden rounded-xl border border-[#e6ebe3] bg-white p-3 shadow-lg [@media(hover:hover)]:group-hover:block">
-                <p className="text-sm leading-relaxed text-[#5c7a52]">{marker.description}</p>
-              </div>
+      <div className="relative space-y-8 pt-2">
+        {categories.map((category) => (
+          <div key={category.id}>
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h3 className="font-serif text-lg text-[#2c3628] sm:text-xl">{category.name}</h3>
+              <span className="text-xs text-[#7e9a72]">
+                {category.markerCount} marker{category.markerCount === 1 ? "" : "s"}
+              </span>
             </div>
-          ))}
-        </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {category.markers.map((marker) => {
+                const expandKey = `${category.id}:${marker.id}`;
+                return (
+                  <div key={expandKey} className="group relative">
+                    <BiomarkerCard
+                      marker={marker}
+                      expanded={expandedId === expandKey}
+                      onToggle={() =>
+                        setExpandedId((current) => (current === expandKey ? null : expandKey))
+                      }
+                    />
+                    <div className="pointer-events-none absolute bottom-full left-0 right-0 z-20 mb-2 hidden rounded-xl border border-[#e6ebe3] bg-white p-3 shadow-lg [@media(hover:hover)]:group-hover:block">
+                      <p className="text-sm leading-relaxed text-[#5c7a52]">{marker.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

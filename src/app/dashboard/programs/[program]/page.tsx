@@ -80,6 +80,7 @@ export default function InPortalProgramPage() {
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [billingTerm, setBillingTerm] = useState<ProgramBillingTerm>("1m");
@@ -160,6 +161,7 @@ export default function InPortalProgramPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Could not start checkout");
       setClientSecret(data.clientSecret);
+      setPaymentIntentId(data.paymentIntentId);
       setAmountLabel(data.dueTodayLabel || data.priceLabel || selectedQuote?.dueTodayLabel || "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -184,9 +186,23 @@ export default function InPortalProgramPage() {
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || "Could not confirm payment");
+    if (!res.ok) {
+      const message = data?.error || "Could not confirm payment";
+      if (/consent|unauthorized|belong/i.test(message)) {
+        setClientSecret(null);
+        setPaymentIntentId(null);
+        setAmountLabel(null);
+      }
+      throw new Error(message);
+    }
     await refetchPortal();
     setPaymentComplete(true);
+  };
+
+  const resetPaymentSession = () => {
+    setClientSecret(null);
+    setPaymentIntentId(null);
+    setAmountLabel(null);
   };
 
   if (paymentComplete) {
@@ -340,8 +356,7 @@ export default function InPortalProgramPage() {
                     disabled={pricingLoading || quote?.error}
                     onClick={() => {
                       setBillingTerm(option.term);
-                      setClientSecret(null);
-                      setAmountLabel(null);
+                      resetPaymentSession();
                     }}
                     className={`flex w-full flex-col items-start rounded-xl border-2 px-4 py-3 text-left transition-all sm:flex-row sm:items-center sm:justify-between ${
                       selected
@@ -387,14 +402,21 @@ export default function InPortalProgramPage() {
             </div>
 
             {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-            {clientSecret && amountLabel ? (
+            {clientSecret && paymentIntentId && amountLabel ? (
               <PortalPaymentForm
                 clientSecret={clientSecret}
+                paymentIntentId={paymentIntentId}
                 amountLabel={amountLabel}
                 submitLabel={`Subscribe to ${label}`}
                 userId={user?.id}
                 customerEmail={user?.email}
+                returnUrl={
+                  typeof window !== "undefined"
+                    ? `${window.location.origin}/dashboard/programs/${params?.program ?? programKey.toLowerCase()}`
+                    : "/dashboard/programs"
+                }
                 onConfirmed={confirmPayment}
+                onPaymentFailed={resetPaymentSession}
               />
             ) : (
               <Button

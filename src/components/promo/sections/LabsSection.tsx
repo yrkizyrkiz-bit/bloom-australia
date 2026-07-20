@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Beaker, Activity, Heart, Brain, Droplets, Zap } from "lucide-react";
+import { LabsConciergeSearch } from "@/components/promo/sections/LabsConciergeSearch";
 
 export function LabsSection() {
   const biomarkerCategories = [
@@ -21,23 +22,28 @@ export function LabsSection() {
   return (
     <section className="pt-20 pb-0 lg:pt-28 lg:pb-0 bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 lg:pb-12">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#34412f]/20 text-[#34412f] text-sm font-medium mb-6">
+          <Beaker className="w-4 h-4" />
+          labs by sanative
+        </span>
+
+        <h2 className="max-w-5xl text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-serif text-[#2c3628] leading-tight">
+          Monitor early indicators of{" "}
+          <span className="text-[#5c7a52] italic">500+ diseases</span>
+        </h2>
+
+        <div className="mt-10 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Content */}
           <div>
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#34412f]/20 text-[#34412f] text-sm font-medium mb-6">
-              <Beaker className="w-4 h-4" />
-              labs by sanative
-            </span>
-
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-[#2c3628] leading-tight">
-              Doctor-led care with
-              <br />
-              <span className="text-[#5c7a52] italic">biomarker insights</span>
-            </h2>
-
-            <p className="mt-6 text-lg text-[#5c7a52] max-w-lg">
-              Comprehensive blood testing at Australian NATA-accredited labs helps your doctor understand your health profile before recommending care options.
-            </p>
+            <div className="max-w-lg">
+              <div className="mb-3 text-left">
+                <p className="font-serif text-xl sm:text-2xl text-[#2c3628] leading-[1.15] tracking-tight">
+                  Catch issues early and{" "}
+                  <span className="italic text-[#5c7a52]">stay ahead</span>
+                </p>
+              </div>
+              <LabsConciergeSearch showIntro={false} />
+            </div>
 
             <div className="mt-8 grid grid-cols-3 gap-3">
               {biomarkerCategories.map((category) => (
@@ -69,7 +75,7 @@ export function LabsSection() {
           </div>
 
           {/* Right - Biomarkers Cloud */}
-          <div className="relative">
+          <div className="relative min-h-[280px] sm:min-h-[320px]">
             <div className="absolute inset-0 bg-gradient-to-r from-[#cdd8c6] via-transparent to-[#cdd8c6] z-10 pointer-events-none" />
 
             <div className="relative flex flex-wrap gap-2 justify-center opacity-70">
@@ -83,7 +89,6 @@ export function LabsSection() {
               ))}
             </div>
 
-            {/* Stats Cards */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
               <div className="bg-white rounded-3xl p-6 shadow-2xl text-center border border-[#e6ebe3]">
                 <p className="text-sm text-[#7e9a72] mb-1">Test up to</p>

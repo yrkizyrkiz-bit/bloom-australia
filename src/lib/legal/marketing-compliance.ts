@@ -75,6 +75,7 @@ export const PUBLIC_VERTICAL_PATHS = [
   "/hair-health",
   "/mens-health",
   "/mens-health/sexual-health",
+  "/mens-health/erectile-dysfunction",
   "/womens-health",
   "/labs",
   "/weight-management",

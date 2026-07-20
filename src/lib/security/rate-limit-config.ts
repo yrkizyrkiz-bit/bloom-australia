@@ -25,6 +25,10 @@ export const RATE_LIMITS = {
   checkEmailIp: { limit: 30, windowSec: 60 * 60 },
   /** Checkout / payment intent creation per IP */
   checkoutIp: { limit: 20, windowSec: 60 * 60 },
+  /** Blood test parser per authenticated staff user */
+  bloodTestParserUser: { limit: 30, windowSec: 60 * 60 },
+  /** Blood test parser per IP (backup) */
+  bloodTestParserIp: { limit: 60, windowSec: 60 * 60 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 export function rateLimitBucketKey(scope: string, identifier: string): string {

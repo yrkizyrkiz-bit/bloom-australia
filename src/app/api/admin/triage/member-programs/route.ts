@@ -73,10 +73,11 @@ export async function GET() {
         if (!meta) return null;
 
         const isPortalUpsell = Boolean(meta.memberAddedProgram);
-        const isPublicConsult = meta.source === "public_consult_booking";
+        // Public consults live in In Triage (journey status), not this queue.
+        // Keep subscription-only onboarding + portal add-ons when a consult exists.
         const isPublicSubscription = meta.source === "public_subscription";
 
-        if (!isPortalUpsell && !isPublicConsult && !isPublicSubscription) {
+        if (!isPortalUpsell && !isPublicSubscription) {
           return null;
         }
 

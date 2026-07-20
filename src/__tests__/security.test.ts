@@ -205,11 +205,8 @@ describe("Security — booking confirm payment verification", () => {
   });
 });
 
-describe("Security — login page production leaks", () => {
-  it("login page does not expose demo credentials when NODE_ENV is production", async () => {
-    if (process.env.NODE_ENV !== "production") {
-      return;
-    }
+describe("Security — login page credential leaks", () => {
+  it("login page does not expose demo credentials", async () => {
     const res = await fetch(`${BASE_URL}/login`);
     const html = await res.text();
     expect(html).not.toContain("demo123");

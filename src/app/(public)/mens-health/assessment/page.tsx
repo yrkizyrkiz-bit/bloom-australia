@@ -12,12 +12,6 @@ import {
 import { scoreMensHealth, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import {
-  UnifiedCheckoutScreen,
-  type UnifiedSlot,
-} from "@/components/checkout/UnifiedCheckoutScreen";
-import { resolveAustralianTimezone } from "@/lib/australia-timezone";
-import {
-  MENS_CHECKOUT_PRICING,
   resolveMensHealthCanonicalKey,
 } from "@/lib/funnel/public-consult-programs";
 import {
@@ -26,9 +20,14 @@ import {
 } from "@/lib/biomarkers/public-subscription-panels";
 import { resolveRequiredPanelTier } from "@/lib/biomarkers/program-panel-requirements";
 import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
+import {
+  navigateToProgramBiomarkersCheckout,
+  type ProgramBiomarkersCheckoutHandoff,
+} from "@/lib/funnel/program-biomarkers-checkout-handoff";
 import type { ProgramKey } from "@/lib/membership/keys";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
+import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
 import {
   buildLoginRedirectUrl,
   fetchExistingAccountFirstName,
@@ -49,7 +48,6 @@ import {
   Stethoscope,
   Package,
   AlertCircle,
-  CreditCard,
   Tag,
   User,
   FileText,
@@ -79,17 +77,9 @@ interface FormData {
   treatmentGoal: string;
   otherConcerns: string[];
   postcode: string;
-  consultationDate: string;
-  consultationTime: string;
-  selectedSlotId: string;
   discountCode: string;
   confirmedAccurate: boolean;
   agreedToTerms: boolean;
-  // Card payment fields
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvc: string;
-  cardName: string;
   /** Canonical program resolved at analyse step. */
   resolvedProgram: ProgramKey | "";
   /** Public panel tier resolved at analyse step. */
@@ -291,38 +281,21 @@ function AssessmentContent() {
     treatmentGoal: "",
     otherConcerns: [],
     postcode: "",
-    consultationDate: "",
-    consultationTime: "",
-    selectedSlotId: "",
     discountCode: "",
     confirmedAccurate: false,
     agreedToTerms: false,
-    // Card payment fields
-    cardNumber: "",
-    cardExpiry: "",
-    cardCvc: "",
-    cardName: "",
     resolvedProgram: "",
     panelTier: "",
   });
   const [showFAQ, setShowFAQ] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [discountApplied, setDiscountApplied] = useState(false);
-  const [discountAmount, setDiscountAmount] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
+  const [showResumeVerification, setShowResumeVerification] = useState(false);
+  const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
   const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
-  const [bookingHoldId, setBookingHoldId] = useState<string | null>(null);
-  const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
-  const [holdCountdown, setHoldCountdown] = useState(0);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
-  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
-  const [creatingHold, setCreatingHold] = useState(false);
-  const [selectingSlotId, setSelectingSlotId] = useState<string | null>(null);
-  const [offerCountdown, setOfferCountdown] = useState(300);
-  const [portalMagicLink, setPortalMagicLink] = useState<string | null>(null);
 
   const sexualQuizSteps = useMemo(
     () => getSexualHealthPublicQuizSteps(quizAnswers),
@@ -340,76 +313,15 @@ function AssessmentContent() {
     }
   }, [isSexualFlow]);
 
-  // Payment loading states (kept for UI but payment handled by separate page)
-  const [isApplePayLoading, setIsApplePayLoading] = useState(false);
-  const [isGooglePayLoading, setIsGooglePayLoading] = useState(false);
-
-  // Card validation states (kept for backward compatibility, but card fields should not be used)
-  const [cardErrors, setCardErrors] = useState({
-    cardNumber: "",
-    cardExpiry: "",
-    cardCvc: "",
-    cardName: "",
-  });
-  const [touchedFields, setTouchedFields] = useState({
-    cardNumber: false,
-    cardExpiry: false,
-    cardCvc: false,
-    cardName: false,
-  });
-
-  // Vitality: consent(17) → analyse(18) → snapshot(19) → checkout(20) → thankYou(21)
-  // Sexual: consent → analyse → checkout → thankYou (via sexualBounds)
+  // Vitality: consent(17) → analyse(18) → snapshot(19) → external biomarkers checkout
+  // Sexual: consent → analyse → external biomarkers checkout
   const analyseStep = isSexualFlow ? sexualBounds.analyse : 18;
   const snapshotStep = isSexualFlow ? -1 : 19;
-  const checkoutStep = isSexualFlow ? sexualBounds.checkout : 20;
-  const thankYouStep = isSexualFlow ? sexualBounds.thankYou : 21;
-  const totalSteps = thankYouStep;
+  const totalSteps = isSexualFlow ? sexualBounds.analyse + 1 : snapshotStep + 1;
   const progress = Math.min(((step + 1) / totalSteps) * 100, 100);
-  const patientTimezone = resolveAustralianTimezone(null, formData.postcode);
 
   const resolvedPanelTier = formData.panelTier || "advanced";
   const resolvedPanelPlan = getBiomarkerSubscriptionPlan(resolvedPanelTier);
-  const mensCheckoutValueProps = useMemo(
-    () => [
-      `${resolvedPanelPlan.name} panel included (${resolvedPanelPlan.markerCount}+ markers)`,
-      isSexualFlow
-        ? "Doctor-led sexual health assessment"
-        : "Doctor-led men's health assessment",
-      isSexualFlow
-        ? "AHPRA-registered Australian doctors"
-        : "Treatment if clinically prescribed",
-      "Care team support in your portal",
-    ],
-    [isSexualFlow, resolvedPanelPlan]
-  );
-
-  useEffect(() => {
-    if (!holdExpiry) return;
-    const timer = setInterval(() => {
-      const remaining = Math.max(
-        0,
-        Math.floor((holdExpiry.getTime() - Date.now()) / 1000)
-      );
-      setHoldCountdown(remaining);
-      if (remaining === 0) {
-        setBookingHoldId(null);
-        updateFormData("consultationDate", "");
-        updateFormData("consultationTime", "");
-        updateFormData("selectedSlotId", "");
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [holdExpiry]);
-
-  useEffect(() => {
-    if (offerCountdown > 0 && step >= checkoutStep) {
-      const timer = setInterval(() => {
-        setOfferCountdown((c) => Math.max(0, c - 1));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [checkoutStep, offerCountdown, step]);
 
   // Get current phase for progress indicator
   const getPhase = () => {
@@ -423,114 +335,11 @@ function AssessmentContent() {
     if (step <= 15) return 2; // Health Assessment
     if (step === 16) return 2; // Contact details (still part of assessment)
     if (step === 17 || step === analyseStep) return 3;
-    if (step === snapshotStep || step === checkoutStep) return 4;
-    if (step === thankYouStep) return 4;
+    if (step === snapshotStep) return 4;
     return 4;
   };
 
   const currentPhase = getPhase();
-
-  // Card formatting and validation functions
-  const formatCardNumber = (value: string): string => {
-    const digits = value.replace(/\D/g, "").slice(0, 16);
-    const groups = digits.match(/.{1,4}/g);
-    return groups ? groups.join(" ") : digits;
-  };
-
-  const formatExpiry = (value: string): string => {
-    const digits = value.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 2) {
-      return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
-    }
-    return digits;
-  };
-
-  const validateCardNumber = (value: string): string => {
-    const digits = value.replace(/\D/g, "");
-    if (!digits) return "Card number is required";
-    if (digits.length < 13) return "Card number is too short";
-    if (digits.length > 16) return "Card number is too long";
-    // Luhn algorithm check
-    let sum = 0;
-    let isEven = false;
-    for (let i = digits.length - 1; i >= 0; i--) {
-      let digit = parseInt(digits[i], 10);
-      if (isEven) {
-        digit *= 2;
-        if (digit > 9) digit -= 9;
-      }
-      sum += digit;
-      isEven = !isEven;
-    }
-    if (sum % 10 !== 0) return "Invalid card number";
-    return "";
-  };
-
-  const validateExpiry = (value: string): string => {
-    const digits = value.replace(/\D/g, "");
-    if (!digits) return "Expiry date is required";
-    if (digits.length < 4) return "Enter a valid expiry date";
-    const month = parseInt(digits.slice(0, 2), 10);
-    const year = parseInt(digits.slice(2, 4), 10);
-    if (month < 1 || month > 12) return "Invalid month";
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear() % 100;
-    const currentMonth = currentDate.getMonth() + 1;
-    if (year < currentYear || (year === currentYear && month < currentMonth)) {
-      return "Card has expired";
-    }
-    return "";
-  };
-
-  const validateCvc = (value: string): string => {
-    const digits = value.replace(/\D/g, "");
-    if (!digits) return "CVC is required";
-    if (digits.length < 3) return "CVC must be 3-4 digits";
-    return "";
-  };
-
-  const validateCardName = (value: string): string => {
-    if (!value.trim()) return "Name on card is required";
-    if (value.trim().length < 2) return "Enter a valid name";
-    return "";
-  };
-
-  const handleCardFieldChange = (field: "cardNumber" | "cardExpiry" | "cardCvc" | "cardName", value: string) => {
-    let formattedValue = value;
-
-    if (field === "cardNumber") {
-      formattedValue = formatCardNumber(value);
-    } else if (field === "cardExpiry") {
-      formattedValue = formatExpiry(value);
-    } else if (field === "cardCvc") {
-      formattedValue = value.replace(/\D/g, "").slice(0, 4);
-    }
-
-    updateFormData(field, formattedValue);
-
-    // Validate if field has been touched
-    if (touchedFields[field]) {
-      let error = "";
-      if (field === "cardNumber") error = validateCardNumber(formattedValue);
-      else if (field === "cardExpiry") error = validateExpiry(formattedValue);
-      else if (field === "cardCvc") error = validateCvc(formattedValue);
-      else if (field === "cardName") error = validateCardName(formattedValue);
-
-      setCardErrors(prev => ({ ...prev, [field]: error }));
-    }
-  };
-
-  const handleCardFieldBlur = (field: "cardNumber" | "cardExpiry" | "cardCvc" | "cardName") => {
-    setTouchedFields(prev => ({ ...prev, [field]: true }));
-
-    let error = "";
-    if (field === "cardNumber") error = validateCardNumber(formData.cardNumber);
-    else if (field === "cardExpiry") error = validateExpiry(formData.cardExpiry);
-    else if (field === "cardCvc") error = validateCvc(formData.cardCvc);
-    else if (field === "cardName") error = validateCardName(formData.cardName);
-
-    setCardErrors(prev => ({ ...prev, [field]: error }));
-  };
 
   const updateFormData = (field: keyof FormData, value: string | string[] | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -568,19 +377,6 @@ function AssessmentContent() {
   const age = getAge(formData.dateOfBirth);
   const isValidAge = age >= 18;
   const emailsMatch = formData.email === formData.confirmEmail && formData.email.length > 0;
-
-  const applyDiscount = () => {
-    const code = formData.discountCode.toUpperCase();
-    if (code === "FIRST10") {
-      setDiscountApplied(true);
-      setDiscountAmount(10);
-    } else {
-      setDiscountApplied(false);
-      setDiscountAmount(0);
-    }
-  };
-
-  const finalPrice = Math.max(49 - discountAmount, 0);
 
   const canProceed = () => {
     if (isSexualFlow) {
@@ -633,8 +429,6 @@ function AssessmentContent() {
       case 17: return formData.confirmedAccurate;
       case analyseStep:
       case snapshotStep:
-      case checkoutStep:
-      case thankYouStep:
         return true;
       default: return true;
     }
@@ -692,7 +486,9 @@ function AssessmentContent() {
 
   const handleUseDifferentEmail = () => {
     setShowExistingAccountPrompt(false);
+    setShowResumeVerification(false);
     setExistingUserFirstName(null);
+    setResumeVerificationFirstName(null);
     setSubmissionError(null);
     updateFormData("email", "");
     updateFormData("confirmEmail", "");
@@ -704,6 +500,7 @@ function AssessmentContent() {
     overrides?: {
       resolvedProgram?: ProgramKey;
       panelTier?: BiomarkerSubscriptionTier;
+      resumeVerificationToken?: string;
     }
   ): Promise<boolean> => {
     setIsSubmitting(true);
@@ -719,37 +516,45 @@ function AssessmentContent() {
         formData.panelTier ||
         resolveRequiredPanelTier(resolvedProgram);
 
-      const result = await submitPublicIntake({
-        programType: "MENS_HEALTH",
-        ...formData,
-        ...quizAnswers,
-        concern: normalizeSexualHealthConcern(formData.concern),
-        resolvedProgram,
-        panelTier,
-        billingPanelTier: publicTierToBillingTier(panelTier),
-        cardNumber: undefined,
-        cardExpiry: undefined,
-        cardCvc: undefined,
-        cardName: undefined,
-      });
+      const result = await submitPublicIntake(
+        {
+          programType: "MENS_HEALTH",
+          ...formData,
+          ...quizAnswers,
+          concern: normalizeSexualHealthConcern(formData.concern),
+          resolvedProgram,
+          panelTier,
+          billingPanelTier: publicTierToBillingTier(panelTier),
+        },
+        { resumeVerificationToken: overrides?.resumeVerificationToken }
+      );
 
       if (result.ok) {
         setUserId(result.userId);
-        toast.success("Details saved", {
-          description: "Now choose your consultation time.",
+        setShowResumeVerification(false);
+        toast.success("Assessment saved", {
+          description: "Continue to secure checkout and book your doctor consultation.",
         });
         return true;
       }
 
-      if (result.emailExists) {
+      if ("resumeVerificationRequired" in result && result.resumeVerificationRequired) {
+        setResumeVerificationFirstName(result.firstName ?? null);
+        setShowResumeVerification(true);
+        return false;
+      }
+
+      if ("emailExists" in result && result.emailExists) {
         const firstName = await fetchExistingAccountFirstName(formData.email);
         setExistingUserFirstName(firstName);
         setShowExistingAccountPrompt(true);
         return false;
       }
 
-      setSubmissionError(result.message);
-      toast.error("Could not save your details", { description: result.message });
+      setSubmissionError("message" in result ? result.message : "Could not save your details");
+      toast.error("Could not save your details", {
+        description: "message" in result ? result.message : undefined,
+      });
       return false;
     } catch (error) {
       const message =
@@ -762,6 +567,50 @@ function AssessmentContent() {
     }
   };
 
+  const redirectToMensBiomarkersCheckout = async (
+    overrides?: {
+      resolvedProgram?: ProgramKey;
+      panelTier?: BiomarkerSubscriptionTier;
+      resumeVerificationToken?: string;
+    }
+  ) => {
+    const resolvedProgram =
+      overrides?.resolvedProgram ||
+      formData.resolvedProgram ||
+      resolveMensHealthCanonicalKey(formData.concern);
+    const panelTier =
+      overrides?.panelTier ||
+      formData.panelTier ||
+      resolveRequiredPanelTier(resolvedProgram);
+
+    const saved = await saveMensIntake({ resolvedProgram, panelTier });
+    if (!saved) return;
+
+    const handoff: ProgramBiomarkersCheckoutHandoff = {
+      source: "mens_health",
+      skipQuiz: true,
+      panelTier,
+      programLabel: "Men's Health",
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      dateOfBirth: formData.dateOfBirth,
+      postcode: formData.postcode,
+      resolvedProgram,
+      quizAnswers: {
+        ...formData,
+        ...quizAnswers,
+        concern: normalizeSexualHealthConcern(formData.concern),
+        resolvedProgram,
+        panelTier,
+        billingPanelTier: publicTierToBillingTier(panelTier),
+        canonicalProgramKey: resolvedProgram,
+      },
+    };
+    navigateToProgramBiomarkersCheckout(handoff);
+  };
+
   const handleAnalyseComplete = async () => {
     const program = resolveMensHealthCanonicalKey(formData.concern);
     const panelTier = resolveRequiredPanelTier(program);
@@ -772,11 +621,7 @@ function AssessmentContent() {
     }));
 
     if (isSexualFlow) {
-      const saved = await saveMensIntake({ resolvedProgram: program, panelTier });
-      if (saved) {
-        setStep(sexualBounds.checkout);
-        window.scrollTo(0, 0);
-      }
+      await redirectToMensBiomarkersCheckout({ resolvedProgram: program, panelTier });
       return;
     }
 
@@ -784,136 +629,8 @@ function AssessmentContent() {
     window.scrollTo(0, 0);
   };
 
-  const formatSlotDate = (isoString: string) =>
-    new Date(isoString).toLocaleDateString("en-AU", {
-      timeZone: patientTimezone,
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    });
-
-  const formatSlotTime = (isoString: string) =>
-    new Date(isoString).toLocaleTimeString("en-AU", {
-      timeZone: patientTimezone,
-      hour: "numeric",
-      minute: "2-digit",
-    });
-
-  const handleSlotSelection = async (slot: UnifiedSlot) => {
-    if (slot.availabilityStatus === "BOOKED" || creatingHold) return;
-    if (formData.selectedSlotId === slot.slotId) return;
-
-    const previousHoldId = bookingHoldId;
-    const previousSlotId = formData.selectedSlotId;
-    setCreatingHold(true);
-    setSelectingSlotId(slot.slotId);
-    setSlotsError(null);
-
-    try {
-      updateFormData("selectedSlotId", slot.slotId);
-      updateFormData("consultationDate", formatSlotDate(slot.startTime));
-      updateFormData("consultationTime", formatSlotTime(slot.startTime));
-
-      const response = await fetch("/api/bookings/hold", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userId || undefined,
-          slotId: slot.slotId,
-          programType: "MENS_HEALTH",
-          patientPhone: formData.phone || undefined,
-          riskFlags: ["MENS_HEALTH_PROGRAM"],
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to reserve this time");
-      }
-
-      setBookingHoldId(data.bookingHoldId);
-      setHoldExpiry(new Date(data.holdExpiryTime));
-      setSlotsRefreshKey((k) => k + 1);
-
-      if (previousHoldId && previousHoldId !== data.bookingHoldId) {
-        fetch(`/api/bookings/hold?holdId=${previousHoldId}`, {
-          method: "DELETE",
-        }).catch(() => {});
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to reserve this time";
-      setSlotsError(message);
-      updateFormData("selectedSlotId", previousSlotId);
-      if (!previousSlotId) {
-        updateFormData("consultationDate", "");
-        updateFormData("consultationTime", "");
-      }
-      setBookingHoldId(previousHoldId);
-      toast.error("Could not reserve this slot", { description: message });
-    } finally {
-      setCreatingHold(false);
-      setSelectingSlotId(null);
-    }
-  };
-
-  const handleCheckoutPaymentSuccess = async (result: {
-    paymentIntentId?: string;
-    consentRecordId: string;
-  }) => {
-    if (!bookingHoldId) {
-      setStep(thankYouStep);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/bookings/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookingHoldId,
-          paymentIntentId: result.paymentIntentId || "pi_mens_manual_confirmation",
-          consentRecordId: result.consentRecordId,
-          userId,
-          clientOrigin:
-            typeof window !== "undefined" ? window.location.origin : undefined,
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        if (data.magicLink) setPortalMagicLink(data.magicLink);
-        toast.success("Booking confirmed", {
-          description: `Your consultation is scheduled for ${formData.consultationDate} at ${formData.consultationTime}`,
-        });
-      } else {
-        toast.success("Payment successful", {
-          description: data.error || "Your consultation will be confirmed shortly.",
-        });
-      }
-    } catch (error) {
-      console.error("[Mens Assessment] Booking confirmation error:", error);
-      toast.success("Payment successful", {
-        description: "Your consultation will be confirmed shortly.",
-      });
-    } finally {
-      setBookingHoldId(null);
-      setHoldExpiry(null);
-      setStep(thankYouStep);
-      window.scrollTo(0, 0);
-    }
-  };
-
-  const handleCheckoutPaymentError = (error: string) => {
-    toast.error("Payment failed", { description: error });
-  };
-
   const handleSnapshotContinue = async () => {
-    const saved = await saveMensIntake();
-    if (saved) {
-      setStep(checkoutStep);
-      window.scrollTo(0, 0);
-    }
+    await redirectToMensBiomarkersCheckout();
   };
 
   // Progress Step Indicator Component
@@ -1157,68 +874,6 @@ function AssessmentContent() {
               void handleAnalyseComplete();
             }}
           />
-        );
-
-      case sexualBounds.checkout:
-        return (
-          <UnifiedCheckoutScreen
-            formData={{
-              consultationDate: formData.consultationDate,
-              consultationTime: formData.consultationTime,
-              selectedSlotId: formData.selectedSlotId,
-              email: formData.email,
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-            }}
-            userId={userId}
-            bookingHoldId={bookingHoldId}
-            holdCountdown={holdCountdown}
-            offerCountdown={offerCountdown}
-            slotsError={slotsError}
-            slotsRefreshKey={slotsRefreshKey}
-            creatingHold={creatingHold}
-            selectingSlotId={selectingSlotId}
-            onSlotSelect={handleSlotSelection}
-            onSlotsError={setSlotsError}
-            onPaymentSuccess={handleCheckoutPaymentSuccess}
-            onPaymentError={handleCheckoutPaymentError}
-            patientTimezone={patientTimezone}
-            pricing={MENS_CHECKOUT_PRICING}
-            valueProps={mensCheckoutValueProps}
-            programType="mens_health"
-          />
-        );
-
-      case sexualBounds.thankYou:
-        return (
-          <div className="text-center space-y-6">
-            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center">
-              <Check className="w-10 h-10 text-white" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">You&apos;re booked in</h1>
-            <p className="text-[#5c7a52] max-w-md mx-auto">
-              Your assessment is with our care team for triage. A doctor will review your suitability and discuss what is clinically appropriate for you.
-            </p>
-            <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5 text-left space-y-3">
-              <p className="font-semibold text-[#2c3628]">What happens next</p>
-              {[
-                "Care team triage for men's sexual health",
-                "Doctor consultation at your selected time",
-                "Program access in your portal if clinically appropriate",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2 text-sm text-[#5c7a52]">
-                  <Check className="w-4 h-4" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-            {portalMagicLink && (
-              <a href={portalMagicLink} className="btn-primary inline-flex items-center justify-center gap-2">
-                Go to portal
-                <ArrowRight className="w-5 h-5" />
-              </a>
-            )}
-          </div>
         );
 
       default:
@@ -1736,90 +1391,21 @@ function AssessmentContent() {
               tagline: resolvedPanelPlan.tagline,
               highlights: resolvedPanelPlan.highlights,
               onSelect: () => {
-                window.location.href = `/biomarkers/checkout?package=${resolvedPanelTier}&source=mens_health&skipQuiz=1`;
+                void redirectToMensBiomarkersCheckout();
               },
             }}
             onPrimary={handleSnapshotContinue}
             onLabs={() => {
-              window.location.href = `/biomarkers/checkout?package=${resolvedPanelTier}&source=mens_health&skipQuiz=1`;
+              void redirectToMensBiomarkersCheckout();
             }}
           />
         );
       }
 
-      case 20:
-        return (
-          <UnifiedCheckoutScreen
-            formData={{
-              consultationDate: formData.consultationDate,
-              consultationTime: formData.consultationTime,
-              selectedSlotId: formData.selectedSlotId,
-              email: formData.email,
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-            }}
-            userId={userId}
-            bookingHoldId={bookingHoldId}
-            holdCountdown={holdCountdown}
-            offerCountdown={offerCountdown}
-            slotsError={slotsError}
-            slotsRefreshKey={slotsRefreshKey}
-            creatingHold={creatingHold}
-            selectingSlotId={selectingSlotId}
-            onSlotSelect={handleSlotSelection}
-            onSlotsError={setSlotsError}
-            onPaymentSuccess={handleCheckoutPaymentSuccess}
-            onPaymentError={handleCheckoutPaymentError}
-            patientTimezone={patientTimezone}
-            pricing={MENS_CHECKOUT_PRICING}
-            valueProps={mensCheckoutValueProps}
-            programType="mens_health"
-          />
-        );
-
-      case 21:
-        return (
-          <div className="text-center space-y-6">
-            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#5c7a52] to-[#34412f] rounded-2xl flex items-center justify-center">
-              <Check className="w-10 h-10 text-white" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
-              You&apos;re booked in
-            </h1>
-            <p className="text-[#5c7a52] max-w-md mx-auto">
-              Your assessment is with our care team for triage. A doctor will review your suitability and discuss what is clinically appropriate for you.
-            </p>
-            <div className="bg-white rounded-2xl border border-[#e6ebe3] p-5 text-left space-y-3">
-              <p className="font-semibold text-[#2c3628]">What happens next</p>
-              {[
-                "Care team triage for men's health",
-                "Doctor consultation at your selected time",
-                "Program access in your portal if clinically appropriate",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2 text-sm text-[#5c7a52]">
-                  <Check className="w-4 h-4" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-            {portalMagicLink && (
-              <a
-                href={portalMagicLink}
-                className="btn-primary inline-flex items-center justify-center gap-2"
-              >
-                Go to portal
-                <ArrowRight className="w-5 h-5" />
-              </a>
-            )}
-          </div>
-        );
-
       default:
         return null;
     }
   };
-
-  const isCheckoutLayout = step === checkoutStep;
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
@@ -1830,27 +1416,25 @@ function AssessmentContent() {
 
       {/* Header */}
       <header className="sticky top-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#e6ebe3]">
-        <div className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 py-4 flex items-center justify-between`}>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <Link href="/mens-health" className="text-2xl font-serif text-[#34412f]">Sanative</Link>
           <button type="button" onClick={() => setShowFAQ(true)} className="flex items-center gap-1.5 text-sm text-[#5c7a52] hover:text-[#34412f] transition-colors">
             <Info className="w-4 h-4" /><span>Help</span>
           </button>
         </div>
         {/* Step Progress Indicator - shown after intro step */}
-        {step > 0 && step < thankYouStep && <ProgressStepIndicator />}
+        {step > 0 && step < totalSteps - 1 && <ProgressStepIndicator />}
       </header>
 
       {/* Main content */}
-      <main className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl px-4 sm:px-6" : "max-w-2xl px-4"} mx-auto py-8 pb-32`}>
+      <main className="max-w-2xl px-4 mx-auto py-8 pb-32">
         <div className="animate-fadeIn">{renderStep()}</div>
       </main>
 
       {/* Bottom navigation */}
-      {step < totalSteps &&
+      {step < totalSteps - 1 &&
         step !== analyseStep &&
-        step !== snapshotStep &&
-        step !== checkoutStep &&
-        step !== thankYouStep && (
+        step !== snapshotStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
             {step > 0 && (
@@ -1887,6 +1471,16 @@ function AssessmentContent() {
         open={showExistingAccountPrompt}
         firstName={existingUserFirstName}
         loginHref={buildLoginRedirectUrl("/dashboard")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+      />
+
+      <ProspectiveMemberResumeVerification
+        open={showResumeVerification}
+        email={formData.email}
+        firstName={resumeVerificationFirstName}
+        onVerified={async (sessionToken) => {
+          await redirectToMensBiomarkersCheckout({ resumeVerificationToken: sessionToken });
+        }}
         onUseDifferentEmail={handleUseDifferentEmail}
       />
 

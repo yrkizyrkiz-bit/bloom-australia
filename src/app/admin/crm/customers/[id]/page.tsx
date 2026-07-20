@@ -63,6 +63,7 @@ import {
   getScoreColor,
   type BiomarkerResultInput,
 } from "@/lib/healthTestScoring";
+import { isProspectiveEnrollment as checkProspectiveEnrollment } from "@/lib/funnel/member-enrollment-phase";
 
 interface CustomerData {
   id: string;
@@ -640,6 +641,7 @@ export default function CustomerDetailPage() {
       : subscription
         ? [subscription]
         : [];
+
   const assessment = assessmentData?.assessment as AssessmentData | null;
   const rawSurveyData =
     (assessmentData?.rawSurveyData as Record<string, unknown> | null) || null;
@@ -660,8 +662,25 @@ export default function CustomerDetailPage() {
     if (lower.includes("precision")) return "Sanative Precision";
     if (lower.includes("core")) return "Sanative Core";
     if (lower.includes("weight")) return "Weight Management";
+    if (lower.includes("mens")) return "Men's Health";
+    if (lower.includes("womens")) return "Women's Health";
+    if (lower.includes("hair")) return "Hair Loss";
     return tier.replace(/_/g, " ");
   };
+
+  const isProspectiveEnrollment =
+    (assessmentData?.isProspectiveEnrollment as boolean | undefined) ??
+    checkProspectiveEnrollment({
+      memberStatus: customer.memberStatus,
+      journeyStatus: customer.journeyStatus,
+    });
+
+  const prospectiveProgramLabel =
+    formatPlanLabel(customer.subscriptionTier) !== "—"
+      ? formatPlanLabel(customer.subscriptionTier)
+      : typeof assessmentData?.program === "string"
+        ? formatPlanLabel(assessmentData.program)
+        : "Health program";
 
   const displayPlanName =
     subscription?.planName ||
@@ -1151,7 +1170,7 @@ export default function CustomerDetailPage() {
 
             {/* Subscription Tab */}
             <TabsContent value="subscription" className="space-y-4 mt-4">
-              {programSubscriptions.length > 0 || customer.subscriptionTier ? (
+              {programSubscriptions.length > 0 ? (
                 <>
                   {programSubscriptions.map((programSub, index) => (
                     <Card key={programSub.program || programSub.id || index} className="border-primary/20 bg-primary/5">
@@ -1644,6 +1663,38 @@ export default function CustomerDetailPage() {
                     </DialogContent>
                   </Dialog>
                 </>
+              ) : isProspectiveEnrollment &&
+                (customer.subscriptionTier || assessmentData?.program) ? (
+                <Card className="border-amber-200 bg-amber-50/30">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-amber-600" />
+                      Prospective enrollment
+                    </CardTitle>
+                    <CardDescription>
+                      Assessment complete — checkout and payment not finished yet.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="p-4 bg-white rounded-xl border border-amber-100">
+                      <p className="text-xs text-muted-foreground mb-1">Program interest</p>
+                      <p className="text-lg font-semibold text-[#2c3628]">
+                        {prospectiveProgramLabel}
+                      </p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      No subscription or billing is active yet. Plan details, Stripe records, and
+                      membership dates appear after successful checkout payment.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Journey status:{" "}
+                      <span className="font-medium text-foreground">
+                        {JOURNEY_STATUS_LABELS[customer.journeyStatus || "SURVEY_COMPLETED"]
+                          ?.label || customer.journeyStatus || "Survey completed"}
+                      </span>
+                    </p>
+                  </CardContent>
+                </Card>
               ) : (
                 <Card>
                   <CardContent className="py-12 text-center">

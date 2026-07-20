@@ -6,7 +6,7 @@ import { ArrowRight, Heart, Shield, Clock, Sparkles } from "lucide-react";
 
 export function WomensHealthHero() {
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+    <section className="relative min-h-[90vh] flex items-start overflow-hidden">
       {/* Background with soft feminine gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#fdf8f6] via-[#fef4f0] to-[#f9f5f3]" />
 
@@ -21,7 +21,7 @@ export function WomensHealthHero() {
         backgroundSize: '32px 32px'
       }} />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-0 sm:pt-1 lg:pt-2 pb-16 lg:pb-20">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Content */}
           <div className="max-w-xl">
@@ -40,7 +40,7 @@ export function WomensHealthHero() {
             </h1>
 
             <p className="mt-6 text-lg lg:text-xl text-[#5c7a52] leading-relaxed">
-              From hormonal balance to menopause care, our AHPRA-registered doctors provide personalised assessment and care plans. Treatment options are discussed privately if clinically appropriate.
+              From hormonal balance to menopause care, our AHPRA-registered doctors provide personalised assessment and care plans which is made simple with the Sanative app. Treatment options are discussed privately if clinically appropriate.
             </p>
 
             {/* Trust indicators */}
@@ -84,17 +84,16 @@ export function WomensHealthHero() {
           </div>
 
           {/* Right - Hero image */}
-          <div className="relative">
-            <div className="relative aspect-[4/5] sm:aspect-[3/4] lg:aspect-[4/5] max-w-lg mx-auto lg:max-w-none rounded-3xl overflow-hidden shadow-xl border border-[#f8e1e1]/50">
-              <Image
-                src="/images/menopause-hero.png"
-                alt="Woman with personalised health dashboard showing hormone balance, sleep, energy, and care team support"
-                fill
-                className="object-cover object-center"
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-            </div>
+          <div className="relative w-full flex justify-center lg:justify-end">
+            <Image
+              src="/images/menopause-hero.png"
+              alt="Woman with personalised health dashboard showing hormone balance, sleep, energy, and care team support"
+              width={819}
+              height={1024}
+              className="w-full max-w-[340px] sm:max-w-[380px] lg:max-w-[400px] h-auto rounded-3xl shadow-xl border border-[#f8e1e1]/50 object-cover"
+              priority
+              sizes="(max-width: 1024px) 380px, 400px"
+            />
           </div>
         </div>
       </div>

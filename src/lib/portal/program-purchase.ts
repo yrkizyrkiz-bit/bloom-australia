@@ -48,6 +48,8 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
     amount: quote.firstMonth.amountCents,
     currency: "aud",
     customer: customerId,
+    setup_future_usage: "off_session",
+    automatic_payment_methods: { enabled: true },
     metadata: {
       source: "portal_upsell",
       userId: user.id,
@@ -60,7 +62,6 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
       firstMonthBillingPriceId: quote.firstMonth.id,
       recurringBillingPriceId: quote.recurring.id,
     },
-    payment_method_types: ["card"],
     description: `${label} — first month (includes consultation)`,
   });
 

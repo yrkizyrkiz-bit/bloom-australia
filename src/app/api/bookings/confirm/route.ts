@@ -29,7 +29,7 @@ import {
   type PublicConsultProgram,
 } from "@/lib/funnel/public-consult-programs";
 import { createProgramPreTriageTask, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
-import { savePublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
+import { appendPublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
 import { grantProgramPanelEntitlementsAtPayment } from "@/lib/portal/grant-program-panel-at-payment";
 import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
 import { verifyOrganCareMembershipBookingPayment } from "@/lib/stripe/verify-organ-care-booking-payment";
@@ -75,7 +75,12 @@ async function resolvePanelGrantContext(
         programKey: canonical,
         publicPanelTier,
         billingPanelTier,
-        sourceProgram: consultProgram.slug === "hair_loss" ? "hair_loss" : null,
+        sourceProgram:
+          consultProgram.slug === "hair_loss"
+            ? "hair_loss"
+            : consultProgram.slug === "womens_health"
+              ? "womens_health"
+              : null,
       };
     }
   }
@@ -85,7 +90,12 @@ async function resolvePanelGrantContext(
       programKey: null,
       publicPanelTier,
       billingPanelTier,
-      sourceProgram: null,
+      sourceProgram:
+        consultProgram.slug === "hair_loss"
+          ? "hair_loss"
+          : consultProgram.slug === "womens_health"
+            ? "womens_health"
+            : null,
     };
   }
 
@@ -108,7 +118,12 @@ async function resolvePanelGrantContext(
     programKey,
     publicPanelTier,
     billingPanelTier,
-    sourceProgram: consultProgram.slug === "hair_loss" ? "hair_loss" : null,
+    sourceProgram:
+      consultProgram.slug === "hair_loss"
+        ? "hair_loss"
+        : consultProgram.slug === "womens_health"
+          ? "womens_health"
+          : null,
   };
 }
 export interface ConfirmRequest {
@@ -1188,10 +1203,21 @@ export async function POST(req: NextRequest) {
           select: { program: true, intakeData: true },
           orderBy: { createdAt: "desc" },
         });
-        if (programMember?.intakeData) {
-          await savePublicFunnelQuizFromIntake({
+        const programFromTier =
+          user.subscriptionTier === "hair_loss"
+            ? "HAIR_LOSS"
+            : user.subscriptionTier === "mens_health" ||
+                user.subscriptionTier?.includes("mens")
+              ? "MENS_HEALTH"
+              : user.subscriptionTier === "womens_health" ||
+                  user.subscriptionTier?.includes("womens")
+                ? "WOMENS_HEALTH"
+                : null;
+        const program = programFromTier || programMember?.program;
+        if (program && programMember?.intakeData) {
+          await appendPublicFunnelQuizFromIntake({
             userId: bookingUserId,
-            program: programMember.program,
+            program,
             intakeData: programMember.intakeData as Record<string, unknown>,
           }).catch((err) => {
             console.error("[bookings/confirm] public funnel quiz save failed:", err);

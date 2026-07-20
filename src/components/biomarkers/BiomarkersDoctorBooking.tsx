@@ -1,6 +1,10 @@
 "use client";
 
 import { MembershipConsultationBooking } from "@/components/membership/MembershipConsultationBooking";
+import {
+  consultRiskFlagsForSource,
+  resolveConsultProgramType,
+} from "@/lib/funnel/resolve-consult-program-type";
 
 type Props = {
   userId: string;
@@ -11,16 +15,17 @@ type Props = {
   email: string;
   phone?: string;
   postcode?: string;
+  sourceProgram?: string;
   onComplete: () => void;
 };
 
 /** Doctor telehealth booking for biomarkers checkout. */
-export function BiomarkersDoctorBooking(props: Props) {
+export function BiomarkersDoctorBooking({ sourceProgram, ...props }: Props) {
   return (
     <MembershipConsultationBooking
       {...props}
-      programType="BIOLOGICAL_CLOCK"
-      riskFlags={["BIOMARKERS_PANEL"]}
+      programType={resolveConsultProgramType(sourceProgram)}
+      riskFlags={consultRiskFlagsForSource(sourceProgram)}
     />
   );
 }

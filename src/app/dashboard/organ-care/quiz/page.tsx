@@ -85,6 +85,7 @@ export default function OrganCareQuizPage() {
   const [addBiomarkers, setAddBiomarkers] = useState(false);
   const [selectedPanel, setSelectedPanel] = useState<BiomarkersPanelTier>("essential");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [paidMessage, setPaidMessage] = useState<string | null>(null);
   const [pricing, setPricing] = useState<OrganCarePricing | null>(null);
@@ -176,6 +177,7 @@ export default function OrganCareQuizPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Could not start checkout");
       setClientSecret(data.clientSecret);
+      setPaymentIntentId(data.paymentIntentId ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -456,15 +458,21 @@ export default function OrganCareQuizPage() {
 
             {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-            {clientSecret ? (
+            {clientSecret && paymentIntentId ? (
               <div className="mt-4">
                 <PortalPaymentForm
                   clientSecret={clientSecret}
+                  paymentIntentId={paymentIntentId}
                   amountLabel={checkoutPriceLabel}
                   submitLabel="Subscribe to Organ Care"
                   userId={user?.id}
                   customerEmail={user?.email}
+                  returnUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/dashboard/organ-care/quiz`}
                   onConfirmed={confirmPayment}
+                  onPaymentFailed={() => {
+                    setClientSecret(null);
+                    setPaymentIntentId(null);
+                  }}
                 />
               </div>
             ) : (

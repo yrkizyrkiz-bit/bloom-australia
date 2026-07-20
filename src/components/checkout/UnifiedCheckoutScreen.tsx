@@ -173,6 +173,11 @@ function isSlotBooked(slot: UnifiedSlot): boolean {
   return slot.availabilityStatus === "BOOKED" || slot.availableDoctors <= 0;
 }
 
+function isSlotUnavailable(slot: UnifiedSlot, selectedSlotId: string): boolean {
+  if (selectedSlotId && slot.slotId === selectedSlotId) return false;
+  return isSlotBooked(slot);
+}
+
 function formatHoldCountdown(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -353,7 +358,8 @@ export function ConsultationPicker({
   const periodHasSlots = (period: TimePeriod) =>
     activeDay?.slots.some(
       (s) =>
-        slotMatchesPeriod(s.startTime, period, patientTimezone) && !isSlotBooked(s)
+        slotMatchesPeriod(s.startTime, period, patientTimezone) &&
+        !isSlotUnavailable(s, formData.selectedSlotId)
     ) ?? false;
 
   const periodHasAnySlots = (period: TimePeriod) =>
@@ -464,7 +470,7 @@ export function ConsultationPicker({
             {groupedSlots.map((daySlots, idx) => {
               const isActive = activeDayIndex === idx;
               const hasSelection = daySlots.slots.some(
-                (s) => s.slotId === formData.selectedSlotId && !isSlotBooked(s)
+                (s) => s.slotId === formData.selectedSlotId
               );
 
               return (
@@ -554,7 +560,7 @@ export function ConsultationPicker({
                     {slotsInPeriod.map((slot) => {
                       const isSelected = formData.selectedSlotId === slot.slotId;
                       const isSelecting = selectingSlotId === slot.slotId;
-                      const booked = isSlotBooked(slot);
+                      const booked = isSlotUnavailable(slot, formData.selectedSlotId);
 
                       return (
                         <button
@@ -664,6 +670,7 @@ export function UnifiedCheckoutScreen({
   const fetchSlots = async (offset: number) => {
     setLoadingSlots(true);
     onSlotsError(null);
+    let advancing = false;
     try {
       const params = new URLSearchParams({
         appointmentType: "PHONE_CONSULT",
@@ -675,12 +682,21 @@ export function UnifiedCheckoutScreen({
         throw new Error("Failed to load available times");
       }
       const data = await response.json();
-      setAvailableSlots(data.slots || []);
+      const slots: UnifiedSlot[] = data.slots || [];
       setCanGoBack(Boolean(data.canGoBack));
       setCanGoForward(Boolean(data.canGoForward));
+
+      // Skip empty windows so the calendar lands on the next date with slots
+      if (slots.length === 0 && data.canGoForward) {
+        advancing = true;
+        setDayWindowOffset(offset + WINDOW_DAYS);
+        return;
+      }
+
+      setAvailableSlots(slots);
       setActiveDayIndex(0);
 
-      const days = groupSlotsByDay(data.slots || [], patientTimezone);
+      const days = groupSlotsByDay(slots, patientTimezone);
       if (days.length >= 2) {
         const a = formatDateInTimezone(days[0].date, patientTimezone, { day: "numeric", month: "short" });
         const b = formatDateInTimezone(days[1].date, patientTimezone, { day: "numeric", month: "short" });
@@ -701,7 +717,7 @@ export function UnifiedCheckoutScreen({
       onSlotsError("Unable to load available times. Please try again.");
       setAvailableSlots([]);
     } finally {
-      setLoadingSlots(false);
+      if (!advancing) setLoadingSlots(false);
     }
   };
 
