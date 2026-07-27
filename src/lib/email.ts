@@ -87,6 +87,170 @@ export async function sendPatientWelcomeEmail(
   return sendEmailInternal(to, template.subject, template.html, template.text);
 }
 
+/** Welcome email for the consolidated Sanative Membership funnel. */
+export async function sendMembershipWelcomeEmail(params: {
+  to: string;
+  firstName: string;
+  magicLink: string;
+  needsPassword: boolean;
+}): Promise<SendEmailResult> {
+  const greeting = params.firstName ? `Hi ${params.firstName},` : "Hi,";
+  const cta = params.needsPassword
+    ? "Set your password & open your portal"
+    : "Open your portal";
+  const subject = "Welcome to Sanative — your membership is active";
+
+  const html = `
+  <div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #2c3628;">
+    <h1 style="font-size: 22px; margin: 0 0 16px;">Welcome to Sanative</h1>
+    <p>${greeting}</p>
+    <p>Your Sanative Membership is active. It includes your comprehensive Essential biomarker panel plus your Biological Clock and Organ Care dashboards.</p>
+    <p>Your membership <strong>auto-renews annually</strong> using the card on file. You can update your payment method or cancel anytime from your portal.</p>
+    <p><strong>What happens next</strong></p>
+    <ol style="padding-left: 20px; line-height: 1.7;">
+      <li>Your doctor consultation — we'll confirm your booking by email.</li>
+      <li>Your doctor issues your pathology request for the Essential panel.</li>
+      <li>Results and personalised insights appear in your portal.</li>
+    </ol>
+    <p style="margin: 28px 0;">
+      <a href="${params.magicLink}" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">${cta}</a>
+    </p>
+    <p style="font-size: 13px; color: #5c7a52;">This secure link signs you in automatically${params.needsPassword ? " and lets you choose a password" : ""}. If the button doesn't work, copy this URL into your browser:<br/>${params.magicLink}</p>
+    <p style="font-size: 12px; color: #9aa79a; margin-top: 32px;">Sanative · doctor-led preventative care</p>
+  </div>`;
+
+  const text = [
+    greeting,
+    "",
+    "Your Sanative Membership is active. It includes your comprehensive Essential biomarker panel plus your Biological Clock and Organ Care dashboards.",
+    "Your membership auto-renews annually using the card on file. You can update your payment method or cancel anytime from your portal.",
+    "",
+    "What happens next:",
+    "1. Your doctor consultation — we'll confirm your booking by email.",
+    "2. Your doctor issues your pathology request for the Essential panel.",
+    "3. Results and personalised insights appear in your portal.",
+    "",
+    `${cta}: ${params.magicLink}`,
+  ].join("\n");
+
+  return sendEmailInternal(params.to, subject, html, text);
+}
+
+/** Renewal reminder for annual Sanative Membership (one-off billing model). */
+export async function sendMembershipRenewalReminderEmail(params: {
+  to: string;
+  firstName: string;
+  renewalDate: Date;
+  priceLabel: string;
+}): Promise<SendEmailResult> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://sanative.com.au";
+  const renewUrl = `${baseUrl}/membership/checkout`;
+  const greeting = params.firstName ? `Hi ${params.firstName},` : "Hi,";
+  const dateLabel = params.renewalDate.toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const subject = `Your Sanative Membership renews on ${dateLabel}`;
+
+  const html = `
+  <div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #2c3628;">
+    <h1 style="font-size: 22px; margin: 0 0 16px;">Your membership renewal</h1>
+    <p>${greeting}</p>
+    <p>Your Sanative Membership is due for renewal on <strong>${dateLabel}</strong> (${params.priceLabel}). Renewing keeps your biomarker testing, Biological Clock and Organ Care dashboards, and doctor-led care active for another year.</p>
+    <p style="margin: 28px 0;">
+      <a href="${renewUrl}" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">Renew my membership</a>
+    </p>
+    <p style="font-size: 13px; color: #5c7a52;">Questions about your membership? Just reply to this email.</p>
+    <p style="font-size: 12px; color: #9aa79a; margin-top: 32px;">Sanative · doctor-led preventative care</p>
+  </div>`;
+
+  const text = [
+    greeting,
+    "",
+    `Your Sanative Membership is due for renewal on ${dateLabel} (${params.priceLabel}).`,
+    "Renewing keeps your biomarker testing, dashboards and doctor-led care active for another year.",
+    "",
+    `Renew: ${renewUrl}`,
+  ].join("\n");
+
+  return sendEmailInternal(params.to, subject, html, text);
+}
+
+/** Sent when an unrenewed membership lapses and portal access is paused. */
+export async function sendMembershipExpiredEmail(params: {
+  to: string;
+  firstName: string;
+}): Promise<SendEmailResult> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://sanative.com.au";
+  const renewUrl = `${baseUrl}/membership/checkout`;
+  const greeting = params.firstName ? `Hi ${params.firstName},` : "Hi,";
+  const subject = "Your Sanative Membership has expired";
+
+  const html = `
+  <div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #2c3628;">
+    <h1 style="font-size: 22px; margin: 0 0 16px;">Your membership has expired</h1>
+    <p>${greeting}</p>
+    <p>Your Sanative Membership has lapsed, so access to your dashboards and included services is paused. Your health data is safe and will be right where you left it.</p>
+    <p style="margin: 28px 0;">
+      <a href="${renewUrl}" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">Reactivate my membership</a>
+    </p>
+    <p style="font-size: 12px; color: #9aa79a; margin-top: 32px;">Sanative · doctor-led preventative care</p>
+  </div>`;
+
+  const text = [
+    greeting,
+    "",
+    "Your Sanative Membership has lapsed, so access to your dashboards and included services is paused.",
+    "Your health data is safe and will be right where you left it.",
+    "",
+    `Reactivate: ${renewUrl}`,
+  ].join("\n");
+
+  return sendEmailInternal(params.to, subject, html, text);
+}
+
+/** Confirmation when a Sanative Membership is cancelled. */
+export async function sendMembershipCancellationEmail(params: {
+  to: string;
+  firstName: string;
+  /** ISO date access ends (period-end cancellations); null = immediate. */
+  accessEndsAt: string | null;
+}): Promise<SendEmailResult> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://sanative.com.au";
+  const greeting = params.firstName ? `Hi ${params.firstName},` : "Hi,";
+  const subject = "Your Sanative Membership has been cancelled";
+  const accessLine = params.accessEndsAt
+    ? `You'll keep full access until <strong>${new Date(params.accessEndsAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}</strong>.`
+    : "Your access has now ended.";
+  const accessLineText = params.accessEndsAt
+    ? `You'll keep full access until ${new Date(params.accessEndsAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}.`
+    : "Your access has now ended.";
+
+  const html = `
+  <div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #2c3628;">
+    <h1 style="font-size: 22px; margin: 0 0 16px;">Membership cancelled</h1>
+    <p>${greeting}</p>
+    <p>We've cancelled your Sanative Membership as requested. ${accessLine}</p>
+    <p>Your health records stay safely stored — if you rejoin, everything will be right where you left it.</p>
+    <p style="margin: 28px 0;">
+      <a href="${baseUrl}/membership/checkout" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">Rejoin Sanative</a>
+    </p>
+    <p style="font-size: 12px; color: #9aa79a; margin-top: 32px;">Sanative · doctor-led preventative care</p>
+  </div>`;
+
+  const text = [
+    greeting,
+    "",
+    `We've cancelled your Sanative Membership as requested. ${accessLineText}`,
+    "Your health records stay safely stored — if you rejoin, everything will be right where you left it.",
+    "",
+    `Rejoin: ${baseUrl}/membership/checkout`,
+  ].join("\n");
+
+  return sendEmailInternal(params.to, subject, html, text);
+}
+
 export async function sendResultsReadyEmail(
   to: string,
   data: {

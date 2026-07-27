@@ -92,7 +92,7 @@ export function LabsSection() {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
               <div className="bg-white rounded-3xl p-6 shadow-2xl text-center border border-[#e6ebe3]">
                 <p className="text-sm text-[#7e9a72] mb-1">Test up to</p>
-                <p className="text-5xl font-serif text-[#34412f]">80+</p>
+                <p className="text-5xl font-serif text-[#34412f]">85+</p>
                 <p className="text-[#5c7a52] font-medium">biomarkers</p>
               </div>
             </div>

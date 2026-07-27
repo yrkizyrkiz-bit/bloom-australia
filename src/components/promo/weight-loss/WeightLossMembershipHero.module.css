@@ -1,0 +1,248 @@
+.hero {
+  position: relative;
+  overflow: visible;
+  color: #ffffff;
+  font-family: var(--font-inter), Inter, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(70% 55% at 50% 0%, rgba(168, 196, 110, 0.35) 0%, transparent 60%),
+    linear-gradient(180deg, #74894b 0%, #6a8041 100%);
+  padding-bottom: clamp(60px, 8vw, 100px);
+}
+
+.inner {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(40px, 5vw, 72px) clamp(40px, 4vw, 56px) 0;
+}
+
+.intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 380px);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: end;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  font-size: clamp(0.95rem, 1.2vw, 1.125rem);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.heading {
+  margin: 0;
+  max-width: 920px;
+  font-size: clamp(54px, 6vw, 110px);
+  font-weight: 600;
+  line-height: 0.96;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+}
+
+.summary {
+  max-width: 380px;
+  padding-bottom: 4px;
+}
+
+.summary > p {
+  margin: 0 0 22px;
+  font-size: clamp(1.05rem, 1.35vw, 1.25rem);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  padding: 0 44px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #26311a;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.cta:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+
+/* ---- Bento ---- */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(250px, 1fr));
+  gap: 20px;
+  min-height: 640px;
+  margin-top: clamp(40px, 5vw, 64px);
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 32px;
+  min-height: 0;
+  box-shadow: 0 10px 30px rgba(24, 38, 18, 0.1);
+}
+
+.cardMedia {
+  position: absolute;
+  inset: 0;
+}
+
+.cardMedia img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.biomarkers {
+  grid-column: 1 / span 4;
+  grid-row: 1 / span 2;
+  background: #5f7440;
+}
+
+.doctor {
+  grid-column: 5 / span 4;
+  grid-row: 1 / span 2;
+  background: #6a8041;
+}
+
+.community {
+  grid-column: 9 / span 4;
+  grid-row: 1;
+  background: #8a6f52;
+}
+
+.phone {
+  grid-column: 9 / span 4;
+  grid-row: 2;
+  background: linear-gradient(180deg, #b8d27a 0%, #a6c568 100%);
+}
+
+.phoneMedia {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 8% 0;
+}
+
+.phoneMedia img {
+  position: relative !important;
+  width: 76% !important;
+  height: 86% !important;
+  max-width: 76%;
+  object-fit: contain !important;
+  object-position: bottom center;
+}
+
+/* ---- Tablet ---- */
+@media (max-width: 1023px) {
+  .inner {
+    padding-left: clamp(28px, 3vw, 32px);
+    padding-right: clamp(28px, 3vw, 32px);
+  }
+
+  .intro {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .heading {
+    font-size: clamp(48px, 7.5vw, 80px);
+  }
+
+  .summary {
+    max-width: 460px;
+  }
+
+  .bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    min-height: auto;
+    gap: 16px;
+  }
+
+  .biomarkers,
+  .doctor,
+  .community,
+  .phone {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .biomarkers,
+  .doctor {
+    min-height: 460px;
+  }
+
+  .community,
+  .phone {
+    min-height: 300px;
+  }
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 639px) {
+  .inner {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .heading {
+    font-size: clamp(46px, 12vw, 64px);
+    line-height: 0.98;
+  }
+
+  .bento {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .biomarkers {
+    min-height: 460px;
+    order: 1;
+  }
+
+  .doctor {
+    min-height: 460px;
+    order: 2;
+  }
+
+  .community {
+    min-height: 320px;
+    order: 3;
+  }
+
+  .phone {
+    min-height: 320px;
+    order: 4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta {
+    transition: none;
+  }
+
+  .cta:hover {
+    transform: none;
+  }
+}

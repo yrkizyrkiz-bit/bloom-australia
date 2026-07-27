@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { PublicComplianceBlock } from "@/components/legal/PublicComplianceBlock";
+import { HairHealthHero } from "@/components/promo/hair-health/HairHealthHero";
+import { HairHealthMembershipHowItWorks } from "@/components/promo/hair-health/HairHealthMembershipHowItWorks";
 import {
   ArrowRight,
   Microscope,
@@ -14,7 +16,6 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronUp,
-  Sparkles,
   Users,
   ShieldCheck,
   Clock,
@@ -367,40 +368,6 @@ function HairHealthPageContent() {
     },
   ];
 
-  const treatments = [
-    {
-      name: "Topical treatment options",
-      type: "Doctor-led care",
-      description: "Clinically used treatments that may stimulate hair follicles and support regrowth. Suitability is assessed by your doctor.",
-      forWho: ["Men", "Women"],
-    },
-    {
-      name: "Oral treatment options",
-      type: "Doctor-led care",
-      description: "Prescription options for male pattern hair loss may be considered when clinically appropriate. Your doctor will advise privately.",
-      forWho: ["Men"],
-    },
-    {
-      name: "Hormonal treatment options",
-      type: "Doctor-led care",
-      description: "Anti-androgen approaches for female pattern hair loss may be considered when clinically appropriate. Discussed in consultation.",
-      forWho: ["Women"],
-    },
-    {
-      name: "Custom Supplements",
-      type: "Nutritional Support",
-      description: "Biomarker-guided supplements targeting specific deficiencies like iron, biotin, zinc, and vitamin D.",
-      forWho: ["Men", "Women"],
-    },
-  ];
-
-  const effectivenessData = [
-    { label: "Our Holistic Approach", percentage: 90, color: "bg-[#5c7a52]" },
-    { label: "Treatment alone", percentage: 65, color: "bg-[#a8bb9e]" },
-    { label: "OTC Supplements Only", percentage: 35, color: "bg-[#cdd8c6]" },
-    { label: "No Treatment", percentage: 5, color: "bg-[#e6ebe3]" },
-  ];
-
   const faqs = [
     {
       question: "How quickly will I see results?",
@@ -433,117 +400,27 @@ function HairHealthPageContent() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-[#fdfbf7]">
-        {/* Hero Section */}
-        <section className="relative py-6 lg:py-8 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#cdd8c6] via-[#e6ebe3] to-[#f4f7f2]" />
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[#a8bb9e]/20 to-transparent" />
-
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-              <div className="lg:pt-4">
-                {/* Gender Toggle - Moved to top */}
-                <div className="flex items-center gap-4 mb-6">
-                  <span className="text-sm text-[#5c7a52]">I am:</span>
-                  <div className="flex bg-white rounded-full p-1 shadow-sm">
-                    <button
-                      type="button"
-                      onClick={() => setGender("women")}
-                      className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                        gender === "women"
-                          ? "bg-[#5c7a52] text-white"
-                          : "text-[#5c7a52] hover:bg-[#f4f7f2]"
-                      }`}
-                    >
-                      Female
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setGender("men")}
-                      className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                        gender === "men"
-                          ? "bg-[#5c7a52] text-white"
-                          : "text-[#5c7a52] hover:bg-[#f4f7f2]"
-                      }`}
-                    >
-                      Male
-                    </button>
-                  </div>
-                </div>
-
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-[#2c3628] leading-tight mb-6">
-                  Doctor-led{" "}
-                  <span className="text-[#5c7a52] italic">hair health</span>
-                </h1>
-                <p className="text-lg text-[#5c7a52] max-w-lg">
-                  Personalised assessment and care plans led by Australian-registered doctors. Treatment options are discussed privately if clinically appropriate.
-                </p>
-              </div>
-
-              {/* Hero image, badges & CTA */}
-              <div className="relative flex flex-col gap-6 lg:-mt-2">
-                <div className="relative aspect-[4/5] max-h-[520px] sm:max-h-[560px] lg:max-h-none rounded-3xl overflow-hidden shadow-2xl">
-                  <img
-                    src={gender === "women"
-                      ? "https://images.pexels.com/photos/1308881/pexels-photo-1308881.jpeg?auto=compress&cs=tinysrgb&w=800&h=1000&dpr=1"
-                      : "https://images.pexels.com/photos/6829574/pexels-photo-6829574.jpeg?auto=compress&cs=tinysrgb&w=800&h=1000&dpr=1"
-                    }
-                    alt={`${gender === "women" ? "Woman" : "Man"} with healthy hair`}
-                    className="w-full h-full object-cover object-top"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#34412f]/40 to-transparent" />
-
-                  {/* Floating Stats Card */}
-                  <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-sm rounded-2xl p-5 shadow-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-[#7e9a72]">Assessment-first care</p>
-                        <p className="text-lg font-serif text-[#2c3628]">Your doctor reviews what is clinically appropriate for you</p>
-                      </div>
-                      <div className="w-14 h-14 rounded-full bg-[#5c7a52]/20 flex items-center justify-center">
-                        <Sparkles className="w-7 h-7 text-[#5c7a52]" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Trust Indicators */}
-                <div className="flex flex-wrap gap-4 sm:gap-6 text-sm text-[#5c7a52]">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
-                    <span>AHPRA Doctors</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
-                    <span>Personalised plans</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-[#5c7a52]" />
-                    <span>Pharmacy dispensing when prescribed</span>
-                  </div>
-                </div>
-
-                <Link
-                  href="/hair-assessment"
-                  className="btn-primary inline-flex items-center justify-center gap-2 w-full sm:w-auto"
-                >
-                  Start your assessment
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+      <main className="min-h-screen overflow-x-hidden bg-[#fdfbf7]">
+        <div
+          className="relative"
+          style={{
+            background:
+              "linear-gradient(180deg, #6b8a62 0%, #4a6243 55%, #3a4d34 100%)",
+          }}
+        >
+          <HairHealthHero gender={gender} onGenderChange={setGender} />
+          <HairHealthMembershipHowItWorks />
+        </div>
 
         {/* Our Concept Section */}
-        <section className="py-20 lg:py-28 bg-[#fdfbf7]">
+        <section className="relative z-[2] py-20 lg:py-28 bg-[#fdfbf7]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <span className="inline-block px-4 py-1.5 text-sm font-medium bg-[#e6ebe3] text-[#5c7a52] rounded-full mb-4">
                 Our approach
               </span>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-6">
-                Medicine with{" "}
+                Treatment with{" "}
                 <span className="text-[#5c7a52] italic">depth and vision</span>
               </h2>
               <p className="text-lg text-[#5c7a52] max-w-2xl mx-auto">
@@ -900,98 +777,6 @@ function HairHealthPageContent() {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Effectiveness Section */}
-        <section className="py-20 lg:py-28 bg-[#f4f7f2]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <div>
-                <span className="inline-block px-4 py-1.5 text-sm font-medium bg-[#5c7a52]/20 text-[#5c7a52] rounded-full mb-4">
-                  Why it works
-                </span>
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-6">
-                  Our approach is{" "}
-                  <span className="text-[#5c7a52] italic">more effective</span>
-                </h2>
-                <p className="text-lg text-[#5c7a52] mb-8">
-                  Unlike conventional treatments, we combine medical diagnostics, targeted treatments, and personalised care strategies to create a multi-therapy approach proven to be more effective than isolated treatments.
-                </p>
-                <Link
-                  href="/hair-assessment"
-                  className="btn-secondary inline-flex items-center gap-2"
-                >
-                  Learn more about our method
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
-              </div>
-
-              <div className="space-y-6">
-                {effectivenessData.map((item) => (
-                  <div key={item.label}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-[#2c3628]">{item.label}</span>
-                      <span className="text-sm font-bold text-[#5c7a52]">{item.percentage}%</span>
-                    </div>
-                    <div className="h-4 bg-white rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${item.color} rounded-full transition-all duration-1000`}
-                        style={{ width: `${item.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-                <p className="text-xs text-[#7e9a72] mt-4">
-                  *Based on internal patient outcome data. Individual results may vary.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Treatments Section */}
-        <section className="py-20 lg:py-28 bg-[#fdfbf7]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <span className="inline-block px-4 py-1.5 text-sm font-medium bg-[#e6ebe3] text-[#5c7a52] rounded-full mb-4">
-                Our treatments
-              </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-6">
-                Evidence-based{" "}
-                <span className="text-[#5c7a52] italic">solutions</span>
-              </h2>
-              <p className="text-lg text-[#5c7a52] max-w-2xl mx-auto">
-                Doctor-led treatment plans and supplements, tailored by AHPRA-registered doctors based on your unique biomarker profile.
-              </p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {treatments.map((treatment) => (
-                <div
-                  key={treatment.name}
-                  className="bg-white rounded-2xl p-6 border border-[#e6ebe3] hover:border-[#5c7a52] hover:shadow-lg transition-all duration-300"
-                >
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {treatment.forWho.map((who) => (
-                      <span
-                        key={who}
-                        className="px-2 py-0.5 text-xs font-medium bg-[#f4f7f2] text-[#5c7a52] rounded-full"
-                      >
-                        {who}
-                      </span>
-                    ))}
-                  </div>
-                  <h3 className="text-xl font-serif text-[#2c3628] mb-1">
-                    {treatment.name}
-                  </h3>
-                  <p className="text-sm text-[#7e9a72] mb-3">{treatment.type}</p>
-                  <p className="text-sm text-[#5c7a52] leading-relaxed">
-                    {treatment.description}
-                  </p>
-                </div>
-              ))}
             </div>
           </div>
         </section>

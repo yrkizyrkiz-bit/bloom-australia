@@ -129,6 +129,7 @@ export function deriveMembershipEntitlements(
   }
 
   // --- Scope entitlement flags (COMPLETE_HEALTH is pre-expanded at sync time) ---
+  const membershipFlags = entitlementFlags(findEntitlement(entitlements, "SCOPE", "MEMBERSHIP"));
   const organFlags = entitlementFlags(findEntitlement(entitlements, "SCOPE", "ORGAN_CARE"));
   const clockFlags = entitlementFlags(findEntitlement(entitlements, "SCOPE", "BIOLOGICAL_CLOCK"));
   const scoreFlags = entitlementFlags(findEntitlement(entitlements, "SCOPE", "HEALTH_SCORE"));
@@ -183,7 +184,20 @@ export function deriveMembershipEntitlements(
     return "ready";
   })();
 
+  const membershipState = ((): EntitlementState => {
+    if (membershipFlags.isInactive) return "inactive";
+    if (!membershipFlags.hasEntitlement) return "locked_upgrade";
+    return "ready";
+  })();
+
   const scopes: Record<ScopeKey, ScopeEntitlementView> = {
+    MEMBERSHIP: {
+      key: "MEMBERSHIP",
+      label: SCOPE_LABELS.MEMBERSHIP,
+      state: membershipState,
+      hasEntitlement: membershipFlags.hasEntitlement,
+      status: membershipFlags.status,
+    },
     PROGRAM_ESSENTIAL: {
       key: "PROGRAM_ESSENTIAL",
       label: SCOPE_LABELS.PROGRAM_ESSENTIAL,

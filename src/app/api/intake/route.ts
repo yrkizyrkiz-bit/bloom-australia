@@ -207,8 +207,12 @@ export async function POST(req: NextRequest) {
       typeof body.resumeVerificationToken === "string"
         ? body.resumeVerificationToken.trim()
         : "";
+    const clientUserId =
+      typeof body.userId === "string" ? body.userId.trim() : "";
     const data = { ...body } as Record<string, unknown>;
     delete data.resumeVerificationToken;
+    // Client-owned continuation hint only — never persist into quiz/intake payloads
+    delete data.userId;
 
     // Log incoming data for debugging
     console.log("[Intake API] Received data:", {
@@ -293,10 +297,24 @@ export async function POST(req: NextRequest) {
         ? verifyResumeVerificationToken(resumeToken, existing.email)
         : { valid: false as const };
 
-      if (
-        !tokenCheck.valid ||
-        (tokenCheck.userId && tokenCheck.userId !== existing.id)
-      ) {
+      // Same-browser funnel continuation: email gate already created this user and
+      // the client still holds the returned userId (e.g. WM shipping step).
+      const sameSessionContinuation =
+        Boolean(clientUserId) && clientUserId === existing.id;
+
+      // Weight management captures the lead at the email gate, then updates the same
+      // prospective record at shipping. Requiring OTP there blocks legitimate resumes
+      // (refresh, returning to the same email). Other programs still require verification.
+      const weightManagementProspectiveResume =
+        programType === "WEIGHT_MANAGEMENT" && canResumeProspectiveIntake;
+
+      const resumeAuthorized =
+        sameSessionContinuation ||
+        weightManagementProspectiveResume ||
+        (tokenCheck.valid &&
+          !(tokenCheck.userId && tokenCheck.userId !== existing.id));
+
+      if (!resumeAuthorized) {
         console.log("[Intake API] Resume verification required:", existing.email);
         return NextResponse.json(
           {

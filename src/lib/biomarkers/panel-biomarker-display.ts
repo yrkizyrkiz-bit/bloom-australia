@@ -7,6 +7,7 @@ import {
 import {
   FUNCTION_STYLE_CALCULATED_IDS,
   FUNCTION_STYLE_CATEGORIES,
+  buildFunctionStyleMarkerUniverse,
   type FunctionStyleCategory,
   type FunctionStyleCategoryId,
 } from "@/lib/biomarkers/function-style-categories";
@@ -246,55 +247,16 @@ function resolveMarkerForDisplay(
   return null;
 }
 
-const ESSENTIAL_EXTRA_CALCULATED = new Set([
-  "non_hdl_cholesterol",
-  "egfr",
-  "neutrophil_percent",
-  "lymphocyte_percent",
-  "monocyte_percent",
-  "eosinophil_percent",
-  "basophil_percent",
-  "homa_ir",
-  "tc_hdl_ratio",
-  "ldl_hdl_ratio",
-  "tg_hdl_ratio",
-  "atherogenic_index_plasma",
-  "vldl_cholesterol",
-  "transferrin_saturation",
-  "globulin",
-  "albumin_globulin_ratio",
-  "ast_alt_ratio",
-  "indirect_bilirubin",
-  "anion_gap",
-  "urea_creatinine_ratio",
-  "estimated_average_glucose",
-  "tyg_index",
-  "nlr",
-  "platelet_lymphocyte_ratio",
-  "crp_albumin_ratio",
-]);
-
 /**
  * Markers available for a tier in Function-style grouping:
  * tier set ∪ calculated markers surfaced on intake.
  */
 export function getTierMarkerIdUniverse(tier: BiomarkerSubscriptionTier): Set<string> {
-  const tierIds = getBiomarkerTierMarkerIds(tier);
-  const universe = new Set(tierIds);
-  // Complete includes everything in Advanced (some organ-care IDs sit outside bloodPanelConfig).
-  if (tier === "complete") {
-    for (const id of getBiomarkerTierMarkerIds("advanced")) universe.add(id);
-  }
-  if (tierIds.has("free_testosterone") || tierIds.has("testosterone_free") || universe.has("testosterone_free")) {
-    universe.add("testosterone_free");
-    universe.add("free_testosterone");
-  }
-  if (tier === "essential") {
-    for (const id of ESSENTIAL_EXTRA_CALCULATED) universe.add(id);
-  } else {
-    for (const id of FUNCTION_STYLE_CALCULATED_IDS) universe.add(id);
-  }
-  return universe;
+  return buildFunctionStyleMarkerUniverse(
+    tier,
+    getBiomarkerTierMarkerIds(tier),
+    tier === "complete" ? getBiomarkerTierMarkerIds("advanced") : undefined
+  );
 }
 
 export type FunctionStyleCategoryPreview = FunctionStyleCategory & {
@@ -345,6 +307,18 @@ export function getFunctionStyleBiomarkersForDisplay(
     }
   }
   return [...byId.values()];
+}
+
+/** Unique Function-style totals shown on intake / plan cards (tested + calculated). */
+export function getTierDisplayMarkerCounts(tier: BiomarkerSubscriptionTier): {
+  total: number;
+  measurable: number;
+  derived: number;
+} {
+  const markers = getFunctionStyleBiomarkersForDisplay(tier);
+  const measurable = markers.filter((m) => !m.isDerived).length;
+  const derived = markers.length - measurable;
+  return { total: markers.length, measurable, derived };
 }
 
 export { CATEGORY_BADGE, CATEGORY_ORDER, FUNCTION_CATEGORY_BADGE };

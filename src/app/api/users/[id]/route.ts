@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const body = await request.json();
     const {
-      firstName, lastName, dateOfBirth, gender, phone, image, password, role, subscriptionStatus, subscriptionTier, memberStatus,
+      email, firstName, lastName, dateOfBirth, gender, phone, image, password, role, subscriptionStatus, subscriptionTier, memberStatus,
       marketingOptIn,
       // Residential address
       address, addressLine1, addressLine2, suburb, state, postcode, country,
@@ -78,17 +78,51 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Only admins can change role or subscription" }, { status: 401 });
     }
 
+    const isStaffEditor = allowedRoles.includes(session.user.role);
     const updateData: Record<string, unknown> = {};
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
-    // Parse date as UTC to avoid timezone issues
+    // Accept YYYY-MM-DD or full ISO; avoid appending timezone twice (Invalid Date)
     if (dateOfBirth !== undefined) {
-      updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth + "T00:00:00Z") : null;
+      if (!dateOfBirth) {
+        updateData.dateOfBirth = null;
+      } else {
+        const raw = String(dateOfBirth).trim();
+        const dayOnly = raw.includes("T") ? raw.split("T")[0]! : raw;
+        const parsed = /^\d{4}-\d{2}-\d{2}$/.test(dayOnly)
+          ? new Date(`${dayOnly}T00:00:00Z`)
+          : new Date(raw);
+        if (Number.isNaN(parsed.getTime())) {
+          return NextResponse.json({ error: "Invalid date of birth" }, { status: 400 });
+        }
+        updateData.dateOfBirth = parsed;
+      }
     }
-    if (gender !== undefined) updateData.gender = gender.toUpperCase();
+    if (gender !== undefined && gender !== null && String(gender).trim() !== "") {
+      updateData.gender = String(gender).toUpperCase();
+    }
     if (phone !== undefined) updateData.phone = phone;
     if (image !== undefined) updateData.image = image;
     if (password) updateData.passwordHash = await bcrypt.hash(password, 12);
+
+    // Email updates: staff can edit any member; members can edit their own
+    if (email !== undefined) {
+      if (!isStaffEditor && id !== session.user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const normalisedEmail = String(email).trim().toLowerCase();
+      if (!normalisedEmail || !normalisedEmail.includes("@")) {
+        return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
+      }
+      const existing = await prisma.user.findFirst({
+        where: { email: { equals: normalisedEmail, mode: "insensitive" }, NOT: { id } },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json({ error: "Another member already uses that email" }, { status: 409 });
+      }
+      updateData.email = normalisedEmail;
+    }
 
     // Residential address
     if (address !== undefined) updateData.address = address;
@@ -153,6 +187,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ user });
   } catch (error) {
     console.error("Error:", error);
+    // Unique constraint on email
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2002"
+    ) {
+      return NextResponse.json({ error: "Another member already uses that email" }, { status: 409 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

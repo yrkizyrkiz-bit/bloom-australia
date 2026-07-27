@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getBiomarkersPanelPrice } from "@/lib/billing/portal-pricing";
+import { BIOMARKERS_RETEST_ADDON_AUD } from "@/lib/biomarkers/checkout-addons";
 import { getStripe } from "@/lib/stripe";
 import { isValidPanelTier } from "@/lib/portal/biomarkers-purchase";
 
@@ -15,6 +16,7 @@ export type VerifyBiomarkersPanelBookingPaymentResult =
   | { ok: false; error: string; status: number };
 
 const BIOMARKERS_PAYMENT_SOURCES = new Set(["public_biomarkers", "portal_biomarkers"]);
+const RETEST_ADDON_CENTS = BIOMARKERS_RETEST_ADDON_AUD * 100;
 
 export function isBiomarkersPanelBookingNotes(notes?: string | null): boolean {
   return (notes || "").includes("Biomarkers Panel");
@@ -24,24 +26,91 @@ export function isBiomarkersPaymentMetadata(metadata: Record<string, string>): b
   return BIOMARKERS_PAYMENT_SOURCES.has(metadata.source ?? "");
 }
 
-async function amountMatchesBiomarkersPanel(paymentIntent: Stripe.PaymentIntent): Promise<boolean> {
-  const tier = paymentIntent.metadata?.panelTier;
-  if (tier && isValidPanelTier(tier)) {
-    const price = await getBiomarkersPanelPrice(tier);
-    if (price && paymentIntent.amount === price.amountCents) {
-      return true;
+/** Pure amount check used by booking confirm (panel ± optional retest add-on). */
+export function biomarkerPaymentAmountAllowed(
+  paidCents: number,
+  panelBaseAmountsCents: number[],
+  options?: { includeRetestAddon?: boolean }
+): boolean {
+  const includeRetest = Boolean(options?.includeRetestAddon);
+  for (const base of panelBaseAmountsCents) {
+    if (paidCents === base) return true;
+    if (paidCents === base + RETEST_ADDON_CENTS) return true;
+  }
+  if (includeRetest) {
+    for (const base of panelBaseAmountsCents) {
+      if (paidCents === base + RETEST_ADDON_CENTS) return true;
     }
   }
+  return false;
+}
+
+/** Collect allowed base panel amounts (catalog + linked Stripe price, if drifted). */
+async function collectPanelBaseAmountsCents(
+  stripe: Stripe,
+  paymentIntent: Stripe.PaymentIntent
+): Promise<number[]> {
+  const bases = new Set<number>();
+  const metadata = paymentIntent.metadata ?? {};
+
+  const chargedMeta = Number(metadata.chargedAmountCents);
+  if (Number.isFinite(chargedMeta) && chargedMeta > 0) {
+    // chargedAmountCents may already include the retest add-on — handled by caller.
+    bases.add(chargedMeta);
+    if (chargedMeta > RETEST_ADDON_CENTS) {
+      bases.add(chargedMeta - RETEST_ADDON_CENTS);
+    }
+  }
+
+  const addFromBillingPriceId = async (billingPriceId: string | undefined) => {
+    if (!billingPriceId?.trim()) return;
+    const row = await prisma.billingPrice.findUnique({
+      where: { id: billingPriceId },
+      select: { amountCents: true, stripePriceId: true },
+    });
+    if (!row) return;
+    bases.add(row.amountCents);
+    if (row.stripePriceId) {
+      try {
+        const stripePrice = await stripe.prices.retrieve(row.stripePriceId);
+        if (typeof stripePrice.unit_amount === "number" && stripePrice.unit_amount > 0) {
+          bases.add(stripePrice.unit_amount);
+        }
+      } catch {
+        // Stale/deleted Stripe price — catalog amount above is enough.
+      }
+    }
+  };
+
+  await addFromBillingPriceId(metadata.panelBillingPriceId);
 
   const tiers = ["essential", "extended", "comprehensive"] as const;
-  for (const panelTier of tiers) {
+  const preferredTier = metadata.panelTier;
+  const orderedTiers = preferredTier && isValidPanelTier(preferredTier)
+    ? [preferredTier, ...tiers.filter((t) => t !== preferredTier)]
+    : [...tiers];
+
+  for (const panelTier of orderedTiers) {
     const price = await getBiomarkersPanelPrice(panelTier);
-    if (price && paymentIntent.amount === price.amountCents) {
-      return true;
-    }
+    if (!price) continue;
+    bases.add(price.amountCents);
+    await addFromBillingPriceId(price.id);
   }
 
-  return false;
+  return [...bases];
+}
+
+export async function amountMatchesBiomarkersPanel(
+  paymentIntent: Stripe.PaymentIntent
+): Promise<boolean> {
+  const stripe = getStripe();
+  if (!stripe) return false;
+
+  const metadata = paymentIntent.metadata ?? {};
+  const bases = await collectPanelBaseAmountsCents(stripe, paymentIntent);
+  return biomarkerPaymentAmountAllowed(paymentIntent.amount, bases, {
+    includeRetestAddon: metadata.includeRetestAddon === "true",
+  });
 }
 
 /** Biomarkers panel already paid — attach PI when confirming initial consultation. */

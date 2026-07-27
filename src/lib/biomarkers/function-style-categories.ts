@@ -285,3 +285,57 @@ export const FUNCTION_STYLE_CALCULATED_IDS = new Set([
   "eosinophil_percent",
   "basophil_percent",
 ]);
+
+/** Essential-only calculated markers surfaced on intake */
+export const ESSENTIAL_EXTRA_CALCULATED_IDS = new Set([
+  "non_hdl_cholesterol",
+  "egfr",
+  "neutrophil_percent",
+  "lymphocyte_percent",
+  "monocyte_percent",
+  "eosinophil_percent",
+  "basophil_percent",
+  "homa_ir",
+  "tc_hdl_ratio",
+  "ldl_hdl_ratio",
+  "tg_hdl_ratio",
+  "atherogenic_index_plasma",
+  "vldl_cholesterol",
+  "transferrin_saturation",
+  "globulin",
+  "albumin_globulin_ratio",
+  "ast_alt_ratio",
+  "indirect_bilirubin",
+  "anion_gap",
+  "urea_creatinine_ratio",
+  "estimated_average_glucose",
+  "tyg_index",
+  "nlr",
+  "platelet_lymphocyte_ratio",
+  "crp_albumin_ratio",
+]);
+
+/**
+ * Marker IDs available for Function-style grouping on a tier.
+ * Pass Advanced IDs when building Complete so organ-care extras are included.
+ */
+export function buildFunctionStyleMarkerUniverse(
+  tier: BiomarkerSubscriptionTier,
+  tierIds: Set<string>,
+  advancedIds?: Set<string>
+): Set<string> {
+  const universe = new Set(tierIds);
+  if (tier === "complete" && advancedIds) {
+    for (const id of advancedIds) universe.add(id);
+  }
+  if (universe.has("free_testosterone") || universe.has("testosterone_free")) {
+    universe.add("testosterone_free");
+    universe.add("free_testosterone");
+  }
+  if (tier === "essential") {
+    for (const id of ESSENTIAL_EXTRA_CALCULATED_IDS) universe.add(id);
+  } else {
+    for (const id of FUNCTION_STYLE_CALCULATED_IDS) universe.add(id);
+  }
+  return universe;
+}

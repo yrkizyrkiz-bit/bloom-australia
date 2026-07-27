@@ -20,7 +20,7 @@ type Props = {
   email: string;
   phone?: string;
   postcode?: string;
-  programType?: "ORGAN_CARE" | "BIOLOGICAL_CLOCK" | "HAIR_LOSS" | "WOMENS_HEALTH" | "MENS_HEALTH";
+  programType?: "ORGAN_CARE" | "MEMBERSHIP" | "BIOLOGICAL_CLOCK" | "HAIR_LOSS" | "WOMENS_HEALTH" | "MENS_HEALTH";
   riskFlags?: string[];
   onComplete: () => void;
 };
@@ -105,7 +105,7 @@ export function MembershipConsultationBooking({
   email,
   phone,
   postcode,
-  programType = "ORGAN_CARE",
+  programType = "MEMBERSHIP",
   riskFlags = ["ORGAN_CARE_MEMBERSHIP"],
   onComplete,
 }: Props) {

@@ -68,7 +68,7 @@ const faqs = [
   },
   {
     question: "What do the plans test for?",
-    answer: "Choose Essential (core health assessment), Advanced (adds Biological Clock and all Organ Care), or Complete (full 97-marker catalog). Panels cover heart, metabolic, liver, kidney, thyroid, hormones, nutrients and inflammation — tier-dependent.",
+    answer: "Choose Essential (core health assessment), Advanced (adds Biological Clock and all Organ Care), or Complete (full 99-marker catalog including calculated markers). Panels cover heart, metabolic, liver, kidney, thyroid, hormones, nutrients and inflammation — tier-dependent.",
   },
   {
     question: "How do you count the number of tests?",
@@ -148,7 +148,7 @@ function LabsPageContent() {
               <div className="mt-8">
                 <Link
                   href="/biomarker-intake"
-                  className="btn-white inline-flex items-center gap-2"
+                  className="btn-white inline-flex items-center gap-2 text-lg px-10 py-4"
                 >
                   Start testing
                   <ArrowRight className="w-5 h-5" />
@@ -160,23 +160,29 @@ function LabsPageContent() {
           {/* Stats Bar */}
           <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <div className="flex flex-wrap justify-center lg:justify-start gap-8 lg:gap-16">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#5c7a52]" />
-                  <span className="text-[#34412f]">
-                    <strong>80+</strong> health signals tested
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#5c7a52]" />
+              <div className="flex flex-wrap justify-between gap-y-4 gap-x-4 w-full">
+                <div className="flex items-center gap-3 flex-1 min-w-[140px] justify-center lg:justify-start">
+                  <div className="w-2 h-2 rounded-full bg-[#5c7a52] shrink-0" />
                   <span className="text-[#34412f]">
                     <strong>Simple</strong> blood test 2x per year
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#5c7a52]" />
+                <div className="flex items-center gap-3 flex-1 min-w-[140px] justify-center lg:justify-start">
+                  <div className="w-2 h-2 rounded-full bg-[#5c7a52] shrink-0" />
                   <span className="text-[#34412f]">
-                    <strong>Less than</strong> $1/day
+                    <strong>80+</strong> health signals tested
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 flex-1 min-w-[140px] justify-center lg:justify-start">
+                  <div className="w-2 h-2 rounded-full bg-[#5c7a52] shrink-0" />
+                  <span className="text-[#34412f]">
+                    <strong>Indicators</strong> of 500+ diseases
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 flex-1 min-w-[140px] justify-center lg:justify-start">
+                  <div className="w-2 h-2 rounded-full bg-[#5c7a52] shrink-0" />
+                  <span className="text-[#34412f]">
+                    <strong>From</strong> $1/day
                   </span>
                 </div>
               </div>
@@ -192,7 +198,7 @@ function LabsPageContent() {
         </div>
 
         {/* Get Insights Section */}
-        <section id="from-sample-to-action-plan" className="py-20 lg:py-28 bg-white scroll-mt-28">
+        <section id="from-sample-to-action-plan" className="pt-10 lg:pt-14 pb-20 lg:pb-28 bg-white scroll-mt-28">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">
@@ -210,10 +216,10 @@ function LabsPageContent() {
                   1
                 </div>
                 <h3 className="text-xl font-serif text-[#2c3628] mt-8 mb-2">
-                  Book your collection
+                  Initial doctor Consultation
                 </h3>
                 <p className="text-[#5c7a52] text-sm mb-6">
-                  Visit one of our 500+ partner pathology centres across Australia for convenient blood sample collection.
+                  Join Sanative membership and book your initial doctor consultation plus your blood tests organised near you
                 </p>
                 <div className="bg-white rounded-2xl p-4 shadow-sm">
                   <div className="flex items-center gap-3">
@@ -235,18 +241,22 @@ function LabsPageContent() {
                   2
                 </div>
                 <h3 className="text-xl font-serif text-[#2c3628] mt-8 mb-2">
-                  Get clear results
+                  Get clear Insights
                 </h3>
                 <p className="text-[#5c7a52] text-sm mb-6">
-                  Identify signals of health conditions early, and track changes over time.
+                  Clear results appear in the app with insights. Monitor early indicators of 500+ diseases, catch issues early and stay ahead, tracking your health changes over time.
                 </p>
                 <div className="bg-white rounded-2xl p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-[#2c3628]">Cholesterol/HDL Ratio</span>
                     <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">Optimal</span>
                   </div>
-                  <div className="h-2 bg-gradient-to-r from-emerald-200 via-amber-200 to-red-200 rounded-full mb-2">
-                    <div className="w-1/4 h-full bg-emerald-500 rounded-full" />
+                  <div className="relative h-2 bg-gradient-to-r from-emerald-200 via-amber-200 to-red-200 rounded-full mb-2">
+                    <div className="absolute left-0 top-0 h-full w-1/4 bg-emerald-500 rounded-full" />
+                    <div
+                      className="absolute left-1/4 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-emerald-600 border-2 border-white shadow-sm"
+                      aria-hidden
+                    />
                   </div>
                   <div className="flex justify-between text-xs text-[#7e9a72]">
                     <span>Jan 2026</span>
@@ -261,10 +271,10 @@ function LabsPageContent() {
                   3
                 </div>
                 <h3 className="text-xl font-serif text-[#2c3628] mt-8 mb-2">
-                  Unlock your Action Plan
+                  Turn your results into Action
                 </h3>
                 <p className="text-[#5c7a52] text-sm mb-6">
-                  With a doctor-developed program based on your results.
+                  On your second consultation, your doctor will review the results and develop a personalised health action plan.
                 </p>
                 <div className="bg-white rounded-2xl p-4 shadow-sm">
                   <div className="flex justify-center gap-4 mb-3">
@@ -282,25 +292,26 @@ function LabsPageContent() {
               </div>
             </div>
 
-            <div className="mt-10 flex flex-wrap justify-center gap-4">
-              <Link href="/biomarker-intake" className="btn-primary">
+            <div className="mt-10 flex justify-center">
+              <Link
+                href="/biomarker-intake"
+                className="btn-primary inline-flex items-center gap-2 text-lg px-10 py-4"
+              >
                 Start testing
-              </Link>
-              <Link href="/labs/how-it-works" className="btn-secondary">
-                How it works
+                <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
           </div>
         </section>
 
         {/* Biomarkers Section */}
-        <section id="biomarkers" className="py-20 lg:py-28 bg-[#fdfbf7]">
+        <section id="biomarkers" className="pt-10 lg:pt-14 pb-10 lg:pb-14 bg-[#fdfbf7] scroll-mt-28">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">
-                Up to 97 biomarkers across
+                Up to 99 biomarkers across
                 <br />
-                <span className="text-[#5c7a52] italic">10 vital health areas</span>
+                <span className="text-[#5c7a52] italic">14 vital health areas</span>
               </h2>
               <p className="mt-4 text-[#5c7a52] max-w-2xl mx-auto">
                 Select a category to explore the biomarkers we test. Hover over any marker to learn what it measures.
@@ -309,12 +320,12 @@ function LabsPageContent() {
 
             <BiomarkerHoneycomb defaultCategory={categoryFromUrl} />
 
-            <div className="mt-10 text-center">
+            <div className="mt-6 text-center">
               <Link
                 href="/labs/biomarkers"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-[#34412f] text-white rounded-full hover:bg-[#2c3628] transition-colors"
               >
-                See full biomarker list
+                Learn more
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -322,7 +333,7 @@ function LabsPageContent() {
         </section>
 
         {/* Results Unlock Treatment Section */}
-        <section className="py-20 lg:py-28 bg-white">
+        <section className="pt-10 lg:pt-14 pb-10 lg:pb-14 bg-white">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Header */}
             <div className="text-center mb-12">
@@ -343,7 +354,7 @@ function LabsPageContent() {
                   See what&apos;s out of range
                 </h3>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  Your doctor reviews every marker and flags what needs attention — not just the ones that are critically abnormal.
+                  Your doctor reviews every marker and flags what needs attention — not just the ones that are critically out of range.
                 </p>
               </div>
 
@@ -388,7 +399,7 @@ function LabsPageContent() {
         </section>
 
         {/* Conditions Section */}
-        <section className="py-20 lg:py-28 bg-white">
+        <section className="pt-10 lg:pt-14 pb-20 lg:pb-28 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               {/* Conditions Cloud */}
@@ -422,14 +433,6 @@ function LabsPageContent() {
                 <p className="mt-6 text-lg text-[#5c7a52]">
                   Our tests can flag early warning signs across hundreds of conditions — often before you feel a thing.
                 </p>
-                <div className="mt-8 flex flex-wrap gap-4">
-                  <Link href="/biomarker-intake" className="btn-primary">
-                    Start testing
-                  </Link>
-                  <Link href="/labs/biomarkers" className="btn-secondary">
-                    What&apos;s in your test
-                  </Link>
-                </div>
               </div>
             </div>
           </div>

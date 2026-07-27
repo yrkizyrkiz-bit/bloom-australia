@@ -104,6 +104,48 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const stripe = getStripeClient();
   console.log("Payment succeeded:", paymentIntent.id);
 
+  // Consolidated Sanative Membership funnel — safety net if the client never
+  // reaches /api/public/membership-checkout/complete (e.g. closed the tab).
+  if (paymentIntent.metadata?.purchaseType === "sanative_membership") {
+    const { activateSanativeMembership } = await import(
+      "@/lib/portal/sanative-membership"
+    );
+    const email = paymentIntent.metadata.email;
+    const stripeSubscriptionId = paymentIntent.metadata.subscriptionId || null;
+    let periodStart: Date | null = null;
+    let periodEnd: Date | null = null;
+    if (stripeSubscriptionId) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+        const subData = subscription as unknown as Record<string, unknown>;
+        if (typeof subData.current_period_start === "number") {
+          periodStart = new Date(subData.current_period_start * 1000);
+        }
+        if (typeof subData.current_period_end === "number") {
+          periodEnd = new Date(subData.current_period_end * 1000);
+        }
+      } catch (err) {
+        console.error("[webhook] could not load membership subscription:", err);
+      }
+    }
+    if (email) {
+      await activateSanativeMembership({
+        paymentIntentId: paymentIntent.id,
+        stripeSubscriptionId,
+        customerId: (paymentIntent.customer as string) || null,
+        email,
+        phone: paymentIntent.metadata.phone || null,
+        postcode: paymentIntent.metadata.postcode || null,
+        intentProgram: paymentIntent.metadata.intentProgram || null,
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+      }).catch((err) =>
+        console.error("[webhook] sanative_membership activation failed:", err)
+      );
+    }
+    return;
+  }
+
   const portalSource = paymentIntent.metadata?.source;
   if (portalSource === "portal_upsell") {
     const { activatePortalProgramPurchase } = await import("@/lib/portal/program-purchase");
@@ -531,6 +573,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   const memberSubscription = await prisma.memberSubscription.findFirst({
     where: { stripeSubscriptionId: subscription.id },
+    include: { product: { select: { slug: true } } },
   });
 
   if (memberSubscription) {
@@ -546,6 +589,9 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const membershipSubscription = await prisma.membershipSubscription.findFirst({
     where: { stripeSubscriptionId: subscription.id },
   });
+
+  const affectedUserId =
+    membershipSubscription?.userId || memberSubscription?.userId || null;
 
   if (membershipSubscription) {
     await prisma.membershipSubscription.update({
@@ -576,6 +622,37 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
       }
     }
   }
+
+  // Sanative Membership (or any cancelled sub): re-sync entitlements so bundled
+  // scopes drop when the Stripe subscription ends.
+  const isMembership =
+    subscription.metadata?.purchaseType === "sanative_membership" ||
+    memberSubscription?.product.slug === "sanative_membership" ||
+    Boolean(membershipSubscription);
+
+  if (affectedUserId && isMembership) {
+    const { syncEntitlementsFromSignals } = await import(
+      "@/lib/membership/entitlement-service"
+    );
+    await syncEntitlementsFromSignals(affectedUserId).catch((err) =>
+      console.error("[webhook] membership entitlement sync on delete failed:", err)
+    );
+
+    const user = await prisma.user.findUnique({
+      where: { id: affectedUserId },
+      select: { email: true, firstName: true },
+    });
+    if (user?.email) {
+      const { sendMembershipCancellationEmail } = await import("@/lib/email");
+      await sendMembershipCancellationEmail({
+        to: user.email,
+        firstName: user.firstName || "",
+        accessEndsAt: null,
+      }).catch((err) =>
+        console.error("[webhook] membership cancellation email failed:", err)
+      );
+    }
+  }
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
@@ -583,6 +660,51 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   console.log("Invoice paid:", invoice.id);
 
   const customerId = invoice.customer as string;
+  const invoiceData = invoice as unknown as Record<string, unknown>;
+  const subscriptionId =
+    (typeof invoiceData.subscription === "string"
+      ? invoiceData.subscription
+      : (invoiceData.subscription as { id?: string } | null)?.id) || null;
+
+  // Annual Sanative Membership auto-renewal — extend period + restore access.
+  // Skip the initial subscription_create invoice (activation handles that).
+  if (
+    subscriptionId &&
+    invoice.billing_reason &&
+    invoice.billing_reason !== "subscription_create"
+  ) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const isMembership =
+        subscription.metadata?.purchaseType === "sanative_membership" ||
+        subscription.metadata?.productSlug === "sanative_membership";
+
+      if (isMembership) {
+        const { renewSanativeMembershipFromStripe } = await import(
+          "@/lib/portal/sanative-membership"
+        );
+        const subData = subscription as unknown as Record<string, unknown>;
+        await renewSanativeMembershipFromStripe({
+          stripeSubscriptionId: subscriptionId,
+          customerId,
+          currentPeriodStart:
+            typeof subData.current_period_start === "number"
+              ? new Date(subData.current_period_start * 1000)
+              : null,
+          currentPeriodEnd:
+            typeof subData.current_period_end === "number"
+              ? new Date(subData.current_period_end * 1000)
+              : null,
+          invoiceId: invoice.id,
+          amountAud: (invoice.amount_paid || 0) / 100,
+        });
+        return;
+      }
+    } catch (err) {
+      console.error("[webhook] membership renewal handling failed:", err);
+    }
+  }
+
   const customer = await stripe.customers.retrieve(customerId);
 
   if (customer && !customer.deleted && customer.email) {
@@ -591,18 +713,26 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     });
 
     if (user) {
-      // Create invoice record
-      await prisma.invoice.create({
-        data: {
-          userId: user.id,
-          stripeId: invoice.id,
-          amount: (invoice.amount_paid || 0) / 100, // Convert from cents
-          currency: invoice.currency?.toUpperCase() || "AUD",
-          status: "PAID",
-          paidAt: new Date(),
-          description: invoice.description || "Sanative Health Membership",
-        },
-      });
+      // Create invoice record (idempotent — renewals / retries may re-fire)
+      await prisma.invoice
+        .upsert({
+          where: { stripeId: invoice.id },
+          update: {
+            status: "PAID",
+            paidAt: new Date(),
+            amount: (invoice.amount_paid || 0) / 100,
+          },
+          create: {
+            userId: user.id,
+            stripeId: invoice.id,
+            amount: (invoice.amount_paid || 0) / 100,
+            currency: invoice.currency?.toUpperCase() || "AUD",
+            status: "PAID",
+            paidAt: new Date(),
+            description: invoice.description || "Sanative Health Membership",
+          },
+        })
+        .catch((err) => console.error("[webhook] invoice upsert failed:", err));
     }
   }
 }

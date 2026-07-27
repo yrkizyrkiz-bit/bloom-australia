@@ -61,6 +61,9 @@ describe("normalizeProgramKey", () => {
   it("returns null for non-program strings", () => {
     expect(normalizeProgramKey("organ_care")).toBeNull();
     expect(normalizeProgramKey("")).toBeNull();
+    // "sanative" fallback must not misfire for the membership product.
+    expect(normalizeProgramKey("sanative_membership")).toBeNull();
+    expect(normalizeProgramKey("Sanative Membership MEMBERSHIP")).toBeNull();
   });
 
   it("every program maps to an essential panel", () => {
@@ -76,6 +79,7 @@ describe("normalizeScopeKey", () => {
     expect(normalizeScopeKey("organ care")).toBe("ORGAN_CARE");
     expect(normalizeScopeKey("liver")).toBe("ORGAN_CARE");
     expect(normalizeScopeKey("health_score")).toBe("HEALTH_SCORE");
+    expect(normalizeScopeKey("sanative_membership")).toBe("MEMBERSHIP");
   });
 
   it("returns null for program-only strings", () => {
@@ -146,6 +150,41 @@ describe("computeDesiredEntitlements", () => {
     expect(find(desired, "SCOPE", "ORGAN_CARE")?.status).toBe("ACTIVE");
     expect(find(desired, "SCOPE", "BIOLOGICAL_CLOCK")?.status).toBe("ACTIVE");
     expect(find(desired, "SCOPE", "HEALTH_SCORE")?.status).toBe("ACTIVE");
+  });
+
+  it("membership subscription grants MEMBERSHIP + essential + biological clock + organ care, not a program", () => {
+    const desired = computeDesiredEntitlements({
+      memberSubscriptions: [
+        { status: "ACTIVE", product: { slug: "sanative_membership", name: "Sanative Membership", program: "MEMBERSHIP", planTier: null } },
+      ],
+    });
+    expect(find(desired, "SCOPE", "MEMBERSHIP")?.status).toBe("ACTIVE");
+    expect(find(desired, "SCOPE", "PROGRAM_ESSENTIAL")?.status).toBe("ACTIVE");
+    expect(find(desired, "SCOPE", "BIOLOGICAL_CLOCK")?.status).toBe("ACTIVE");
+    expect(find(desired, "SCOPE", "ORGAN_CARE")?.status).toBe("ACTIVE");
+    expect(find(desired, "PROGRAM", "WEIGHT_MANAGEMENT")).toBeUndefined();
+  });
+
+  it("cancelled membership subscription yields inactive membership scopes", () => {
+    const desired = computeDesiredEntitlements({
+      memberSubscriptions: [
+        { status: "CANCELLED", product: { slug: "sanative_membership", name: "Sanative Membership", program: "MEMBERSHIP", planTier: null } },
+      ],
+    });
+    expect(find(desired, "SCOPE", "MEMBERSHIP")?.status).toBe("INACTIVE");
+    expect(find(desired, "SCOPE", "PROGRAM_ESSENTIAL")?.status).toBe("INACTIVE");
+    expect(find(desired, "SCOPE", "BIOLOGICAL_CLOCK")?.status).toBe("INACTIVE");
+    expect(find(desired, "SCOPE", "ORGAN_CARE")?.status).toBe("INACTIVE");
+  });
+
+  it("any biomarker panel subscription includes biological clock + organ care", () => {
+    const desired = computeDesiredEntitlements({
+      memberSubscriptions: [
+        { status: "ACTIVE", product: { slug: "biomarkers_essential", name: "Essential Biomarkers Panel", program: "BIOLOGICAL_CLOCK", planTier: "essential" } },
+      ],
+    });
+    expect(find(desired, "SCOPE", "BIOLOGICAL_CLOCK")?.status).toBe("ACTIVE");
+    expect(find(desired, "SCOPE", "ORGAN_CARE")?.status).toBe("ACTIVE");
   });
 
   it("program member maps men's health to vitality focus when no concern", () => {

@@ -35,8 +35,10 @@ import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-p
 import { verifyOrganCareMembershipBookingPayment } from "@/lib/stripe/verify-organ-care-booking-payment";
 import {
   isBiomarkersPanelBookingNotes,
+  isBiomarkersPaymentMetadata,
   verifyBiomarkersPanelBookingPayment,
 } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
+import { getStripe } from "@/lib/stripe";
 import { validatePrePaymentConsent } from "@/lib/legal/consent-record";
 import { syncEntitlementsFromSignals } from "@/lib/membership/entitlement-service";
 import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
@@ -753,7 +755,6 @@ export async function POST(req: NextRequest) {
       subscriptionTier: user.subscriptionTier,
       bookingNotes: booking.notes,
     });
-    const programLabel = consultProgram.label;
 
     const consentVerification = await validatePrePaymentConsent({
       consentRecordId,
@@ -768,13 +769,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isOrganCareBooking = (booking.notes || "").includes("Organ & Metabolic Care");
-    // Hair Advanced funnel books as Hair Loss but pays with a biomarkers PaymentIntent.
-    const isBiomarkersBooking =
+    const isOrganCareBooking =
+      (booking.notes || "").includes("Organ & Metabolic Care") ||
+      (booking.notes || "").includes("Sanative Membership");
+    // Hair / women's / men's Advanced funnels book under the clinical program label
+    // but pay with a biomarkers PaymentIntent.
+    let isBiomarkersBooking =
       isBiomarkersPanelBookingNotes(booking.notes) ||
       (Array.isArray(booking.riskFlags) && booking.riskFlags.includes("BIOMARKERS_PANEL"));
+    let treatAsMembershipBooking = isOrganCareBooking;
 
-    const paymentVerification = isOrganCareBooking
+    if (!isBiomarkersBooking && !treatAsMembershipBooking) {
+      const stripe = getStripe();
+      if (stripe) {
+        try {
+          const piPeek = await stripe.paymentIntents.retrieve(paymentIntentId);
+          if (isBiomarkersPaymentMetadata(piPeek.metadata ?? {})) {
+            isBiomarkersBooking = true;
+          } else if (
+            piPeek.metadata?.purchaseType === "sanative_membership" ||
+            piPeek.metadata?.type === "organ_care_membership"
+          ) {
+            // Consolidated membership funnel PI — even if hold notes still say
+            // a treatment program, verify as a paid membership consultation.
+            treatAsMembershipBooking = true;
+          }
+        } catch {
+          // verify path below will surface a clear payment error
+        }
+      }
+    }
+
+    // Membership / biomarker panel consults must not inherit the WM default program
+    // (resolvePublicConsultProgramFromContext falls back to weight_management).
+    const isMembershipStyleBooking =
+      treatAsMembershipBooking || isOrganCareBooking || isBiomarkersBooking;
+    const programLabel = treatAsMembershipBooking ||
+      (booking.notes || "").includes("Sanative Membership")
+      ? "Membership"
+      : isOrganCareBooking
+        ? "Organ Care"
+        : isBiomarkersBooking
+          ? "Biomarkers"
+          : consultProgram.label;
+
+    const paymentVerification = treatAsMembershipBooking
       ? await (async () => {
           const organCarePayment = await verifyOrganCareMembershipBookingPayment({
             paymentIntentId,
@@ -1117,7 +1156,9 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        if (!existingInvoice) {
+        // Membership / panel purchases already record their own invoice at activation —
+        // never create a treatment-program fallback invoice for those bookings.
+        if (!existingInvoice && !isMembershipStyleBooking) {
           // Determine amount based on plan
           const planSelected = selectedPlan || updatedBooking.selectedPlan;
           const amount = consultProgram.isWeightManagement
@@ -1143,29 +1184,39 @@ export async function POST(req: NextRequest) {
           console.log(`[Booking Confirm] Created fallback invoice for user ${bookingUserId}`);
         }
 
-        // UAT8-GAP-004: Do NOT create MembershipSubscription here
-        // Subscription should only be created AFTER doctor approval
-        // The Invoice record above tracks the first-month payment
-        // The actual recurring subscription is created in:
-        // - /api/admin/doctor/decision (after APPROVED decision)
-        // - Stripe webhook (for ongoing billing after approval)
+        // UAT8-GAP-004: Do NOT create MembershipSubscription here for treatment programs.
+        // Subscription should only be created AFTER doctor approval.
         console.log(`[Booking Confirm] Payment recorded. Subscription will be created after doctor approval.`);
 
-        // Update user's journey status - payment received, pending doctor review
-        const programGender =
-          genderForPublicConsultSlug(consultProgram.slug) ??
-          genderForSubscriptionTier(consultProgram.subscriptionTier);
+        if (isMembershipStyleBooking) {
+          // Preserve Sanative Membership / biomarker panel tier + ACTIVE status.
+          // Previously this path defaulted consultProgram → weight_management and
+          // incorrectly badgeed biomarker-channel members as Weight Management.
+          await prisma.user.update({
+            where: { id: bookingUserId },
+            data: {
+              memberStatus: "MEMBER",
+              journeyStatus: "CONSULTATION_PAID",
+              // Keep subscriptionTier / subscriptionStatus from membership activation
+            },
+          });
+        } else {
+          // Treatment-program consult: payment received, pending doctor review
+          const programGender =
+            genderForPublicConsultSlug(consultProgram.slug) ??
+            genderForSubscriptionTier(consultProgram.subscriptionTier);
 
-        await prisma.user.update({
-          where: { id: bookingUserId },
-          data: {
-            subscriptionTier: consultProgram.subscriptionTier,
-            subscriptionStatus: "INACTIVE", // UAT8-GAP-004: Remains INACTIVE until doctor approval
-            journeyStatus: "CONSULTATION_PAID", // Payment received, awaiting consultation
-            memberStatus: "MEMBER",
-            ...(programGender ? { gender: programGender } : {}),
-          },
-        });
+          await prisma.user.update({
+            where: { id: bookingUserId },
+            data: {
+              subscriptionTier: consultProgram.subscriptionTier,
+              subscriptionStatus: "INACTIVE", // Remains INACTIVE until doctor approval
+              journeyStatus: "CONSULTATION_PAID",
+              memberStatus: "MEMBER",
+              ...(programGender ? { gender: programGender } : {}),
+            },
+          });
+        }
       } catch (fallbackError) {
         console.error("[Booking Confirm] Fallback invoice/subscription creation failed:", fallbackError);
         // Don't fail the booking confirmation if fallback fails
@@ -1174,7 +1225,7 @@ export async function POST(req: NextRequest) {
 
     if (bookingUserId) {
       let intakeId: string | null = booking.intakeId;
-      if (consultProgram.isWeightManagement) {
+      if (consultProgram.isWeightManagement && !isMembershipStyleBooking) {
         intakeId = await syncWeightManagementIntakeAfterPayment(
           bookingUserId,
           booking.id,
@@ -1184,20 +1235,23 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      await createProgramPreTriageTask({
-        userId: bookingUserId,
-        bookingId: booking.id,
-        patientName,
-        scheduledAt: booking.scheduledAt,
-        intakeId: intakeId || booking.intakeId,
-        program: resolvePreTriageProgramForBooking({
-          subscriptionTier: user.subscriptionTier,
-          bookingNotes: booking.notes,
-          paymentMetadata: paymentVerification.paymentIntent.metadata ?? {},
-        }),
-      });
+      // Membership / panel funnels already enqueue onboarding triage at activation.
+      if (!isMembershipStyleBooking) {
+        await createProgramPreTriageTask({
+          userId: bookingUserId,
+          bookingId: booking.id,
+          patientName,
+          scheduledAt: booking.scheduledAt,
+          intakeId: intakeId || booking.intakeId,
+          program: resolvePreTriageProgramForBooking({
+            subscriptionTier: user.subscriptionTier,
+            bookingNotes: booking.notes,
+            paymentMetadata: paymentVerification.paymentIntent.metadata ?? {},
+          }),
+        });
+      }
 
-      if (!consultProgram.isWeightManagement) {
+      if (!consultProgram.isWeightManagement && !isMembershipStyleBooking) {
         const programMember = await prisma.programMember.findFirst({
           where: { userId: bookingUserId },
           select: { program: true, intakeData: true },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -9,36 +9,67 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { Check, Shield, Lock, ArrowRight, Mail, Phone, Loader2, Calendar, Heart, Activity, Droplets } from "lucide-react";
+import {
+  Check,
+  Shield,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
+  Mail,
+  Phone,
+  Loader2,
+  Calendar,
+  Heart,
+  Activity,
+  Beaker,
+} from "lucide-react";
 import Link from "next/link";
 import { MembershipConsultationBooking } from "@/components/membership/MembershipConsultationBooking";
-import { ORGAN_CARE_PUBLIC_OFFER, ORGAN_CARE_CHECKOUT_PREFILL_KEY, type OrganCareCheckoutPrefill } from "@/lib/programs/organ-care-public-offer";
+import {
+  ORGAN_CARE_CHECKOUT_PREFILL_KEY,
+  type OrganCareCheckoutPrefill,
+} from "@/lib/programs/organ-care-public-offer";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
 } from "@/lib/legal/ensure-pre-payment-consent";
+import {
+  getBiomarkersQuizQuestions,
+  isBiomarkersQuestionAnswered,
+  parseBiomarkersAnswer,
+  toggleBiomarkersMultiAnswer,
+} from "@/lib/programs/quizzes/biomarkers-intake-quiz";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 // ─── Types ─────────────────────────────────────────────────────────────────
-type Step = "verify" | "payment" | "onboard" | "booking" | "complete";
+type Step = "verify" | "payment" | "onboard" | "booking" | "quiz" | "complete";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const MEMBERSHIP_BENEFITS = [
-  "12 month access to portal and organ care program",
-  "Heart, liver, kidney, thyroid, hormones & metabolic dashboards",
-  "Personalised protocol with nutrition, supplements & lifestyle guidance",
-  "Care partner support between appointments",
-  "24/7 AI Health Assistant in your member portal",
+  "Comprehensive Essential biomarker panel — 70+ markers",
+  "Doctor consultation and pathology referral included",
+  "Biological Clock & Organ Care dashboards",
+  "Personalised health insights reviewed by AHPRA doctors",
+  "First 30 days of your eligible care program included",
+  "Care partner support and 24/7 AI Health Assistant",
 ];
 
-const ORGAN_SUMMARY_ICONS = [
-  { icon: Heart, label: "Heart", color: "text-rose-500", bg: "bg-rose-50" },
-  { icon: Activity, label: "Liver", color: "text-emerald-600", bg: "bg-emerald-50" },
-  { icon: Droplets, label: "Kidney", color: "text-cyan-600", bg: "bg-cyan-50" },
+const SUMMARY_ICONS = [
+  { icon: Beaker, label: "Panel", color: "text-emerald-600", bg: "bg-emerald-50" },
+  { icon: Activity, label: "Clock", color: "text-cyan-600", bg: "bg-cyan-50" },
+  { icon: Heart, label: "Organs", color: "text-rose-500", bg: "bg-rose-50" },
 ] as const;
+
+const INTENT_LABELS: Record<string, string> = {
+  weight_management: "Weight Management",
+  hair_loss: "Hair Loss",
+  mens_health: "Men's Health",
+  womens_health: "Women's Health",
+  biomarkers: "Biomarker Testing",
+};
 
 // ─── Payment Form Component ────────────────────────────────────────────────
 function PaymentForm({
@@ -125,7 +156,7 @@ function PaymentForm({
       <button
         type="submit"
         disabled={!stripe || isProcessing || !consentChecked}
-        className="w-full py-4 bg-[#f97316] hover:bg-[#ea580c] disabled:opacity-50
+        className="w-full py-4 bg-[#4f6038] hover:bg-[#3c4a27] disabled:opacity-50
           text-white font-semibold rounded-xl text-base transition-colors
           flex items-center justify-center gap-2"
       >
@@ -145,10 +176,181 @@ function PaymentForm({
   );
 }
 
+// ─── Inline Intake Quiz ────────────────────────────────────────────────────
+function IntakeQuizStep({
+  onDone,
+  onSkip,
+  saving,
+  error,
+}: {
+  onDone: (answers: Record<string, string>) => void;
+  onSkip: () => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+
+  const questions = useMemo(
+    () => getBiomarkersQuizQuestions(undefined, answers),
+    [answers]
+  );
+  const question = questions[quizIndex];
+
+  const advanceAfterAnswer = (
+    nextAnswers: Record<string, string>,
+    answeredQuestionId: string
+  ) => {
+    // Clinical sex is a gate question: until it's answered, the quiz only
+    // contains that one item. After it, the full gender-specific list loads —
+    // never treat the sex question as "last".
+    if (answeredQuestionId === "clinicalSex") {
+      setQuizIndex(0);
+      return;
+    }
+
+    const nextQuestions = getBiomarkersQuizQuestions(undefined, nextAnswers);
+    const nextIndex = quizIndex + 1;
+    if (nextIndex >= nextQuestions.length) {
+      onDone(nextAnswers);
+      return;
+    }
+    setQuizIndex(nextIndex);
+  };
+
+  const selectAnswer = (optionId: string) => {
+    if (!question) return;
+    if (question.allowMultiple) {
+      setAnswers((prev) => ({
+        ...prev,
+        [question.id]: toggleBiomarkersMultiAnswer(prev[question.id], optionId),
+      }));
+      return;
+    }
+    const next = { ...answers, [question.id]: optionId };
+    setAnswers(next);
+    advanceAfterAnswer(next, question.id);
+  };
+
+  const continueFromQuestion = () => {
+    if (!question) return;
+    if (!isBiomarkersQuestionAnswered(question, answers[question.id])) return;
+    advanceAfterAnswer(answers, question.id);
+  };
+
+  const isLast =
+    question?.id !== "clinicalSex" && quizIndex >= Math.max(questions.length - 1, 0);
+
+  if (!question) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1">
+        {questions.map((_, i) => (
+          <div
+            key={i}
+            className={`h-1.5 flex-1 rounded-full ${i <= quizIndex ? "bg-[#5c7a52]" : "bg-gray-200"}`}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-gray-400">
+        Question {quizIndex + 1} of {questions.length} · {question.sectionTitle}
+      </p>
+
+      <h3 className="text-lg font-semibold text-gray-900">{question.prompt}</h3>
+      {question.subtitle && <p className="text-sm text-gray-500">{question.subtitle}</p>}
+      {question.allowMultiple && (
+        <p className="text-sm font-medium text-[#5c7a52]">Select all that apply</p>
+      )}
+
+      <div className="space-y-2.5">
+        {question.options.map((option) => {
+          const selected = question.allowMultiple
+            ? parseBiomarkersAnswer(answers[question.id]).includes(option.id)
+            : answers[question.id] === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => selectAnswer(option.id)}
+              className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3.5 text-left transition-all ${
+                selected
+                  ? "border-[#5c7a52] bg-[#f4f7f2]"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <span className="flex items-start gap-3">
+                {question.allowMultiple && (
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${
+                      selected
+                        ? "border-[#5c7a52] bg-[#5c7a52] text-white"
+                        : "border-gray-300 bg-white"
+                    }`}
+                    aria-hidden
+                  >
+                    {selected ? "✓" : ""}
+                  </span>
+                )}
+                <span>
+                  <span className="block font-medium text-gray-900">{option.label}</span>
+                  {option.description && (
+                    <span className="mt-0.5 block text-sm text-gray-500">
+                      {option.description}
+                    </span>
+                  )}
+                </span>
+              </span>
+              {!question.allowMultiple && (
+                <ArrowRight className="h-4 w-4 shrink-0 text-gray-400" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {question.allowMultiple && (
+        <button
+          onClick={continueFromQuestion}
+          disabled={!isBiomarkersQuestionAnswered(question, answers[question.id]) || saving}
+          className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
+            text-white font-semibold rounded-xl transition-colors flex items-center
+            justify-center gap-2"
+        >
+          {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : isLast ? "Finish" : "Continue"}
+        </button>
+      )}
+
+      <div className="flex items-center justify-between">
+        {quizIndex > 0 ? (
+          <button
+            onClick={() => setQuizIndex((i) => Math.max(0, i - 1))}
+            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back
+          </button>
+        ) : (
+          <span />
+        )}
+        <button
+          onClick={onSkip}
+          disabled={saving}
+          className="text-sm text-gray-400 hover:text-gray-600"
+        >
+          Skip — I&apos;ll complete it in my portal
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Checkout Page ────────────────────────────────────────────────────
 function MembershipCheckoutPageContent() {
   const searchParams = useSearchParams();
   const funnelSource = searchParams.get("source");
+  const intentProgram = searchParams.get("intent");
   const [step, setStep] = useState<Step>("verify");
   const [verifyMethod, setVerifyMethod] = useState<"email" | "phone">("email");
   const [contact, setContact] = useState("");
@@ -169,13 +371,10 @@ function MembershipCheckoutPageContent() {
   const [postcode, setPostcode] = useState("");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [consentRecordId, setConsentRecordId] = useState<string | null>(null);
-  const [organCarePriceAud, setOrganCarePriceAud] = useState(
-    ORGAN_CARE_PUBLIC_OFFER.priceAud
-  );
-  const [organCarePriceLabel, setOrganCarePriceLabel] = useState(
-    ORGAN_CARE_PUBLIC_OFFER.priceLabel
-  );
+  const [priceAud, setPriceAud] = useState(365);
+  const [priceLabel, setPriceLabel] = useState("$365/yr");
 
   // Onboarding state
   const [firstName, setFirstName] = useState("");
@@ -189,19 +388,16 @@ function MembershipCheckoutPageContent() {
   const [state, setState] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [consultationBooked, setConsultationBooked] = useState(false);
-
-  // Booking state — internal availability picker (same as WM funnel)
+  const [quizDone, setQuizDone] = useState(false);
+  const [magicLink, setMagicLink] = useState<string | null>(null);
+  const [needsPassword, setNeedsPassword] = useState(false);
 
   useEffect(() => {
-    fetch("/api/public/organ-care-pricing")
+    fetch("/api/public/membership-checkout/pricing")
       .then((res) => res.json())
       .then((data) => {
-        if (typeof data.amountAud === "number") {
-          setOrganCarePriceAud(data.amountAud);
-        }
-        if (typeof data.priceLabel === "string") {
-          setOrganCarePriceLabel(data.priceLabel);
-        }
+        if (typeof data.amountAud === "number") setPriceAud(data.amountAud);
+        if (typeof data.priceLabel === "string") setPriceLabel(data.priceLabel);
       })
       .catch(() => {});
   }, []);
@@ -297,7 +493,7 @@ function MembershipCheckoutPageContent() {
     setError(null);
 
     try {
-      const res = await fetch("/api/stripe/subscription", {
+      const res = await fetch("/api/public/membership-checkout/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -307,6 +503,7 @@ function MembershipCheckoutPageContent() {
           firstName,
           lastName,
           phone: phone || (verifyMethod === "phone" ? contact : null),
+          intentProgram,
         }),
       });
 
@@ -314,12 +511,10 @@ function MembershipCheckoutPageContent() {
       if (!res.ok) throw new Error(data.error);
 
       setClientSecret(data.clientSecret);
-      if (typeof data.amountAud === "number") {
-        setOrganCarePriceAud(data.amountAud);
-      }
-      if (typeof data.priceLabel === "string") {
-        setOrganCarePriceLabel(data.priceLabel);
-      }
+      setPaymentIntentId(data.paymentIntentId ?? null);
+      setSubscriptionId(data.subscriptionId ?? null);
+      if (typeof data.amountAud === "number") setPriceAud(data.amountAud);
+      if (typeof data.priceLabel === "string") setPriceLabel(data.priceLabel);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to initialize payment");
     } finally {
@@ -338,11 +533,12 @@ function MembershipCheckoutPageContent() {
     setError(null);
 
     try {
-      const res = await fetch("/api/stripe/subscription", {
-        method: "PUT",
+      const res = await fetch("/api/public/membership-checkout/complete", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paymentIntentId,
+          subscriptionId,
           consentRecordId,
           sessionToken,
           firstName,
@@ -355,6 +551,8 @@ function MembershipCheckoutPageContent() {
           suburb,
           state,
           postcode,
+          intentProgram,
+          clientOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
         }),
       });
 
@@ -362,8 +560,37 @@ function MembershipCheckoutPageContent() {
       if (!res.ok) throw new Error(data.error);
 
       setUserId(data.userId);
-      setStep("booking");    } catch (err) {
+      setMagicLink(data.magicLink ?? null);
+      setNeedsPassword(Boolean(data.needsPassword));
+      setStep("booking");
+    } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete onboarding");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const submitQuiz = async (answers: Record<string, string> | null) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/public/membership-checkout/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          paymentIntentId,
+          answers: answers ?? {},
+          skipped: answers === null,
+          intentProgram,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setQuizDone(answers !== null);
+      setStep("complete");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save your answers");
     } finally {
       setIsLoading(false);
     }
@@ -371,13 +598,19 @@ function MembershipCheckoutPageContent() {
 
   // ─── Render Steps ────────────────────────────────────────────────────────
 
+  const stepBadge = (n: number) => (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#eef4e6] text-[#4f6038]
+      rounded-full text-xs font-semibold mb-4"
+    >
+      {n}
+    </span>
+  );
+
   const renderVerificationStep = () => (
     <div className="space-y-6">
       <div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-800
-          rounded-full text-xs font-semibold mb-4">
-          1
-        </span>
+        {stepBadge(1)}
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Create your account</h3>
         <p className="text-sm text-gray-500">
           We&apos;ll send you a verification code to confirm your identity
@@ -539,10 +772,7 @@ function MembershipCheckoutPageContent() {
       </div>
 
       <div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-800
-          rounded-full text-xs font-semibold mb-4">
-          2
-        </span>
+        {stepBadge(2)}
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Payment</h3>
       </div>
 
@@ -595,7 +825,7 @@ function MembershipCheckoutPageContent() {
             appearance: {
               theme: "stripe",
               variables: {
-                colorPrimary: "#f97316",
+                colorPrimary: "#4f6038",
                 borderRadius: "12px",
               },
             },
@@ -603,7 +833,7 @@ function MembershipCheckoutPageContent() {
         >
           <PaymentForm
             onSuccess={handlePaymentSuccess}
-            amountAud={organCarePriceAud}
+            amountAud={priceAud}
             customerEmail={existingUser?.email || (verifyMethod === "email" ? contact : email) || undefined}
             userId={existingUser?.id}
           />
@@ -623,10 +853,7 @@ function MembershipCheckoutPageContent() {
       </div>
 
       <div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-800
-          rounded-full text-xs font-semibold mb-4">
-          3
-        </span>
+        {stepBadge(3)}
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Complete your profile</h3>
         <p className="text-sm text-gray-500">
           We need a few more details to set up your membership
@@ -771,7 +998,7 @@ function MembershipCheckoutPageContent() {
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <>
-              Continue
+              Activate my membership
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -790,19 +1017,19 @@ function MembershipCheckoutPageContent() {
         <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
           <Check className="w-4 h-4 text-white" />
         </div>
-        <span className="text-sm text-green-800 font-medium">Profile completed</span>
+        <span className="text-sm text-green-800 font-medium">
+          Membership active — welcome to Sanative
+        </span>
       </div>
 
       <div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-800
-          rounded-full text-xs font-semibold mb-4">
-          4
-        </span>
+        {stepBadge(4)}
         <h3 className="text-lg font-semibold text-gray-900 mb-1">
-          Book your initial consultation
+          Book your doctor consultation
         </h3>
         <p className="text-sm text-gray-500">
-          Choose a time to speak with your Care Health Partner
+          Your doctor reviews your health goals and issues the pathology request for your
+          biomarker panel
         </p>
       </div>
 
@@ -818,7 +1045,7 @@ function MembershipCheckoutPageContent() {
           postcode={postcode}
           onComplete={() => {
             setConsultationBooked(true);
-            setStep("complete");
+            setStep("quiz");
           }}
         />
       ) : (
@@ -831,12 +1058,41 @@ function MembershipCheckoutPageContent() {
         type="button"
         onClick={() => {
           setConsultationBooked(false);
-          setStep("complete");
+          setStep("quiz");
         }}
         className="w-full text-sm text-gray-500 hover:text-gray-700"
       >
         Skip for now - I&apos;ll book later
       </button>
+    </div>
+  );
+
+  const renderQuizStep = () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200
+        rounded-xl">
+        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <Check className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-sm text-green-800 font-medium">
+          {consultationBooked ? "Consultation booked" : "Membership active"}
+        </span>
+      </div>
+
+      <div>
+        {stepBadge(5)}
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Clinical intake</h3>
+        <p className="text-sm text-gray-500">
+          ~2 minutes · helps your doctor prepare and request the right tests
+        </p>
+      </div>
+
+      <IntakeQuizStep
+        onDone={(answers) => submitQuiz(answers)}
+        onSkip={() => submitQuiz(null)}
+        saving={isLoading}
+        error={error}
+      />
     </div>
   );
 
@@ -850,7 +1106,7 @@ function MembershipCheckoutPageContent() {
           Welcome to Sanative!
         </h2>
         <p className="text-gray-500">
-          Your membership is now active. Check your email for next steps.
+          Your membership is active. We&apos;ve emailed you a secure sign-in link.
         </p>
       </div>
 
@@ -875,20 +1131,39 @@ function MembershipCheckoutPageContent() {
             </p>
           </div>
           <p className="text-sm text-amber-800">
-            Your membership is active. Book your initial consultation from your
+            Your membership is active. Book your doctor consultation from your
             dashboard when you&apos;re ready — we&apos;ll email you a reminder.
           </p>
         </div>
       )}
 
+      {!quizDone && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left">
+          <p className="text-sm text-gray-600">
+            You skipped the clinical intake — complete it in your portal before your
+            consultation so your doctor can prepare.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-3">
-        <Link
-          href="/dashboard"
-          className="block w-full py-3.5 bg-gray-900 hover:bg-black text-white
-            font-semibold rounded-xl transition-colors"
-        >
-          Go to Dashboard
-        </Link>
+        {magicLink ? (
+          <a
+            href={magicLink}
+            className="block w-full py-3.5 bg-gray-900 hover:bg-black text-white
+              font-semibold rounded-xl transition-colors"
+          >
+            {needsPassword ? "Set your password & open portal" : "Open my portal"}
+          </a>
+        ) : (
+          <Link
+            href="/dashboard"
+            className="block w-full py-3.5 bg-gray-900 hover:bg-black text-white
+              font-semibold rounded-xl transition-colors"
+          >
+            Go to Dashboard
+          </Link>
+        )}
         <Link
           href="/"
           className="block w-full py-3.5 border-2 border-gray-200 hover:border-gray-300
@@ -901,6 +1176,8 @@ function MembershipCheckoutPageContent() {
   );
 
   // ─── Main Render ─────────────────────────────────────────────────────────
+
+  const intentLabel = intentProgram ? INTENT_LABELS[intentProgram] ?? null : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -919,18 +1196,25 @@ function MembershipCheckoutPageContent() {
           <div className="order-2 lg:order-1">
             <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8">
               {/* Membership badge */}
-              <div className="mb-6">
-                <span className="inline-block px-3 py-1 bg-[#f97316] text-white text-xs
+              <div className="mb-6 flex flex-wrap items-center gap-2">
+                <span className="inline-block px-3 py-1 bg-[#4f6038] text-white text-xs
                   font-semibold rounded-full">
-                  Organ & Metabolic Care
+                  Sanative Membership
                 </span>
+                {intentLabel && (
+                  <span className="inline-block px-3 py-1 bg-[#eef4e6] text-[#4f6038] text-xs
+                    font-semibold rounded-full">
+                    {intentLabel} pathway
+                  </span>
+                )}
               </div>
 
               <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-                All organs, one membership
+                One membership. Full clarity.
               </h1>
               <p className="text-gray-500 mb-6">
-                {ORGAN_CARE_PUBLIC_OFFER.tagline}. {organCarePriceLabel} — billed annually.
+                Doctor-led biomarker testing and ongoing insights. {priceLabel} —
+                auto-renews annually. Cancel anytime.
               </p>
 
               {/* Form steps */}
@@ -938,6 +1222,7 @@ function MembershipCheckoutPageContent() {
               {step === "payment" && renderPaymentStep()}
               {step === "onboard" && renderOnboardingStep()}
               {step === "booking" && renderBookingStep()}
+              {step === "quiz" && renderQuizStep()}
               {step === "complete" && renderCompleteStep()}
             </div>
 
@@ -961,9 +1246,9 @@ function MembershipCheckoutPageContent() {
             <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 sticky top-8">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
 
-              <div className="rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50/80 to-emerald-50/50 p-5 mb-5">
+              <div className="rounded-xl border border-[#d5e0cb] bg-gradient-to-br from-[#eef4e6]/80 to-[#e3ecd8]/50 p-5 mb-5">
                 <div className="flex items-center justify-center gap-4 mb-4">
-                  {ORGAN_SUMMARY_ICONS.map(({ icon: Icon, label, color, bg }) => (
+                  {SUMMARY_ICONS.map(({ icon: Icon, label, color, bg }) => (
                     <div key={label} className="flex flex-col items-center gap-1.5">
                       <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${bg}`}>
                         <Icon className={`h-5 w-5 ${color}`} />
@@ -974,22 +1259,23 @@ function MembershipCheckoutPageContent() {
                     </div>
                   ))}
                 </div>
-                <p className="text-center text-sm font-medium text-teal-900">
-                  12 month access to portal and organ care program
+                <p className="text-center text-sm font-medium text-[#3c4a27]">
+                  Essential biomarker panel + every health dashboard
                 </p>
-                <p className="text-center text-xs text-teal-700/80 mt-1">
-                  Plus thyroid, hormones & metabolic dashboards
+                <p className="text-center text-xs text-[#5c7a52] mt-1">
+                  Biological Clock, Organ Care, heart, liver, kidney & more
                 </p>
               </div>
 
-              <h3 className="font-semibold text-gray-900 mb-2">Organ & Metabolic Care</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Sanative Membership</h3>
               <p className="text-sm text-gray-500 mb-4">
-                {ORGAN_CARE_PUBLIC_OFFER.billingNote}. One membership, every organ dashboard.
+                $1 a day, charged annually to your card on file. Includes your comprehensive
+                biomarker panel and doctor consultation.
               </p>
 
               {/* Benefits list */}
               <div className="space-y-2 mb-6">
-                {MEMBERSHIP_BENEFITS.slice(1).map((benefit, i) => (
+                {MEMBERSHIP_BENEFITS.map((benefit, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
                     <span className="text-xs text-gray-600">{benefit}</span>
@@ -1000,14 +1286,16 @@ function MembershipCheckoutPageContent() {
               {/* Price */}
               <div className="border-t border-gray-200 pt-4 mt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600">Organ & Metabolic Care</span>
-                  <span className="font-semibold">{organCarePriceLabel}</span>
+                  <span className="text-gray-600">Sanative Membership</span>
+                  <span className="font-semibold">{priceLabel}</span>
                 </div>
                 <div className="flex items-center justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span>${organCarePriceAud}</span>
+                  <span>${priceAud}</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">All organs included · billed annually</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Everything included · auto-renews yearly · cancel anytime
+                </p>
               </div>
             </div>
           </div>

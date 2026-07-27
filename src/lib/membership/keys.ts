@@ -18,6 +18,7 @@ export type ProgramKey =
   | "WOMENS_HEALTH_SEXUAL";
 
 export type ScopeKey =
+  | "MEMBERSHIP"
   | "PROGRAM_ESSENTIAL"
   | "ORGAN_CARE"
   | "BIOLOGICAL_CLOCK"
@@ -34,6 +35,7 @@ export const PROGRAM_KEYS: ProgramKey[] = [
 ];
 
 export const SCOPE_KEYS: ScopeKey[] = [
+  "MEMBERSHIP",
   "PROGRAM_ESSENTIAL",
   "ORGAN_CARE",
   "BIOLOGICAL_CLOCK",
@@ -51,6 +53,7 @@ export const PROGRAM_LABELS: Record<ProgramKey, string> = {
 };
 
 export const SCOPE_LABELS: Record<ScopeKey, string> = {
+  MEMBERSHIP: "Sanative Membership",
   PROGRAM_ESSENTIAL: "Program Essential Biomarkers",
   ORGAN_CARE: "Organ Care",
   BIOLOGICAL_CLOCK: "Biological Clock",
@@ -107,6 +110,9 @@ export function normalizeProgramKey(value?: string | null): ProgramKey | null {
   if (v.includes("weight") || v.includes("fatty") || v.includes("liver_program")) {
     return "WEIGHT_MANAGEMENT";
   }
+  // Sanative Membership is a scope, not a clinical program — must be checked
+  // before the generic "sanative" fallback below.
+  if (v.includes("membership")) return null;
   // Plan strings such as sanative_core / sanative_precision imply weight management.
   if (v.includes("sanative") || v.includes("core") || v.includes("precision")) {
     return "WEIGHT_MANAGEMENT";
@@ -126,6 +132,7 @@ export function normalizeScopeKey(value?: string | null): ScopeKey | null {
   const canonical = SCOPE_KEYS.find((key) => key.toLowerCase() === v);
   if (canonical) return canonical;
 
+  if (v.includes("membership")) return "MEMBERSHIP";
   if (v.includes("complete") || v.includes("whole_body") || v.includes("full_panel")) {
     return "COMPLETE_HEALTH";
   }
@@ -155,4 +162,25 @@ export const COMPLETE_HEALTH_SCOPES: ScopeKey[] = [
   "BIOLOGICAL_CLOCK",
   "HEALTH_SCORE",
   "PROGRAM_ESSENTIAL",
+];
+
+/**
+ * Scopes included with every biomarker panel (Essential and up). Biological
+ * Clock and Organ Care are no longer standalone products — any panel purchase
+ * unlocks both dashboards.
+ */
+export const PANEL_INCLUDED_SCOPES: ScopeKey[] = [
+  "BIOLOGICAL_CLOCK",
+  "ORGAN_CARE",
+];
+
+/**
+ * Scopes included with Sanative Membership ($365/yr incl. Essential panel).
+ * The Essential panel covers all Biological Clock core markers (hs-CRP was
+ * added) and unlocks Organ Care, so membership grants all three.
+ */
+export const MEMBERSHIP_INCLUDED_SCOPES: ScopeKey[] = [
+  "PROGRAM_ESSENTIAL",
+  "BIOLOGICAL_CLOCK",
+  "ORGAN_CARE",
 ];

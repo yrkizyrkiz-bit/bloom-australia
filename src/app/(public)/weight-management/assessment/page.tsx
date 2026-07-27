@@ -4,8 +4,11 @@ import { useState, useEffect, useRef, useMemo, type ReactNode, type RefObject } 
 import { toast } from "sonner";
 import { scoreWeightManagement, fetchBiomarkerCampaigns, getBiomarkerFlags, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
-import { UnifiedCheckoutScreen } from "@/components/checkout/UnifiedCheckoutScreen";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import {
+  ORGAN_CARE_CHECKOUT_PREFILL_KEY,
+  type OrganCareCheckoutPrefill,
+} from "@/lib/programs/organ-care-public-offer";
 import {
   formatDateInTimezone,
   formatTimeInTimezone,
@@ -25,6 +28,7 @@ import {
 import Link from "next/link";
 import { ConsentNotice } from "@/components/legal/ConsentNotice";
 import { logConsentEvent } from "@/lib/legal/log-consent";
+import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
 import {
   ArrowRight,
   ArrowLeft,
@@ -1408,7 +1412,7 @@ function ShippingInfoScreen({
     suburb: string;
     state: string;
     postcode: string;
-  }) => void | Promise<void | boolean>;
+  }) => void | Promise<void | boolean | string>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const [localLastName, setLocalLastName] = useState(formData.lastName || '');
@@ -1612,6 +1616,8 @@ function ShippingInfoScreen({
       });
       if (saved === false) {
         setSubmitError("We couldn't save your details. Please check the fields above and try again.");
+      } else if (typeof saved === "string" && saved.trim()) {
+        setSubmitError(saved);
       }
     } finally {
       setIsSaving(false);
@@ -1962,7 +1968,38 @@ export default function WeightLossAssessmentPage() {
   const [showFAQ, setShowFAQ] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showWhyAsking, setShowWhyAsking] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserIdState] = useState<string | null>(null);
+  const setUserId = (id: string | null) => {
+    setUserIdState(id);
+    try {
+      if (id) sessionStorage.setItem("wm_intake_user_id", id);
+      else sessionStorage.removeItem("wm_intake_user_id");
+    } catch {
+      // sessionStorage may be unavailable
+    }
+  };
+  const [resumeVerificationToken, setResumeVerificationTokenState] = useState<string | null>(null);
+  const setResumeVerificationToken = (token: string | null) => {
+    setResumeVerificationTokenState(token);
+    try {
+      if (token) sessionStorage.setItem("wm_intake_resume_token", token);
+      else sessionStorage.removeItem("wm_intake_resume_token");
+    } catch {
+      // ignore
+    }
+  };
+  const [showResumeVerification, setShowResumeVerification] = useState(false);
+  const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
+  const [resumeContext, setResumeContext] = useState<"email-gate" | "shipping" | null>(null);
+  const [pendingShippingData, setPendingShippingData] = useState<{
+    lastName: string;
+    phone: string;
+    streetAddress: string;
+    addressUnit: string;
+    suburb: string;
+    state: string;
+    postcode: string;
+  } | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
@@ -1989,6 +2026,18 @@ export default function WeightLossAssessmentPage() {
       return () => clearInterval(timer);
     }
   }, [offerCountdown, step]);
+
+  // Restore early-capture user id after refresh within the same browser session
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("wm_intake_user_id");
+      if (stored) setUserIdState(stored);
+      const resumeToken = sessionStorage.getItem("wm_intake_resume_token");
+      if (resumeToken) setResumeVerificationTokenState(resumeToken);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Fetch biomarker campaigns on mount
   useEffect(() => {
@@ -2201,6 +2250,10 @@ export default function WeightLossAssessmentPage() {
         body: JSON.stringify({
           programType: "WEIGHT_MANAGEMENT",
           ...formData,
+          userId: userId ?? undefined,
+          ...(resumeVerificationToken
+            ? { resumeVerificationToken }
+            : {}),
           hasContraindications,
           bmi: calculateBMI(),
           // Mark as final submission - GAP-007: Using valid status
@@ -2705,8 +2758,8 @@ export default function WeightLossAssessmentPage() {
   };
 
   // ─── Step 19: Shipping Info Screen (uses ShippingInfoScreen component) ──────
-  const renderShippingInfoScreen = () => {
-    const handleShippingSubmit = async (data: {
+  const handleShippingSubmit = async (
+    data: {
       lastName: string;
       phone: string;
       streetAddress: string;
@@ -2714,65 +2767,94 @@ export default function WeightLossAssessmentPage() {
       suburb: string;
       state: string;
       postcode: string;
-    }): Promise<boolean> => {
-      // Update form data first
-      const updatedFormData = {
-        ...formData,
-        ...data,
-      };
-      setFormData(updatedFormData);
+    },
+    options?: { resumeVerificationToken?: string }
+  ): Promise<boolean | string> => {
+    const updatedFormData = {
+      ...formData,
+      ...data,
+    };
+    setFormData(updatedFormData);
 
-      void logConsentEvent({
-        consentType: "CONTACT_SMS_EMAIL",
-        sourcePage: "/weight-management/assessment",
-        email: updatedFormData.email,
-        userId: userId ?? undefined,
+    const token = options?.resumeVerificationToken || resumeVerificationToken || undefined;
+
+    void logConsentEvent({
+      consentType: "CONTACT_SMS_EMAIL",
+      sourcePage: "/weight-management/assessment",
+      email: updatedFormData.email,
+      userId: userId ?? undefined,
+    });
+
+    try {
+      const response = await fetch("/api/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programType: "WEIGHT_MANAGEMENT",
+          ...updatedFormData,
+          userId: userId ?? undefined,
+          ...(token ? { resumeVerificationToken: token } : {}),
+          hasContraindications,
+          bmi: calculateBMI(),
+        }),
       });
 
-      // Create user in database now (before payment) so they're captured
-      try {
-        const response = await fetch("/api/intake", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            programType: "WEIGHT_MANAGEMENT",
-            ...updatedFormData,
-            hasContraindications,
-            bmi: calculateBMI(),
-          }),
-        });
+      const responseData = await response.json();
 
-        const responseData = await response.json();
-
-        if (response.ok) {
-          setUserId(responseData.userId);
-          toast.success("Details saved!", { description: "Your information has been recorded." });
-          animateToStep(20, "forward");
-          return true;
-        }
-
-        console.error("Intake API error:", response.status, responseData);
-        toast.error("Could not save your details", {
-          description:
-            responseData.error ||
-            responseData.detail ||
-            responseData.message ||
-            "Please try again or contact support.",
-        });
-        return false;
-      } catch (error) {
-        console.error("Error saving user:", error);
-        toast.error("Connection error", {
-          description: "Please check your internet connection and try again.",
-        });
-        return false;
+      if (response.ok) {
+        setUserId(responseData.userId);
+        setShowResumeVerification(false);
+        setPendingShippingData(null);
+        setResumeContext(null);
+        toast.success("Details saved!", { description: "Your information has been recorded." });
+        animateToStep(20, "forward");
+        return true;
       }
-    };
 
+      console.error("Intake API error:", response.status, responseData);
+      const resumeRequired =
+        responseData.code === "RESUME_VERIFICATION_REQUIRED" ||
+        String(responseData.error || "")
+          .toLowerCase()
+          .includes("email verification required") ||
+        String(responseData.message || "")
+          .toLowerCase()
+          .includes("verify your email");
+
+      if (responseData.code === "EMAIL_EXISTS") {
+        toast.error("An account with this email already exists", {
+          description: "Please log in to your existing account or use a different email.",
+        });
+        return "An account with this email already exists. Please log in or use a different email.";
+      }
+      if (resumeRequired) {
+        setPendingShippingData(data);
+        setResumeVerificationFirstName(responseData.firstName ?? formData.firstName ?? null);
+        setResumeContext("shipping");
+        setShowResumeVerification(true);
+        return "We found an unfinished application for this email. Verify your email to continue.";
+      }
+      const message =
+        responseData.message ||
+        responseData.error ||
+        responseData.detail ||
+        "Please try again or contact support.";
+      toast.error("Could not save your details", { description: message });
+      return message;
+    } catch (error) {
+      console.error("Error saving user:", error);
+      toast.error("Connection error", {
+        description: "Please check your internet connection and try again.",
+      });
+      return "Connection error. Please check your internet and try again.";
+    }
+  };
+
+  const renderShippingInfoScreen = () => {
     return (
       <ShippingInfoScreen
         formData={formData}
-        onSave={handleShippingSubmit}
+        onSave={(data) => handleShippingSubmit(data)}
       />
     );
   };
@@ -2954,31 +3036,53 @@ export default function WeightLossAssessmentPage() {
     toast.error("Payment failed", { description: error });
   };
 
-  // ─── Step 20: Unified checkout (booking + payment) ─────────────────────────
+  // ─── Step 20: Continue in the consolidated Sanative Membership funnel ──────
+  // Payment no longer happens inside the assessment. The member joins Sanative
+  // Membership ($365/yr incl. Essential panel + first 30 days of care) and the
+  // funnel handles OTP verification, payment, booking and clinical intake.
+  const goToMembershipCheckout = () => {
+    try {
+      const prefill: OrganCareCheckoutPrefill = {
+        source: "weight_management_assessment",
+        email: formData.email || "",
+        firstName: formData.firstName || "",
+        lastName: formData.lastName || "",
+        phone: formData.phone || undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        postcode: formData.postcode || undefined,
+      };
+      localStorage.setItem(ORGAN_CARE_CHECKOUT_PREFILL_KEY, JSON.stringify(prefill));
+    } catch {
+      // localStorage unavailable — checkout still works without prefill
+    }
+    window.location.href =
+      "/membership/checkout?intent=weight_management&source=weight_management_assessment";
+  };
+
   const renderUnifiedCheckoutScreen = () => (
-    <UnifiedCheckoutScreen
-      formData={{
-        consultationDate: formData.consultationDate,
-        consultationTime: formData.consultationTime,
-        selectedSlotId: formData.selectedSlotId,
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-      }}
-      userId={userId}
-      bookingHoldId={bookingHoldId}
-      holdCountdown={holdCountdown}
-      offerCountdown={offerCountdown}
-      slotsError={slotsError}
-      slotsRefreshKey={slotsRefreshKey}
-      creatingHold={creatingHold}
-      selectingSlotId={selectingSlotId}
-      onSlotSelect={handleSlotSelection}
-      onSlotsError={setSlotsError}
-      onPaymentSuccess={handleCheckoutPaymentSuccess}
-      onPaymentError={handleCheckoutPaymentError}
-      patientTimezone={patientTimezone}
-    />
+    <div className="max-w-lg mx-auto text-center space-y-6 py-10">
+      <div className="w-16 h-16 rounded-full bg-[#eef4e6] flex items-center justify-center mx-auto">
+        <Check className="w-8 h-8 text-[#4f6038]" />
+      </div>
+      <h2 className="text-2xl font-semibold text-gray-900">
+        Your assessment is complete
+      </h2>
+      <p className="text-gray-600">
+        Next, join Sanative Membership — $365 a year including your comprehensive
+        biomarker panel, doctor consultation and your first 30 days of Weight
+        Management Care.
+      </p>
+      <button
+        onClick={goToMembershipCheckout}
+        className="w-full py-4 bg-gray-900 hover:bg-black text-white font-semibold
+          rounded-xl transition-colors"
+      >
+        Continue to secure checkout
+      </button>
+      <p className="text-xs text-gray-400">
+        Your answers are saved and shared with your doctor before your consultation.
+      </p>
+    </div>
   );
 
 
@@ -3297,15 +3401,47 @@ export default function WeightLossAssessmentPage() {
                   targetWeight: formData.targetWeight,
                   height: formData.height,
                   weightLossGoal: formData.weightLossGoal,
-                  journeyStatus: "LEAD", // GAP-007: Using valid status for early capture
+                  journeyStatus: "LEAD",
+                  ...(resumeVerificationToken
+                    ? { resumeVerificationToken }
+                    : {}),
+                  ...(userId ? { userId } : {}),
                 }),
               });
 
+              const data = await response.json().catch(() => ({}));
+
               if (response.ok) {
-                const data = await response.json();
                 setUserId(data.userId);
                 console.log("[Quiz] User created early at email gate:", data.userId);
+                setStep(7);
+                window.scrollTo(0, 0);
+                return;
               }
+
+              if (data.code === "EMAIL_EXISTS") {
+                toast.error("An account with this email already exists", {
+                  description: "Please log in to your existing account or use a different email.",
+                });
+                return;
+              }
+
+              const resumeRequired =
+                data.code === "RESUME_VERIFICATION_REQUIRED" ||
+                String(data.error || "")
+                  .toLowerCase()
+                  .includes("email verification required");
+
+              if (resumeRequired) {
+                setResumeVerificationFirstName(data.firstName ?? formData.firstName ?? null);
+                setResumeContext("email-gate");
+                setShowResumeVerification(true);
+                return;
+              }
+
+              // Existing prospective WM leads can now continue without OTP — retry once
+              // is unnecessary; advance and let shipping save with the same email.
+              console.error("[Quiz] Error creating early user:", response.status, data);
             } catch (error) {
               console.error("[Quiz] Error creating early user:", error);
               // Continue anyway - we'll try again at shipping step
@@ -3967,6 +4103,67 @@ export default function WeightLossAssessmentPage() {
       <div
         className={`fixed inset-0 -z-50 pointer-events-none ${useCreamTheme ? "bg-[#fdfbf7]" : "bg-white"}`}
         aria-hidden="true"
+      />
+
+      <ProspectiveMemberResumeVerification
+        open={showResumeVerification}
+        email={formData.email}
+        firstName={resumeVerificationFirstName}
+        onVerified={async (sessionToken) => {
+          setResumeVerificationToken(sessionToken);
+          setShowResumeVerification(false);
+
+          if (resumeContext === "shipping" && pendingShippingData) {
+            const result = await handleShippingSubmit(pendingShippingData, {
+              resumeVerificationToken: sessionToken,
+            });
+            if (result !== true) {
+              toast.error("Could not save your details", {
+                description: typeof result === "string" ? result : undefined,
+              });
+            }
+            return;
+          }
+
+          if (resumeContext === "email-gate") {
+            try {
+              const response = await fetch("/api/intake", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  programType: "WEIGHT_MANAGEMENT",
+                  email: formData.email,
+                  firstName: formData.firstName,
+                  currentWeight: formData.currentWeight,
+                  targetWeight: formData.targetWeight,
+                  height: formData.height,
+                  weightLossGoal: formData.weightLossGoal,
+                  journeyStatus: "LEAD",
+                  resumeVerificationToken: sessionToken,
+                }),
+              });
+              const data = await response.json().catch(() => ({}));
+              if (response.ok && data.userId) {
+                setUserId(data.userId);
+              }
+            } catch (error) {
+              console.error("[Quiz] Resume email-gate intake failed:", error);
+            }
+            setResumeContext(null);
+            setStep(7);
+            window.scrollTo(0, 0);
+          }
+        }}
+        onUseDifferentEmail={() => {
+          setShowResumeVerification(false);
+          setResumeContext(null);
+          setPendingShippingData(null);
+          setResumeVerificationToken(null);
+          updateFormData("email", "");
+          setUserId(null);
+          setStep(6);
+          window.scrollTo(0, 0);
+        }}
       />
 
       {/* FAQ Modal */}

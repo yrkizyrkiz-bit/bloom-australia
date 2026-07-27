@@ -1,30 +1,58 @@
-import { ClipboardCheck, Video, Package, Heart } from "lucide-react";
+import { Beaker, Video, LineChart, Sparkles } from "lucide-react";
 
 export function HowItWorksSection() {
   const steps = [
     {
       number: "01",
-      icon: ClipboardCheck,
-      title: "Complete your health assessment",
-      description: "Answer questions about your health history and goals. It only takes 5 minutes.",
+      icon: Beaker,
+      title: "Check your health",
+      description: [
+        "All our programs start with a",
+        "comprehensive health check.",
+        "Choose Sanative Advanced",
+        "Biomarker panel — 85+ markers —",
+        "for holistic insight into your",
+        "health for $1/day.",
+      ].join("\n"),
     },
     {
       number: "02",
       icon: Video,
-      title: "Consult with an Australian doctor",
-      description: "Our AHPRA-registered doctors review your profile and discuss your treatment options.",
+      title: "Doctor consultation",
+      description: [
+        "A telehealth consultation with",
+        "an AHPRA registered doctor.",
+        "Share your health history and",
+        "goals so we can tailor insights",
+        "to you. Get your pathology",
+        "referral for your blood test.",
+      ].join("\n"),
     },
     {
       number: "03",
-      icon: Package,
-      title: "Care plan if appropriate",
-      description: "Where clinically appropriate, your doctor may include items dispensed by an Australian-registered pharmacy.",
+      icon: LineChart,
+      title: "Get your biomarker results",
+      description: [
+        "After completing your blood test,",
+        "clear results appear with insight.",
+        "Monitor health changes, targets",
+        "and progress over time — all in",
+        "one place, easy to track and",
+        "understand on the Sanative app.",
+      ].join("\n"),
     },
     {
       number: "04",
-      icon: Heart,
-      title: "Ongoing care & support",
-      description: "Regular check-ins with your care team. Adjust your treatment as needed.",
+      icon: Sparkles,
+      title: "Unlock your health action plan",
+      description: [
+        "Join the many staying ahead of",
+        "their health with preventative",
+        "care, customised based on your",
+        "results, or unlock any Sanative",
+        "program with your first month",
+        "membership on us.",
+      ].join("\n"),
     },
   ];
 
@@ -40,28 +68,27 @@ export function HowItWorksSection() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 items-stretch">
           {steps.map((step, index) => (
-            <div key={step.number} className="relative">
-              {/* Connector Line */}
+            <div key={step.number} className="relative flex h-full">
               {index < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-12 left-[calc(50%+2rem)] w-[calc(100%-4rem)] h-px bg-gradient-to-r from-[#cdd8c6] to-[#a8bb9e]" />
+                <div className="hidden lg:block absolute top-12 left-[calc(50%+2rem)] w-[calc(100%-4rem)] h-px bg-gradient-to-r from-[#cdd8c6] to-[#a8bb9e] z-0" />
               )}
 
-              <div className="relative bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-[#e6ebe3] hover:shadow-lg transition-shadow">
+              <div className="relative z-10 flex h-full w-full flex-col bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-[#e6ebe3] hover:shadow-lg transition-shadow">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] flex items-center justify-center">
+                  <div className="w-12 h-12 flex-shrink-0 rounded-2xl bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] flex items-center justify-center">
                     <step.icon className="w-6 h-6 text-[#34412f]" />
                   </div>
-                  <span className="text-3xl font-serif text-[#a8bb9e]">
+                  <span className="text-3xl font-serif text-[#a8bb9e] leading-none">
                     {step.number}
                   </span>
                 </div>
 
-                <h3 className="text-xl font-serif text-[#2c3628] mb-2">
+                <h3 className="min-h-[3.25rem] text-xl font-serif text-[#2c3628] mb-3 leading-snug">
                   {step.title}
                 </h3>
-                <p className="text-[#5c7a52] text-sm leading-relaxed">
+                <p className="min-h-[9.75rem] flex-1 text-[#5c7a52] text-sm leading-relaxed whitespace-pre-line">
                   {step.description}
                 </p>
               </div>
@@ -73,7 +100,7 @@ export function HowItWorksSection() {
         {/* GAP-019: Removed star rating - health service advertising risk */}
         <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {[
-            { value: "80+", label: "Biomarkers available" },
+            { value: "85+", label: "Biomarkers available" },
             { value: "100%", label: "AHPRA-registered" },
             { value: "100%", label: "Australian doctors" },
             { value: "24hrs", label: "Typical doctor response" },

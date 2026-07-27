@@ -9,6 +9,8 @@
 import { prisma } from "@/lib/prisma";
 import {
   COMPLETE_HEALTH_SCOPES,
+  MEMBERSHIP_INCLUDED_SCOPES,
+  PANEL_INCLUDED_SCOPES,
   normalizeProgramKey,
   normalizeScopeKey,
   type ProgramKey,
@@ -267,6 +269,18 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
     if (programKey) add("PROGRAM", programKey, status, "SUBSCRIPTION");
     const scopeKey = normalizeScopeKey(text);
     if (scopeKey) add("SCOPE", scopeKey, status, "SUBSCRIPTION");
+
+    // Every biomarker panel includes Biological Clock + Organ Care — they are
+    // no longer standalone products.
+    const slug = (sub.product?.slug || "").toLowerCase();
+    const isPanel =
+      slug.startsWith("biomarkers_") ||
+      (sub.product?.program || "").toUpperCase() === "BIOLOGICAL_CLOCK";
+    if (isPanel) {
+      for (const scope of PANEL_INCLUDED_SCOPES) {
+        add("SCOPE", scope, status, "BUNDLE");
+      }
+    }
   }
 
   // 5) Any program grants Program Essential biomarker visibility.
@@ -281,6 +295,15 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
   if (complete) {
     for (const scope of COMPLETE_HEALTH_SCOPES) {
       add("SCOPE", scope, complete.status, "BUNDLE");
+    }
+  }
+
+  // 7) Sanative Membership includes the Essential panel + Biological Clock
+  // (Essential covers all clock core markers). Organ Care stays a paid upgrade.
+  const membership = map.get("SCOPE:MEMBERSHIP");
+  if (membership) {
+    for (const scope of MEMBERSHIP_INCLUDED_SCOPES) {
+      add("SCOPE", scope, membership.status, "BUNDLE");
     }
   }
 

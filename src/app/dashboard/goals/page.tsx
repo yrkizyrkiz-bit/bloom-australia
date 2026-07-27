@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBiomarkerResults } from "@/hooks/useApi";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getBiomarkerById, biomarkerDefinitions } from "@/data/biomarkers";
 import {
@@ -33,7 +35,26 @@ import {
   Sparkles,
   Loader2,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
+
+/** Markers that need attention based on stored result status or reference ranges. */
+function isAttentionStatus(
+  status: string | null | undefined,
+  value: number | null | undefined,
+  biomarkerId: string,
+  gender: "male" | "female"
+): boolean {
+  const normalised = (status || "").toUpperCase();
+  if (normalised === "OUT_OF_RANGE" || normalised === "CRITICAL") return true;
+  if (normalised === "OPTIMAL" || normalised === "NORMAL") return false;
+
+  if (value == null || Number.isNaN(value)) return false;
+  const def = getBiomarkerById(biomarkerId);
+  const range = def?.ranges?.[gender];
+  if (!range) return false;
+  return value < range.low || value > range.high;
+}
 
 interface Goal {
   id: string;
@@ -61,6 +82,7 @@ interface Goal {
 
 export default function GoalsPage() {
   const { user } = useAuth();
+  const { data: resultsData } = useBiomarkerResults(undefined, { latest: true });
   const [goals, setGoals] = useState<Goal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -69,6 +91,7 @@ export default function GoalsPage() {
   const [targetValue, setTargetValue] = useState<string>("");
   const [targetDate, setTargetDate] = useState<string>(defaultNextReviewDate(3));
   const [notes, setNotes] = useState<string>("");
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [editTargetDate, setEditTargetDate] = useState<string>("");
   const [editTargetValue, setEditTargetValue] = useState<string>("");
@@ -76,7 +99,8 @@ export default function GoalsPage() {
   const [deletingGoal, setDeletingGoal] = useState<Goal | null>(null);
   const [reviewingGoal, setReviewingGoal] = useState<Goal | null>(null);
 
-  const gender = user?.gender === "female" ? "female" : "male";
+  const gender =
+    user?.gender?.toLowerCase() === "female" ? "female" : "male";
 
   // Fetch goals from API
   const fetchGoals = async () => {
@@ -113,6 +137,38 @@ export default function GoalsPage() {
   const availableBiomarkers = useMemo(() => {
     return biomarkerDefinitions.filter(b => !blockingBiomarkerIds.has(b.id));
   }, [blockingBiomarkerIds]);
+
+  const attentionBiomarkerIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const result of resultsData?.results ?? []) {
+      if (
+        isAttentionStatus(
+          result.status,
+          result.value,
+          result.biomarkerId,
+          gender
+        )
+      ) {
+        ids.add(result.biomarkerId);
+      }
+    }
+    return ids;
+  }, [resultsData?.results, gender]);
+
+  const selectableBiomarkers = useMemo(() => {
+    if (!attentionOnly) return availableBiomarkers;
+    return availableBiomarkers.filter((b) => attentionBiomarkerIds.has(b.id));
+  }, [availableBiomarkers, attentionOnly, attentionBiomarkerIds]);
+
+  useEffect(() => {
+    if (
+      attentionOnly &&
+      selectedBiomarker &&
+      !attentionBiomarkerIds.has(selectedBiomarker)
+    ) {
+      setSelectedBiomarker("");
+    }
+  }, [attentionOnly, selectedBiomarker, attentionBiomarkerIds]);
 
   const calculateProgress = (goal: Goal) =>
     calculateGoalProgress(
@@ -280,7 +336,16 @@ export default function GoalsPage() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <Dialog open={showNewGoalDialog} onOpenChange={setShowNewGoalDialog}>
+          <Dialog
+            open={showNewGoalDialog}
+            onOpenChange={(open) => {
+              setShowNewGoalDialog(open);
+              if (!open) {
+                setAttentionOnly(false);
+                setSelectedBiomarker("");
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
@@ -295,18 +360,67 @@ export default function GoalsPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-4">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
+                    <div className="min-w-0">
+                      <Label
+                        htmlFor="attention-biomarkers-toggle"
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        Needs attention only
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Show biomarkers that are out of range for you
+                        {attentionBiomarkerIds.size > 0
+                          ? ` (${attentionBiomarkerIds.size})`
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="attention-biomarkers-toggle"
+                    checked={attentionOnly}
+                    onCheckedChange={setAttentionOnly}
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label>Select Biomarker</Label>
                   <Select value={selectedBiomarker} onValueChange={setSelectedBiomarker}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Choose a biomarker" />
+                      <SelectValue
+                        placeholder={
+                          attentionOnly
+                            ? "Choose an out-of-range biomarker"
+                            : "Choose a biomarker"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableBiomarkers.map(b => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.shortName} - {b.name}
-                        </SelectItem>
-                      ))}
+                      {selectableBiomarkers.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                          {attentionOnly
+                            ? "No out-of-range biomarkers available to set a goal on"
+                            : "No biomarkers available"}
+                        </div>
+                      ) : (
+                        selectableBiomarkers.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            <span className="flex items-center gap-2">
+                              {b.shortName} - {b.name}
+                              {attentionBiomarkerIds.has(b.id) && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 border-orange-300 text-orange-700"
+                                >
+                                  Attention
+                                </Badge>
+                              )}
+                            </span>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

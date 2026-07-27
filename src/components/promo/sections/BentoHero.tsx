@@ -113,7 +113,7 @@ export function BentoHero() {
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#4a6243] text-white rounded-full">
                   <Beaker className="w-3 h-3" />
-                  65+ Biomarkers
+                  85+ Biomarkers
                 </span>
               </div>
               <h3 className="text-xl lg:text-2xl font-serif text-[#2c3628] leading-tight">
@@ -121,8 +121,8 @@ export function BentoHero() {
                 <br /><span className="text-[#4a6243]">every year</span>
               </h3>
               <p className="text-[#4a6243] text-sm mt-3 leading-relaxed">
-                Starting with 65+ lab tests detecting 500+ conditions. Just $350 per year—{" "}
-                <span className="italic font-medium text-[#2c3628]">under $1 per day</span>.
+                Starting with 85+ lab tests detecting 500+ conditions. Just $365 per year—{" "}
+                <span className="italic font-medium text-[#2c3628]">$1 per day</span>.
               </p>
             </div>
 

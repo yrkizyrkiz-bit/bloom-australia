@@ -348,16 +348,36 @@ export default function CustomerDetailPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // Send only editable profile fields; normalise DOB to YYYY-MM-DD
+      const payload = {
+        email: editData.email,
+        firstName: editData.firstName,
+        lastName: editData.lastName,
+        phone: editData.phone,
+        gender: editData.gender,
+        dateOfBirth: editData.dateOfBirth
+          ? String(editData.dateOfBirth).split("T")[0]
+          : null,
+        addressLine1: editData.addressLine1,
+        addressLine2: editData.addressLine2,
+        suburb: editData.suburb,
+        state: editData.state,
+        postcode: editData.postcode,
+        country: editData.country,
+      };
       const res = await fetch(`/api/users/${customerId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editData),
+        body: JSON.stringify(payload),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setCustomer(data.user);
+        setEditData(data.user);
         setIsEditing(false);
         toast.success("Customer updated");
+      } else {
+        toast.error(data.error || "Failed to update customer");
       }
     } catch (error) {
       toast.error("Failed to update");
@@ -659,6 +679,10 @@ export default function CustomerDetailPage() {
   const formatPlanLabel = (tier: string | null | undefined) => {
     if (!tier) return "—";
     const lower = tier.toLowerCase();
+    if (lower === "membership" || lower === "sanative_membership") {
+      return "Sanative Membership";
+    }
+    if (lower.includes("biomarker")) return "Biomarkers";
     if (lower.includes("precision")) return "Sanative Precision";
     if (lower.includes("core")) return "Sanative Core";
     if (lower.includes("weight")) return "Weight Management";
@@ -733,7 +757,9 @@ export default function CustomerDetailPage() {
                 {formatMemberStatus(customer.memberStatus || "POTENTIAL_MEMBER")}
               </Badge>
               <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
-              {customer.subscriptionTier && <Badge variant="outline">{customer.subscriptionTier}</Badge>}
+              {customer.subscriptionTier && (
+                <Badge variant="outline">{formatPlanLabel(customer.subscriptionTier)}</Badge>
+              )}
             </div>
           </div>
         </div>

@@ -155,7 +155,7 @@ export default function LoginPage() {
             </Link>
             <div className="flex items-center gap-4">
               <Link
-                href="/weight-management/assessment"
+                href="/#membership"
                 className="text-[15px] text-[#34412f] hover:text-[#5c7a52] transition-colors promo-body"
               >
                 Create Account
@@ -328,7 +328,7 @@ export default function LoginPage() {
               <div className="p-6 pt-0 space-y-4">
                 <div className="text-center text-sm text-[#7e9a72] promo-body">
                   Don&apos;t have an account?{" "}
-                  <Link href="/weight-management/assessment" className="text-[#c17a58] hover:text-[#a9634a] font-medium transition-colors">
+                  <Link href="/#membership" className="text-[#c17a58] hover:text-[#a9634a] font-medium transition-colors">
                     Get started
                   </Link>
                 </div>

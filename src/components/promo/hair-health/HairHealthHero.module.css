@@ -1,0 +1,343 @@
+.hero {
+  position: relative;
+  overflow: visible;
+  color: #ffffff;
+  font-family: var(--font-inter), Inter, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* Hair-page greens, deepened with the same radial + vertical richness as weight loss */
+  background:
+    radial-gradient(75% 58% at 50% -5%, rgba(205, 216, 198, 0.55) 0%, transparent 58%),
+    radial-gradient(50% 45% at 88% 18%, rgba(168, 187, 158, 0.45) 0%, transparent 55%),
+    radial-gradient(42% 38% at 8% 78%, rgba(126, 154, 114, 0.4) 0%, transparent 52%),
+    linear-gradient(180deg, #7e9a72 0%, #5c7a52 42%, #4a6243 100%);
+  padding-bottom: clamp(60px, 8vw, 100px);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: radial-gradient(circle at 2px 2px, #ffffff 1px, transparent 0);
+  background-size: 48px 48px;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  top: -10%;
+  right: -8%;
+  width: min(520px, 55vw);
+  height: min(520px, 55vw);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(230, 235, 227, 0.22) 0%, transparent 68%);
+  pointer-events: none;
+  filter: blur(2px);
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(40px, 5vw, 72px) clamp(40px, 4vw, 56px) 0;
+}
+
+.intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 380px);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: end;
+}
+
+.eyebrowRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 20px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: clamp(0.95rem, 1.2vw, 1.125rem);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(44, 54, 40, 0.12);
+}
+
+.toggleLabel {
+  margin-right: 6px;
+  padding-left: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.toggleBtn {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  min-height: 36px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.toggleBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.toggleBtnActive {
+  background: #ffffff;
+  color: #34412f;
+  box-shadow: 0 4px 14px rgba(44, 54, 40, 0.18);
+}
+
+.toggleBtnActive:hover {
+  background: #ffffff;
+}
+
+.heading {
+  margin: 0;
+  max-width: 920px;
+  /* Slightly smaller than the short membership headline so this copy stays on 2 lines */
+  font-size: clamp(40px, 4.6vw, 84px);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+}
+
+.headingLine {
+  display: block;
+  white-space: nowrap;
+}
+
+.summary {
+  max-width: 380px;
+  padding-bottom: 4px;
+}
+
+.points {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.points li {
+  position: relative;
+  padding-left: 1.35em;
+  font-size: clamp(1.05rem, 1.35vw, 1.25rem);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 0.45em;
+  height: 0.45em;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  padding: 0 44px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #2c3628;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.cta:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+
+/* ---- Two-card bento ---- */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  min-height: 560px;
+  margin-top: clamp(40px, 5vw, 64px);
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 32px;
+  min-height: 520px;
+  box-shadow:
+    0 16px 40px rgba(44, 54, 40, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform: translateZ(0);
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(44, 54, 40, 0) 45%,
+    rgba(44, 54, 40, 0.28) 100%
+  );
+  z-index: 1;
+}
+
+.cardMedia {
+  position: absolute;
+  inset: 0;
+}
+
+.cardMedia img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.portraitMen {
+  object-position: center top;
+}
+
+.portraitWomen {
+  object-position: center 28%;
+}
+
+.biomarkers {
+  background:
+    radial-gradient(80% 70% at 30% 20%, rgba(205, 216, 198, 0.35) 0%, transparent 60%),
+    #5c7a52;
+}
+
+.portrait {
+  background:
+    radial-gradient(70% 60% at 70% 15%, rgba(244, 247, 242, 0.22) 0%, transparent 55%),
+    #4a6243;
+}
+
+.cardCaption {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 22px;
+  z-index: 2;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- Tablet ---- */
+@media (max-width: 1023px) {
+  .inner {
+    padding-left: clamp(28px, 3vw, 32px);
+    padding-right: clamp(28px, 3vw, 32px);
+  }
+
+  .intro {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .heading {
+    font-size: clamp(36px, 5.8vw, 64px);
+  }
+
+  .summary {
+    max-width: 460px;
+  }
+
+  .bento {
+    min-height: auto;
+    gap: 16px;
+  }
+
+  .card {
+    min-height: 420px;
+  }
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 639px) {
+  .inner {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .heading {
+    font-size: clamp(30px, 8.2vw, 42px);
+    line-height: 1.02;
+  }
+
+  .bento {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .card {
+    min-height: 380px;
+  }
+
+  .biomarkers {
+    order: 1;
+  }
+
+  .portrait {
+    order: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta,
+  .toggleBtn {
+    transition: none;
+  }
+
+  .cta:hover {
+    transform: none;
+  }
+}

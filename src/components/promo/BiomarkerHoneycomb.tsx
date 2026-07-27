@@ -85,9 +85,15 @@ const categories = [
 
 interface BiomarkerHoneycombProps {
   defaultCategory?: string;
+  /** Left-align tabs / honeycomb for split layouts */
+  align?: "center" | "start";
 }
 
-export function BiomarkerHoneycomb({ defaultCategory = "heart" }: BiomarkerHoneycombProps) {
+export function BiomarkerHoneycomb({
+  defaultCategory = "heart",
+  align = "center",
+}: BiomarkerHoneycombProps) {
+  const alignStart = align === "start";
   const [activeCategory, setActiveCategory] = useState<string>(defaultCategory);
   const [hoveredBiomarker, setHoveredBiomarker] = useState<Biomarker | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -128,7 +134,11 @@ export function BiomarkerHoneycomb({ defaultCategory = "heart" }: BiomarkerHoney
   return (
     <div className="w-full">
       {/* Category Tabs */}
-      <div className="flex flex-wrap justify-center gap-2 mb-10">
+      <div
+        className={`flex flex-wrap gap-2 mb-10 ${
+          alignStart ? "justify-start" : "justify-center"
+        }`}
+      >
         {categories.map((category) => (
           <button
             key={category.id}
@@ -146,11 +156,15 @@ export function BiomarkerHoneycomb({ defaultCategory = "heart" }: BiomarkerHoney
       </div>
 
       {/* Honeycomb Grid */}
-      <div className="relative flex flex-col items-center gap-1 py-8">
+      <div
+        className={`relative flex flex-col gap-1 py-4 ${
+          alignStart ? "items-start" : "items-center"
+        }`}
+      >
         {rows.map((row, rowIndex) => (
           <div
             key={rowIndex}
-            className="flex gap-1 justify-center"
+            className={`flex gap-1 ${alignStart ? "justify-start" : "justify-center"}`}
             style={{
               marginLeft: rowIndex % 2 === 1 ? "28px" : "0",
             }}
@@ -195,7 +209,7 @@ export function BiomarkerHoneycomb({ defaultCategory = "heart" }: BiomarkerHoney
         ))}
 
         {/* Calculated Metrics Label */}
-        <div className="mt-8 flex items-center gap-4 text-sm text-[#5c7a52]">
+        <div className="mt-5 flex items-center gap-4 text-sm text-[#5c7a52]">
           <span>Calculated metrics included:</span>
           <div className="flex gap-2">
             {["eGFR", "HOMA"].map((metric) => (

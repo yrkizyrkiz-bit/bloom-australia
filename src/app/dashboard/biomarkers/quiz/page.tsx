@@ -37,9 +37,7 @@ import {
 } from "@/lib/programs/quizzes/biomarkers-quiz-storage";
 import {
   BIOMARKERS_PANEL_META,
-  ORGAN_CARE_UPSELL_META,
   type BiomarkersPanelTier,
-  type OrganCareBillingTerm,
 } from "@/lib/programs/offers";
 import { PortalPaymentForm } from "@/components/portal/PortalPaymentForm";
 
@@ -54,18 +52,6 @@ type BiomarkersPricing = {
     priceLabel: string | null;
     amountAud: number | null;
   }>;
-  organCare: {
-    name: string;
-    description: string;
-    options: Array<{
-      term: OrganCareBillingTerm;
-      label: string;
-      priceLabel: string;
-      amountAud: number;
-      billingPriceId: string;
-      promo: string | null;
-    }>;
-  };
 };
 
 export default function BiomarkersQuizPage() {
@@ -95,8 +81,6 @@ export default function BiomarkersQuizPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPanelPicker, setShowPanelPicker] = useState(false);
   const [selectedPanel, setSelectedPanel] = useState<BiomarkersPanelTier>("essential");
-  const [addOrganCare, setAddOrganCare] = useState(false);
-  const [organCareTerm, setOrganCareTerm] = useState<OrganCareBillingTerm>("annual");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(false);
@@ -235,8 +219,6 @@ export default function BiomarkersQuizPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           panelTier: selectedPanel,
-          addOrganCare,
-          organCareTerm: addOrganCare ? organCareTerm : undefined,
           answers,
         }),
       });
@@ -262,8 +244,6 @@ export default function BiomarkersQuizPage() {
         paymentIntentId: result.paymentIntentId,
         consentRecordId: result.consentRecordId,
         panelTier: selectedPanel,
-        addOrganCare,
-        organCareTerm: addOrganCare ? organCareTerm : undefined,
         answers,
       }),
     });
@@ -283,11 +263,8 @@ export default function BiomarkersQuizPage() {
     amountAud: null as number | null,
   }));
 
-  const selectedOrganOption = pricing?.organCare.options.find((o) => o.term === organCareTerm);
-
   const checkoutTotalAud =
-    (panelOptions.find((p) => p.tier === selectedPanel)?.amountAud ?? 0) +
-    (addOrganCare ? selectedOrganOption?.amountAud ?? 0 : 0);
+    panelOptions.find((p) => p.tier === selectedPanel)?.amountAud ?? 0;
   const checkoutPriceLabel = pricingLoading
     ? "…"
     : checkoutTotalAud > 0
@@ -359,8 +336,7 @@ export default function BiomarkersQuizPage() {
                 </span>
                 <span>
                   Our care team reviews your intake
-                  {purchasedPanel ? ` and ${purchasedPanel.name}` : ""}
-                  {addOrganCare ? " with Organ Care" : ""}.
+                  {purchasedPanel ? ` and ${purchasedPanel.name}` : ""}.
                 </span>
               </li>
               <li className="flex gap-3">
@@ -533,73 +509,21 @@ export default function BiomarkersQuizPage() {
               })}
             </div>
 
-            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-[#e6ebe3] bg-[#f4f7f2] p-4">
-              <input
-                type="checkbox"
-                checked={addOrganCare}
-                onChange={(e) => {
-                  setAddOrganCare(e.target.checked);
-                  setClientSecret(null);
-                }}
-                className="mt-1"
-              />
-              <span className="flex-1">
-                <span className="block font-medium text-[#2c3628]">
-                  Add {ORGAN_CARE_UPSELL_META.name}
-                </span>
-                <span className="mt-1 block text-sm text-[#5c7a52]">
-                  {ORGAN_CARE_UPSELL_META.description}
-                </span>
-              </span>
-            </label>
-
-            {addOrganCare && (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm font-medium text-[#34412f]">Organ Care billing</p>
-                {(pricing?.organCare.options ?? []).map((option) => {
-                  const selected = organCareTerm === option.term;
-                  return (
-                    <button
-                      key={option.term}
-                      type="button"
-                      onClick={() => {
-                        setOrganCareTerm(option.term);
-                        setClientSecret(null);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-left transition-all ${
-                        selected
-                          ? "border-emerald-600 bg-emerald-50"
-                          : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"
-                      }`}
-                    >
-                      <span>
-                        <span className="font-medium text-[#2c3628]">{option.label}</span>
-                        {option.promo && (
-                          <span className="ml-2 rounded-full bg-[#c17a58] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-                            {option.promo}
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-semibold text-emerald-800">{option.priceLabel}</span>
-                    </button>
-                  );
-                })}
-                {pricingLoading && (
-                  <p className="text-xs text-[#7e9a72]">Loading Organ Care pricing…</p>
-                )}
-              </div>
-            )}
+            <div className="mt-5 rounded-xl border border-[#e6ebe3] bg-[#f4f7f2] p-4">
+              <p className="font-medium text-[#2c3628]">
+                Biological Clock + Organ Care included
+              </p>
+              <p className="mt-1 text-sm text-[#5c7a52]">
+                Every panel unlocks your Biological Clock and Organ Care dashboards
+                at no extra cost.
+              </p>
+            </div>
 
             <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <div className="flex items-baseline justify-between">
                 <span className="font-medium text-[#2c3628]">Due today</span>
                 <span className="font-semibold text-emerald-800">{checkoutPriceLabel}</span>
               </div>
-              {addOrganCare && selectedOrganOption && (
-                <p className="mt-2 text-xs text-[#5c7a52]">
-                  Includes annual biomarker panel + Organ Care ({selectedOrganOption.priceLabel})
-                </p>
-              )}
             </div>
 
             {error && <p className="mt-3 text-sm text-red-600">{error}</p>}

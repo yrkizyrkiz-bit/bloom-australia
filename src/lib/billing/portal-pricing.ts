@@ -301,16 +301,15 @@ export async function resolveOrganCareCheckoutQuote(
 
 export async function resolveBiomarkersCheckoutQuote(
   panelTier: BiomarkersPanelTier,
-  addOrganCare: boolean,
+  _addOrganCare: boolean,
   organCareTerm: OrganCareBillingTerm = "annual"
 ) {
   const panel = await getBiomarkersPanelPrice(panelTier);
   if (!panel) throw new Error(`No annual pricing for biomarkers panel: ${panelTier}`);
 
-  let organ: BillingPriceRow | null = null;
-  if (addOrganCare) {
-    organ = await resolveOrganCarePrice(organCareTerm);
-  }
+  // Organ Care is included with every panel — never charged as an add-on.
+  const addOrganCare = false as boolean;
+  const organ = null as BillingPriceRow | null;
 
   const totalCents = panel.amountCents + (organ?.amountCents ?? 0);
   const organLabel = organ

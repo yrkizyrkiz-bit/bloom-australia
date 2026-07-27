@@ -90,6 +90,40 @@ export async function getOrCreateRecurringPrice(params: {
   return price.id;
 }
 
+/** Create or reuse a one-time Stripe Price (e.g. checkout add-ons). */
+export async function getOrCreateOneTimePrice(params: {
+  productName: string;
+  productMetadata: Record<string, string>;
+  amountAud: number;
+}): Promise<string> {
+  const stripe = getStripe();
+  if (!stripe) throw new Error("Stripe is not configured");
+
+  const amountCents = Math.round(params.amountAud * 100);
+  const lookupKey = [
+    "portal_onetime",
+    params.productMetadata.scope ?? "addon",
+    String(amountCents),
+  ].join("_");
+
+  const existing = await stripe.prices.list({ lookup_keys: [lookupKey], limit: 1 });
+  if (existing.data[0]) return existing.data[0].id;
+
+  const product = await stripe.products.create({
+    name: params.productName,
+    metadata: params.productMetadata,
+  });
+
+  const price = await stripe.prices.create({
+    product: product.id,
+    unit_amount: amountCents,
+    currency: "aud",
+    lookup_key: lookupKey,
+  });
+
+  return price.id;
+}
+
 type InvoicePaymentDetails = {
   clientSecret: string;
   paymentIntentId: string;
@@ -160,6 +194,8 @@ async function resolveInvoicePaymentDetails(
 export async function createIncompleteSubscription(params: {
   customerId: string;
   items: Array<{ priceId: string }>;
+  /** One-time charges added to the first invoice (e.g. retest add-on). */
+  addInvoiceItems?: Array<{ priceId: string }>;
   metadata: Record<string, string>;
   description?: string;
 }): Promise<{
@@ -173,6 +209,11 @@ export async function createIncompleteSubscription(params: {
   const subscription = await stripe.subscriptions.create({
     customer: params.customerId,
     items: params.items.map((i) => ({ price: i.priceId })),
+    ...(params.addInvoiceItems?.length
+      ? {
+          add_invoice_items: params.addInvoiceItems.map((i) => ({ price: i.priceId })),
+        }
+      : {}),
     payment_behavior: "default_incomplete",
     payment_settings: { save_default_payment_method: "on_subscription" },
     expand: ["latest_invoice.confirmation_secret"],

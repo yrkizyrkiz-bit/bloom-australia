@@ -14,14 +14,6 @@ const questionsAndAnswers: QA[] = [
     answer: "Your Sanative doctor reviews your health history, symptoms, and goals. Where clinically appropriate, blood tests help identify factors that may be affecting your weight — such as thyroid function, metabolic markers, or hormonal balance.",
   },
   {
-    question: "Are results guaranteed?",
-    answer: "No. Results vary between individuals. Your doctor will assess whether the program is clinically appropriate for you and discuss realistic expectations during your consultation.",
-  },
-  {
-    question: "Are your doctors qualified?",
-    answer: "Yes. All Sanative doctors are AHPRA-registered Australian medical practitioners. Your consultation is conducted via telehealth, and your doctor may recommend in-person assessment if clinically required.",
-  },
-  {
     question: "Is Sanative private and discreet?",
     answer: "Yes. Your health information is protected under Australian privacy laws and never shared without your consent. Program logistics are handled confidentially.",
   },
@@ -34,8 +26,28 @@ const questionsAndAnswers: QA[] = [
     answer: "Your doctor will discuss potential side effects during your consultation. Ongoing clinical monitoring allows your doctor to adjust your care plan as needed. Your safety is our priority.",
   },
   {
-    question: "What if I'm not suitable?",
-    answer: "If your Sanative doctor determines that the program is not clinically suitable for you, your first-month payment will be refunded. Care options are only discussed where clinically appropriate.",
+    question: "What is a Care Partner and how do they help?",
+    answer: "Your Care Partner is a real person (not a chatbot) who supports you throughout your journey. They check in weekly, answer questions between doctor consultations, help you stay accountable, and celebrate your progress. Think of them as your personal health ally who genuinely cares about your success.",
+  },
+  {
+    question: "How much does the program cost?",
+    answer: "Sanative Membership is $365 billed annually ($1 a day) and includes your comprehensive biomarker panel plus your first 30 days of Weight Management Care. After that, continue Weight Management Care for $360 every three months. Medication cost is not included.",
+  },
+  {
+    question: "Who is eligible for the program?",
+    answer: "Generally, you need a BMI of 30+ or BMI 27+ with weight-related health conditions such as type 2 diabetes, high blood pressure, or PCOS. Women experiencing hormonal or metabolic weight gain may also be eligible. Our doctors assess your full health picture including biomarkers during consultation.",
+  },
+  {
+    question: "What results can I expect?",
+    answer: "Results vary significantly based on individual biology, adherence, and starting point. Your doctor will discuss realistic expectations during your consultation and use biomarker results to help personalise your plan.",
+  },
+  {
+    question: "What about treatment options?",
+    answer: "Treatment options are discussed privately with your doctor if clinically appropriate. Your monthly program fee covers clinical assessment, monitoring, and portal access — not medicine bundles.",
+  },
+  {
+    question: "Can I cancel my subscription?",
+    answer: "Yes, you can cancel anytime with no penalties or cancellation fees. Simply contact our support team or cancel through the app. Your subscription ends at the end of your current billing period. We believe in earning your trust every month.",
   },
 ];
 
@@ -88,7 +100,7 @@ export function ObjectionHandlingSection() {
               Your Care Partner is here to support you. Here are common questions about our program.
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 max-w-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 max-w-lg max-h-[28rem] sm:max-h-[32rem] overflow-y-auto pr-1">
               {questionsAndAnswers.map((qa, index) => (
                 <button
                   key={qa.question}

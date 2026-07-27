@@ -13,7 +13,6 @@ import {
   ORGAN_CARE_MARKER_SETS,
 } from "@/lib/membership/biomarker-readiness";
 import { DEPRECATED_BIOMARKER_IDS } from "@/lib/catalog-biomarkers";
-import { DERIVED_BIOMARKER_IDS } from "@/lib/derived-biomarkers";
 import { FUNCTION_STYLE_CATEGORIES } from "@/lib/biomarkers/function-style-categories";
 
 export type BiomarkerSubscriptionTier = "essential" | "advanced" | "complete";
@@ -71,6 +70,7 @@ export const BULK_BILL_BASELINE_MARKER_IDS = [
   "iron",
   "ferritin",
   "tibc",
+  "crp",
 ] as const;
 
 /** Organ Care pathology extras not always listed in dashboard marker sets. */
@@ -98,16 +98,13 @@ export const ADVANCED_MARKER_ID_SET = new Set<string>([
 
 export const COMPLETE_MARKER_ID_SET = new Set<string>(CATALOG_IDS);
 
-const DERIVED = new Set<string>([...DERIVED_BIOMARKER_IDS, "free_t3_t4_ratio"]);
-
-function countInCatalog(idSet: Set<string>) {
-  const inCatalog = CATALOG_IDS.filter((id) => idSet.has(id));
-  return {
-    total: inCatalog.length,
-    measurable: inCatalog.filter((id) => !DERIVED.has(id)).length,
-    derived: inCatalog.filter((id) => DERIVED.has(id)).length,
-  };
-}
+/**
+ * Function-style intake totals (unique tested + calculated).
+ * Kept in sync with `getTierDisplayMarkerCounts` in panel-biomarker-display.
+ */
+const ESSENTIAL_COUNTS = { total: 71, measurable: 46, derived: 25 };
+const ADVANCED_COUNTS = { total: 89, measurable: 60, derived: 29 };
+const COMPLETE_COUNTS = { total: 99, measurable: 70, derived: 29 };
 
 export interface BiomarkerSubscriptionPlan {
   id: BiomarkerSubscriptionTier;
@@ -125,10 +122,6 @@ export interface BiomarkerSubscriptionPlan {
   pathologyTests: string[];
   includesLabel?: string;
 }
-
-const ESSENTIAL_COUNTS = countInCatalog(ESSENTIAL_MARKER_ID_SET);
-const ADVANCED_COUNTS = countInCatalog(ADVANCED_MARKER_ID_SET);
-const COMPLETE_COUNTS = countInCatalog(COMPLETE_MARKER_ID_SET);
 
 export const BIOMARKER_SUBSCRIPTION_PLANS: BiomarkerSubscriptionPlan[] = [
   {
@@ -151,12 +144,13 @@ export const BIOMARKER_SUBSCRIPTION_PLANS: BiomarkerSubscriptionPlan[] = [
       "Calcium, albumin & uric acid",
       "Urine albumin:creatinine ratio (MSU ACR)",
       "Iron studies & active B12",
+      "hs-CRP — inflammation & biological age",
     ],
     highlights: [
       "Core biomarkers for general health assessment",
       "Metabolic, heart, liver, kidney & thyroid markers",
       "FBE with full differential",
-      "Ideal starting panel for program Essential monitoring",
+      "hs-CRP for inflammation & Biological Clock readiness",
       "Portal calculates derived markers (eGFR, HOMA-IR, lipid ratios)",
     ],
   },
@@ -164,15 +158,14 @@ export const BIOMARKER_SUBSCRIPTION_PLANS: BiomarkerSubscriptionPlan[] = [
     id: "advanced",
     name: "Advanced",
     tagline: "Comprehensive testing including Biological Clock & full Organ & Metabolic Care",
-    priceAud: 349,
+    priceAud: 365,
     billingLabel: "per year",
     markerCount: ADVANCED_COUNTS.total,
     measurableCount: ADVANCED_COUNTS.measurable,
     popular: true,
-    includesLabel: "Comprehensive testing including:",
+    includesLabel: "Everything in Essential, plus:",
     pathologyTests: [
       "Vitamin D (25-OH)",
-      "hs-CRP — inflammation & biological age",
       "Male or female hormone panel (as clinically indicated)",
       "Cortisol (AM) & DHEA-S",
       "Homocysteine — cardiovascular risk",
@@ -205,7 +198,7 @@ export const BIOMARKER_SUBSCRIPTION_PLANS: BiomarkerSubscriptionPlan[] = [
       "Any remaining catalog markers not in lower tiers",
     ],
     highlights: [
-      "Full 97-marker My Biomarkers catalog",
+      "Full 99-marker catalog (tested + calculated)",
       "Thyroid autoimmunity screening",
       "Extended inflammation & nutrient depth",
       "Maximum data for AI insights & biological age",

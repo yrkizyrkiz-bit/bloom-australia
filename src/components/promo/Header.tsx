@@ -13,7 +13,7 @@ export function Header() {
       label: "Biomarker Labs",
       href: "/labs",
       dropdown: [
-        { label: "Full Biomarker Panel", href: "/labs/biomarkers" },
+        { label: "Biomarker Panel", href: "/labs#biomarkers" },
         { label: "Book a Test", href: "/biomarker-intake" },
       ],
     },
@@ -29,12 +29,24 @@ export function Header() {
       label: "Women's Health",
       href: "/womens-health",
       dropdown: [
-        { label: "Menopause Care", href: "/womens-health/menopause" },
-        { label: "Menopause & hormone care", href: "/womens-health/assessment?category=hrt" },
-        { label: "Contraception", href: "/womens-health/assessment?category=contraception" },
-        { label: "Fertility Support", href: "/womens-health/assessment?category=fertility" },
-        { label: "Sexual Health & Intimacy", href: "/womens-health/assessment?category=sexual" },
-        { label: "Not sure where to start", href: "/womens-health/assessment?category=unsure" },
+        { label: "Menopause Care", href: "/womens-health#menopause" },
+        { label: "Menopause & hormone care", href: "/womens-health#hrt" },
+        { label: "Contraception", href: "/womens-health#contraception" },
+        { label: "Fertility Support", href: "/womens-health#fertility" },
+        { label: "Sexual Health & Intimacy", href: "/womens-health#sexual" },
+        { label: "Hair Loss", href: "/hair-health?gender=women" },
+        { label: "Not sure where to start", href: "/womens-health#unsure" },
+      ],
+    },
+    {
+      label: "Men's Health",
+      href: "/mens-health",
+      dropdown: [
+        { label: "Sexual Health", href: "/mens-health/sexual-health" },
+        { label: "Erectile Dysfunction", href: "/mens-health/erectile-dysfunction" },
+        { label: "Energy & Vitality", href: "/mens-health/assessment?concern=energy-vitality" },
+        { label: "Hair Loss", href: "/hair-health?gender=men" },
+        { label: "Start Assessment", href: "/mens-health/assessment" },
       ],
     },
     {
@@ -45,10 +57,6 @@ export function Header() {
         { label: "Heart Health Program", href: "/metabolic-care/heart-health" },
         { label: "Kidney Health Program", href: "/metabolic-care/kidney-health" },
       ],
-    },
-    {
-      label: "For Doctors",
-      href: "/for-doctors",
     },
   ];
 
@@ -138,10 +146,10 @@ export function Header() {
                 Log in
               </Link>
               <Link
-                href="/weight-management/assessment"
+                href="/#membership"
                 className="btn-primary text-xs sm:text-sm lg:text-[15px] px-3 sm:px-4"
               >
-                Get Started
+                Become a member
               </Link>
               <button
                 type="button"

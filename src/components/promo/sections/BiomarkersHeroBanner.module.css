@@ -1,0 +1,306 @@
+.hero {
+  --ink: #2c3628;
+  --green: #4a6243;
+  --screen-gap: clamp(18px, 2.1vw, 38px);
+  --marquee-duration: 34s;
+  --card-radius: 24px;
+  position: relative;
+  min-height: clamp(580px, 58vw, 900px);
+  overflow: hidden;
+  background: #c8d4ce;
+}
+
+.heroBackground {
+  position: absolute;
+  inset: -3%;
+  z-index: 0;
+  width: 106%;
+  height: 106%;
+  object-fit: cover;
+  object-position: center 40%;
+  transform: scale(1.04);
+  filter: saturate(0.92) brightness(1.02);
+}
+
+.appMarquee {
+  position: absolute;
+  inset: 30% -22% -2%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  /* Do not use opacity or mask here — both flatten 3D transforms in WebKit/Blink */
+}
+
+/* Soft edge fades as overlays (safe for 3D) */
+.appMarquee::before,
+.appMarquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.appMarquee::before {
+  left: 0;
+  width: min(16%, 140px);
+  background: linear-gradient(90deg, rgb(200 212 206 / 90%) 0%, transparent 100%);
+}
+
+.appMarquee::after {
+  right: 0;
+  width: min(30%, 260px);
+  background: linear-gradient(270deg, rgb(200 212 206 / 75%) 0%, transparent 100%);
+}
+
+.appMarqueeStage {
+  /* Perspective stays on a static parent — never animate it with the scroll */
+  perspective: 1400px;
+  perspective-origin: 12% 55%;
+  width: max-content;
+  padding: 40px 0 60px;
+}
+
+.appMarqueeTilt {
+  width: max-content;
+  transform: rotateY(-28deg);
+  transform-origin: 12% 55%;
+  transform-style: preserve-3d;
+}
+
+.appMarqueeTrack {
+  display: flex;
+  width: max-content;
+  min-width: max-content;
+  flex-shrink: 0;
+  /* Only translateX animates so the -50% loop reset stays seamless */
+  transform: translate3d(0, 4%, 0);
+  animation: appScreenScroll var(--marquee-duration) linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.appScreenGroup {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--screen-gap);
+  padding-right: var(--screen-gap);
+}
+
+.appScreen {
+  /* Landscape UI shots (~1.85:1) — width-driven sizing keeps ratio natural */
+  width: clamp(300px, 30vw, 500px);
+  height: auto;
+  max-height: none;
+  aspect-ratio: 16 / 9;
+  flex-shrink: 0;
+  object-fit: contain;
+  object-position: top center;
+  opacity: 0.92;
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: var(--card-radius);
+  box-shadow:
+    18px 32px 60px rgb(18 42 37 / 32%),
+    0 10px 24px rgb(18 42 37 / 14%),
+    inset 0 1px 0 rgb(255 255 255 / 80%);
+  background: rgb(255 255 255 / 78%);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.appScreen:nth-child(3n + 1) {
+  translate: 0 -2%;
+}
+
+.appScreen:nth-child(3n + 2) {
+  translate: 0 3%;
+}
+
+.appScreen:nth-child(3n) {
+  translate: 0 -1%;
+}
+
+@keyframes appScreenScroll {
+  from {
+    transform: translate3d(0, 4%, 0);
+  }
+  to {
+    transform: translate3d(-50%, 4%, 0);
+  }
+}
+
+.backgroundWash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(247 243 235 / 92%) 0%,
+      rgb(247 243 235 / 72%) 34%,
+      rgb(247 243 235 / 20%) 52%,
+      transparent 68%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(247 243 235 / 35%) 0%,
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 63% 55%,
+      transparent 13%,
+      rgb(220 232 228 / 10%) 58%,
+      rgb(220 232 228 / 28%) 100%
+    );
+}
+
+.foregroundPerson {
+  position: absolute;
+  z-index: 3;
+  right: clamp(2%, 5vw, 8%);
+  bottom: 0;
+  width: min(38vw, 640px);
+  max-height: 92%;
+  height: auto;
+  object-fit: contain;
+  object-position: bottom right;
+  filter: drop-shadow(0 24px 42px rgb(26 40 34 / 20%));
+  pointer-events: none;
+  user-select: none;
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 4;
+  width: min(48%, 720px);
+  padding: clamp(52px, 8vw, 128px) clamp(30px, 7vw, 118px);
+}
+
+.title {
+  margin: 0;
+  max-width: 720px;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: clamp(42px, 5vw, 82px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.subtitle {
+  margin: clamp(22px, 2.2vw, 36px) 0 0;
+  max-width: 580px;
+  font-size: clamp(17px, 1.45vw, 24px);
+  line-height: 1.48;
+  color: rgb(44 54 40 / 82%);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: clamp(24px, 2.6vw, 40px);
+}
+
+@media (max-width: 980px) {
+  .hero {
+    min-height: 780px;
+  }
+
+  .heroCopy {
+    width: 68%;
+    padding: 54px 34px;
+  }
+
+  .foregroundPerson {
+    right: -3%;
+    width: min(58vw, 610px);
+  }
+
+  .appMarquee {
+    inset: 40% -28% 0;
+  }
+
+  .appMarqueeStage {
+    perspective: 1100px;
+  }
+
+  .appMarqueeTilt {
+    transform: rotateY(-22deg);
+  }
+
+  .appScreen {
+    width: clamp(240px, 36vw, 360px);
+  }
+}
+
+@media (max-width: 700px) {
+  .hero {
+    --marquee-duration: 25s;
+    --screen-gap: 16px;
+    min-height: 760px;
+  }
+
+  .heroCopy {
+    width: 100%;
+    padding: 42px 24px;
+  }
+
+  .title {
+    font-size: clamp(40px, 12vw, 62px);
+  }
+
+  .desktopOnly {
+    display: none;
+  }
+
+  .appMarquee {
+    inset: 40% -42% 2%;
+  }
+
+  .appMarqueeStage {
+    perspective: 900px;
+  }
+
+  .appMarqueeTilt {
+    transform: rotateY(-16deg);
+  }
+
+  .appScreen {
+    width: 240px;
+    border-radius: 19px;
+  }
+
+  .foregroundPerson {
+    right: -24%;
+    width: min(106vw, 690px);
+    max-height: 70%;
+  }
+
+  .backgroundWash {
+    background:
+      linear-gradient(
+        180deg,
+        rgb(247 243 235 / 88%) 0%,
+        rgb(247 243 235 / 34%) 39%,
+        transparent 62%
+      ),
+      radial-gradient(
+        circle at 66% 63%,
+        transparent 8%,
+        rgb(220 232 228 / 12%) 68%
+      );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appMarqueeTrack {
+    animation: none;
+    transform: translate3d(-12%, 4%, 0);
+  }
+}

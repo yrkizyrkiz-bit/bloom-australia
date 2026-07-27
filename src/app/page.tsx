@@ -7,7 +7,10 @@ import { QuestionsSection } from "@/components/promo/sections/QuestionsSection";
 import { DoctorsSection } from "@/components/promo/sections/DoctorsSection";
 import { TestimonialsSection } from "@/components/promo/sections/TestimonialsSection";
 import { HowItWorksSection } from "@/components/promo/sections/HowItWorksSection";
+import { MembershipPricingSection } from "@/components/promo/sections/MembershipPricingSection";
+import { MemberProgramsSection } from "@/components/promo/sections/MemberProgramsSection";
 import { CTASection } from "@/components/promo/sections/CTASection";
+import { HomeFAQSection } from "@/components/promo/sections/HomeFAQSection";
 import { GPCTABand } from "@/components/promo/sections/GPCTABand";
 
 export default function HomePage() {
@@ -19,11 +22,14 @@ export default function HomePage() {
         <LabsSection />
         <BiomarkersHeroBanner />
         <HowItWorksSection />
+        <MembershipPricingSection />
+        <MemberProgramsSection />
         <DoctorsSection />
         <GPCTABand />
         <QuestionsSection />
         <TestimonialsSection />
         <CTASection />
+        <HomeFAQSection />
       </main>
       <Footer />
     </div>

@@ -37,8 +37,19 @@ async function resolveStripePriceId(params: {
   productName: string;
   metadata: Record<string, string>;
 }) {
+  const stripe = getStripe();
   const row = await prisma.billingPrice.findUnique({ where: { id: params.billingPriceId } });
-  if (row?.stripePriceId) return row.stripePriceId;
+
+  if (row?.stripePriceId && stripe) {
+    try {
+      const existing = await stripe.prices.retrieve(row.stripePriceId);
+      if (existing.active && existing.unit_amount === params.amountCents) {
+        return row.stripePriceId;
+      }
+    } catch {
+      // Recreate below when the stored Stripe price is missing or drifted.
+    }
+  }
 
   const stripePriceId = await ensureStripePriceForBillingPrice({
     billingPriceId: params.billingPriceId,

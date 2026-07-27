@@ -60,6 +60,8 @@ interface Customer {
 }
 
 const PROGRAM_LABELS: Record<string, { label: string; color: string; bgColor: string }> = {
+  membership: { label: "Membership", color: "text-teal-700", bgColor: "bg-teal-50 border-teal-200" },
+  sanative_membership: { label: "Membership", color: "text-teal-700", bgColor: "bg-teal-50 border-teal-200" },
   weight_management: { label: "Weight", color: "text-green-700", bgColor: "bg-green-50 border-green-200" },
   womens_health: { label: "Women's", color: "text-rose-700", bgColor: "bg-rose-50 border-rose-200" },
   mens_health: { label: "Men's", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },

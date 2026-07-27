@@ -37,7 +37,7 @@ export interface HoldRequest {
   userId?: string;
   slotId: string;
   selectedPlan?: "CORE" | "PRECISION";
-  programType?: "WEIGHT_MANAGEMENT" | "HAIR_LOSS" | "MENS_HEALTH" | "WOMENS_HEALTH" | "ORGAN_CARE" | "BIOLOGICAL_CLOCK";
+  programType?: "WEIGHT_MANAGEMENT" | "HAIR_LOSS" | "MENS_HEALTH" | "WOMENS_HEALTH" | "ORGAN_CARE" | "BIOLOGICAL_CLOCK" | "MEMBERSHIP";
   intakeId?: string;
   patientPhone?: string;
   patientBmi?: number;
@@ -223,9 +223,16 @@ export async function POST(req: NextRequest) {
       WOMENS_HEALTH: "Women's Health Program",
       WEIGHT_MANAGEMENT: "Weight Management Program",
       ORGAN_CARE: "Organ & Metabolic Care",
+      MEMBERSHIP: "Sanative Membership",
       BIOLOGICAL_CLOCK: "Biomarkers Panel",
     };
     const programLabel = programLabels[programType] ?? "Weight Management Program";
+    const flags = riskFlags || [];
+    // Program funnels that already paid for a biomarkers panel still book under the
+    // clinical program label — keep "Biomarkers Panel" in notes for payment verification.
+    const notesLabel = flags.includes("BIOMARKERS_PANEL")
+      ? `${programLabel} / Biomarkers Panel`
+      : programLabel;
 
     // UNIFIED CALENDAR: Create booking WITHOUT doctor assignment
     // Doctor will be assigned during triage by care partner
@@ -246,8 +253,8 @@ export async function POST(req: NextRequest) {
         appointmentType: "PHONE_CONSULT",
         patientPhone,
         patientBmi,
-        riskFlags: riskFlags || [],
-        notes: `${programLabel} - Doctor to be assigned during triage by care partner`,
+        riskFlags: flags,
+        notes: `${notesLabel} - Doctor to be assigned during triage by care partner`,
       },
     });
 

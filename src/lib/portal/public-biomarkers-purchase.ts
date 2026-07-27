@@ -7,7 +7,12 @@ import {
 } from "@/lib/biomarkers/public-checkout-tier-map";
 import type { BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscription-panels";
 import { resolveBiomarkersCheckoutQuote } from "@/lib/billing/portal-pricing";
-import { createIncompleteSubscription, ensureStripePriceForBillingPrice } from "@/lib/portal/stripe-subscription";
+import {
+  createIncompleteSubscription,
+  ensureStripePriceForBillingPrice,
+  getOrCreateOneTimePrice,
+} from "@/lib/portal/stripe-subscription";
+import { BIOMARKERS_RETEST_ADDON_AUD } from "@/lib/biomarkers/checkout-addons";
 import {
   grantEntitlement,
   revokeEntitlement,
@@ -69,8 +74,19 @@ async function resolveStripePriceId(params: {
   productName: string;
   metadata: Record<string, string>;
 }) {
+  const stripe = getStripe();
   const row = await prisma.billingPrice.findUnique({ where: { id: params.billingPriceId } });
-  if (row?.stripePriceId) return row.stripePriceId;
+
+  if (row?.stripePriceId && stripe) {
+    try {
+      const existing = await stripe.prices.retrieve(row.stripePriceId);
+      if (existing.active && existing.unit_amount === params.amountCents) {
+        return row.stripePriceId;
+      }
+    } catch {
+      // Recreate below when the stored Stripe price is missing or drifted.
+    }
+  }
 
   const stripePriceId = await ensureStripePriceForBillingPrice({
     billingPriceId: params.billingPriceId,
@@ -92,6 +108,7 @@ export async function createPublicBiomarkersPaymentIntent(input: {
   publicPanelTier: BiomarkerSubscriptionTier;
   details: PublicBiomarkersCheckoutDetails;
   sourceProgram?: string;
+  includeRetestAddon?: boolean;
 }) {
   const stripe = getStripe();
   if (!stripe) throw new Error("Stripe is not configured");
@@ -102,6 +119,7 @@ export async function createPublicBiomarkersPaymentIntent(input: {
   const plan = getBiomarkerSubscriptionPlan(input.publicPanelTier);
   const email = input.details.email.toLowerCase().trim();
   const includesOrganCare = shouldBundleOrganCare(input.publicPanelTier, sourceProgram);
+  const includeRetestAddon = Boolean(input.includeRetestAddon);
 
   const existingCustomers = await stripe.customers.list({ email, limit: 1 });
   const customer =
@@ -117,6 +135,10 @@ export async function createPublicBiomarkersPaymentIntent(input: {
       },
     }));
 
+  const chargedAmountCents =
+    quote.panel.amountCents +
+    (includeRetestAddon ? BIOMARKERS_RETEST_ADDON_AUD * 100 : 0);
+
   const metadata = {
     source: "public_biomarkers",
     customerEmail: email,
@@ -125,6 +147,8 @@ export async function createPublicBiomarkersPaymentIntent(input: {
     panelBillingPriceId: quote.panel.id,
     priceLabel: quote.priceLabel,
     includesOrganCare: includesOrganCare ? "true" : "false",
+    includeRetestAddon: includeRetestAddon ? "true" : "false",
+    chargedAmountCents: String(chargedAmountCents),
     sourceProgram: sourceProgram ?? "",
     firstName: input.details.firstName,
     lastName: input.details.lastName,
@@ -141,20 +165,39 @@ export async function createPublicBiomarkersPaymentIntent(input: {
     metadata: { panelTier: billingTier, source: "public_biomarkers" },
   });
 
+  const addInvoiceItems: Array<{ priceId: string }> = [];
+  if (includeRetestAddon) {
+    const retestPriceId = await getOrCreateOneTimePrice({
+      productName: "6-month biomarker retest (50% off)",
+      amountAud: BIOMARKERS_RETEST_ADDON_AUD,
+      productMetadata: {
+        scope: "biomarkers_retest_addon",
+        source: "public_biomarkers",
+      },
+    });
+    addInvoiceItems.push({ priceId: retestPriceId });
+  }
+
   const { clientSecret, paymentIntentId, subscriptionId } = await createIncompleteSubscription({
     customerId: customer.id,
     items: [{ priceId: panelStripePrice }],
-    description: `${plan.name} biomarkers panel (annual)`,
+    addInvoiceItems,
+    description: includeRetestAddon
+      ? `${plan.name} biomarkers panel (annual) + 6-month retest`
+      : `${plan.name} biomarkers panel (annual)`,
     metadata,
   });
+
+  const amountAud = chargedAmountCents / 100;
 
   return {
     clientSecret,
     paymentIntentId,
     subscriptionId,
-    amountAud: quote.totalAud,
+    amountAud,
     publicPanelTier: input.publicPanelTier,
     priceLabel: quote.priceLabel,
+    includeRetestAddon,
     customerId: customer.id,
   };
 }

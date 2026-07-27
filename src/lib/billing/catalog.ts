@@ -60,6 +60,21 @@ const WM_CATALOG: CatalogProductSeed[] = [
     ],
   },
   {
+    slug: "wm_care",
+    name: "Weight Management Care",
+    program: "WEIGHT_MANAGEMENT",
+    planTier: null,
+    sortOrder: 2,
+    prices: [
+      {
+        billingInterval: "QUARTERLY",
+        amountCents: 36000,
+        isDefault: true,
+        label: "Every 3 months",
+      },
+    ],
+  },
+  {
     slug: "wm_precision",
     name: "Sanative Precision",
     program: "WEIGHT_MANAGEMENT",
@@ -302,7 +317,7 @@ const PORTAL_PROGRAM_CATALOG: CatalogProductSeed[] = [
     prices: [
       {
         billingInterval: "YEARLY",
-        amountCents: 34900,
+        amountCents: 36500,
         isDefault: true,
         label: "Annual",
       },
@@ -324,26 +339,22 @@ const PORTAL_PROGRAM_CATALOG: CatalogProductSeed[] = [
     ],
   },
   {
-    slug: "organ_care",
-    name: "Organ & Metabolic Care",
-    program: "ORGAN_CARE",
+    slug: "sanative_membership",
+    name: "Sanative Membership",
+    program: "MEMBERSHIP",
     planTier: null,
-    sortOrder: 20,
+    sortOrder: 0,
     prices: [
       {
-        billingInterval: "MONTHLY",
-        amountCents: 4900,
-        isDefault: false,
-        label: "Monthly",
-      },
-      {
         billingInterval: "YEARLY",
-        amountCents: 49900,
+        amountCents: 36500,
         isDefault: true,
         label: "Annual",
       },
     ],
   },
+  // NOTE: Biological Clock and Organ Care are not standalone products — both
+  // are included with every biomarker panel (and with Sanative Membership).
 ];
 
 const ALL_CATALOG = [...WM_CATALOG, ...PORTAL_PROGRAM_CATALOG];
@@ -358,7 +369,13 @@ export function billingModelsAvailable(): boolean {
   );
 }
 
-/** Seed missing products/prices only — never overwrite admin-edited amounts. */
+/**
+ * Seed missing products/prices only — the database is the source of truth.
+ *
+ * This bootstraps an empty database with the default catalog. Once a product
+ * or price row exists it is NEVER touched again here: admins own the catalog
+ * via /admin/membership-pricing (create, edit, deactivate, delete).
+ */
 export async function ensureBillingCatalog() {
   if (catalogReady) return;
 
@@ -370,43 +387,21 @@ export async function ensureBillingCatalog() {
   }
 
   for (const item of ALL_CATALOG) {
-    const product = await prisma.product.upsert({
-      where: { slug: item.slug },
-      create: {
-        slug: item.slug,
-        name: item.name,
-        program: item.program,
-        planTier: item.planTier ?? null,
-        sortOrder: item.sortOrder ?? 0,
-        stripeProductId: item.stripeProductId,
-      },
-      update: {
-        name: item.name,
-        program: item.program,
-        planTier: item.planTier ?? null,
-        sortOrder: item.sortOrder ?? 0,
-      },
-    });
+    let product = await prisma.product.findUnique({ where: { slug: item.slug } });
 
-    for (const price of item.prices) {
-      const existing = await prisma.billingPrice.findFirst({
-        where: {
-          productId: product.id,
-          billingInterval: price.billingInterval,
-          isFirstMonth: price.isFirstMonth ?? false,
+    if (!product) {
+      product = await prisma.product.create({
+        data: {
+          slug: item.slug,
+          name: item.name,
+          program: item.program,
+          planTier: item.planTier ?? null,
+          sortOrder: item.sortOrder ?? 0,
+          stripeProductId: item.stripeProductId,
         },
       });
 
-      if (existing) {
-        await prisma.billingPrice.update({
-          where: { id: existing.id },
-          data: {
-            stripePriceId: price.stripePriceId || existing.stripePriceId,
-            label: existing.label || price.label,
-            isDefault: existing.isDefault || (price.isDefault ?? false),
-          },
-        });
-      } else {
+      for (const price of item.prices) {
         await prisma.billingPrice.create({
           data: {
             productId: product.id,

@@ -146,7 +146,7 @@ export const ORGAN_CARE_CARD = {
   label: "Organ and Metabolic Care",
   titleAccent: "Metabolic Care",
   tagline: "Heart, liver, kidney, thyroid, hormones & metabolic health — one membership",
-  priceHint: "$499/year · all organs",
+  priceHint: "Included with your membership",
   hubRoute: "/dashboard/organ-care",
   quizRoute: "/dashboard/organ-care/quiz",
   theme: {

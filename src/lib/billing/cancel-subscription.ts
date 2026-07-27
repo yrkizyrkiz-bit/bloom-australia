@@ -9,7 +9,11 @@ import {
   type ProgramKey,
   type ScopeKey,
 } from "@/lib/membership/keys";
-import { revokeEntitlement } from "@/lib/membership/entitlement-service";
+import {
+  revokeEntitlement,
+  syncEntitlementsFromSignals,
+} from "@/lib/membership/entitlement-service";
+import { sendMembershipCancellationEmail } from "@/lib/email";
 import { syncMemberSubscriptionFromStripe } from "./sync-subscription";
 import { getMemberBillingOverview, programSlugFromProgramKey } from "./member-billing-summary";
 import type { BillableScopeKey } from "./paid-till";
@@ -45,7 +49,7 @@ const SCOPE_SLUG: Record<BillableScopeKey, string> = {
 
 type BillingTarget =
   | { kind: "program"; key: ProgramKey; slug: string; label: string }
-  | { kind: "scope"; key: BillableScopeKey; slug: string; label: string };
+  | { kind: "scope"; key: BillableScopeKey | "MEMBERSHIP"; slug: string; label: string };
 
 function getStripe(): Stripe | null {
   if (!process.env.STRIPE_SECRET_KEY) return null;
@@ -54,6 +58,15 @@ function getStripe(): Stripe | null {
 
 function resolveBillingTarget(input: string): BillingTarget | null {
   const normalized = input.trim().toLowerCase().replace(/-/g, "_");
+
+  if (normalized === "membership" || normalized === "sanative_membership") {
+    return {
+      kind: "scope",
+      key: "MEMBERSHIP",
+      slug: "membership",
+      label: SCOPE_LABELS.MEMBERSHIP,
+    };
+  }
 
   if (normalized === "biological_clock") {
     return {
@@ -205,7 +218,7 @@ async function refreshMemberStatusIfFullyCancelled(userId: string) {
       userId,
       type: "SCOPE",
       status: { in: ["ACTIVE", "PENDING"] },
-      key: { in: ["ORGAN_CARE", "BIOLOGICAL_CLOCK", "COMPLETE_HEALTH"] },
+      key: { in: ["MEMBERSHIP", "ORGAN_CARE", "BIOLOGICAL_CLOCK", "COMPLETE_HEALTH"] },
     },
   });
 
@@ -303,7 +316,10 @@ export async function cancelMemberProgramSubscription(
     }
   }
 
-  if (target.kind === "scope" && target.key === "ORGAN_CARE") {
+  if (
+    target.kind === "scope" &&
+    (target.key === "ORGAN_CARE" || target.key === "MEMBERSHIP")
+  ) {
     const legacy = await prisma.membershipSubscription.findUnique({
       where: { userId: input.memberId },
     });
@@ -323,6 +339,12 @@ export async function cancelMemberProgramSubscription(
         stripeScheduled.push(legacy.stripeSubscriptionId);
       }
       void updated;
+    } else if (legacy && effective === "immediate") {
+      // One-off billing (no Stripe subscription) — cancel the record directly.
+      await prisma.membershipSubscription.update({
+        where: { userId: input.memberId },
+        data: { status: "CANCELLED", cancelledAt: new Date() },
+      });
     }
   }
 
@@ -375,6 +397,29 @@ export async function cancelMemberProgramSubscription(
 
   if (effective === "immediate") {
     await refreshMemberStatusIfFullyCancelled(input.memberId);
+  }
+
+  if (target.kind === "scope" && target.key === "MEMBERSHIP") {
+    // Membership bundles Essential + Clock + Organ Care; re-sync so the bundle
+    // scopes follow the cancelled subscription state.
+    if (effective === "immediate") {
+      await syncEntitlementsFromSignals(input.memberId).catch((err) =>
+        console.error("[cancel-subscription] entitlement sync failed:", err)
+      );
+    }
+    const member = await prisma.user.findUnique({
+      where: { id: input.memberId },
+      select: { email: true, firstName: true },
+    });
+    if (member?.email) {
+      await sendMembershipCancellationEmail({
+        to: member.email,
+        firstName: member.firstName || "",
+        accessEndsAt: effective === "immediate" ? null : accessEndsAt,
+      }).catch((err) =>
+        console.error("[cancel-subscription] cancellation email failed:", err)
+      );
+    }
   }
 
   const authorName = input.cancelledByName ?? "Admin";

@@ -12,7 +12,16 @@ export type VerifyOrganCareBookingPaymentResult =
   | { ok: true; paymentIntent: Stripe.PaymentIntent }
   | { ok: false; error: string; status: number };
 
-/** Membership already paid — attach organ care PI when confirming initial consultation. */
+function isMembershipPaymentMetadata(metadata: Stripe.Metadata | null | undefined): boolean {
+  if (!metadata) return false;
+  // New consolidated Sanative Membership funnel (Stripe Subscription first invoice).
+  if (metadata.purchaseType === "sanative_membership") return true;
+  // Legacy Organ & Metabolic Care public checkout.
+  if (metadata.type === "organ_care_membership") return true;
+  return false;
+}
+
+/** Membership already paid — attach PI when confirming the initial consultation. */
 export async function verifyOrganCareMembershipBookingPayment(
   params: VerifyOrganCareBookingPaymentParams
 ): Promise<VerifyOrganCareBookingPaymentResult> {
@@ -24,14 +33,14 @@ export async function verifyOrganCareMembershipBookingPayment(
   const entitlement = await prisma.entitlement.findFirst({
     where: {
       userId: params.userId,
-      key: "ORGAN_CARE",
+      key: { in: ["MEMBERSHIP", "ORGAN_CARE"] },
       status: { in: ["ACTIVE", "PENDING"] },
     },
     select: { id: true },
   });
 
   if (!entitlement) {
-    return { ok: false, error: "Organ care membership is required", status: 403 };
+    return { ok: false, error: "Active membership is required", status: 403 };
   }
 
   let paymentIntent: Stripe.PaymentIntent;
@@ -45,7 +54,7 @@ export async function verifyOrganCareMembershipBookingPayment(
     return { ok: false, error: "Membership payment not completed", status: 402 };
   }
 
-  if (paymentIntent.metadata?.type !== "organ_care_membership") {
+  if (!isMembershipPaymentMetadata(paymentIntent.metadata)) {
     return { ok: false, error: "Invalid membership payment", status: 400 };
   }
 
