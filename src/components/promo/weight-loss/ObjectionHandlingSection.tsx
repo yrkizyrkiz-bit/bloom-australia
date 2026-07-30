@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, ArrowLeft, Signal, Wifi, Battery } from "lucide-react";
 
 interface QA {
@@ -55,6 +55,7 @@ export function ObjectionHandlingSection() {
   const [selectedIndex, setSelectedIndex] = useState(3);
   const [displayedAnswer, setDisplayedAnswer] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const phoneRef = useRef<HTMLDivElement>(null);
 
   const selectedQA = questionsAndAnswers[selectedIndex];
 
@@ -82,10 +83,14 @@ export function ObjectionHandlingSection() {
     if (index !== selectedIndex) {
       setSelectedIndex(index);
     }
+    // On stacked (mobile) layout the answer lives in the phone below the chips.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+      phoneRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   return (
-    <section className="py-20 lg:py-32 px-4 sm:px-6 lg:px-8 bg-[#fdfbf7]">
+    <section className="pt-20 pb-4 lg:pt-32 lg:pb-6 px-4 sm:px-6 lg:px-8 bg-[#fdfbf7]">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
           <div className="lg:pt-8">
@@ -117,7 +122,7 @@ export function ObjectionHandlingSection() {
             </div>
           </div>
 
-          <div className="flex justify-center lg:justify-end">
+          <div ref={phoneRef} className="flex justify-center lg:justify-end scroll-mt-24">
             <div className="relative">
               <div className="w-[320px] sm:w-[360px] bg-[#1a1a1a] rounded-[48px] p-3 shadow-2xl">
                 <div className="bg-[#fdfbf7] rounded-[40px] overflow-hidden">

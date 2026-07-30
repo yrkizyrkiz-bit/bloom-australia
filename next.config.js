@@ -47,6 +47,7 @@ const nextConfig = {
 
   images: {
     unoptimized: true,
+    qualities: [75, 95],
     domains: [
       "source.unsplash.com",
       "images.unsplash.com",

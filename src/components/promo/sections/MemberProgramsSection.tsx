@@ -51,8 +51,9 @@ export function MemberProgramsSection() {
       }}
     >
       <div className="max-w-[1344px] mx-auto px-4 sm:px-6 lg:px-8 pb-14 lg:pb-20">
-        <h2 className="font-sans text-4xl sm:text-5xl lg:text-[3.25rem] font-semibold leading-[1.08] text-black mb-10 lg:mb-12 max-w-4xl">
-          Join Sanative — Pick your program for your health goals
+        <h2 className="font-serif text-4xl sm:text-5xl lg:text-6xl text-[#2c3628] leading-tight mb-10 lg:mb-12 max-w-4xl">
+          Join Sanative and unlock{" "}
+          <span className="text-[#5c7a52] italic">the best in medical care programs</span>
         </h2>
 
         <div className="rounded-3xl bg-gradient-to-br from-[#e8efe0] to-[#d5e0cb] p-4 sm:p-6 lg:p-8">

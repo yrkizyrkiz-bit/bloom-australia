@@ -54,15 +54,15 @@ const teamMembers: TeamMember[] = [
 
 export function WeightLossTeamSection() {
   return (
-    <section className="py-20 lg:py-28 bg-white">
+    <section className="pt-4 pb-20 lg:pt-6 lg:pb-28 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
-          <span className="text-[#c17a58] font-serif text-lg italic">
-            The best care
+          <span className="text-[#c17a58] font-serif text-3xl sm:text-4xl italic">
+            Earlier insight.
           </span>
           <h2 className="text-4xl sm:text-5xl font-serif text-[#2c3628] mt-2">
-            by the best in medicine
+            Precise care. Trusted Australian doctors
           </h2>
           <p className="mt-4 text-lg text-[#5c7a52] max-w-2xl mx-auto">
             Meet our team of AHPRA-registered doctors with decades of combined

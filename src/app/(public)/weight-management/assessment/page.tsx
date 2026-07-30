@@ -25,6 +25,7 @@ import {
   buildPortalActivationMagicLink,
   WM_POST_CHECKOUT_PATH,
 } from "@/lib/portal-context";
+import Image from "next/image";
 import Link from "next/link";
 import { ConsentNotice } from "@/components/legal/ConsentNotice";
 import { logConsentEvent } from "@/lib/legal/log-consent";
@@ -2659,95 +2660,92 @@ export default function WeightLossAssessmentPage() {
       )
     );
 
+    const nextSteps = [
+      {
+        title: "Join Sanative Membership",
+        detail: "Get your Biomarkers analysis included with membership.",
+      },
+      {
+        title: "Complete your doctor consultation",
+        detail: "An AHPRA-registered doctor reviews your assessment with you.",
+      },
+      {
+        title: "Start your plan and start losing weight",
+        detail: "Begin a personalised plan built around your body and goals.",
+      },
+    ];
+
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col bg-gradient-to-b from-[#f8faf8] to-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
         <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col">
-          <div className="mb-3 shrink-0 text-center">
-            {!hasHardStop ? (
-              <>
-                <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-full bg-[#5c7a52]/10">
-                  <Stethoscope className="h-5 w-5 text-[#5c7a52]" />
-                </div>
-                <h1 className="font-serif text-xl leading-tight text-[#2c3628] sm:text-2xl">
-                  Preliminary assessment complete
-                </h1>
-                <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">
-                  Book a phone consultation with an Australian doctor to review your assessment and
-                  confirm whether the program is clinically appropriate for you.
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-full bg-amber-50">
+          <div className="mb-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="relative mb-4 overflow-hidden rounded-2xl shadow-sm">
+              <Image
+                src="/images/membership/WM_quiz.png"
+                alt="You've come to the right place — doctor-led weight management with Sanative"
+                width={1200}
+                height={675}
+                className="h-auto w-full object-cover"
+                priority
+              />
+            </div>
+
+            <div className="mb-4 text-center">
+              {hasHardStop ? (
+                <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-amber-50">
                   <AlertTriangle className="h-5 w-5 text-amber-600" />
                 </div>
-                <h1 className="font-serif text-xl leading-tight text-[#2c3628] sm:text-2xl">
-                  Additional review needed
-                </h1>
-                <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">
-                  Please book your doctor&apos;s consultation to discuss your care plan and how the
-                  Sanative program can support your metabolic health goals.
-                </p>
-              </>
-            )}
-          </div>
+              ) : (
+                <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-[#5c7a52]/10">
+                  <CheckCircle2 className="h-5 w-5 text-[#5c7a52]" />
+                </div>
+              )}
+              <h1 className="font-serif text-xl leading-tight text-[#2c3628] sm:text-2xl">
+                {hasHardStop ? "Additional review needed" : "Thanks for completing your assessment"}
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">
+                {hasHardStop
+                  ? "Your doctor will review your assessment and discuss how Sanative can support your metabolic health goals."
+                  : "Preliminary assessment complete. Here's what happens next."}
+              </p>
+            </div>
 
-          <div className="mb-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="rounded-2xl border border-[#e6ebe3] bg-white p-4 shadow-sm">
-              <div className="mb-3 flex items-center gap-2.5">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5c7a52] to-[#7e9a72]">
-                  <Calendar className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#2c3628]">You&apos;re one step away</p>
-                  <p className="text-xs text-[#7e9a72]">Book your consultation now</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
-                  <p className="text-xs text-[#2c3628] sm:text-sm">
-                    <span className="font-semibold">Reserve your doctor call</span> — pick a time in
-                    under 2 minutes
-                  </p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
-                  <p className="text-xs text-[#2c3628] sm:text-sm">
-                    <span className="font-semibold">Personalised care plan</span> — your doctor
-                    reviews your assessment and discusses options with you privately
-                  </p>
-                </div>
-                <div className="flex items-start gap-2 rounded-lg border border-[#5c7a52]/20 bg-[#f4f7f2] p-2.5">
-                  <FlaskConical className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
-                  <p className="text-xs text-[#2c3628] sm:text-sm">
-                    <span className="font-semibold">Biomarker-guided care</span> — when clinically
-                    appropriate, targeted blood tests help shape your plan with real metabolic data
-                  </p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
-                  <p className="text-xs text-[#2c3628] sm:text-sm">
-                    <span className="font-semibold">$100 off your first month</span> — applied at
-                    checkout when your doctor confirms suitability
-                  </p>
-                </div>
-              </div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#5c7a52]">
+                Next steps
+              </p>
+              <ol className="space-y-0">
+                {nextSteps.map((step, index) => (
+                  <li key={step.title} className="relative flex gap-3 pb-4 last:pb-0">
+                    {index < nextSteps.length - 1 && (
+                      <span
+                        className="absolute left-[15px] top-8 bottom-0 w-px bg-[#e6ebe3]"
+                        aria-hidden
+                      />
+                    )}
+                    <div className="relative z-[1] flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#34412f] text-sm font-semibold text-white">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <p className="text-sm font-semibold text-[#2c3628]">{step.title}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-[#5c7a52]">{step.detail}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </div>
           </div>
 
-          <div className="shrink-0 space-y-2">
+          <div className="shrink-0 space-y-2 pt-2">
             <button
               onClick={() => animateToStep(19, "forward")}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-[#5c7a52] py-3.5 text-base font-semibold text-white shadow-[0_4px_20px_rgba(92,122,82,0.35)] transition-colors hover:bg-[#4a6343]"
             >
-              Book my doctor consultation
+              Join Sanative Membership
               <ArrowRight className="h-5 w-5" />
             </button>
 
             <p className="text-center text-[10px] leading-relaxed text-[#7e9a72] sm:text-xs">
-              <span className="font-semibold text-[#2c3628]">Secure your spot today.</span>{" "}
               AHPRA-registered Australian doctors · Cancel anytime · Full refund if the program
               isn&apos;t clinically suitable for you
             </p>
@@ -2807,7 +2805,7 @@ export default function WeightLossAssessmentPage() {
         setPendingShippingData(null);
         setResumeContext(null);
         toast.success("Details saved!", { description: "Your information has been recorded." });
-        animateToStep(20, "forward");
+        goToMembershipCheckout();
         return true;
       }
 
@@ -3059,31 +3057,20 @@ export default function WeightLossAssessmentPage() {
       "/membership/checkout?intent=weight_management&source=weight_management_assessment";
   };
 
-  const renderUnifiedCheckoutScreen = () => (
-    <div className="max-w-lg mx-auto text-center space-y-6 py-10">
-      <div className="w-16 h-16 rounded-full bg-[#eef4e6] flex items-center justify-center mx-auto">
-        <Check className="w-8 h-8 text-[#4f6038]" />
+  // Step 20 was an intermediate "Your assessment is complete" screen.
+  // Members now go straight to secure membership checkout after shipping.
+  const renderUnifiedCheckoutScreen = () => {
+    if (typeof window !== "undefined") {
+      // Defer so we don't navigate during render
+      setTimeout(() => goToMembershipCheckout(), 0);
+    }
+    return (
+      <div className="max-w-lg mx-auto text-center space-y-6 py-10">
+        <div className="w-8 h-8 border-2 border-[#5c7a52] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-[#5c7a52]">Taking you to secure checkout...</p>
       </div>
-      <h2 className="text-2xl font-semibold text-gray-900">
-        Your assessment is complete
-      </h2>
-      <p className="text-gray-600">
-        Next, join Sanative Membership — $365 a year including your comprehensive
-        biomarker panel, doctor consultation and your first 30 days of Weight
-        Management Care.
-      </p>
-      <button
-        onClick={goToMembershipCheckout}
-        className="w-full py-4 bg-gray-900 hover:bg-black text-white font-semibold
-          rounded-xl transition-colors"
-      >
-        Continue to secure checkout
-      </button>
-      <p className="text-xs text-gray-400">
-        Your answers are saved and shared with your doctor before your consultation.
-      </p>
-    </div>
-  );
+    );
+  };
 
 
   // ─── Step 22: Biomarker Upsell Screen (DEPRECATED - GAP-028) ─────────────────

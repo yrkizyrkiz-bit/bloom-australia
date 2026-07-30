@@ -25,14 +25,14 @@ export function HeroSection() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link
-                href="/get-started"
+                href="/membership/checkout"
                 className="btn-primary inline-flex items-center justify-center gap-2 text-base lg:text-lg px-8 py-4"
               >
                 Start your journey
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
-                href="/how-it-works"
+                href="/#how-it-works"
                 className="btn-secondary inline-flex items-center justify-center text-base lg:text-lg px-8 py-4"
               >
                 How it works

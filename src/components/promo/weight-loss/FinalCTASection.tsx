@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock, CheckCircle, Gift } from "lucide-react";
+import { Clock, CheckCircle } from "lucide-react";
 
 export function FinalCTASection() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -71,12 +71,6 @@ export function FinalCTASection() {
               ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}
             `}
           >
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-8">
-              <Gift className="w-4 h-4 text-[#c17a58]" />
-              <span className="text-sm text-white/90">Limited time offer</span>
-            </div>
-
             {/* Updated heading */}
             <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-3">
               Ready to start? Choose your plan

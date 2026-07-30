@@ -2,7 +2,7 @@ import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { WeightLossMembershipHero } from "@/components/promo/weight-loss/WeightLossMembershipHero";
 import { WeightLossMembershipHowItWorks } from "@/components/promo/weight-loss/WeightLossMembershipHowItWorks";
-import { ProgramIncludesSection } from "@/components/promo/weight-loss/ProgramIncludesSection";
+import { CascadingHealthCards } from "@/components/promo/weight-loss/CascadingHealthCards";
 import { BiomarkerQuestionsSection } from "@/components/promo/weight-loss/BiomarkerQuestionsSection";
 import { BiomarkerHealthSection } from "@/components/promo/weight-loss/BiomarkerHealthSection";
 import { ObjectionHandlingSection } from "@/components/promo/weight-loss/ObjectionHandlingSection";
@@ -12,16 +12,16 @@ import { EligibilitySection } from "@/components/promo/weight-loss/EligibilitySe
 import { PricingSection } from "@/components/promo/weight-loss/PricingSection";
 
 import { TrustSection } from "@/components/promo/weight-loss/TrustSection";
-import { FinalCTASection } from "@/components/promo/weight-loss/FinalCTASection";
 
 export default function WeightManagementPage() {
   return (
     <>
       <Header />
-      <main className="overflow-x-hidden">
-        {/* Green continues under the white frame’s rounded corners */}
+      <main>
+        {/* Green continues under the white frame’s rounded corners.
+            Keep overflow clipping here only — not on <main> — so sticky cascade works. */}
         <div
-          className="relative"
+          className="relative overflow-x-clip"
           style={{
             background:
               "linear-gradient(180deg, #566738 0%, #46542e 55%, #3c4b28 100%)",
@@ -31,16 +31,17 @@ export default function WeightManagementPage() {
           <WeightLossMembershipHowItWorks />
         </div>
 
-        <ProgramIncludesSection />
-        <BiomarkerHealthSection />
-        <BiomarkerQuestionsSection />
-        <ObjectionHandlingSection />
-        <WeightLossTeamSection />
-        <WhyThisWorksSection />
-        <EligibilitySection />
-        <PricingSection />
-        <TrustSection />
-        <FinalCTASection />
+        <CascadingHealthCards />
+        <div className="overflow-x-clip">
+          <BiomarkerHealthSection />
+          <BiomarkerQuestionsSection />
+          <ObjectionHandlingSection />
+          <WeightLossTeamSection />
+          <WhyThisWorksSection />
+          <EligibilitySection />
+          <PricingSection />
+          <TrustSection />
+        </div>
       </main>
       <Footer />
     </>

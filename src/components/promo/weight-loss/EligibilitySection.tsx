@@ -62,7 +62,7 @@ export function EligibilitySection() {
   const bmiCategory = bmiValue ? getBMICategory(bmiValue) : null;
 
   return (
-    <section ref={sectionRef} className="relative py-12 lg:py-16 overflow-hidden">
+    <section ref={sectionRef} className="relative pt-6 pb-12 lg:pt-8 lg:pb-16 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-[#fdfbf7]" />
 

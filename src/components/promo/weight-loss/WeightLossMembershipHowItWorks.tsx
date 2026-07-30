@@ -53,12 +53,14 @@ export function WeightLossMembershipHowItWorks() {
         </h2>
 
         <div className="rounded-3xl bg-gradient-to-br from-[#e8efe0] to-[#d5e0cb] p-4 sm:p-6 lg:p-8">
-          <div className="grid lg:grid-cols-2 rounded-3xl border border-black/10 bg-white shadow-2xl overflow-hidden">
+          {/* Mobile: two separate rounded cards. Desktop: original single split card. */}
+          <div className="grid gap-4 sm:gap-5 lg:gap-0 lg:grid-cols-2 lg:rounded-3xl lg:border lg:border-black/10 lg:bg-white lg:shadow-2xl lg:overflow-hidden">
             {/* Offer — left */}
-            <div className="flex flex-col justify-between gap-10 p-8 sm:p-10 lg:p-12 lg:border-r border-black/10">
+            <div className="flex flex-col justify-between gap-10 rounded-3xl border border-black/10 bg-white p-8 sm:p-10 lg:p-12 shadow-xl lg:rounded-none lg:border-0 lg:border-r lg:border-black/10 lg:shadow-none">
               <div>
-                <p className="text-sm font-semibold text-[#4f6038]">
-                  All Sanative Programs start with
+                <p className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#2c3628] leading-tight">
+                  All Sanative Programs{" "}
+                  <span className="text-[#5c7a52] italic">start with</span>
                 </p>
                 <h3 className="mt-4 font-sans text-3xl sm:text-[2.5rem] font-semibold text-black leading-tight tracking-tight">
                   Sanative Membership
@@ -106,8 +108,8 @@ export function WeightLossMembershipHowItWorks() {
               </div>
             </div>
 
-            {/* How it works — right, weight-page numbering */}
-              <div className="flex flex-col justify-center p-8 sm:p-10 lg:p-12 border-t border-black/10 lg:border-t-0">
+            {/* How it works — right */}
+            <div className="flex flex-col justify-center rounded-3xl border border-black/10 bg-white p-8 sm:p-10 lg:p-12 shadow-xl lg:rounded-none lg:border-0 lg:shadow-none">
               <ol className="space-y-0">
                 {STEPS.map((step) => (
                   <li

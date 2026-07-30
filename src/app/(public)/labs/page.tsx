@@ -8,7 +8,7 @@ import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { BiomarkerHoneycomb } from "@/components/promo/BiomarkerHoneycomb";
 import { BiomarkerSubscriptionPlanCards } from "@/components/promo/BiomarkerSubscriptionPlanCards";
-import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
+import { MembershipPricingCard } from "@/components/promo/sections/MembershipPricingCard";
 import {
   ArrowRight,
   Check,
@@ -21,12 +21,6 @@ import {
   BarChart3,
   Route,
   RefreshCw,
-  Heart,
-  Brain,
-  Zap,
-  Droplets,
-  Activity,
-  Flame,
   Calendar,
 } from "lucide-react";
 
@@ -44,10 +38,10 @@ const comparisonFeatures = [
   { feature: "Lab tests per year", sanative: "80+", routine: "~20" },
   { feature: "Retest every 6 months", sanative: true, routine: false },
   { feature: "Personalised Action Plan", sanative: true, routine: false },
-  { feature: "No Medicare required", sanative: true, routine: false },
   { feature: "Clear results in app", sanative: true, routine: false },
   { feature: "Doctor follow-ups, 100% online", sanative: true, routine: false },
   { feature: "Biological Age assessment", sanative: true, routine: false },
+  { feature: "Organ care dashboard", sanative: true, routine: false },
   { feature: "Inflammation and stress markers", sanative: true, routine: false },
   { feature: "Enhanced hormone and thyroid testing", sanative: true, routine: false },
   { feature: "Nutrient and electrolyte testing", sanative: true, routine: false },
@@ -86,12 +80,13 @@ const faqs = [
 
 const doctors = [
   {
-    name: "Dr. Sarah Chen",
+    name: "Dr Phillip Seeley",
     title: "Chief Medical Officer",
-    specialty: "Women's Health | Hormone Health",
-    description: "A board-certified GP with 15+ years experience in women's health. Dr. Chen leads our medical team with a focus on personalised, evidence-based care.",
-    initials: "SC",
-    color: "from-[#c17a58] to-[#a9634a]",
+    specialty: "Preventative Medicine | Weight Management",
+    description:
+      "Experienced GP with expertise in Preventative Medicine and Weight Management. Dr Seeley has worked across Neonatal, Geriatric, and Emergency care settings.",
+    initials: "PS",
+    color: "from-[#5c7a52] to-[#4a6243]",
   },
   {
     name: "Dr. Emma Thompson",
@@ -99,7 +94,7 @@ const doctors = [
     specialty: "Metabolic Health",
     description: "Specialist in metabolic medicine and obesity treatment. Dr. Thompson ensures our metabolic panels meet the highest clinical standards.",
     initials: "ET",
-    color: "from-[#5c7a52] to-[#4a6243]",
+    color: "from-[#c17a58] to-[#a9634a]",
   },
 ];
 
@@ -510,8 +505,8 @@ function LabsPageContent() {
                   <div className="absolute bottom-0 left-0 right-0 p-6">
                     <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4">
                       <p className="text-sm text-[#5c7a52] mb-2">Nutrition tip</p>
-                      <p className="text-[#2c3628] text-sm">
-                        Eat plants and fibre-rich foods, like vegetables, fruits, beans, whole grains, oats, and greens.
+                      <p className="text-[#2c3628] text-xs sm:text-sm leading-snug">
+                        Increase dietary intake of iron-rich foods, focusing on heme iron sources (red meat, poultry, fish)
                       </p>
                       <p className="text-xs text-[#7e9a72] mt-2">Improves 9 biomarkers</p>
                     </div>
@@ -549,7 +544,7 @@ function LabsPageContent() {
                   <p className="font-medium text-[#2c3628] text-sm">Labs by Sanative</p>
                 </div>
                 <div className="p-4 lg:p-6 text-center">
-                  <p className="text-[#5c7a52] text-sm">Routine labwork</p>
+                  <p className="text-[#5c7a52] text-sm">Routine blood test</p>
                 </div>
               </div>
 
@@ -611,9 +606,6 @@ function LabsPageContent() {
                   <Link href="/biomarker-intake" className="btn-primary">
                     Start testing
                   </Link>
-                  <Link href="/doctors" className="btn-secondary">
-                    Meet the experts
-                  </Link>
                 </div>
               </div>
 
@@ -649,7 +641,7 @@ function LabsPageContent() {
         </section>
 
         {/* Everything You Need Section */}
-        <section className="py-20 lg:py-28 bg-white">
+        <section className="pt-10 pb-20 lg:pt-14 lg:pb-28 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">
@@ -722,66 +714,16 @@ function LabsPageContent() {
           </div>
         </section>
 
-        {/* Organ areas — one annual membership */}
+        {/* Organ care — Sanative membership */}
         <section id="specialized-panels" className="py-20 lg:py-28 bg-[#fdfbf7]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-10">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10 lg:mb-12">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">
-                All organ areas, <span className="text-[#5c7a52] italic">one membership</span>
+                Organ care dashboard, <span className="text-[#5c7a52] italic">one membership</span>
               </h2>
-              <p className="mt-4 text-lg text-[#5c7a52] max-w-2xl mx-auto">
-                {ORGAN_CARE_PUBLIC_OFFER.tagline}. No per-organ fees — heart, liver, kidney,
-                thyroid, hormones and metabolic insights together.
-              </p>
             </div>
 
-            <div className="mx-auto mb-12 max-w-2xl rounded-3xl border-2 border-[#5c7a52]/30 bg-white p-8 text-center shadow-sm">
-              <p className="text-sm font-medium uppercase tracking-wide text-[#5c7a52]">
-                Organ & Metabolic Care
-              </p>
-              <p className="mt-2 font-serif text-4xl text-[#2c3628]">{ORGAN_CARE_PUBLIC_OFFER.priceLabel}</p>
-              <p className="mt-2 text-sm text-[#5c7a52]">{ORGAN_CARE_PUBLIC_OFFER.billingNote}</p>
-              <Link
-                href={ORGAN_CARE_PUBLIC_OFFER.checkoutPath}
-                className="btn-primary mt-6 inline-flex items-center gap-2"
-              >
-                Start membership
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { icon: Heart, color: "text-red-500", bg: "bg-red-100", title: "Heart", desc: "Lipids, inflammation and cardiovascular risk" },
-                { icon: Activity, color: "text-green-500", bg: "bg-green-100", title: "Liver", desc: "LFTs, fatty liver and metabolic liver markers" },
-                { icon: Droplets, color: "text-cyan-500", bg: "bg-cyan-100", title: "Kidney", desc: "eGFR, creatinine and renal monitoring" },
-                { icon: Flame, color: "text-orange-500", bg: "bg-orange-100", title: "Metabolic", desc: "Glucose, insulin resistance and weight markers" },
-                { icon: Zap, color: "text-purple-500", bg: "bg-purple-100", title: "Thyroid", desc: "TSH, T4/T3 and thyroid antibodies" },
-                { icon: Brain, color: "text-pink-500", bg: "bg-pink-100", title: "Hormones", desc: "Sex hormones, cortisol and stress axis" },
-              ].map((organ) => (
-                <div key={organ.title} className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${organ.bg}`}>
-                    <organ.icon className={`h-7 w-7 ${organ.color}`} />
-                  </div>
-                  <h3 className="font-serif text-xl text-gray-900">{organ.title}</h3>
-                  <p className="mt-2 text-sm text-gray-600">{organ.desc}</p>
-                  <p className="mt-4 text-xs font-medium uppercase tracking-wide text-[#5c7a52]">
-                    Included in Organ Care
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-12 text-center">
-              <p className="text-gray-600 mb-4">Already a member?</p>
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 text-[#5c7a52] font-semibold hover:text-[#4a6243]"
-              >
-                Sign in to your portal
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
+            <MembershipPricingCard />
           </div>
         </section>
 

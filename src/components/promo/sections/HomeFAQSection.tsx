@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, ArrowLeft, Signal, Wifi, Battery } from "lucide-react";
 
 interface QA {
@@ -56,6 +56,7 @@ export function HomeFAQSection() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [displayedAnswer, setDisplayedAnswer] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const phoneRef = useRef<HTMLDivElement>(null);
 
   const selectedQA = questionsAndAnswers[selectedIndex];
 
@@ -78,6 +79,14 @@ export function HomeFAQSection() {
 
     return () => clearInterval(typingInterval);
   }, [selectedIndex, selectedQA.answer]);
+
+  const handleQuestionClick = (index: number) => {
+    if (index !== selectedIndex) setSelectedIndex(index);
+    // On stacked (mobile) layout the answer lives in the phone below the chips.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+      phoneRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   return (
     <section
@@ -107,9 +116,7 @@ export function HomeFAQSection() {
                 <button
                   key={qa.question}
                   type="button"
-                  onClick={() => {
-                    if (index !== selectedIndex) setSelectedIndex(index);
-                  }}
+                  onClick={() => handleQuestionClick(index)}
                   className={`px-5 py-3 rounded-full text-sm font-medium transition-all duration-200 border text-left ${
                     selectedIndex === index
                       ? "border-[#5c7a52] bg-[#5c7a52] text-white"
@@ -122,7 +129,7 @@ export function HomeFAQSection() {
             </div>
           </div>
 
-          <div className="flex justify-center lg:justify-end">
+          <div ref={phoneRef} className="flex justify-center lg:justify-end scroll-mt-24">
             <div className="relative">
               <div className="w-[320px] sm:w-[360px] bg-[#1a1a1a] rounded-[48px] p-3 shadow-2xl">
                 <div className="bg-[#fdfbf7] rounded-[40px] overflow-hidden">

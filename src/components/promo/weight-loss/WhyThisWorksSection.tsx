@@ -52,7 +52,7 @@ export function WhyThisWorksSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative py-20 lg:py-32 overflow-hidden">
+    <section ref={sectionRef} className="relative pt-20 pb-10 lg:pt-32 lg:pb-14 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-[#fdfbf7]" />
 

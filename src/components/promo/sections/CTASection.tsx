@@ -24,14 +24,14 @@ export function CTASection() {
 
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
-                  href="/get-started"
+                  href="/membership/checkout"
                   className="btn-white inline-flex items-center justify-center gap-2 text-lg px-10 py-4"
                 >
                   Start your journey
                   <ArrowRight className="w-5 h-5" />
                 </Link>
                 <Link
-                  href="/quiz"
+                  href="/biomarker-intake"
                   className="btn-secondary border-white text-white hover:bg-white hover:text-[#34412f] inline-flex items-center justify-center text-lg px-10 py-4"
                 >
                   Take our health quiz
