@@ -1,9 +1,8 @@
-"use client";
-
 import Link from "next/link";
+import marqueeStyles from "./MembershipPricingCard.module.css";
 
 const FEATURES = [
-  "Analysis of 70+ biomarkers annually",
+  "Analysis of 85+ biomarkers annually",
   "Essential panel with Biological Clock & Organ Care",
   "Insights from AHPRA-registered doctors",
   "All-in-one for your whole body",
@@ -11,7 +10,7 @@ const FEATURES = [
   "Clinicians review every result and flag issues",
   "Personalised health action plan",
   "Organ Care dashboards in your portal",
-  "First 30 days of an eligible care program are included",
+  "First 30 days of one eligible Sanative care program",
 ];
 
 function CheckCircleIcon({ className }: { className?: string }) {
@@ -36,17 +35,45 @@ function CheckCircleIcon({ className }: { className?: string }) {
   );
 }
 
+type MembershipMarqueeImage = {
+  src: string;
+  alt: string;
+};
+
 type MembershipPricingCardProps = {
   annualPrice?: number;
   checkoutHref?: string;
   className?: string;
+  /** Optional looping image strip in the left column, above $1/day. */
+  imageMarquee?: readonly MembershipMarqueeImage[];
 };
+
+function ImageMarquee({ items }: { items: readonly MembershipMarqueeImage[] }) {
+  const loop = [...items, ...items];
+  return (
+    <div className="relative overflow-hidden rounded-2xl" aria-hidden>
+      <div className={marqueeStyles.track}>
+        {loop.map((item, index) => (
+          // eslint-disable-next-line @next/next/no-img-element -- CSS marquee needs plain imgs
+          <img
+            key={`${item.src}-${index}`}
+            src={item.src}
+            alt=""
+            className="h-28 w-40 shrink-0 rounded-xl object-cover"
+            draggable={false}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** Split membership offer card — matches the homepage MembershipPricingSection. */
 export function MembershipPricingCard({
   annualPrice = 365,
   checkoutHref = "/membership/checkout",
   className = "",
+  imageMarquee,
 }: MembershipPricingCardProps) {
   return (
     <div
@@ -67,6 +94,11 @@ export function MembershipPricingCard({
         </div>
 
         <div>
+          {imageMarquee && imageMarquee.length > 0 ? (
+            <div className="mb-8">
+              <ImageMarquee items={imageMarquee} />
+            </div>
+          ) : null}
           <div className="flex items-baseline gap-1">
             <span className="font-serif text-6xl sm:text-7xl tracking-tight text-[#2c3628] tabular-nums leading-none">
               $1
@@ -74,7 +106,7 @@ export function MembershipPricingCard({
             <span className="text-lg sm:text-xl text-[#2c3628]">/day</span>
           </div>
           <p className="mt-2 text-sm text-[#7e9a72]">
-            Charged annually at ${annualPrice}
+            ${annualPrice} billed annually
           </p>
 
           <Link
@@ -90,7 +122,7 @@ export function MembershipPricingCard({
         <ul className="space-y-7">
           {FEATURES.map((feature) => (
             <li key={feature} className="flex items-start gap-3 text-[#2c3628]">
-              <CheckCircleIcon className="mt-0.5 flex-shrink-0 text-[#c17a58]" />
+              <CheckCircleIcon className="mt-0.5 flex-shrink-0 text-[#5c7a52]" />
               <span className="text-[15px] sm:text-base leading-snug">{feature}</span>
             </li>
           ))}

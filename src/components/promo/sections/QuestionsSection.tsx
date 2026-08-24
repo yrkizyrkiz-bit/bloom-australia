@@ -25,7 +25,7 @@ const questions: QuestionCard[] = [
     id: 1,
     question: "Why can't I lose weight despite my efforts?",
     description: "Hormone imbalances, thyroid function, or metabolic markers may be affecting your progress. Our tests identify the underlying causes.",
-    image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&q=80",
+    image: "/images/membership/Main_man.webp",
     biomarker: {
       name: "TSH",
       range: "0.4 - 4.0",
@@ -39,7 +39,7 @@ const questions: QuestionCard[] = [
     id: 2,
     question: "Why am I always exhausted?",
     description: "Iron deficiency, vitamin D levels, or thyroid imbalance could be the culprit. Our panel screens for these so you can take action.",
-    image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&q=80",
+    image: "/images/membership/Why_tired.webp",
     biomarker: {
       name: "Ferritin",
       range: "20 - 200",
@@ -53,7 +53,7 @@ const questions: QuestionCard[] = [
     id: 3,
     question: "Is menopause affecting my health?",
     description: "Hormone fluctuations impact everything from mood to metabolism. Track your oestrogen, progesterone, and FSH levels.",
-    image: "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=600&q=80",
+    image: "/images/membership/Main_Pause.webp",
     biomarker: {
       name: "FSH",
       range: "3 - 20",
@@ -67,7 +67,7 @@ const questions: QuestionCard[] = [
     id: 4,
     question: "Why is my hair thinning?",
     description: "Nutrient deficiencies, hormones, or thyroid issues may be affecting hair health. Our tests reveal the root cause.",
-    image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=600&q=80",
+    image: "/images/questions/hair-thinning.webp",
     biomarker: {
       name: "Vitamin D",
       range: "> 50",
@@ -324,7 +324,7 @@ export function QuestionsSection() {
         {/* CTA */}
         <div className="text-center">
           <p className="text-[#5c7a52] mb-6 text-lg">
-            Our comprehensive panel tests 80+ biomarkers to give you the complete picture.
+            Our comprehensive panel tests 85+ biomarkers to give you the complete picture.
           </p>
           <Link
             href="/labs"

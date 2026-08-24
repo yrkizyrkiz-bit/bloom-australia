@@ -1,0 +1,377 @@
+/* WM “More than weight loss” marquee, remapped to WH blush / rose. */
+.wh-symptoms-marquee {
+  --wh-blush: #f8e1e1;
+  --wh-blush-deep: #f0d0d0;
+  --wh-peach: #fce4d8;
+  --wh-mist: #fef4f0;
+  --wh-cream: #fdf8f6;
+  --wh-rose: #e8b4b4;
+  --wh-ink: #3d2c2c;
+  --wh-card: #f4cbb4;
+  --wh-card-mid: #faf3e8;
+  --wh-card-text: #5c3d32;
+  --wh-card-muted: rgb(92 61 50 / 78%);
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(36px, 5vh, 64px) 0 clamp(64px, 8vh, 112px);
+  color: var(--wh-ink);
+  font-family: var(--font-inter), Inter, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--wh-mist);
+}
+
+.wh-symptoms-marquee__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      120% 90% at 50% 50%,
+      transparent 42%,
+      rgb(232 180 180 / 42%) 78%,
+      rgb(216 156 156 / 52%) 100%
+    ),
+    radial-gradient(
+      70% 55% at 28% 78%,
+      rgb(253 248 246 / 92%) 0%,
+      rgb(253 248 246 / 38%) 38%,
+      transparent 68%
+    ),
+    radial-gradient(
+      85% 70% at 50% 32%,
+      rgb(248 225 225 / 70%) 0%,
+      rgb(252 228 216 / 48%) 28%,
+      rgb(254 244 240 / 0%) 62%
+    ),
+    linear-gradient(
+      165deg,
+      var(--wh-blush) 0%,
+      var(--wh-mist) 48%,
+      var(--wh-cream) 100%
+    );
+}
+
+.wh-symptoms-marquee__glow {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.wh-symptoms-marquee__glow::before,
+.wh-symptoms-marquee__glow::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.wh-symptoms-marquee__glow::before {
+  width: min(92vw, 920px);
+  height: min(92vw, 920px);
+  top: -12%;
+  left: 50%;
+  translate: -50% 0;
+  background: radial-gradient(
+    circle,
+    rgb(248 225 225 / 62%) 0%,
+    rgb(252 228 216 / 36%) 40%,
+    transparent 70%
+  );
+  filter: blur(72px);
+}
+
+.wh-symptoms-marquee__glow::after {
+  width: min(70vw, 640px);
+  height: min(55vw, 520px);
+  bottom: -8%;
+  left: 18%;
+  background: radial-gradient(
+    circle,
+    rgb(253 248 246 / 78%) 0%,
+    rgb(248 225 225 / 38%) 45%,
+    transparent 72%
+  );
+  filter: blur(88px);
+}
+
+.wh-symptoms-marquee__noise {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
+}
+
+.wh-symptoms-marquee__inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 32px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(16px, 2.4vh, 28px);
+}
+
+.wh-symptoms-marquee__header {
+  text-align: center;
+  max-width: 40rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 2.2vh, 22px);
+}
+
+.wh-symptoms-marquee__badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #8b5a5a;
+  background: rgb(248 225 225 / 70%);
+  border-radius: 999px;
+}
+
+.wh-symptoms-marquee__header h2 {
+  margin: 0;
+  max-width: 18ch;
+  font-family: var(--font-inter), Inter, "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--wh-ink);
+}
+
+.wh-symptoms-marquee__lede {
+  margin: 0 auto;
+  max-width: 36ch;
+  text-align: center;
+  font-size: clamp(0.95rem, 1.35vw, 1.1rem);
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  color: #5c7a52;
+}
+
+.wh-symptoms-marquee__note {
+  margin: 0 auto;
+  max-width: 36rem;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #8b5a5a;
+}
+
+.wh-health-marquee {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.6vh, 16px);
+}
+
+.wh-marquee-row {
+  width: 100%;
+  overflow: hidden;
+}
+
+.wh-marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+.wh-marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+
+.wh-marquee-card {
+  box-sizing: border-box;
+  flex: 0 0 260px;
+  width: 260px;
+  margin-right: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-radius: 32px;
+  padding: clamp(1rem, 1.6vh, 1.25rem) 1.15rem;
+  background: var(--wh-card);
+  border: none;
+  box-shadow:
+    0 10px 30px rgba(180, 120, 90, 0.14),
+    0 0 18px rgb(252 228 216 / 48%),
+    0 0 0 1px rgb(232 196 168 / 38%);
+  color: var(--wh-card-text);
+}
+
+.wh-marquee-row:nth-child(2) .wh-marquee-card {
+  background: var(--wh-card-mid);
+}
+
+.wh-marquee-card__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  background: rgb(193 122 88 / 16%);
+  color: var(--wh-card-text);
+}
+
+.wh-marquee-card__icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--wh-card-text);
+}
+
+.wh-marquee-card__title {
+  margin: 0 0 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--wh-card-text);
+}
+
+.wh-marquee-card__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.wh-marquee-card__items li {
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--wh-card-muted);
+}
+
+.wh-marquee-card--detail {
+  flex: 0 0 300px;
+  width: 300px;
+  align-items: flex-start;
+  text-align: left;
+  padding: clamp(1rem, 1.6vh, 1.3rem) 1.25rem;
+}
+
+.wh-marquee-card__label {
+  margin: 0 0 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--wh-card-muted);
+}
+
+.wh-marquee-card__detail {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--wh-card-text);
+}
+
+@media (max-width: 767px) {
+  .wh-symptoms-marquee {
+    padding: 28px 0 48px;
+  }
+
+  .wh-symptoms-marquee__header h2 {
+    max-width: 14ch;
+    font-size: clamp(1.65rem, 7vw, 2rem);
+    line-height: 1.18;
+  }
+
+  .wh-symptoms-marquee__bg {
+    background:
+      radial-gradient(
+        130% 100% at 50% 50%,
+        transparent 38%,
+        rgb(232 180 180 / 36%) 74%,
+        rgb(216 156 156 / 46%) 100%
+      ),
+      radial-gradient(
+        80% 55% at 50% 92%,
+        rgb(253 248 246 / 84%) 0%,
+        transparent 68%
+      ),
+      radial-gradient(
+        110% 60% at 50% 14%,
+        rgb(248 225 225 / 58%) 0%,
+        rgb(252 228 216 / 38%) 30%,
+        transparent 62%
+      ),
+      linear-gradient(
+        180deg,
+        var(--wh-blush) 0%,
+        var(--wh-mist) 50%,
+        var(--wh-cream) 100%
+      );
+  }
+
+  .wh-symptoms-marquee__glow::before {
+    width: min(120vw, 780px);
+    height: min(78vw, 520px);
+    top: -8%;
+    filter: blur(60px);
+  }
+
+  .wh-symptoms-marquee__glow::after {
+    width: min(95vw, 560px);
+    height: min(65vw, 420px);
+    bottom: -6%;
+    left: 50%;
+    translate: -50% 0;
+    filter: blur(72px);
+  }
+}
+
+@media (max-width: 640px) {
+  .wh-marquee-card {
+    flex-basis: 240px;
+    width: 240px;
+    border-radius: 24px;
+  }
+
+  .wh-marquee-card--detail {
+    flex-basis: 280px;
+    width: 280px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wh-marquee-track {
+    transform: none !important;
+  }
+
+  .wh-health-marquee {
+    overflow-x: auto;
+  }
+
+  .wh-symptoms-marquee__glow::before,
+  .wh-symptoms-marquee__glow::after {
+    transition: none;
+  }
+}
