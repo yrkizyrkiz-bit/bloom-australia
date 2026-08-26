@@ -17,7 +17,7 @@ import {
 
 const prisma = new PrismaClient();
 
-describe("Security — authenticated access", () => {
+describe("Security, authenticated access", () => {
   let fixtures: Awaited<ReturnType<typeof ensureSecurityFixtures>>;
 
   beforeAll(async () => {

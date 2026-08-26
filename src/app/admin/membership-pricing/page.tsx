@@ -223,7 +223,7 @@ export default function MembershipPricingPage() {
       applyProducts(data.products ?? []);
       setNewProduct({ name: "", program: "", planTier: "", sortOrder: "0" });
       setShowCreate(false);
-      toast.success("Product created — now add its prices");
+      toast.success("Product created, now add its prices");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create product");
     } finally {
@@ -504,7 +504,7 @@ export default function MembershipPricingPage() {
                 <CardContent className="space-y-3">
                   {product.prices.length === 0 && (
                     <p className="text-sm text-muted-foreground">
-                      No prices yet — add a billing option below so this product can
+                      No prices yet, add a billing option below so this product can
                       be purchased.
                     </p>
                   )}

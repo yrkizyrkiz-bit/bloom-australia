@@ -149,7 +149,7 @@ type BiomarkerSummary = {
   changePercent: number | null;
 };
 
-/** Keep prompt size manageable — full history stays in DB; Claude gets compact deltas. */
+/** Keep prompt size manageable, full history stays in DB; Claude gets compact deltas. */
 function buildPromptBiomarkerPayload(summaries: BiomarkerSummary[]) {
   const needsAttention = summaries.filter(
     (s) =>
@@ -326,7 +326,7 @@ ${JSON.stringify(biomarkerPayload)}
 
 Submit via submit_organ_care_report with:
 - reportTitle, overallRisk (low|moderate|elevated|high), executiveSummary (3 sentences), clinicalContext (1 short paragraph)
-- categoryScores: one per category with data — align scores/trends to CATEGORY SCORES above
+- categoryScores: one per category with data, align scores/trends to CATEGORY SCORES above
 - biomarkerFindings: priority markers only; include interpretation and priority
 - riskPatterns: 2-4 combined-indicator patterns with monitoringAdvice
 - recommendations, questionsForCareTeam (3-4), retestingGuidance, urgentActions (or []), limitations, analysisTimestamp (ISO)`;
@@ -595,7 +595,7 @@ export function buildDeterministicOrganCareReport(context: OrganCareReportContex
       category: "testing",
       priority: "medium",
       action: context.resultsStale
-        ? "Repeat blood testing — your latest results are more than 6 months old."
+        ? "Repeat blood testing: your latest results are more than 6 months old."
         : "Schedule repeat labs in 3–6 months for trending markers.",
       rationale: "Serial testing helps distinguish one-off fluctuations from meaningful change.",
     },
@@ -635,7 +635,7 @@ export function buildDeterministicOrganCareReport(context: OrganCareReportContex
       "What lifestyle or medication changes are appropriate for my results?",
     ],
     retestingGuidance: context.resultsStale
-      ? "Your latest panel is over 6 months old — repeat comprehensive bloods soon for an up-to-date assessment."
+      ? "Your latest panel is over 6 months old, repeat comprehensive bloods soon for an up-to-date assessment."
       : "Repeat key markers in 3–6 months, or sooner if your GP advises based on symptoms.",
     urgentActions: context.biomarkerSummaries.some((s) => s.status === "critical")
       ? ["Contact your GP promptly about critical-range results."]

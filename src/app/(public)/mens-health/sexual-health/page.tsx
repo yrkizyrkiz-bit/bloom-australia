@@ -99,7 +99,7 @@ const benefits = [
     icon: Beaker,
     title: "Biomarker-guided where appropriate",
     description:
-      "Blood tests may be recommended where they help your doctor understand contributing factors — not as a one-size-fits-all requirement.",
+      "Blood tests may be recommended where they help your doctor understand contributing factors, not as a one-size-fits-all requirement.",
   },
   {
     icon: MessageSquare,
@@ -123,7 +123,7 @@ const faqs = [
   {
     question: "Are care options included in the program fee?",
     answer:
-      "Care options are discussed privately with your doctor if clinically appropriate. Your program fee covers clinical assessment, monitoring, and portal access — not medicine bundles.",
+      "Care options are discussed privately with your doctor if clinically appropriate. Your program fee covers clinical assessment, monitoring, and portal access, not medicine bundles.",
   },
   {
     question: "Is my information confidential?",
@@ -162,7 +162,7 @@ export default function SexualHealthPage() {
                 </h1>
 
                 <p className="text-lg text-[#5c7a52] leading-relaxed mb-8">
-                  Sanative offers confidential, doctor-led assessment for men&apos;s sexual health concerns. Your doctor reviews your health profile and discusses what is clinically appropriate for you — individually, and in private consultation.
+                  Sanative offers confidential, doctor-led assessment for men&apos;s sexual health concerns. Your doctor reviews your health profile and discusses what is clinically appropriate for you, individually and in private consultation.
                 </p>
 
                 <div className="space-y-3 mb-8">
@@ -200,8 +200,8 @@ export default function SexualHealthPage() {
               <div className="relative">
                 <div className="relative aspect-[4/3] lg:aspect-square rounded-3xl overflow-hidden shadow-xl">
                   <Image
-                    src="https://images.pexels.com/photos/5384445/pexels-photo-5384445.jpeg?auto=compress&cs=tinysrgb&w=800"
-                    alt="Men's sexual health — doctor-led assessment"
+                    src="/images/mens-health/ed-portrait.webp"
+                    alt="Men's sexual health: doctor-led assessment"
                     fill
                     className="object-cover object-center"
                   />
@@ -225,7 +225,7 @@ export default function SexualHealthPage() {
                   </h2>
                 </div>
                 <p className="text-[#5c7a52] leading-relaxed mb-6">
-                  Sexual wellbeing can be influenced by stress, sleep, hormones, cardiovascular health, medications, and mental health — often in combination. Our doctors review the full picture, not just a single symptom.
+                  Sexual wellbeing can be influenced by stress, sleep, hormones, cardiovascular health, medications, and mental health (often in combination). Our doctors review the full picture, not just a single symptom.
                 </p>
                 <ul className="space-y-3">
                   {[
@@ -252,10 +252,10 @@ export default function SexualHealthPage() {
                   <span className="text-[#5c7a52] italic">what fits you</span>
                 </h2>
                 <p className="text-lg text-[#5c7a52] leading-relaxed mb-6">
-                  People enter Sanative with different health profiles, goals, and medical histories. There is no one-size-fits-all pathway — your doctor determines what is clinically appropriate after reviewing your assessment.
+                  People enter Sanative with different health profiles, goals, and medical histories. There is no one-size-fits-all pathway. Your doctor determines what is clinically appropriate after reviewing your assessment.
                 </p>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  Individual results vary and are not guaranteed. Suitable care options, if any, are discussed privately in consultation — not advertised on this website.
+                  Individual results vary and are not guaranteed. Suitable care options, if any, are discussed privately in consultation, not advertised on this website.
                 </p>
               </div>
             </div>
@@ -296,7 +296,7 @@ export default function SexualHealthPage() {
                 <span className="text-[#5c7a52] italic">works</span>
               </h2>
               <p className="text-lg text-[#5c7a52] max-w-2xl mx-auto">
-                A streamlined clinical pathway — thorough medical evaluation at every step.
+                A streamlined clinical pathway: thorough medical evaluation at every step.
               </p>
             </div>
 
@@ -431,7 +431,7 @@ export default function SexualHealthPage() {
               Ready to get started?
             </h2>
             <p className="text-lg text-[#a8bb9e] mb-10 max-w-2xl mx-auto">
-              Complete a health assessment and book a doctor consultation. Your Sanative doctor reviews your profile and discusses what is clinically appropriate for you.
+              Become a member and book your doctor consultation, get a health check-up followed by a doctor's recommendations of what is clinically appropriate for you.
             </p>
             <Link
               href="/mens-health/assessment?concern=sexual-health"

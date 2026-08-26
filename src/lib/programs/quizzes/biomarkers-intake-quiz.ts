@@ -1,9 +1,9 @@
 /**
- * Get My Biomarkers — clinical intake quiz.
+ * Get My Biomarkers, clinical intake quiz.
  *
  * One high-yield question per health category (6 organ/system areas + intro).
  * Answers map to Medicare-eligible indications and private panel gaps for
- * doctor review — kept short to protect lead conversion.
+ * doctor review, kept short to protect lead conversion.
  */
 
 import type { QuizOption, QuizStep } from "@/lib/programs/quizzes/sexual-health-quiz-shared";
@@ -372,7 +372,7 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
         "hair-skin": ["thyroid-hypo", "tsh-indicated"],
         none: [],
       },
-      "These can sometimes relate to your thyroid — select all that apply.",
+      "These can sometimes relate to your thyroid, select all that apply.",
       true
     ),
     hormonesQuestion(gender),
@@ -440,7 +440,7 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
   ];
 }
 
-/** Question count + review step — stable for resume checks when answers include clinicalSex. */
+/** Question count + review step, stable for resume checks when answers include clinicalSex. */
 export function biomarkersQuizTotalSteps(
   profileGender?: string | null,
   answers?: Record<string, string>
@@ -521,32 +521,32 @@ const FLAG_TO_SECTION: Partial<
 > = {
   "lipids-indicated": {
     sectionId: "heart",
-    indication: "Cardiovascular risk assessment — lipid panel indicated",
+    indication: "Cardiovascular risk assessment, lipid panel indicated",
     medicare: "MBS 66503 / 66597 (lipid studies when CVD risk factors present)",
   },
   "hba1c-indicated": {
     sectionId: "metabolic",
-    indication: "Diabetes screening or metabolic risk — HbA1c indicated",
+    indication: "Diabetes screening or metabolic risk, HbA1c indicated",
     medicare: "MBS 66551 (HbA1c when diabetes risk or symptoms documented)",
   },
   "glucose-indicated": {
     sectionId: "metabolic",
-    indication: "Symptoms suggestive of hyperglycaemia — fasting glucose indicated",
+    indication: "Symptoms suggestive of hyperglycaemia, fasting glucose indicated",
     medicare: "MBS 66551 (with clinical indication)",
   },
   "insulin-indicated": {
     sectionId: "metabolic",
-    indication: "Insulin resistance / metabolic syndrome — fasting insulin & HOMA-IR",
+    indication: "Insulin resistance / metabolic syndrome, fasting insulin & HOMA-IR",
     medicare: "Insulin usually private; HbA1c/glucose may be Medicare-eligible",
   },
   "tsh-indicated": {
     sectionId: "thyroid",
-    indication: "Thyroid dysfunction suspected — TSH indicated",
+    indication: "Thyroid dysfunction suspected, TSH indicated",
     medicare: "MBS 66732 (TSH when thyroid disease suspected)",
   },
   "tft-indicated": {
     sectionId: "thyroid",
-    indication: "Hyperthyroid symptoms — consider Free T4 / Free T3",
+    indication: "Hyperthyroid symptoms, consider Free T4 / Free T3",
     medicare: "MBS 66732 / 66733 (when abnormal TSH or strong clinical suspicion)",
   },
   "hormone-panel-indicated": {
@@ -556,47 +556,47 @@ const FLAG_TO_SECTION: Partial<
   },
   "testosterone-indicated": {
     sectionId: "hormones",
-    indication: "Androgen deficiency symptoms — total & free testosterone",
+    indication: "Androgen deficiency symptoms, total & free testosterone",
     medicare: "MBS 66695 in limited circumstances; often private",
   },
   "lft-indicated": {
     sectionId: "liver",
-    indication: "Hepatic disease or medication effect suspected — LFT panel",
+    indication: "Hepatic disease or medication effect suspected, LFT panel",
     medicare: "MBS 66548 (hepatic function tests when clinically indicated)",
   },
   "renal-indicated": {
     sectionId: "kidney",
-    indication: "CKD risk or renal symptoms — U&E, creatinine, eGFR",
+    indication: "CKD risk or renal symptoms, U&E, creatinine, eGFR",
     medicare: "MBS 66572 (renal function when CKD suspected or monitoring required)",
   },
   "uacr-indicated": {
     sectionId: "kidney",
-    indication: "Proteinuria suspected — urine albumin:creatinine ratio",
+    indication: "Proteinuria suspected, urine albumin:creatinine ratio",
     medicare: "MBS 66655 (microalbumin when diabetic nephropathy suspected)",
   },
   "iron-studies-indicated": {
     sectionId: "nutrients",
-    indication: "Iron deficiency or dietary risk — iron studies + ferritin",
+    indication: "Iron deficiency or dietary risk, iron studies + ferritin",
     medicare: "MBS 66596 when iron deficiency clinically suspected",
   },
   "fbc-indicated": {
     sectionId: "nutrients",
-    indication: "Anaemia or infection screen — full blood count",
+    indication: "Anaemia or infection screen, full blood count",
     medicare: "MBS 65070 (FBC when clinically indicated)",
   },
   "crp-indicated": {
     sectionId: "nutrients",
-    indication: "Inflammation suspected — CRP",
+    indication: "Inflammation suspected, CRP",
     medicare: "Usually private unless specific inflammatory condition documented",
   },
   "nutrient-b12-d": {
     sectionId: "nutrients",
-    indication: "Dietary restriction — vitamin B12, folate, vitamin D",
+    indication: "Dietary restriction, vitamin B12, folate, vitamin D",
     medicare: "Usually private unless deficiency clinically suspected",
   },
   "baseline-panel": {
     sectionId: "intro",
-    indication: "No recent comprehensive bloods — baseline panel appropriate",
+    indication: "No recent comprehensive bloods, baseline panel appropriate",
   },
 };
 

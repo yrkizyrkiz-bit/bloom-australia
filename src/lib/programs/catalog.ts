@@ -2,7 +2,7 @@
  * Unified program catalog for the post-login dashboard grid.
  *
  * Visual tokens mirror the home page BentoHero: soft gradient fills, icon circles,
- * and serif typography — no background photography.
+ * and serif typography, no background photography.
  */
 
 import {
@@ -56,7 +56,7 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
       iconColor: "text-white/40",
       badge: { label: "Most popular", className: "bg-[#c17a58] text-white" },
     },
-    priceHint: "From $249 first month",
+    priceHint: "$360 every 3 months",
   },
   {
     key: "HAIR_LOSS",
@@ -73,7 +73,7 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
       iconColor: "text-[#c17a58]",
       badge: { label: "Men & women", className: "bg-[#c17a58] text-white" },
     },
-    priceHint: "From $59/mo",
+    priceHint: "$90 every 3 months",
   },
   {
     key: "MENS_HEALTH_SEXUAL",
@@ -89,7 +89,7 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
       iconCircle: "bg-white/10",
       iconColor: "text-white/50",
     },
-    priceHint: "From $59/mo",
+    priceHint: "$240 every 3 months",
   },
   {
     key: "MENS_HEALTH_VITALITY",
@@ -105,7 +105,7 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
       iconCircle: "bg-[#7e9a72]/30",
       iconColor: "text-[#4a6243]",
     },
-    priceHint: "From $59/mo",
+    priceHint: "$240 every 3 months",
   },
   {
     key: "WOMENS_HEALTH_SEXUAL",
@@ -122,7 +122,7 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
       iconColor: "text-[#c17a58]",
       badge: { label: "Private care", className: "bg-[#c17a58] text-white" },
     },
-    priceHint: "From $59/mo",
+    priceHint: "$240 every 3 months",
   },
   {
     key: "WOMENS_HEALTH_VITALITY",
@@ -138,14 +138,14 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
       iconCircle: "bg-[#7e9a72]/25",
       iconColor: "text-[#5c7a52]",
     },
-    priceHint: "From $59/mo",
+    priceHint: "$240 every 3 months",
   },
 ];
 
 export const ORGAN_CARE_CARD = {
   label: "Organ and Metabolic Care",
   titleAccent: "Metabolic Care",
-  tagline: "Heart, liver, kidney, thyroid, hormones & metabolic health — one membership",
+  tagline: "Heart, liver, kidney, thyroid, hormones & metabolic health: one membership",
   priceHint: "Included with your membership",
   hubRoute: "/dashboard/organ-care",
   quizRoute: "/dashboard/organ-care/quiz",
@@ -154,14 +154,14 @@ export const ORGAN_CARE_CARD = {
     tone: "light" as CardTone,
     iconCircle: "bg-[#7e9a72]/30",
     iconColor: "text-[#4a6243]",
-    badge: { label: "80+ biomarkers", className: "bg-[#4a6243] text-white" },
+    badge: { label: "85+ biomarkers", className: "bg-[#4a6243] text-white" },
   },
   organs: [
     { label: "Liver", route: "/dashboard/liver-test", dot: "bg-green-500" },
     { label: "Heart", route: "/dashboard/heart-test", dot: "bg-red-400" },
     { label: "Kidney", route: "/dashboard/kidney-test", dot: "bg-sky-400" },
   ],
-  /** Overlapping preview circles — matches public BentoHero biomarkers card (L · K · H). */
+  /** Overlapping preview circles, matches public BentoHero biomarkers card (L · K · H). */
   organPreview: [
     { letter: "L", label: "Liver", dot: "bg-green-500" },
     { letter: "K", label: "Kidney", dot: "bg-sky-400" },

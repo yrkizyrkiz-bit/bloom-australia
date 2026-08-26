@@ -3,23 +3,28 @@ import { Footer } from "@/components/promo/Footer";
 import { WeightLossMembershipHero } from "@/components/promo/weight-loss/WeightLossMembershipHero";
 import { WeightLossMembershipHowItWorks } from "@/components/promo/weight-loss/WeightLossMembershipHowItWorks";
 import { CascadingHealthCards } from "@/components/promo/weight-loss/CascadingHealthCards";
-import { BiomarkerQuestionsSection } from "@/components/promo/weight-loss/BiomarkerQuestionsSection";
 import { BiomarkerHealthSection } from "@/components/promo/weight-loss/BiomarkerHealthSection";
 import { ObjectionHandlingSection } from "@/components/promo/weight-loss/ObjectionHandlingSection";
 import { WeightLossTeamSection } from "@/components/promo/weight-loss/WeightLossTeamSection";
-import { WhyThisWorksSection } from "@/components/promo/weight-loss/WhyThisWorksSection";
 import { EligibilitySection } from "@/components/promo/weight-loss/EligibilitySection";
 import { PricingSection } from "@/components/promo/weight-loss/PricingSection";
 
 import { TrustSection } from "@/components/promo/weight-loss/TrustSection";
 
-export default function WeightManagementPage() {
+export default async function WeightManagementPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ gender?: string }>;
+}) {
+  const params = await searchParams;
+  const heroVariant = params.gender === "men" ? "men" : "default";
+
   return (
     <>
       <Header />
       <main>
         {/* Green continues under the white frame’s rounded corners.
-            Keep overflow clipping here only — not on <main> — so sticky cascade works. */}
+            Keep overflow clipping here only (not on <main>) so sticky cascade works. */}
         <div
           className="relative overflow-x-clip"
           style={{
@@ -27,19 +32,17 @@ export default function WeightManagementPage() {
               "linear-gradient(180deg, #566738 0%, #46542e 55%, #3c4b28 100%)",
           }}
         >
-          <WeightLossMembershipHero />
+          <WeightLossMembershipHero variant={heroVariant} />
           <WeightLossMembershipHowItWorks />
         </div>
 
         <CascadingHealthCards />
         <div className="overflow-x-clip">
           <BiomarkerHealthSection />
-          <BiomarkerQuestionsSection />
           <ObjectionHandlingSection />
           <WeightLossTeamSection />
-          <WhyThisWorksSection />
           <EligibilitySection />
-          <PricingSection />
+          <PricingSection variant={heroVariant} />
           <TrustSection />
         </div>
       </main>

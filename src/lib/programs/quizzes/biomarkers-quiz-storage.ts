@@ -71,7 +71,7 @@ export function saveBiomarkersQuizProgress(
     };
     localStorage.setItem(storageKey(userId), JSON.stringify(payload));
   } catch {
-    // localStorage unavailable — quiz still works without resume.
+    // localStorage unavailable, quiz still works without resume.
   }
 }
 

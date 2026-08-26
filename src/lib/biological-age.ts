@@ -435,6 +435,32 @@ function calculatePhenotypicAge(chronologicalAge: number, biomarkers: Biological
 }
 
 /**
+ * PhenoAge only when all 9 Levine core inputs are present (no population defaults).
+ * Used by Essential derived biomarkers once hs-CRP is on the request.
+ */
+export function tryCalculatePhenotypicAgeYears(
+  chronologicalAge: number,
+  biomarkers: BiologicalAgeInput["biomarkers"]
+): number | null {
+  const required = [
+    biomarkers.albumin,
+    biomarkers.creatinine,
+    biomarkers.glucose,
+    biomarkers.crp,
+    biomarkers.lymphocytePercent,
+    biomarkers.mcv,
+    biomarkers.rdw,
+    biomarkers.alp,
+    biomarkers.wbc,
+  ];
+  if (required.some((value) => value == null || !Number.isFinite(value))) return null;
+  if (chronologicalAge < 18 || chronologicalAge > 120) return null;
+  const { age } = calculatePhenotypicAge(chronologicalAge, biomarkers, "male");
+  if (!Number.isFinite(age)) return null;
+  return Math.round(age * 10) / 10;
+}
+
+/**
  * Calculate organ-specific biological ages
  */
 function calculateOrganAges(chronologicalAge: number, biomarkers: BiologicalAgeInput["biomarkers"], gender: "male" | "female"): OrganAges {

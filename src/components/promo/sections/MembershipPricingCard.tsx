@@ -51,7 +51,7 @@ type MembershipPricingCardProps = {
 function ImageMarquee({ items }: { items: readonly MembershipMarqueeImage[] }) {
   const loop = [...items, ...items];
   return (
-    <div className="relative overflow-hidden rounded-2xl" aria-hidden>
+    <div className={marqueeStyles.viewport} aria-hidden>
       <div className={marqueeStyles.track}>
         {loop.map((item, index) => (
           // eslint-disable-next-line @next/next/no-img-element -- CSS marquee needs plain imgs
@@ -68,7 +68,7 @@ function ImageMarquee({ items }: { items: readonly MembershipMarqueeImage[] }) {
   );
 }
 
-/** Split membership offer card — matches the homepage MembershipPricingSection. */
+/** Split membership offer card, matches the homepage MembershipPricingSection. */
 export function MembershipPricingCard({
   annualPrice = 365,
   checkoutHref = "/membership/checkout",
@@ -77,9 +77,9 @@ export function MembershipPricingCard({
 }: MembershipPricingCardProps) {
   return (
     <div
-      className={`grid lg:grid-cols-2 rounded-3xl border border-[#e6ebe3] bg-white shadow-2xl overflow-hidden ${className}`}
+      className={`grid min-w-0 w-full lg:grid-cols-2 rounded-3xl border border-[#e6ebe3] bg-white shadow-2xl overflow-hidden ${className}`}
     >
-      <div className="flex flex-col justify-between gap-10 p-8 sm:p-10 lg:p-12 lg:border-r border-[#e6ebe3]">
+      <div className="flex min-w-0 flex-col justify-between gap-10 p-6 sm:p-10 lg:p-12 lg:border-r border-[#e6ebe3]">
         <div>
           <div className="flex items-center gap-2 text-[#c17a58]">
             <CheckCircleIcon className="flex-shrink-0" />
@@ -118,7 +118,7 @@ export function MembershipPricingCard({
         </div>
       </div>
 
-      <div className="flex flex-col justify-center p-8 sm:p-10 lg:p-12 border-t border-[#e6ebe3] lg:border-t-0">
+      <div className="flex min-w-0 flex-col justify-center p-6 sm:p-10 lg:p-12 border-t border-[#e6ebe3] lg:border-t-0">
         <ul className="space-y-7">
           {FEATURES.map((feature) => (
             <li key={feature} className="flex items-start gap-3 text-[#2c3628]">

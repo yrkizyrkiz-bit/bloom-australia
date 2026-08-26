@@ -61,7 +61,7 @@ export const BLOOD_TEST_CATALOG: Record<string, BloodTestCatalogEntry> = {
     reason: "Calculate HOMA-IR",
     fasting: true,
     panelGroup: "Serum Chemistry",
-    requestLabel: "Insulin (fasting) — usually private",
+    requestLabel: "Insulin (fasting), usually private",
   },
   lipid_panel: {
     name: "Lipid Panel",
@@ -70,8 +70,8 @@ export const BLOOD_TEST_CATALOG: Record<string, BloodTestCatalogEntry> = {
     fasting: true,
     mbsItems: ["66503", "66597"],
     panelGroup: "Serum Chemistry",
-    requestLabel: "Lipids — cholesterol, HDL, triglycerides, LDL",
-    pdfRequestLabel: "Lipids — total cholesterol, HDL, triglycerides",
+    requestLabel: "Lipids, cholesterol, HDL, triglycerides, LDL",
+    pdfRequestLabel: "Lipids, total cholesterol, HDL, triglycerides",
   },
   liver_function: {
     name: "Liver Function Tests",
@@ -79,7 +79,7 @@ export const BLOOD_TEST_CATALOG: Record<string, BloodTestCatalogEntry> = {
     reason: "Assess liver health/fatty liver",
     mbsItems: ["66548"],
     panelGroup: "Serum Chemistry",
-    requestLabel: "LFT — ALT, AST, GGT, ALP, bilirubin",
+    requestLabel: "LFT, ALT, AST, GGT, ALP, bilirubin",
   },
   kidney_function: {
     name: "Kidney Function",
@@ -87,8 +87,8 @@ export const BLOOD_TEST_CATALOG: Record<string, BloodTestCatalogEntry> = {
     reason: "Assess renal function before medication",
     mbsItems: ["66572"],
     panelGroup: "Serum Chemistry",
-    requestLabel: "U&E — sodium, potassium, urea, creatinine, eGFR",
-    pdfRequestLabel: "U&E — sodium, potassium, urea, creatinine",
+    requestLabel: "U&E, sodium, potassium, urea, creatinine, eGFR",
+    pdfRequestLabel: "U&E, sodium, potassium, urea, creatinine",
   },
   thyroid: {
     name: "Thyroid Panel",
@@ -104,7 +104,7 @@ export const BLOOD_TEST_CATALOG: Record<string, BloodTestCatalogEntry> = {
     reason: "General health screening",
     mbsItems: ["65070"],
     panelGroup: "Full Blood Examination",
-    requestLabel: "FBE — haemoglobin, RBC, Hct, MCV, platelets, WCC differential",
+    requestLabel: "FBE, haemoglobin, RBC, Hct, MCV, platelets, WCC differential",
   },
   iron_studies: {
     name: "Iron Studies",
@@ -136,7 +136,7 @@ export const BLOOD_TEST_CATALOG: Record<string, BloodTestCatalogEntry> = {
     description: "C-Reactive Protein",
     reason: "Assess systemic inflammation",
     panelGroup: "Inflammation",
-    requestLabel: "CRP (C-reactive protein) — usually private",
+    requestLabel: "CRP (C-reactive protein), usually private",
   },
   male_hormone_panel: {
     name: "Male Hormone Panel",
@@ -168,7 +168,7 @@ export const BLOOD_TEST_CATALOG: Record<string, BloodTestCatalogEntry> = {
     description: "Serum zinc",
     reason: "Assess zinc status for hair and immune health",
     panelGroup: "Trace Elements",
-    requestLabel: "Serum zinc — usually private",
+    requestLabel: "Serum zinc, usually private",
   },
   dhea_s: {
     name: "DHEA-S",
@@ -182,7 +182,7 @@ export const BLOOD_TEST_CATALOG: Record<string, BloodTestCatalogEntry> = {
 
 export function getBloodTestLabel(testId: string): string {
   const test = BLOOD_TEST_CATALOG[testId];
-  return test ? `${test.name} — ${test.description}` : testId;
+  return test ? `${test.name}, ${test.description}` : testId;
 }
 
 export function catalogTestsRequireFasting(testIds: string[]): boolean {
@@ -215,7 +215,7 @@ export function buildClinicalIndicationFromTests(
   return lines.join("\n");
 }
 
-/** Calculated/derived analytes — not ordered as separate pathology tests on referrals. */
+/** Calculated/derived analytes, not ordered as separate pathology tests on referrals. */
 const CALCULATED_MARKER_PHRASES = [
   /\bHOMA-?IR\b/gi,
   /\beGFR\b/gi,

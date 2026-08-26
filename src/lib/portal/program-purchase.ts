@@ -62,7 +62,7 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
       firstMonthBillingPriceId: quote.firstMonth.id,
       recurringBillingPriceId: quote.recurring.id,
     },
-    description: `${label} — first month (includes consultation)`,
+    description: `${label}, first month (includes consultation)`,
   });
 
   if (!paymentIntent.client_secret) {
@@ -188,7 +188,7 @@ export async function activatePortalProgramPurchase(params: {
     userId: params.userId,
     paymentIntentId: params.paymentIntentId,
     amountAud: params.amountAud,
-    description: `${label} — first month`,
+    description: `${label}, first month`,
   });
 
   if (params.recurringBillingPriceId && params.customerId) {

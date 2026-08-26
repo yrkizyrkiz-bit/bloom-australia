@@ -78,7 +78,7 @@ export function MemberQuizAssessmentTabs({
           Quiz assessment
         </CardTitle>
         <CardDescription>
-          Program quiz results for doctor consultation — separate from lab pathology results in the
+          Program quiz results for doctor consultation, separate from lab pathology results in the
           Lab Results tab. Latest attempt shown first when a quiz was completed more than once.
         </CardDescription>
       </CardHeader>

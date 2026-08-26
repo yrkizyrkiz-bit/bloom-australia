@@ -70,7 +70,7 @@ export function KidneyHealthCalculator() {
       return {
         level: "elevated",
         stage: "Moderate-High Risk",
-        message: "You have several risk factors for kidney disease. Early detection through biomarker testing can help preserve kidney function."
+        message: "You have several risk factors for kidney disease. A doctor-reviewed kidney panel can inform the conversation about your kidney health."
       };
     } else if (score >= 5) {
       return {

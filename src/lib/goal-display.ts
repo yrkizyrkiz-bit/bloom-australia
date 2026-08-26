@@ -24,7 +24,7 @@ export function isPausedGoalStatus(status: string): boolean {
   return status.toUpperCase() === PAUSED_GOAL_STATUS;
 }
 
-/** Subtle review hint — never a day countdown. */
+/** Subtle review hint, never a day countdown. */
 export function nextReviewHint(reviewDate: string | Date): string {
   return `Next review · ${formatReviewDate(reviewDate)}`;
 }

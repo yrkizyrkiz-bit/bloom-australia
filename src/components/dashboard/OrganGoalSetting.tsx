@@ -207,7 +207,7 @@ export function OrganGoalSetting({
         return false;
       }
 
-      toast.success("Goal added — we'll track your progress");
+      toast.success("Goal added. We'll track your progress");
       await fetchGoals();
       return true;
     } catch (err) {
@@ -281,7 +281,7 @@ export function OrganGoalSetting({
     );
 
     if (!payload) {
-      toast.error("Unable to create goal — no biomarker data available");
+      toast.error("Unable to create goal, no biomarker data available");
       return;
     }
 
@@ -396,7 +396,7 @@ export function OrganGoalSetting({
                             <SelectItem key={b.id} value={b.id} disabled={hasGoal}>
                               {b.name}
                               {current !== null && ` (Current: ${current} ${b.unit})`}
-                              {hasGoal && " — Goal already exists"}
+                              {hasGoal && ", Goal already exists"}
                             </SelectItem>
                           );
                         })}
@@ -571,7 +571,7 @@ export function OrganGoalSetting({
           {!analysisLoading && !analysis && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground p-4 rounded-lg bg-muted/40">
               <AlertCircle className="w-4 h-4" />
-              AI suggestions unavailable — create a manual goal or check the Risk Assessment tab
+              AI suggestions unavailable, create a manual goal or check the Risk Assessment tab
             </div>
           )}
 

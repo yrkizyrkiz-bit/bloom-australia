@@ -55,7 +55,7 @@ async function collectPanelBaseAmountsCents(
 
   const chargedMeta = Number(metadata.chargedAmountCents);
   if (Number.isFinite(chargedMeta) && chargedMeta > 0) {
-    // chargedAmountCents may already include the retest add-on — handled by caller.
+    // chargedAmountCents may already include the retest add-on, handled by caller.
     bases.add(chargedMeta);
     if (chargedMeta > RETEST_ADDON_CENTS) {
       bases.add(chargedMeta - RETEST_ADDON_CENTS);
@@ -77,7 +77,7 @@ async function collectPanelBaseAmountsCents(
           bases.add(stripePrice.unit_amount);
         }
       } catch {
-        // Stale/deleted Stripe price — catalog amount above is enough.
+        // Stale/deleted Stripe price, catalog amount above is enough.
       }
     }
   };
@@ -113,7 +113,7 @@ export async function amountMatchesBiomarkersPanel(
   });
 }
 
-/** Biomarkers panel already paid — attach PI when confirming initial consultation. */
+/** Biomarkers panel already paid, attach PI when confirming initial consultation. */
 export async function verifyBiomarkersPanelBookingPayment(
   params: VerifyBiomarkersPanelBookingPaymentParams
 ): Promise<VerifyBiomarkersPanelBookingPaymentResult> {

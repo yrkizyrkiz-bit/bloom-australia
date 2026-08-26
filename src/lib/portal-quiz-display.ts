@@ -166,7 +166,7 @@ export type PortalQuizSubmissionLike = {
   submittedAt: string;
 };
 
-/** Group portal quiz rows by program — each list sorted newest first. */
+/** Group portal quiz rows by program, each list sorted newest first. */
 export function groupPortalQuizSubmissionsByProgram<T extends PortalQuizSubmissionLike>(
   submissions: T[]
 ): Map<string, T[]> {

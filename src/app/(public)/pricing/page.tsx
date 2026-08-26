@@ -15,7 +15,7 @@ export default function PricingPage() {
           <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628] mb-4">Program pricing</h1>
           <p className="text-[#5c7a52] mb-8 leading-relaxed">
             Sanative Weight Management starts from $249 for your first month. Program fees cover
-            clinical assessment, care coordination, and portal access — not medicine bundles.
+            clinical assessment, care coordination, and portal access, not medicine bundles.
           </p>
           <Link
             href="/weight-management#pricing"

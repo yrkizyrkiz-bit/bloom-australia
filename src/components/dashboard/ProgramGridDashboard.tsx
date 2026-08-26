@@ -268,7 +268,7 @@ function BiomarkersHero({
             {isReady
               ? "Your biological age is ready to view"
               : hasBiomarkersEntitlement
-                ? "Your panel is active — results will appear here"
+                ? "Your panel is active, results will appear here"
                 : `${coverage.availableCount} of ${coverage.requiredCount} core markers ready`}
           </p>
         )}

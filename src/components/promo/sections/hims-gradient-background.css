@@ -1,0 +1,76 @@
+/* Soft light Hims-style grade — near-white top → muted caramel bottom.
+   No dark vignette. Darker colour only near the very bottom. */
+
+.hims-light-gradient-section,
+.hims-light-gradient {
+  background:
+    radial-gradient(
+      ellipse 84% 72% at 76% 17%,
+      rgba(255, 255, 252, 0.98) 0%,
+      rgba(250, 247, 241, 0.76) 38%,
+      rgba(242, 232, 220, 0) 78%
+    ),
+
+    /* Quieter lower glow — less caramel in the bottom half */
+    radial-gradient(
+      ellipse 85% 42% at 45% 100%,
+      rgba(201, 146, 94, 0.16) 0%,
+      rgba(220, 180, 139, 0.08) 40%,
+      rgba(239, 220, 200, 0) 72%
+    ),
+
+    linear-gradient(
+      180deg,
+      #fbfaf7 0%,
+      #f8f5ef 22%,
+      #f3ede5 48%,
+      #efe5da 72%,
+      #eadbca 88%,
+      #e2c9ae 100%
+    );
+}
+
+.hims-light-gradient-section h1,
+.hims-light-gradient-section h2,
+.hims-light-gradient-section .section-title {
+  color: #1f1c19;
+}
+
+.hims-light-gradient-section .eyebrow,
+.hims-light-gradient-section .section-label {
+  color: rgba(31, 28, 25, 0.68);
+}
+
+.hims-light-gradient-section .subtitle,
+.hims-light-gradient-section .section-description {
+  color: rgba(31, 28, 25, 0.78);
+}
+
+@media (max-width: 800px) {
+  .hims-light-gradient-section,
+  .hims-light-gradient {
+    background:
+      radial-gradient(
+        ellipse 110% 48% at 64% 12%,
+        rgba(255, 255, 252, 0.96) 0%,
+        rgba(249, 246, 240, 0.68) 44%,
+        rgba(240, 226, 210, 0) 80%
+      ),
+
+      radial-gradient(
+        ellipse 105% 36% at 50% 100%,
+        rgba(205, 150, 99, 0.16) 0%,
+        rgba(224, 184, 145, 0.08) 48%,
+        rgba(239, 220, 201, 0) 78%
+      ),
+
+      linear-gradient(
+        180deg,
+        #fbfaf7 0%,
+        #f7f3ed 30%,
+        #f3ede5 58%,
+        #efe5da 82%,
+        #e6d0b8 100%
+      );
+  }
+}

@@ -33,21 +33,22 @@ export function Header({
       label: "Women's Health",
       href: "/womens-health",
       dropdown: [
+        { label: "Health Check", href: "/labs" },
+        { label: "Weight Loss", href: "/weight-management" },
         { label: "Menopause", href: "/womens-health" },
-        { label: "Symptoms", href: "/womens-health#symptoms" },
-        { label: "Perimenopause", href: "/womens-health#perimenopause" },
-        { label: "Start Assessment", href: "/womens-health/assessment?category=menopause" },
+        { label: "Hair Loss", href: "/hair-health?gender=women" },
+        { label: "BMI Calculator", href: "/weight-management#bmi" },
       ],
     },
     {
       label: "Men's Health",
       href: "/mens-health",
       dropdown: [
-        { label: "Sexual Health", href: "/mens-health/sexual-health" },
+        { label: "Health Check", href: "/labs" },
+        { label: "Weight Loss", href: "/weight-management?gender=men" },
         { label: "Erectile Dysfunction", href: "/mens-health/erectile-dysfunction" },
-        { label: "Energy & Vitality", href: "/mens-health/assessment?concern=energy-vitality" },
         { label: "Hair Loss", href: "/hair-health?gender=men" },
-        { label: "Start Assessment", href: "/mens-health/assessment" },
+        { label: "BMI Calculator", href: "/weight-management?gender=men#bmi" },
       ],
     },
     {
@@ -82,7 +83,7 @@ export function Header({
                 <span className="font-serif text-[15px] sm:text-base tracking-wide italic">
                   Australia&apos;s only biomarker-first telehealth clinic
                 </span>
-                <span className="hidden sm:inline text-[#a8bb9e] mx-1">—</span>
+                <span className="hidden sm:inline text-[#a8bb9e] mx-1">·</span>
                 <span className="text-[13px] sm:text-sm font-light text-[#cdd8c6]">
                   AHPRA doctors + NATA-accredited labs
                 </span>

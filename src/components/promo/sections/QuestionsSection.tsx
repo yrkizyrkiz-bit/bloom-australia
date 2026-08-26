@@ -330,7 +330,7 @@ export function QuestionsSection() {
             href="/labs"
             className="btn-primary inline-flex items-center gap-2 text-lg px-10 py-4"
           >
-            Find out what&apos;s behind your symptoms — start with a lab test
+            Find out what&apos;s behind your symptoms, start with a lab test
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>

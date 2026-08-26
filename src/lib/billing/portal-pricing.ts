@@ -104,10 +104,11 @@ export async function getProgramProductPricing(
     where: {
       program: programKey,
       isActive: true,
-      ...(programKey === "WEIGHT_MANAGEMENT"
-        ? { planTier: planTier ?? "CORE" }
-        : { planTier: null }),
+      ...(programKey === "WEIGHT_MANAGEMENT" && planTier
+        ? { OR: [{ planTier }, { planTier: null }, { planTier: "" }] }
+        : { OR: [{ planTier: null }, { planTier: "" }] }),
     },
+    orderBy: { sortOrder: "asc" },
     include: {
       billingPrices: {
         where: { isActive: true },
@@ -138,16 +139,18 @@ export async function resolveProgramCheckoutQuote(
     throw new Error(`No pricing configured for ${programKey}`);
   }
 
-  const firstMonth = catalog.prices.find((p) => p.isFirstMonth);
   const interval = programBillingTermToInterval(billingTerm);
   const recurring =
     catalog.prices.find((p) => !p.isFirstMonth && p.billingInterval === interval) ??
     catalog.prices.find((p) => !p.isFirstMonth && p.isDefault) ??
-    catalog.prices.find((p) => !p.isFirstMonth);
+    catalog.prices.find((p) => !p.isFirstMonth) ??
+    catalog.prices[0];
 
-  if (!firstMonth || !recurring) {
-    throw new Error(`Incomplete pricing for ${programKey} — configure first month and recurring prices in admin`);
+  if (!recurring) {
+    throw new Error(`Incomplete pricing for ${programKey}, configure a recurring price in admin`);
   }
+
+  const firstMonth = catalog.prices.find((p) => p.isFirstMonth) ?? recurring;
 
   const dueTodayLabel = `${formatAudFromCents(firstMonth.amountCents)} today`;
   const recurringLabel = `then ${formatRecurringPriceLabel(recurring.amountCents, recurring.billingInterval)}`;
@@ -239,14 +242,40 @@ export async function getPublicOrganCareAnnualPricing(): Promise<{
   amountAud: number;
   priceLabel: string;
 }> {
+  await ensureBillingCatalog();
+
+  // Prefer Sanative Membership ($365/yr), Organ Care is included, not a separate product.
+  const membership = await prisma.product.findUnique({
+    where: { slug: "sanative_membership" },
+    include: {
+      billingPrices: {
+        where: { isActive: true, billingInterval: "YEARLY", isFirstMonth: false },
+      },
+    },
+  });
+  const membershipAnnual = membership?.billingPrices[0]
+    ? toPriceRow(membership.billingPrices[0])
+    : null;
+
+  if (membershipAnnual) {
+    return {
+      amountCents: membershipAnnual.amountCents,
+      amountAud: membershipAnnual.amountAud,
+      priceLabel: formatRecurringPriceLabel(
+        membershipAnnual.amountCents,
+        membershipAnnual.billingInterval
+      ),
+    };
+  }
+
   const { annual } = await getOrganCarePricingOptions();
-  const amountCents = annual?.amountCents ?? 49900;
+  const amountCents = annual?.amountCents ?? 36500;
   return {
     amountCents,
     amountAud: amountCents / 100,
     priceLabel: annual
       ? formatRecurringPriceLabel(annual.amountCents, annual.billingInterval)
-      : "$499/yr",
+      : "$365/yr",
   };
 }
 
@@ -307,7 +336,7 @@ export async function resolveBiomarkersCheckoutQuote(
   const panel = await getBiomarkersPanelPrice(panelTier);
   if (!panel) throw new Error(`No annual pricing for biomarkers panel: ${panelTier}`);
 
-  // Organ Care is included with every panel — never charged as an add-on.
+  // Organ Care is included with every panel, never charged as an add-on.
   const addOrganCare = false as boolean;
   const organ = null as BillingPriceRow | null;
 

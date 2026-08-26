@@ -165,6 +165,28 @@ describe("computeDesiredEntitlements", () => {
     expect(find(desired, "PROGRAM", "WEIGHT_MANAGEMENT")).toBeUndefined();
   });
 
+  it("membership plus weight intake grants the included weight-management program", () => {
+    const desired = computeDesiredEntitlements({
+      subscriptionTier: "membership",
+      subscriptionStatus: "ACTIVE",
+      journeyStatus: "ACTIVE",
+      hasWeightIntake: true,
+      memberSubscriptions: [
+        {
+          status: "ACTIVE",
+          product: {
+            slug: "sanative_membership",
+            name: "Sanative Membership",
+            program: "MEMBERSHIP",
+            planTier: null,
+          },
+        },
+      ],
+    });
+    expect(find(desired, "SCOPE", "MEMBERSHIP")?.status).toBe("ACTIVE");
+    expect(find(desired, "PROGRAM", "WEIGHT_MANAGEMENT")?.status).toBe("ACTIVE");
+  });
+
   it("cancelled membership subscription yields inactive membership scopes", () => {
     const desired = computeDesiredEntitlements({
       memberSubscriptions: [

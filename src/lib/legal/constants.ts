@@ -1,5 +1,5 @@
-/** Legal document metadata — bump version when material changes require re-consent. */
-export const LEGAL_VERSION = "2026-06-20";
+/** Legal document metadata, bump version when material changes require re-consent. */
+export const LEGAL_VERSION = "2026-08-16";
 
 export const SANATIVE_LEGAL = {
   entityName: "Sanative Health Pty Ltd",
@@ -9,7 +9,7 @@ export const SANATIVE_LEGAL = {
   privacyEmail: "support@sanative.com.au",
   website: "https://sanative.com.au",
   governingLaw: "New South Wales, Australia",
-  effectiveDate: "20 June 2026",
+  effectiveDate: "16 August 2026",
 } as const;
 
 /** Subprocessors referenced in the application codebase. */
@@ -30,12 +30,12 @@ export const LEGAL_SUBPROCESSORS = [
     location: "Overseas depending on provider configuration",
   },
   {
-    name: "Anthropic / Google (Gemini) — when enabled",
+    name: "Anthropic / Google (Gemini) when enabled",
     purpose: "Optional AI-assisted clinical support and program insights",
     location: "Overseas (including the United States)",
   },
   {
-    name: "Cal.com — when enabled",
+    name: "Cal.com when enabled",
     purpose: "Appointment scheduling integrations",
     location: "Overseas depending on provider configuration",
   },

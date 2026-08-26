@@ -118,7 +118,7 @@ export async function activateOrganCarePublicMembership(
     userId: user.id,
     paymentIntentId: input.paymentIntentId,
     amountAud,
-    description: "Organ & Metabolic Care — annual membership",
+    description: "Organ & Metabolic Care: annual membership",
   }).catch((err) =>
     console.error("[organ_care_membership] invoice record failed:", err)
   );

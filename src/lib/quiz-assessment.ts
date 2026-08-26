@@ -145,17 +145,17 @@ export function buildMedicalNotesFromQuiz(
   quizData: Record<string, unknown>
 ): Array<{ title: string; content: string }> {
   const groups = [
-    { title: "Triage — Metabolic Conditions", items: (quizData.metabolicConditions as string[]) || [] },
-    { title: "Triage — Digestive Conditions", items: (quizData.digestiveConditions as string[]) || [] },
-    { title: "Triage — Cardiovascular Conditions", items: (quizData.cardiovascularConditions as string[]) || [] },
-    { title: "Triage — Mental Health Conditions", items: (quizData.mentalHealthConditions as string[]) || [] },
+    { title: "Triage, Metabolic Conditions", items: (quizData.metabolicConditions as string[]) || [] },
+    { title: "Triage, Digestive Conditions", items: (quizData.digestiveConditions as string[]) || [] },
+    { title: "Triage, Cardiovascular Conditions", items: (quizData.cardiovascularConditions as string[]) || [] },
+    { title: "Triage, Mental Health Conditions", items: (quizData.mentalHealthConditions as string[]) || [] },
     {
-      title: "Triage — Serious Conditions (FLAG)",
+      title: "Triage, Serious Conditions (FLAG)",
       items: ((quizData.seriousConditions as string[]) || []).filter(
         (c) => c !== "None of these apply"
       ),
     },
-    { title: "Triage — Current Medications", items: (quizData.currentMedications as string[]) || [] },
+    { title: "Triage, Current Medications", items: (quizData.currentMedications as string[]) || [] },
     { title: "Patient Motivations", items: (quizData.motivations as string[]) || [] },
   ];
 

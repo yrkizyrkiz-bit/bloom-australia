@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { ProgressChart } from "@/components/weight-management/ProgressChart";
 import { OnboardingFlow } from "@/components/weight-management/OnboardingFlow";
+import { ClinicalAssessmentPrompt } from "@/components/weight-management/ClinicalAssessmentPrompt";
 import { ProgramTodayCard } from "@/components/program/ProgramTodayCard";
 import { ProgramBiomarkerStrip } from "@/components/program/ProgramBiomarkerStrip";
 import {
@@ -104,6 +105,10 @@ export default function WeightManagementPage() {
   const [journeyStatus, setJourneyStatus] = useState<JourneyStatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [clinicalStatus, setClinicalStatus] = useState<"needed" | "deferred" | "complete" | null>(
+    null
+  );
+  const [deferringClinical, setDeferringClinical] = useState(false);
   const [motivation, setMotivation] = useState("");
   const [dailyTip, setDailyTip] = useState<{ title: string; content: string; icon: string; category: string } | null>(null);
   const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string } | null>(null);
@@ -140,6 +145,9 @@ export default function WeightManagementPage() {
         if (data.showOnboarding) {
           setShowOnboarding(true);
         }
+        if (data.clinicalAssessment?.status) {
+          setClinicalStatus(data.clinicalAssessment.status);
+        }
         if (data.checkInStatus) {
           setCheckInStatus(data.checkInStatus);
         }
@@ -155,6 +163,30 @@ export default function WeightManagementPage() {
 
     void init();
   }, []);
+
+  const deferClinicalAssessment = async () => {
+    setDeferringClinical(true);
+    try {
+      await fetch("/api/weight-management/clinical-assessment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "defer" }),
+      });
+      setClinicalStatus("deferred");
+    } finally {
+      setDeferringClinical(false);
+    }
+  };
+
+  const clinicalPrompt =
+    clinicalStatus === "needed" || clinicalStatus === "deferred" ? (
+      <ClinicalAssessmentPrompt
+        variant={clinicalStatus}
+        firstVisit={isPostCheckout && clinicalStatus === "needed"}
+        onCompleteLater={clinicalStatus === "needed" ? deferClinicalAssessment : undefined}
+        deferring={deferringClinical}
+      />
+    ) : null;
 
   // Quick Action Cards - friendly descriptions
   const quickActions = [
@@ -203,7 +235,7 @@ export default function WeightManagementPage() {
       icon: CalendarDays,
       href: "/dashboard/weight-management/meal-plan",
       gradient: "from-emerald-500 to-teal-600",
-      image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=150&fit=crop"
+      image: "/images/remote/unsplash/photo-1546069901-ba9599a7e63c.webp"
     },
     {
       label: "Recipes",
@@ -211,7 +243,7 @@ export default function WeightManagementPage() {
       icon: ChefHat,
       href: "/dashboard/weight-management/recipes",
       gradient: "from-orange-500 to-red-500",
-      image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=150&fit=crop"
+      image: "/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp"
     },
     {
       label: "Progress",
@@ -219,7 +251,7 @@ export default function WeightManagementPage() {
       icon: TrendingDown,
       href: "/dashboard/weight-management/progress",
       gradient: "from-blue-500 to-indigo-600",
-      image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=150&fit=crop"
+      image: "/images/remote/unsplash/photo-1571019614242-c5c5dee9f50b.webp"
     },
     {
       label: "Goals",
@@ -227,7 +259,7 @@ export default function WeightManagementPage() {
       icon: Target,
       href: "/dashboard/weight-management/goals",
       gradient: "from-rose-500 to-pink-600",
-      image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=200&h=150&fit=crop"
+      image: "/images/remote/unsplash/photo-1518611012118-696072aa579a.webp"
     },
   ];
 
@@ -250,7 +282,7 @@ export default function WeightManagementPage() {
           journey={{
             journeyStatus: "LEAD",
             stage: "pre-consultation",
-            stageDescription: "Your consultation is booked — we are preparing your program home",
+            stageDescription: "Your consultation is booked. We are preparing your program home",
           }}
         />
       );
@@ -289,6 +321,7 @@ export default function WeightManagementPage() {
             : undefined,
         }}
       >
+        {clinicalPrompt}
         {journeyStatus.hasTestsTracking && journeyStatus.testsTrackingInfo && (
           <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
             <CardContent className="p-5">
@@ -306,7 +339,7 @@ export default function WeightManagementPage() {
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
-                    {journeyStatus.testsTrackingInfo.message}. Your program is active — these
+                    {journeyStatus.testsTrackingInfo.message}. Your program is active, these
                     tests help your doctor monitor your health markers.
                   </p>
                 </div>
@@ -380,6 +413,7 @@ export default function WeightManagementPage() {
 
   return (
     <div className="space-y-6 pb-8">
+      {clinicalPrompt}
       {/* Personalized Header - Warm & Friendly */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-600 p-6 text-white">
         <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
@@ -420,7 +454,7 @@ export default function WeightManagementPage() {
         </div>
       </div>
 
-      {/* Program orchestrator — today's tasks & side effects */}
+      {/* Program orchestrator, today's tasks & side effects */}
       <ProgramTodayCard />
 
       {/* Goal Progress Card - Encouraging */}
@@ -629,7 +663,7 @@ export default function WeightManagementPage() {
             <div className="flex items-center gap-4 p-3 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 hover:shadow-sm transition-all cursor-pointer">
               <div className="w-16 h-12 bg-emerald-600 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                 <img
-                  src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=100&h=80&fit=crop"
+                  src="/images/remote/unsplash/photo-1490645935967-10de6ba17061.webp"
                   alt="Healthy eating"
                   className="w-full h-full object-cover"
                 />
@@ -645,7 +679,7 @@ export default function WeightManagementPage() {
             <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 hover:shadow-sm transition-all cursor-pointer">
               <div className="w-16 h-12 rounded-lg overflow-hidden shrink-0">
                 <img
-                  src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=100&h=80&fit=crop"
+                  src="/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp"
                   alt="Fresh salad"
                   className="w-full h-full object-cover"
                 />

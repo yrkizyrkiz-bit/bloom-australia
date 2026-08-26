@@ -224,7 +224,7 @@ const biomarkers: Biomarker[] = [
   {
     id: "COR", name: "COR", fullName: "Cortisol (Morning)",
     description: "The primary stress hormone. Affects metabolism, immune response, and blood pressure.",
-    categories: ["hormones", "stress"],
+    categories: ["hormones", "inflammation"],
     unit: "nmol/L",
     rangeLow: 100,
     rangeHigh: 700,
@@ -595,8 +595,7 @@ const categories = [
   { id: "liver", name: "Liver", color: "bg-emerald-500" },
   { id: "kidney", name: "Kidney", color: "bg-sky-500" },
   { id: "blood", name: "Blood", color: "bg-rose-500" },
-  { id: "inflammation", name: "Inflammation", color: "bg-orange-500" },
-  { id: "stress", name: "Stress", color: "bg-violet-500" },
+  { id: "inflammation", name: "Inflammation & Stress", color: "bg-orange-500" },
 ];
 
 function getStatus(biomarker: Biomarker): "low" | "optimal" | "high" {
@@ -672,7 +671,7 @@ export default function LearnBiomarkersPage() {
             </div>
             <div>
               <h1 className="text-2xl font-serif font-semibold text-foreground">Learn about Biomarkers</h1>
-              <p className="text-sm text-muted-foreground">Explore 80+ biomarkers with reference ranges and health insights</p>
+              <p className="text-sm text-muted-foreground">Explore 85+ biomarkers with reference ranges and health insights</p>
             </div>
           </div>
         </div>

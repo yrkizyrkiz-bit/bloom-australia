@@ -133,7 +133,7 @@ export function ProgramTodayCard() {
           </div>
           <CardDescription>
             {data.program?.medicationName
-              ? `${data.program.medicationName} — your daily plan`
+              ? `${data.program.medicationName}, your daily plan`
               : "Complete your daily tasks"}
           </CardDescription>
         </CardHeader>

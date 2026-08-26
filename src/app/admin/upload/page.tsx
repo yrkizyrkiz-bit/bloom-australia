@@ -408,7 +408,7 @@ export default function AdminUploadPage() {
 
       // Handle fetch abort (timeout)
       if (error instanceof Error && error.name === 'AbortError') {
-        const timeoutMsg = "Request timed out. Large PDFs can take longer — try again, or crop to show just the results table.";
+        const timeoutMsg = "Request timed out. Large PDFs can take longer, try again, or crop to show just the results table.";
         setDebugInfo(prev => ({ ...prev, lastError: timeoutMsg }));
         toast.error(timeoutMsg);
         setAiMode("Timeout - Try smaller file");

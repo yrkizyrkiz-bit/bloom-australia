@@ -92,7 +92,7 @@ const services: ServiceCard[] = [
     id: "sexual",
     title: "Sexual Health & Intimacy",
     subtitle: "Private, judgement-free care",
-    description: "Confidential support for libido, desire, comfort and intimacy — including menopause-related changes. Discreet care with a doctor who listens.",
+    description: "Confidential support for libido, desire, comfort and intimacy, including menopause-related changes. Discreet care with a doctor who listens.",
     features: [
       "Low libido & desire",
       "Comfort & arousal",
@@ -110,7 +110,7 @@ const services: ServiceCard[] = [
     title: "Not sure where to start?",
     subtitle: "Take our assessment",
     description:
-      "Fatigue, mood, cycles, weight — or just not feeling yourself. You don't need to know what's wrong; that's our job. Your doctor reviews your story and your bloods, then builds your plan",
+      "Fatigue, mood, cycles, weight, or just not feeling yourself. You don't need to know what's wrong; that's our job. Your doctor reviews your story and your bloods, then builds your plan",
     features: [
       "No need to self-diagnose",
       "Doctor reviews your story",

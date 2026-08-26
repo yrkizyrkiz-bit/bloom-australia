@@ -13,19 +13,19 @@ type HairHealthHeroProps = {
 
 const HAIR_IMAGES: Record<Gender, { src: string; alt: string; caption: string }> = {
   women: {
-    src: "https://images.pexels.com/photos/1308881/pexels-photo-1308881.jpeg?auto=compress&cs=tinysrgb&w=1200&h=1400&dpr=1",
+    src: "/images/hair-health/hero-women.webp",
     alt: "Woman with healthy hair",
     caption: "Doctor-led care for female hair health",
   },
   men: {
-    src: "https://images.pexels.com/photos/6829574/pexels-photo-6829574.jpeg?auto=compress&cs=tinysrgb&w=1200&h=1400&dpr=1",
+    src: "/images/hair-health/hero-men.webp",
     alt: "Man with healthy hair",
     caption: "Doctor-led care for male hair health",
   },
 };
 
 /**
- * Hair health membership hero — mirrors WeightLossMembershipHero richness
+ * Hair health membership hero, mirrors WeightLossMembershipHero richness
  * (radial greens, large type, bento cards) with the hair-page palette and
  * a male/female toggle. Two cards: biomarkers + gender portrait.
  */
@@ -91,7 +91,7 @@ export function HairHealthHero({ gender, onGenderChange }: HairHealthHeroProps) 
           <article className={`${styles.card} ${styles.biomarkers}`}>
             <div className={styles.cardMedia}>
               <Image
-                src="/images/membership/sanative-biomarker-test-tube.png"
+                src="/images/membership/sanative-biomarker-test-tube.webp"
                 alt="Illustrated biomarker blood test tube with health markers"
                 fill
                 sizes="(min-width: 1024px) 46vw, 100vw"
@@ -106,11 +106,14 @@ export function HairHealthHero({ gender, onGenderChange }: HairHealthHeroProps) 
 
           <article className={`${styles.card} ${styles.portrait}`}>
             <div className={styles.cardMedia}>
-              {/* Pexels host not in next/image allowlist — keep native img */}
               <img
                 key={portrait.src}
                 src={portrait.src}
                 alt={portrait.alt}
+                width={1200}
+                height={1400}
+                fetchPriority="high"
+                decoding="async"
                 className={gender === "men" ? styles.portraitMen : styles.portraitWomen}
               />
             </div>

@@ -11,7 +11,7 @@ interface QA {
 const questionsAndAnswers: QA[] = [
   {
     question: "How does the assessment work?",
-    answer: "Your Sanative doctor reviews your health history, symptoms, and goals. Where clinically appropriate, blood tests help identify factors that may be affecting your weight — such as thyroid function, metabolic markers, or hormonal balance.",
+    answer: "Your Sanative doctor reviews your health history, symptoms, and goals. Where clinically appropriate, blood tests help identify factors that may be affecting your weight, such as thyroid function, metabolic markers, or hormonal balance.",
   },
   {
     question: "Is Sanative private and discreet?",
@@ -19,7 +19,7 @@ const questionsAndAnswers: QA[] = [
   },
   {
     question: "How is this different to diets?",
-    answer: "Our doctors assess underlying factors that may be contributing to weight management challenges. Your care plan is guided by your health profile and biomarkers — not BMI alone.",
+    answer: "Our doctors assess underlying factors that may be contributing to weight management challenges. Your care plan is guided by your health profile and biomarkers, not BMI alone.",
   },
   {
     question: "What about side effects?",
@@ -43,7 +43,7 @@ const questionsAndAnswers: QA[] = [
   },
   {
     question: "What about treatment options?",
-    answer: "Treatment options are discussed privately with your doctor if clinically appropriate. Your monthly program fee covers clinical assessment, monitoring, and portal access — not medicine bundles.",
+    answer: "Treatment options are discussed privately with your doctor if clinically appropriate. Your monthly program fee covers clinical assessment, monitoring, and portal access, not medicine bundles.",
   },
   {
     question: "Can I cancel my subscription?",
@@ -90,18 +90,18 @@ export function ObjectionHandlingSection() {
   };
 
   return (
-    <section className="pt-20 pb-4 lg:pt-32 lg:pb-6 px-4 sm:px-6 lg:px-8 bg-[#fdfbf7]">
+    <section className="pt-20 pb-20 lg:pt-32 lg:pb-28 px-4 sm:px-6 lg:px-8 bg-[#f5faf6]">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
           <div className="lg:pt-8">
-            <p className="text-sm font-medium text-[#c17a58] uppercase tracking-wider mb-4">
+            <p className="text-sm font-medium text-[#7b8967] uppercase tracking-wider mb-4">
               Your questions, answered
             </p>
-            <h2 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-serif text-[#2c3628] leading-[1.1] mb-6">
+            <h2 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-serif text-[#313630] leading-[1.1] mb-6">
               Doctor-led care.{" "}
-              <span className="text-[#5c7a52] italic">Your questions answered.</span>
+              <span className="text-[#7b8967] italic">Your questions answered.</span>
             </h2>
-            <p className="text-[#5c7a52] text-lg mb-10 max-w-md leading-relaxed">
+            <p className="text-[rgba(0,0,0,0.5)] text-lg mb-10 max-w-md leading-relaxed">
               Your Care Partner is here to support you. Here are common questions about our program.
             </p>
 
@@ -112,8 +112,8 @@ export function ObjectionHandlingSection() {
                   onClick={() => handleQuestionClick(index)}
                   className={`px-5 py-3 rounded-full text-sm font-medium transition-all duration-200 border text-left ${
                     selectedIndex === index
-                      ? "border-[#5c7a52] bg-[#5c7a52] text-white"
-                      : "border-[#d1d9cd] bg-white text-[#2c3628] hover:border-[#5c7a52]"
+                      ? "border-[#313630] bg-[#313630] text-white"
+                      : "border-[#313630]/35 bg-white text-[#313630] hover:border-[#313630] hover:bg-[#e2ece7]"
                   }`}
                 >
                   {qa.question}
@@ -124,38 +124,38 @@ export function ObjectionHandlingSection() {
 
           <div ref={phoneRef} className="flex justify-center lg:justify-end scroll-mt-24">
             <div className="relative">
-              <div className="w-[320px] sm:w-[360px] bg-[#1a1a1a] rounded-[48px] p-3 shadow-2xl">
-                <div className="bg-[#fdfbf7] rounded-[40px] overflow-hidden">
-                  <div className="bg-[#fdfbf7] px-8 py-3 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[#1a1a1a]">9:41</span>
+              <div className="w-[320px] sm:w-[360px] bg-[#313630] rounded-[48px] p-3 shadow-2xl">
+                <div className="bg-[#f5faf6] rounded-[40px] overflow-hidden">
+                  <div className="bg-[#f5faf6] px-8 py-3 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-[#313630]">9:41</span>
                     <div className="flex items-center gap-1.5">
-                      <Signal className="w-4 h-4 text-[#1a1a1a]" />
-                      <Wifi className="w-4 h-4 text-[#1a1a1a]" />
-                      <Battery className="w-6 h-4 text-[#1a1a1a]" />
+                      <Signal className="w-4 h-4 text-[#313630]" />
+                      <Wifi className="w-4 h-4 text-[#313630]" />
+                      <Battery className="w-6 h-4 text-[#313630]" />
                     </div>
                   </div>
 
-                  <div className="bg-[#fdfbf7] px-5 py-4 flex items-center gap-4">
+                  <div className="bg-[#f5faf6] px-5 py-4 flex items-center gap-4">
                     <button className="p-1">
-                      <ArrowLeft className="w-5 h-5 text-[#5c7a52]" />
+                      <ArrowLeft className="w-5 h-5 text-[#7b8967]" />
                     </button>
-                    <div className="w-11 h-11 rounded-full bg-[#5c7a52] flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-full bg-[#7b8967] flex items-center justify-center">
                       <span className="text-white text-sm font-bold">S</span>
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#2c3628]">Sarah</span>
-                        <span className="px-2.5 py-0.5 bg-[#5c7a52] text-white text-[10px] font-bold rounded-full uppercase tracking-wide">
+                        <span className="font-semibold text-[#313630]">Sarah</span>
+                        <span className="px-2.5 py-0.5 bg-[#7b8967] text-white text-[10px] font-bold rounded-full uppercase tracking-wide">
                           Care Partner
                         </span>
                       </div>
-                      <span className="text-xs text-[#7e9a72]">Usually replies in minutes</span>
+                      <span className="text-xs text-[rgba(0,0,0,0.5)]">Usually replies in minutes</span>
                     </div>
                   </div>
 
-                  <div className="h-[420px] sm:h-[480px] px-5 py-6 space-y-5 overflow-hidden bg-[#fdfbf7]">
+                  <div className="h-[420px] sm:h-[480px] px-5 py-6 space-y-5 overflow-hidden bg-[#f5faf6]">
                     <div className="flex justify-end">
-                      <div className="bg-[#5c7a52] text-white px-5 py-3.5 rounded-2xl rounded-tr-md max-w-[85%]">
+                      <div className="bg-[#7b8967] text-white px-5 py-3.5 rounded-2xl rounded-tr-md max-w-[85%]">
                         <p className="text-sm leading-relaxed">{selectedQA.question}</p>
                         <div className="flex items-center justify-end gap-1 mt-1.5">
                           <Check className="w-3.5 h-3.5 text-white/60" />
@@ -166,87 +166,32 @@ export function ObjectionHandlingSection() {
                     </div>
 
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#5c7a52] flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[#7b8967] flex items-center justify-center flex-shrink-0">
                         <span className="text-white text-xs font-bold">S</span>
                       </div>
-                      <div className="bg-white border border-[#e6ebe3] px-5 py-4 rounded-2xl rounded-tl-md max-w-[85%] shadow-sm">
-                        <p className="text-sm text-[#2c3628] leading-relaxed">
+                      <div className="bg-white border border-[#d3e0db] px-5 py-4 rounded-2xl rounded-tl-md max-w-[85%] shadow-sm">
+                        <p className="text-sm text-[#313630] leading-relaxed">
                           {displayedAnswer}
                           {isTyping && (
-                            <span className="inline-block w-0.5 h-4 bg-[#5c7a52] ml-0.5 animate-pulse" />
+                            <span className="inline-block w-0.5 h-4 bg-[#7b8967] ml-0.5 animate-pulse" />
                           )}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-[#fdfbf7] px-5 py-4 border-t border-[#e6ebe3]">
-                    <div className="bg-white border border-[#e6ebe3] rounded-full px-5 py-3 flex items-center">
-                      <span className="text-sm text-[#a8bb9e]">Ask Sarah anything...</span>
+                  <div className="bg-[#f5faf6] px-5 py-4 border-t border-[#d3e0db]">
+                    <div className="bg-white border border-[#d3e0db] rounded-full px-5 py-3 flex items-center">
+                      <span className="text-sm text-[rgba(0,0,0,0.35)]">Ask Sarah anything...</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="absolute -z-10 -top-12 -right-12 w-40 h-40 bg-[#5c7a52]/5 rounded-full blur-3xl" />
-              <div className="absolute -z-10 -bottom-12 -left-12 w-48 h-48 bg-[#c17a58]/5 rounded-full blur-3xl" />
+              <div className="absolute -z-10 -top-12 -right-12 w-40 h-40 bg-[#7b8967]/20 rounded-full blur-3xl" />
+              <div className="absolute -z-10 -bottom-12 -left-12 w-48 h-48 bg-[#d3e0db]/80 rounded-full blur-3xl" />
             </div>
           </div>
-        </div>
-
-        <div className="mt-20 pt-16 border-t border-[#e6ebe3]">
-          <p className="text-center text-sm text-[#7e9a72] font-medium uppercase tracking-wider mb-10">
-            What to expect from Sanative
-          </p>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white rounded-2xl p-6 border border-[#e6ebe3]">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#5c7a52] to-[#7e9a72] flex items-center justify-center">
-                  <Check className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-[#2c3628]">AHPRA-Registered Doctors</p>
-                  <p className="text-xs text-[#7e9a72]">Australian practitioners</p>
-                </div>
-              </div>
-              <p className="text-sm text-[#5c7a52] leading-relaxed">
-                All consultations are conducted by AHPRA-registered Australian doctors who assess your individual health profile before recommending any care plan.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-[#e6ebe3]">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#5c7a52] to-[#7e9a72] flex items-center justify-center">
-                  <Check className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-[#2c3628]">Private & Confidential</p>
-                  <p className="text-xs text-[#7e9a72]">Privacy protected</p>
-                </div>
-              </div>
-              <p className="text-sm text-[#5c7a52] leading-relaxed">
-                Your health information is protected under Australian privacy laws and stored securely. Program coordination is handled discreetly.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-[#e6ebe3]">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#5c7a52] to-[#7e9a72] flex items-center justify-center">
-                  <Check className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-[#2c3628]">Ongoing Clinical Support</p>
-                  <p className="text-xs text-[#7e9a72]">Care Partner included</p>
-                </div>
-              </div>
-              <p className="text-sm text-[#5c7a52] leading-relaxed">
-                Regular check-ins with your Care Partner and clinical team. Your doctor monitors your progress and adjusts your plan as needed.
-              </p>
-            </div>
-          </div>
-          <p className="text-center text-xs text-[#7e9a72] mt-8">
-            Individual results vary. Treatment options are discussed privately with your doctor if clinically appropriate.
-          </p>
         </div>
       </div>
     </section>

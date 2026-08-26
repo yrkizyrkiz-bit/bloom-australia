@@ -142,19 +142,19 @@ const ORGAN_BIOMARKER_PANEL_META: Record<
     label: "Organ & Metabolic Care",
     shortLabel: "Organ Care",
     description:
-      "Heart, liver, kidney, thyroid, hormones and metabolic markers — full organ health review.",
+      "Heart, liver, kidney, thyroid, hormones and metabolic markers, full organ health review.",
   },
   BIOMARKERS_ESSENTIAL: {
     label: "Biomarkers Essential",
     shortLabel: "Essential",
     description:
-      "Core biomarker panel — metabolic, cardiovascular, thyroid, liver, kidney and nutrient markers.",
+      "Core biomarker panel, metabolic, cardiovascular, thyroid, liver, kidney and nutrient markers.",
   },
   BIOMARKERS_COMPLETE: {
     label: "Biomarkers Complete",
     shortLabel: "Complete",
     description:
-      "Full biomarker audit — essential panel plus hormones, insulin resistance and extended nutrients.",
+      "Full biomarker audit, essential panel plus hormones, insulin resistance and extended nutrients.",
   },
 };
 

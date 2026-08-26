@@ -488,7 +488,7 @@ export default function DoctorDashboardPage() {
 
       toast.success(
         activateProgramOnComplete
-          ? "Welcome call complete — program activated (first dose week 2)"
+          ? "Welcome call complete, program activated (first dose week 2)"
           : "Welcome call onboarding completed"
       );
       setOnboardingNotes("");
@@ -525,7 +525,7 @@ export default function DoctorDashboardPage() {
         throw new Error(err.error || "Failed to activate program");
       }
 
-      toast.success("Program activated — first dose scheduled for week 2");
+      toast.success("Program activated, first dose scheduled for week 2");
       fetchPatientBrief(
         patientBrief.patient.id,
         selectedConsultation?.id || patientBrief.activeConsultation?.id

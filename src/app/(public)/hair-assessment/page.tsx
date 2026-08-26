@@ -134,7 +134,7 @@ type GenderedOption = {
 
 // Hair stages for men (Norwood scale)
 const maleHairStages = [
-  { id: "not-sure", label: "I'm not sure yet", description: "That's okay — we'll help figure it out" },
+  { id: "not-sure", label: "I'm not sure yet", description: "That's okay, we'll help figure it out" },
   { id: "stage-1", label: "Early signs", description: "Hairline starting to shift slightly" },
   { id: "stage-2", label: "Noticeable recession", description: "Temples becoming more visible" },
   { id: "stage-3", label: "Moderate recession", description: "Clear M-shaped hairline forming" },
@@ -518,7 +518,7 @@ export default function HairAssessmentPage() {
                 {
                   num: 1,
                   title: "Quick health check",
-                  description: "A few questions about your health and hair goals — takes under 5 minutes.",
+                  description: "A few questions about your health and hair goals, takes under 5 minutes.",
                   icon: Leaf,
                 },
                 {
@@ -566,7 +566,7 @@ export default function HairAssessmentPage() {
                 First, what should we call you?
               </h1>
               <p className="mt-3 text-[#5c7a52]">
-                Your legal name is needed for prescriptions — we keep it private.
+                Your legal name is needed for prescriptions. We keep it private.
               </p>
             </div>
 
@@ -661,7 +661,7 @@ export default function HairAssessmentPage() {
                 When were you born?
               </h1>
               <p className="mt-3 text-[#5c7a52]">
-                Age affects treatment options — this helps us personalise yours.
+                Age affects treatment options, this helps us personalise yours.
               </p>
             </div>
 
@@ -765,7 +765,7 @@ export default function HairAssessmentPage() {
                 What's your biological sex?
               </h1>
               <p className="mt-3 text-[#5c7a52]">
-                Hair loss presents differently — this ensures accurate treatment.
+                Hair loss presents differently, this ensures accurate treatment.
               </p>
             </div>
 
@@ -871,7 +871,7 @@ export default function HairAssessmentPage() {
                 Any hair loss in your family?
               </h1>
               <p className="mt-3 text-[#5c7a52]">
-                Genetics play a role — but they're not the whole story.
+                Genetics play a role, but they're not the whole story.
               </p>
             </div>
 
@@ -910,7 +910,7 @@ export default function HairAssessmentPage() {
                 Any health conditions we should know about?
               </h1>
               <p className="mt-3 text-[#5c7a52]">
-                Select all that apply — this keeps you safe.
+                Select all that apply. This keeps you safe.
               </p>
             </div>
 
@@ -1007,7 +1007,7 @@ export default function HairAssessmentPage() {
           Anything else on your health radar?
         </h1>
         <p className="mt-3 text-[#5c7a52]">
-          We offer support across multiple areas — let us know what interests you.
+          We offer support across multiple areas, let us know what interests you.
         </p>
       </div>
 

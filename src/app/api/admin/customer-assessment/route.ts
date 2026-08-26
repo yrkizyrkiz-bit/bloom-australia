@@ -354,14 +354,13 @@ export async function GET(req: NextRequest) {
         ? {
             id: membershipSubscription?.id || null,
             planName:
-              fallbackPlanTier === "PRECISION"
-                ? "Sanative Precision"
-                : fallbackPlanTier === "CORE"
-                  ? "Sanative Core"
-                  : user.subscriptionTier || "Weight Management",
-            amount: fallbackPlanTier === "PRECISION" ? 499 : fallbackPlanTier === "CORE" ? 349 : null,
+              user.subscriptionTier === "membership" ||
+              user.subscriptionTier === "sanative_membership"
+                ? "Sanative Membership"
+                : user.subscriptionTier || "Weight Management",
+            amount: membershipSubscription?.amount ?? null,
             currency: "AUD",
-            billingCycle: "monthly",
+            billingCycle: membershipSubscription?.billingCycle || "yearly",
             status: user.subscriptionStatus || "INACTIVE",
             startDate: membershipSubscription?.startDate?.toISOString() || null,
             currentPeriodEnd: membershipSubscription?.currentPeriodEnd?.toISOString() || null,
@@ -379,8 +378,8 @@ export async function GET(req: NextRequest) {
             recurring: {
               status: "pending_approval",
               label: "Recurring billing starts after doctor approval / welcome call",
-              amountAud: fallbackPlanTier === "PRECISION" ? 499 : 349,
-              billingLabel: "Monthly",
+              amountAud: membershipSubscription?.amount ?? null,
+              billingLabel: membershipSubscription?.billingCycle || "Annual",
               paidTill: null,
               nextBillingDate: null,
             },

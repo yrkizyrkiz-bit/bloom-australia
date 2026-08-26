@@ -1,8 +1,9 @@
 /**
  * Dev/test database cleanup for end-to-end portal testing.
  *
- * Preserves: staff users (ADMIN, SUPER_ADMIN, CARE_PARTNER, DOCTOR)
- * Removes: all MEMBER accounts (+ cascaded data), bookings, triage, program enrollments
+ * Preserves: ADMIN, SUPER_ADMIN, and DOCTOR accounts (and doctor roster/availability)
+ * Removes: all other accounts (+ associated records), bookings, triage,
+ *          program enrollments, and the old Product / BillingPrice catalog
  *
  * Optional: KEEP_EMAILS=one@x.com,two@y.com to preserve specific member accounts
  *
@@ -13,7 +14,7 @@ import { PrismaClient, UserRole } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const STAFF_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "CARE_PARTNER", "DOCTOR"];
+const STAFF_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "DOCTOR"];
 
 const DEFAULT_PRESERVED_EMAILS = [
   "admin@sanative.com.au",
@@ -130,6 +131,15 @@ async function main() {
     await logDeleteCount("WeightManagementIntake", () =>
       prisma.weightManagementIntake.deleteMany({ where: { userId: { in: deleteIds } } })
     );
+    await logDeleteCount("WmMealPlanWeek", () =>
+      prisma.wmMealPlanWeek.deleteMany({ where: { userId: { in: deleteIds } } })
+    );
+    await logDeleteCount("Prescription", () =>
+      prisma.prescription.deleteMany({ where: { patientId: { in: deleteIds } } })
+    );
+    await logDeleteCount("ConsentRecord (by user)", () =>
+      prisma.consentRecord.deleteMany({ where: { userId: { in: deleteIds } } })
+    );
   }
   console.log("");
 
@@ -192,9 +202,15 @@ async function main() {
   }
 
   // ── Misc test artifacts ─────────────────────────────────────────────────
-  console.log("Clearing verification codes & email events...");
+  console.log("Clearing verification codes, consents, and email events...");
   await logDeleteCount("VerificationCode", () => prisma.verificationCode.deleteMany());
+  await logDeleteCount("VerificationToken", () => prisma.verificationToken.deleteMany());
+  await logDeleteCount("RateLimitBucket", () => prisma.rateLimitBucket.deleteMany());
+  await logDeleteCount("ConsentRecord (all remaining)", () => prisma.consentRecord.deleteMany());
   await logDeleteCount("EmailEvent", () => prisma.emailEvent.deleteMany());
+  await logDeleteCount("ActivityLog (orphans)", () =>
+    prisma.activityLog.deleteMany({ where: { userId: null } })
+  );
   console.log("");
 
   // ── Delete member users (cascades remaining User-linked models) ──────────
@@ -203,6 +219,15 @@ async function main() {
     where: { id: { in: deleteIds } },
   });
   console.log(`  Users deleted: ${usersDeleted}`);
+  console.log("");
+
+  // ── Old product catalog (program SKUs / billing prices) ────────────────
+  console.log("Clearing old product catalog...");
+  await logDeleteCount("MemberSubscriptionHistory (all)", () =>
+    prisma.memberSubscriptionHistory.deleteMany()
+  );
+  await logDeleteCount("MemberSubscription (all)", () => prisma.memberSubscription.deleteMany());
+  await logDeleteCount("Product (+ billing prices via cascade)", () => prisma.product.deleteMany());
   console.log("");
 
   const remaining = await prisma.user.findMany({
@@ -215,12 +240,13 @@ async function main() {
     console.log(`  ${u.email} (${u.role}, ${u.memberStatus})`);
   }
 
-  const [bookings, triage, entitlements, quizSubs, invoices] = await Promise.all([
+  const [bookings, triage, entitlements, quizSubs, invoices, products] = await Promise.all([
     prisma.consultationBooking.count(),
     prisma.preTriageTask.count(),
     prisma.entitlement.count(),
     prisma.portalQuizSubmission.count(),
     prisma.invoice.count(),
+    prisma.product.count(),
   ]);
 
   console.log("");
@@ -230,6 +256,7 @@ async function main() {
   console.log(`  Entitlements: ${entitlements}`);
   console.log(`  Portal quiz submissions: ${quizSubs}`);
   console.log(`  Invoices: ${invoices}`);
+  console.log(`  Products: ${products}`);
   console.log("");
   console.log("You can create fresh test members via signup, magic link, or:");
   console.log("  bun run scripts/create-test-member.ts");

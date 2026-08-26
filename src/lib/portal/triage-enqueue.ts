@@ -36,7 +36,7 @@ export async function memberHasConsultInTriage(userId: string): Promise<boolean>
 
 /**
  * Enqueue care-partner Pre-Triage Queue for an in-portal paid purchase.
- * Only when the member already has a consult In Triage — otherwise the purchase
+ * Only when the member already has a consult In Triage, otherwise the purchase
  * is access-only and does not need a booking task.
  */
 export async function enqueuePortalPurchaseTriage(payload: PortalPurchaseTriagePayload) {

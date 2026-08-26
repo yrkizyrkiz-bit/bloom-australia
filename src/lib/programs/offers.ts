@@ -32,42 +32,42 @@ export type ProgramOffer = {
   planTier?: "CORE" | "PRECISION" | null;
 };
 
-/** Static marketing copy only — prices come from the billing catalog. */
+/** Static marketing copy only, prices come from the billing catalog. */
 export const PROGRAM_OFFERS: Record<ProgramKey, ProgramOffer> = {
   WEIGHT_MANAGEMENT: {
     programKey: "WEIGHT_MANAGEMENT",
     headline: "Doctor-guided weight management",
-    priceHint: "From $249 first month",
-    planTier: "CORE",
+    priceHint: "$360 every 3 months",
+    planTier: null,
   },
   HAIR_LOSS: {
     programKey: "HAIR_LOSS",
     headline: "Clinically-backed hair regrowth",
-    priceHint: "From $59/mo",
+    priceHint: "$90 every 3 months",
     planTier: null,
   },
   MENS_HEALTH_VITALITY: {
     programKey: "MENS_HEALTH_VITALITY",
     headline: "Energy, focus and vitality",
-    priceHint: "From $59/mo",
+    priceHint: "$240 every 3 months",
     planTier: null,
   },
   MENS_HEALTH_SEXUAL: {
     programKey: "MENS_HEALTH_SEXUAL",
     headline: "Confidential sexual health care",
-    priceHint: "From $59/mo",
+    priceHint: "$240 every 3 months",
     planTier: null,
   },
   WOMENS_HEALTH_VITALITY: {
     programKey: "WOMENS_HEALTH_VITALITY",
     headline: "Hormone and vitality support",
-    priceHint: "From $59/mo",
+    priceHint: "$240 every 3 months",
     planTier: null,
   },
   WOMENS_HEALTH_SEXUAL: {
     programKey: "WOMENS_HEALTH_SEXUAL",
     headline: "Confidential sexual health care",
-    priceHint: "From $59/mo",
+    priceHint: "$240 every 3 months",
     planTier: null,
   },
 };
@@ -109,7 +109,7 @@ export const BIOMARKERS_PANEL_META: Record<BiomarkersPanelTier, BiomarkersPanelM
 export const ORGAN_CARE_UPSELL_META = {
   name: "Organ & Metabolic Care",
   description:
-    "All organ dashboards — heart, liver, kidney, thyroid, hormones and metabolic health — in one annual membership",
+    "All organ dashboards (heart, liver, kidney, thyroid, hormones and metabolic health) in one annual membership",
 } as const;
 
 /** Upsell copy when biomarkers panel is offered alongside organ care checkout. */
@@ -117,7 +117,7 @@ export const BIOMARKERS_UPSELL_META = {
   name: "Get My Biomarkers",
   headline: "Complete insight with a full biomarker panel",
   description:
-    "Add an annual biomarker panel for biological age, deeper organ markers and a doctor-led testing plan — Medicare-eligible tests ordered where clinically indicated.",
+    "Add an annual biomarker panel for biological age, deeper organ markers and a doctor-led testing plan, Medicare-eligible tests ordered where clinically indicated.",
   badge: "Recommended for complete picture",
 } as const;
 

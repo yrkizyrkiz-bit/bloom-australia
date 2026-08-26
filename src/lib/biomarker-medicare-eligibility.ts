@@ -14,7 +14,7 @@ export interface MedicareEligibilityInfo {
   description: string;
 }
 
-/** Calculated in-lab or in-portal — no separate MBS item. */
+/** Calculated in-lab or in-portal, no separate MBS item. */
 const DERIVED_MARKER_IDS = new Set<string>([
   "non_hdl_cholesterol",
   "tc_hdl_ratio",
@@ -40,6 +40,25 @@ const DERIVED_MARKER_IDS = new Set<string>([
   "ferritin_albumin_ratio",
   "nlr",
   "platelet_lymphocyte_ratio",
+  "remnant_cholesterol",
+  "atherogenic_coefficient",
+  "homa_b",
+  "quicki",
+  "mcauley_index",
+  "uric_acid_hdl_ratio",
+  "fib4",
+  "apri",
+  "sii",
+  "siri",
+  "mlr",
+  "nhr",
+  "corrected_calcium",
+  "calculated_osmolality",
+  "mentzer_index",
+  "kdigo_risk",
+  "tsh_index",
+  "phenotypic_age",
+  "age_acceleration",
 ]);
 
 /** On MBS when the treating doctor documents an accepted clinical indication. */
@@ -89,7 +108,7 @@ const ELIGIBILITY_META: Record<MedicareEligibility, Omit<MedicareEligibilityInfo
   },
   derived: {
     label: "Calculated",
-    description: "Derived from other results — no separate Medicare test item.",
+    description: "Derived from other results, no separate Medicare test item.",
   },
 };
 

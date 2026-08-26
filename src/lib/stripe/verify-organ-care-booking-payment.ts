@@ -21,7 +21,7 @@ function isMembershipPaymentMetadata(metadata: Stripe.Metadata | null | undefine
   return false;
 }
 
-/** Membership already paid — attach PI when confirming the initial consultation. */
+/** Membership already paid, attach PI when confirming the initial consultation. */
 export async function verifyOrganCareMembershipBookingPayment(
   params: VerifyOrganCareBookingPaymentParams
 ): Promise<VerifyOrganCareBookingPaymentResult> {

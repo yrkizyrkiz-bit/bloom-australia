@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (existingHold) {
-        // Remove abandoned hold — do not leave cancelled rows on the admin calendar
+        // Remove abandoned hold, do not leave cancelled rows on the admin calendar
         await prisma.consultationBooking.delete({
           where: { id: existingHold.id },
         });
@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
     const programLabel = programLabels[programType] ?? "Weight Management Program";
     const flags = riskFlags || [];
     // Program funnels that already paid for a biomarkers panel still book under the
-    // clinical program label — keep "Biomarkers Panel" in notes for payment verification.
+    // clinical program label, keep "Biomarkers Panel" in notes for payment verification.
     const notesLabel = flags.includes("BIOMARKERS_PANEL")
       ? `${programLabel} / Biomarkers Panel`
       : programLabel;
@@ -277,7 +277,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Update user journey status only during pre-payment booking — never regress triage.
+      // Update user journey status only during pre-payment booking, never regress triage.
       const nextJourneyStatus = journeyStatusAfterSlotHold(
         (
           await prisma.user.findUnique({

@@ -25,8 +25,8 @@ export function TelehealthConsentContent() {
           .
         </LegalP>
         <LegalP>
-          By booking, attending, or participating in a Sanative telehealth consultation — or by
-          continuing through our onboarding flow that includes telehealth consent — you acknowledge
+          By booking, attending, or participating in a Sanative telehealth consultation, or by
+          continuing through our onboarding flow that includes telehealth consent, you acknowledge
           that you have read and agree to this Telehealth Consent.
         </LegalP>
       </LegalSection>
@@ -113,7 +113,7 @@ export function TelehealthConsentContent() {
           <li>Participate from a private, quiet location suitable for discussing health matters</li>
           <li>Ensure your device, camera, microphone, and internet connection are functional</li>
           <li>Inform your practitioner promptly if your condition changes or worsens</li>
-          <li>Seek emergency care (000) for urgent or life-threatening symptoms — do not rely on
+          <li>Seek emergency care (000) for urgent or life-threatening symptoms. Do not rely on
             telehealth for emergencies</li>
           <li>Maintain an ongoing relationship with your regular GP where recommended</li>
           <li>Advise your GP of treatments or medicines prescribed through Sanative</li>

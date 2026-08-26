@@ -26,7 +26,7 @@ export function genderForSubscriptionTier(tier?: string | null): UserGender | nu
 
 /**
  * Resolve gender when enrolling via intake.
- * Gendered health programs always set gender from the program — funnels do not collect it.
+ * Gendered health programs always set gender from the program, funnels do not collect it.
  */
 export function genderForIntakeProgram(
   programType: string,

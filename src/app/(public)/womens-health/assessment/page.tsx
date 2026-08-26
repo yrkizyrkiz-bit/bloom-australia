@@ -144,7 +144,7 @@ const healthCategories = [
   { id: "contraception", label: "Contraception", description: "Birth control options and advice", icon: Shield, color: "#5a8b8b" },
   { id: "fertility", label: "Fertility & Hormonal Health", description: "PCOS, cycle issues, preconception", icon: Baby, color: "#c17a58" },
   { id: "sexual", label: "Sexual Health & Intimacy", description: "Libido, intimacy, comfort and desire", icon: HeartPulse, color: "#a86548" },
-  { id: "unsure", label: "Not sure where to start", description: "Fatigue, mood, cycles, weight — or just not feeling yourself", icon: Heart, color: "#c17a58" },
+  { id: "unsure", label: "Not sure where to start", description: "Fatigue, mood, cycles, weight, or just not feeling yourself", icon: Heart, color: "#c17a58" },
 ];
 
 const primaryConcernsByCategory: Record<string, string[]> = {
@@ -498,7 +498,7 @@ function WomensHealthAssessmentContent() {
                 : "Your women's health journey starts here"}
             </h1>
             <p className="mt-3 text-base text-[#5c7a52] max-w-md mx-auto">
-              A few quick questions — about 5 minutes.
+              A few quick questions, about 5 minutes.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2.5 mt-4">
@@ -532,7 +532,7 @@ function WomensHealthAssessmentContent() {
 
       case 1: return (
         <div>
-          {questionTitle("Let's start with your name", "Required for any future prescriptions — kept confidential.")}
+          {questionTitle("Let's start with your name", "Required for any future prescriptions, kept confidential.")}
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-[#2c3628] mb-1.5">First name</label>
@@ -586,7 +586,7 @@ function WomensHealthAssessmentContent() {
           <div className="mx-auto w-full max-w-[280px] sm:max-w-xs">
             {/* eslint-disable-next-line @next/next/no-img-element -- quiz step needs a reliable local public asset */}
             <img
-              src="/images/womens-health-doctor.jpg"
+              src="/images/womens-health-doctor.webp"
               alt="AHPRA-registered doctor for women's health care"
               width={819}
               height={1024}

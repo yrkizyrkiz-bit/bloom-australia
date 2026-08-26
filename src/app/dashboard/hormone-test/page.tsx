@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBiomarkerResults } from "@/hooks/useApi";
 import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDialog";
 import { OrganTestBiomarkerGrid } from "@/components/dashboard/OrganTestBiomarkerGrid";
+import { shouldShowPortalMarkerCard } from "@/lib/biomarkers/panel-biomarker-display";
 import { buildBiomarkerResultsMap } from "@/lib/organ-test-biomarkers";
 import { mapApiBiomarkerResults } from "@/lib/map-api-biomarker-results";
 import type { BloodPanelBiomarker } from "@/data/bloodPanelConfig";
@@ -423,8 +424,12 @@ export default function HormoneTestPage() {
 
           <div className="space-y-8">
             {Object.entries(hormoneTestConfig).map(([key, config]) => {
+              const visibleIds = config.biomarkerIds.filter((id) =>
+                shouldShowPortalMarkerCard(id, Boolean(resultsById[id]))
+              );
+              if (visibleIds.length === 0) return null;
               const categoryScore = healthScore.categoryScores[key];
-              const testedInCategory = config.biomarkerIds.filter((id) => resultsById[id]).length;
+              const testedInCategory = visibleIds.filter((id) => resultsById[id]).length;
               return (
                 <div key={key}>
                   <div className="flex items-center gap-3 mb-4">
@@ -436,14 +441,14 @@ export default function HormoneTestPage() {
                         <h2 className="text-lg font-medium text-foreground">{config.name}</h2>
                         <Badge variant="secondary" className="text-xs">{config.subtitle}</Badge>
                         <Badge variant="outline" className="text-xs">
-                          {testedInCategory}/{config.biomarkerIds.length} tested
+                          {testedInCategory}/{visibleIds.length} tested
                         </Badge>
                         {categoryScore && <Badge variant="outline" className={`${getScoreColor(categoryScore.score)} border-current`}>Score: {categoryScore.score}</Badge>}
                       </div>
                     </div>
                   </div>
                   <OrganTestBiomarkerGrid
-                    biomarkerIds={config.biomarkerIds}
+                    biomarkerIds={visibleIds}
                     resultsById={resultsById}
                     gender={gender}
                     categoryColor={config.color}

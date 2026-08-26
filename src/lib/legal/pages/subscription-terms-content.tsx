@@ -68,14 +68,41 @@ export function SubscriptionTermsContent() {
       </LegalSection>
 
       <LegalSection title="Billing and payment">
-        <LegalH3>First month and ongoing fees</LegalH3>
+        <LegalH3>Prices and GST</LegalH3>
+        <LegalP>
+          All prices quoted for Sanative membership and program fees are in Australian dollars (AUD)
+          and <strong>include GST</strong>, unless expressly stated otherwise at checkout.
+        </LegalP>
+
+        <LegalH3>Sanative Membership: $1/day / $365 billed annually</LegalH3>
+        <LegalP>
+          Where Sanative Membership is described as <strong>$1/day</strong>, that is an illustrative
+          daily equivalent. Sanative Membership is charged as{" "}
+          <strong>$365 billed annually</strong> (including GST), unless a different price is shown at
+          checkout. Further detail on what the $365 membership includes is set out in our{" "}
+          <Link href={LEGAL_LINKS.terms} className="underline text-[#5c7a52]">
+            Terms &amp; Conditions
+          </Link>{" "}
+          under Payments and subscriptions.
+        </LegalP>
+
+        <LegalH3>Included 30-day care program period</LegalH3>
+        <LegalP>
+          The Sanative Membership includes the first 30 days of one eligible Sanative care program,
+          subject to clinical suitability. You must nominate your chosen program before or during
+          your initial doctor consultation so that your doctor can undertake the relevant clinical
+          assessment and review the medical history required for that program. The included 30-day
+          period is not available for a program selected after the initial consultation.
+        </LegalP>
         <LegalUl>
-          <li>Promotional first-month pricing, where offered, applies to eligible new patients as
-            displayed at checkout</li>
-          <li>Ongoing monthly fees apply after the first month at the rate shown during checkout</li>
-          <li>All prices are in Australian dollars (AUD) and include GST where applicable</li>
-          <li>Payments are processed automatically via Stripe or our payment processor using your saved
-            payment method</li>
+          <li>
+            Ongoing program fees apply after the included period if you elect to continue, at the
+            rate shown for that program at checkout or on the relevant program page
+          </li>
+          <li>
+            Payments are processed automatically via Stripe or our payment processor using your saved
+            payment method
+          </li>
         </LegalUl>
 
         <LegalH3>Automatic renewal</LegalH3>
@@ -125,7 +152,7 @@ export function SubscriptionTermsContent() {
         <LegalP>
           After cancellation, you retain access through the end of the paid billing period. Prescription
           or clinical Services may cease earlier if your practitioner determines continued care
-          requires an active membership — discuss with your care team before discontinuing treatment.
+          requires an active membership. Discuss with your care team before discontinuing treatment.
         </LegalP>
       </LegalSection>
 

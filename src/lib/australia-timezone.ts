@@ -37,7 +37,7 @@ export function normalizeAustralianState(state?: string | null): string | null {
 
 /**
  * Resolve IANA timezone from Australian state + postcode.
- * Broken Hill (NSW 288x) uses Adelaide time — handled via postcode override.
+ * Broken Hill (NSW 288x) uses Adelaide time, handled via postcode override.
  */
 export function resolveAustralianTimezone(
   state?: string | null,

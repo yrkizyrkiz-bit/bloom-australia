@@ -99,7 +99,7 @@ export function BiomarkerQuestionsSection() {
             <span className="text-[#5c7a52] italic">may help answer</span>
           </h2>
           <p className="text-lg lg:text-xl text-[#5c7a52] max-w-3xl mx-auto leading-relaxed mb-4">
-            Where appropriate, testing may help identify potential contributing factors — alongside clinical assessment and medical history.
+            Where appropriate, testing may help identify potential contributing factors, alongside clinical assessment and medical history.
           </p>
           <p className="text-sm text-[#7e9a72] max-w-2xl mx-auto">
             Testing is not required for all patients. Your doctor will recommend testing only if it may provide useful additional insight for your specific situation.

@@ -1,0 +1,170 @@
+/* Soft layered sage atmosphere — same treatment as WM “More than weight loss” */
+.sage-atmosphere {
+  --bm-mint: #dce8dc;
+  --bm-sage: #c9ddc5;
+  --bm-sage-deep: #bcd3bd;
+  --bm-lime: #ccea83;
+  --bm-pale: #eaf6c8;
+  --bm-cream: #f5f4eb;
+  --bm-ink: #173c32;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--bm-ink);
+  background: var(--bm-mint);
+}
+
+.sage-atmosphere__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      120% 90% at 50% 50%,
+      transparent 42%,
+      rgb(188 211 189 / 55%) 78%,
+      rgb(160 184 162 / 70%) 100%
+    ),
+    radial-gradient(
+      70% 55% at 28% 78%,
+      rgb(245 244 235 / 90%) 0%,
+      rgb(245 244 235 / 35%) 38%,
+      transparent 68%
+    ),
+    radial-gradient(
+      85% 70% at 50% 32%,
+      rgb(204 234 131 / 55%) 0%,
+      rgb(234 246 200 / 42%) 28%,
+      rgb(220 232 220 / 0%) 62%
+    ),
+    linear-gradient(
+      165deg,
+      var(--bm-sage) 0%,
+      var(--bm-mint) 48%,
+      var(--bm-cream) 100%
+    );
+}
+
+.sage-atmosphere__glow {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sage-atmosphere__glow::before,
+.sage-atmosphere__glow::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.sage-atmosphere__glow::before {
+  width: min(92vw, 920px);
+  height: min(92vw, 920px);
+  top: -12%;
+  left: 50%;
+  translate: -50% 0;
+  background: radial-gradient(
+    circle,
+    rgb(204 234 131 / 48%) 0%,
+    rgb(234 246 200 / 28%) 40%,
+    transparent 70%
+  );
+  filter: blur(72px);
+}
+
+.sage-atmosphere__glow::after {
+  width: min(70vw, 640px);
+  height: min(55vw, 520px);
+  bottom: -8%;
+  left: 18%;
+  background: radial-gradient(
+    circle,
+    rgb(245 244 235 / 70%) 0%,
+    rgb(220 232 220 / 35%) 45%,
+    transparent 72%
+  );
+  filter: blur(88px);
+}
+
+.sage-atmosphere__noise {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
+}
+
+.sage-atmosphere__inner {
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 767px) {
+  .sage-atmosphere__bg {
+    background:
+      radial-gradient(
+        130% 100% at 50% 50%,
+        transparent 38%,
+        rgb(188 211 189 / 45%) 74%,
+        rgb(160 184 162 / 58%) 100%
+      ),
+      radial-gradient(
+        80% 55% at 50% 92%,
+        rgb(245 244 235 / 82%) 0%,
+        transparent 68%
+      ),
+      radial-gradient(
+        110% 60% at 50% 14%,
+        rgb(204 234 131 / 48%) 0%,
+        rgb(234 246 200 / 36%) 30%,
+        transparent 62%
+      ),
+      linear-gradient(
+        180deg,
+        var(--bm-sage) 0%,
+        var(--bm-mint) 50%,
+        var(--bm-cream) 100%
+      );
+  }
+
+  .sage-atmosphere__glow::before {
+    width: min(120vw, 780px);
+    height: min(78vw, 520px);
+    top: -8%;
+    left: 50%;
+    translate: -50% 0;
+    background: radial-gradient(
+      circle,
+      rgb(204 234 131 / 42%) 0%,
+      rgb(234 246 200 / 24%) 40%,
+      transparent 70%
+    );
+    filter: blur(60px);
+  }
+
+  .sage-atmosphere__glow::after {
+    width: min(95vw, 560px);
+    height: min(65vw, 420px);
+    bottom: -6%;
+    left: 50%;
+    translate: -50% 0;
+    filter: blur(72px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sage-atmosphere__glow::before,
+  .sage-atmosphere__glow::after {
+    transition: none;
+  }
+}

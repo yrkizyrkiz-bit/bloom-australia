@@ -125,32 +125,32 @@ function intakeIndicationsForTest(
         : [];
     case "fasting_insulin":
       return metabolic.length
-        ? [`Insulin resistance assessment — ${metabolic.join(", ")}`]
+        ? [`Insulin resistance assessment, ${metabolic.join(", ")}`]
         : [];
     case "lipid_panel":
       return cardiovascular.length
-        ? [`Cardiovascular risk — ${cardiovascular.join(", ")}`]
+        ? [`Cardiovascular risk, ${cardiovascular.join(", ")}`]
         : metabolic.length
-          ? [`Metabolic risk — lipid assessment (${metabolic.join(", ")})`]
+          ? [`Metabolic risk, lipid assessment (${metabolic.join(", ")})`]
           : [];
     case "liver_function":
       return digestive.length
-        ? [`Hepatic assessment — ${digestive.join(", ")}`]
+        ? [`Hepatic assessment, ${digestive.join(", ")}`]
         : [];
     case "kidney_function":
       return serious.length
-        ? [`Renal monitoring — ${serious.join(", ")}`]
+        ? [`Renal monitoring, ${serious.join(", ")}`]
         : metabolic.some((c) => /diabetes|kidney|renal/i.test(c))
-          ? [`Renal function — ${metabolic.join(", ")}`]
+          ? [`Renal function, ${metabolic.join(", ")}`]
           : [];
     case "thyroid":
       return metabolic.some((c) => /thyroid/i.test(c))
-        ? [`Thyroid assessment — ${metabolic.join(", ")}`]
+        ? [`Thyroid assessment, ${metabolic.join(", ")}`]
         : [];
     case "full_blood_count":
     case "iron_studies":
       return serious.length
-        ? [`General health screen — ${serious.join(", ")}`]
+        ? [`General health screen, ${serious.join(", ")}`]
         : [];
     case "male_hormone_panel":
     case "female_hormone_panel":
@@ -158,7 +158,7 @@ function intakeIndicationsForTest(
     case "dhea_s":
       return serious.length || metabolic.length
         ? [
-            `Hormonal assessment — ${uniqueStrings([...serious, ...metabolic]).join(", ")}`,
+            `Hormonal assessment, ${uniqueStrings([...serious, ...metabolic]).join(", ")}`,
           ]
         : [];
     default:

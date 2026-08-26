@@ -493,7 +493,7 @@ export default function CustomerDetailPage() {
 
   const memberGender = (customer?.gender === "FEMALE" ? "female" : "male") as "male" | "female";
 
-  /** Latest value per biomarker — same rule as member dashboard (most recent testedAt). */
+  /** Latest value per biomarker, same rule as member dashboard (most recent testedAt). */
   const latestBiomarkerResults = useMemo((): BiomarkerResultInput[] => {
     const latest = new Map<string, BiomarkerResultInput>();
     for (const r of biomarkers) {
@@ -1066,7 +1066,7 @@ export default function CustomerDetailPage() {
                     Lab Results
                   </CardTitle>
                   <CardDescription>
-                    Pathology and biomarker test values from completed blood work — not intake quiz answers.
+                    Pathology and biomarker test values from completed blood work, not intake quiz answers.
                     For in-portal quiz submissions, see the <span className="font-medium">Program Quizzes</span> tab.
                   </CardDescription>
                 </CardHeader>
@@ -1261,16 +1261,22 @@ export default function CustomerDetailPage() {
                             <Label className="text-muted-foreground">
                               {programSub.billingModel === "annual_subscription"
                                 ? "Annual payment"
-                                : "First month"}
+                                : programSub.firstMonth?.status === "included"
+                                  ? "First 30 days"
+                                  : "First month"}
                             </Label>
                             <div className="font-medium flex items-center gap-2 flex-wrap">
                               <span>
-                                {programSub.firstMonth?.amountAud != null
-                                  ? `$${programSub.firstMonth.amountAud}`
-                                  : "—"}
+                                {programSub.firstMonth?.status === "included"
+                                  ? "Included with membership"
+                                  : programSub.firstMonth?.amountAud != null
+                                    ? `$${programSub.firstMonth.amountAud}`
+                                    : "—"}
                               </span>
                               <Badge variant="outline">
-                                {programSub.firstMonth?.status || "pending"}
+                                {programSub.firstMonth?.status === "included"
+                                  ? "included"
+                                  : programSub.firstMonth?.status || "pending"}
                               </Badge>
                             </div>
                             {programSub.firstMonth?.paidAt && (
@@ -1573,7 +1579,7 @@ export default function CustomerDetailPage() {
                                 End of billing period (recommended)
                               </SelectItem>
                               <SelectItem value="immediate">
-                                Immediately — revoke access now
+                                Immediately, revoke access now
                               </SelectItem>
                             </SelectContent>
                           </Select>
@@ -1645,7 +1651,7 @@ export default function CustomerDetailPage() {
                           <SelectContent>
                             {(subscription?.availableCadences || []).map((c) => (
                               <SelectItem key={c.billingPriceId} value={c.billingPriceId}>
-                                {c.label} — ${c.amountAud}
+                                {c.label}, ${c.amountAud}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1698,7 +1704,7 @@ export default function CustomerDetailPage() {
                       Prospective enrollment
                     </CardTitle>
                     <CardDescription>
-                      Assessment complete — checkout and payment not finished yet.
+                      Assessment complete, checkout and payment not finished yet.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">

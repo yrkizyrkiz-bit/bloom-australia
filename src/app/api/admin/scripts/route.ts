@@ -451,7 +451,7 @@ Follow up in 5-7 days to:
       }
 
       case "DELIVERED": {
-        // Update refill record — delivery is logistics only; program activation is manual on welcome call
+        // Update refill record, delivery is logistics only; program activation is manual on welcome call
         await prisma.prescriptionRefill.updateMany({
           where: { prescriptionId, status: "SHIPPED" },
           data: {

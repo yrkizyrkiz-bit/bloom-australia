@@ -66,7 +66,7 @@ export function HeartHealthCalculator() {
     if (score >= 12) {
       return { level: "high", score, message: "Your responses suggest elevated cardiovascular risk factors. We recommend a comprehensive heart health assessment." };
     } else if (score >= 8) {
-      return { level: "elevated", score, message: "You have several cardiovascular risk factors that warrant attention. Early intervention can make a significant difference." };
+      return { level: "elevated", score, message: "You have several cardiovascular risk factors that warrant attention. A doctor-reviewed lipid and metabolic panel can inform the conversation about your cardiovascular risk." };
     } else if (score >= 4) {
       return { level: "moderate", score, message: "You have some risk factors to monitor. Regular testing can help track your heart health over time." };
     } else {

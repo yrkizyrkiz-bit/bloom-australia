@@ -1,5 +1,5 @@
 /**
- * In-portal men's sexual health quiz — branches on ED / PE / Both,
+ * In-portal men's sexual health quiz, branches on ED / PE / Both,
  * then recommends a doctor consultation before any prescribed program.
  */
 
@@ -69,7 +69,7 @@ const ED_STEPS: QuizStep[] = [
   {
     id: "takingNitrates",
     prompt: "Are you currently taking nitrates for chest pain or heart conditions?",
-    subtitle: "Important for clinical safety — e.g. GTN spray, isosorbide, or similar.",
+    subtitle: "Important for clinical safety, e.g. GTN spray, isosorbide, or similar.",
     options: [
       { id: "yes", label: "Yes" },
       { id: "no", label: "No" },

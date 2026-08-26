@@ -41,7 +41,7 @@ export async function getLatestPortalQuizSubmissions(userId: string) {
   );
 }
 
-/** All submissions for member profile display — newest first overall. */
+/** All submissions for member profile display, newest first overall. */
 export async function getAllPortalQuizSubmissions(userId: string) {
   return prisma.portalQuizSubmission.findMany({
     where: { userId },

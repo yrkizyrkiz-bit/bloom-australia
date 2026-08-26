@@ -408,7 +408,7 @@ function JoinPageContent() {
             {/* Benefits */}
             <div className="space-y-3 mb-6">
               {[
-                { icon: TestTube, text: "80+ biomarkers tested at NATA labs" },
+                { icon: TestTube, text: "85+ biomarkers tested at NATA labs" },
                 {
                   icon: Clock,
                   text: "Biological Clock + Organ health scores",
@@ -783,7 +783,7 @@ function JoinPageContent() {
                   <span className="font-bold text-[#34412f]">{organCarePriceLabel}</span>
                 </div>
                 <p className="text-xs text-[#5c7a52] mt-2">
-                  Heart, liver, kidney, thyroid, hormones & metabolic — one membership
+                  Heart, liver, kidney, thyroid, hormones & metabolic, one membership
                 </p>
               </div>
 
@@ -805,7 +805,7 @@ function JoinPageContent() {
                   <ul className="space-y-2 text-sm text-[#5c7a52]">
                     <li className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-[#1D9E75]" />
-                      Biomarker One (80+ markers)
+                      Biomarker One (85+ markers)
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-[#1D9E75]" />
@@ -850,6 +850,7 @@ function JoinPageContent() {
                   amount={organCarePriceAud}
                   disabled={isSubmitting}
                   customerEmail={formData.email}
+                  customerName={`${formData.firstName} ${formData.lastName}`.trim()}
                 />
               ) : (
                 <PaymentFormLoading />

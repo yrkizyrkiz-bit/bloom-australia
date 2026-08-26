@@ -1,0 +1,435 @@
+/* Soft layered sage atmosphere — Hers-inspired depth, Sanative palette */
+.biomarker-health-section {
+  --bm-mint: #dce8dc;
+  --bm-sage: #c9ddc5;
+  --bm-sage-deep: #bcd3bd;
+  --bm-lime: #ccea83;
+  --bm-pale: #eaf6c8;
+  --bm-cream: #f5f4eb;
+  --bm-ink: #173c32;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding: clamp(24px, 4vh, 48px) 0;
+  color: var(--bm-ink);
+  font-family: var(--font-inter), Inter, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bm-mint);
+}
+
+/* Base: pale sage → mint linear + soft edge shading + cream haze */
+.biomarker-health-section__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    /* Muted grey-green toward outer edges */
+    radial-gradient(
+      120% 90% at 50% 50%,
+      transparent 42%,
+      rgb(188 211 189 / 55%) 78%,
+      rgb(160 184 162 / 70%) 100%
+    ),
+    /* Cream-white haze — lower-left / centre */
+    radial-gradient(
+      70% 55% at 28% 78%,
+      rgb(245 244 235 / 90%) 0%,
+      rgb(245 244 235 / 35%) 38%,
+      transparent 68%
+    ),
+    /* Broad warm yellow-green radial glow behind primary content */
+    radial-gradient(
+      85% 70% at 50% 32%,
+      rgb(204 234 131 / 55%) 0%,
+      rgb(234 246 200 / 42%) 28%,
+      rgb(220 232 220 / 0%) 62%
+    ),
+    /* Pale sage-to-mint base */
+    linear-gradient(
+      165deg,
+      var(--bm-sage) 0%,
+      var(--bm-mint) 48%,
+      var(--bm-cream) 100%
+    );
+}
+
+/* Soft blurred atmospheric glows (pseudo-depth) */
+.biomarker-health-section__glow {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.biomarker-health-section__glow::before,
+.biomarker-health-section__glow::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.biomarker-health-section__glow::before {
+  width: min(92vw, 920px);
+  height: min(92vw, 920px);
+  top: -12%;
+  left: 50%;
+  translate: -50% 0;
+  background: radial-gradient(
+    circle,
+    rgb(204 234 131 / 48%) 0%,
+    rgb(234 246 200 / 28%) 40%,
+    transparent 70%
+  );
+  filter: blur(72px);
+}
+
+.biomarker-health-section__glow::after {
+  width: min(70vw, 640px);
+  height: min(55vw, 520px);
+  bottom: -8%;
+  left: 18%;
+  background: radial-gradient(
+    circle,
+    rgb(245 244 235 / 70%) 0%,
+    rgb(220 232 220 / 35%) 45%,
+    transparent 72%
+  );
+  filter: blur(88px);
+}
+
+/* Subtle noise to soften banding — ≤ 0.035 opacity */
+.biomarker-health-section__noise {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
+}
+
+.biomarker-health-section__inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 32px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(28px, 5vh, 48px);
+}
+
+.biomarker-health-section__header {
+  text-align: center;
+  max-width: 40rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 2.2vh, 22px);
+}
+
+/* Open, two-line title — dark Sanative green on atmospheric mint */
+.biomarker-health-section__header h2 {
+  margin: 0;
+  max-width: 18ch;
+  font-family: var(--font-inter), Inter, "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--bm-ink) !important;
+}
+
+.biomarker-health-section__header h2 span {
+  display: block;
+  margin-top: 0.12em;
+  color: rgb(23 60 50 / 82%) !important;
+  font-style: normal;
+  font-weight: 450;
+}
+
+.biomarker-health-section__lede {
+  margin: 0;
+  max-width: 32ch;
+  font-size: clamp(0.95rem, 1.35vw, 1.1rem);
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  /* Solid ink — ≥4.5:1 on mint / pale glow / cream */
+  color: var(--bm-ink) !important;
+  opacity: 0.88;
+}
+
+@media (max-width: 480px) {
+  .biomarker-health-section__header {
+    max-width: 22rem;
+    gap: 16px;
+  }
+
+  .biomarker-health-section__header h2 {
+    max-width: 14ch;
+    font-size: clamp(1.65rem, 7vw, 2rem);
+    line-height: 1.18;
+  }
+
+  .biomarker-health-section__lede {
+    max-width: 28ch;
+  }
+}
+
+/* Mobile: pull lime glow behind the headline; ease intensity for contrast */
+@media (max-width: 767px) {
+  .biomarker-health-section__bg {
+    background:
+      radial-gradient(
+        130% 100% at 50% 50%,
+        transparent 38%,
+        rgb(188 211 189 / 45%) 74%,
+        rgb(160 184 162 / 58%) 100%
+      ),
+      radial-gradient(
+        80% 55% at 50% 92%,
+        rgb(245 244 235 / 82%) 0%,
+        transparent 68%
+      ),
+      radial-gradient(
+        110% 60% at 50% 14%,
+        rgb(204 234 131 / 48%) 0%,
+        rgb(234 246 200 / 36%) 30%,
+        transparent 62%
+      ),
+      linear-gradient(
+        180deg,
+        var(--bm-sage) 0%,
+        var(--bm-mint) 50%,
+        var(--bm-cream) 100%
+      );
+  }
+
+  .biomarker-health-section__glow::before {
+    width: min(120vw, 780px);
+    height: min(78vw, 520px);
+    top: -8%;
+    left: 50%;
+    translate: -50% 0;
+    background: radial-gradient(
+      circle,
+      rgb(204 234 131 / 42%) 0%,
+      rgb(234 246 200 / 24%) 40%,
+      transparent 70%
+    );
+    filter: blur(60px);
+  }
+
+  .biomarker-health-section__glow::after {
+    width: min(95vw, 560px);
+    height: min(65vw, 420px);
+    bottom: -6%;
+    left: 50%;
+    translate: -50% 0;
+    filter: blur(72px);
+  }
+}
+
+.health-marquee {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.6vh, 16px);
+}
+
+.marquee-row {
+  width: 100%;
+  overflow: hidden;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+.marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+
+.marquee-card {
+  box-sizing: border-box;
+  flex: 0 0 260px;
+  width: 260px;
+  margin-right: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-radius: 32px;
+  padding: clamp(1rem, 1.6vh, 1.25rem) 1.15rem;
+  background: #3f5230;
+  border: none;
+  box-shadow:
+    0 10px 30px rgba(24, 38, 18, 0.22),
+    0 0 18px rgb(204 234 131 / 22%),
+    0 0 0 1px rgb(204 234 131 / 14%);
+  color: #ffffff;
+}
+
+.marquee-row:nth-child(2) .marquee-card {
+  background: #455734;
+}
+
+.marquee-row:nth-child(3) .marquee-card {
+  background: #3a4c2c;
+}
+
+.marquee-card__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.marquee-card__icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #ffffff;
+}
+
+.marquee-card__title {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.marquee-card__description {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.marquee-card--question {
+  flex: 0 0 320px;
+  width: 320px;
+  align-items: flex-start;
+  text-align: left;
+  padding: clamp(1rem, 1.6vh, 1.3rem) 1.25rem;
+  border-radius: 32px;
+}
+
+.marquee-card__qmark {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-family: var(--font-inter), Inter, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.marquee-card__question {
+  margin: 0;
+  font-family: var(--font-inter), Inter, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.marquee-card__meta {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  width: 100%;
+}
+
+.marquee-card__tags-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.marquee-card__tags {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+}
+
+.marquee-card__tag {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.92);
+  color: #26311a;
+}
+
+@media (max-width: 640px) {
+  .biomarker-health-section {
+    min-height: auto;
+    padding: 32px 0;
+  }
+
+  .marquee-card {
+    flex-basis: 240px;
+    width: 240px;
+    border-radius: 24px;
+  }
+
+  .marquee-card--question {
+    flex-basis: 280px;
+    width: 280px;
+    border-radius: 24px;
+  }
+
+  .marquee-card__tags {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    transform: none !important;
+  }
+
+  .health-marquee {
+    overflow-x: auto;
+  }
+
+  .biomarker-health-section__glow::before,
+  .biomarker-health-section__glow::after {
+    /* Static atmosphere only — no motion on gradient layers */
+    transition: none;
+  }
+}

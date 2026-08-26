@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
       typeof body.userId === "string" ? body.userId.trim() : "";
     const data = { ...body } as Record<string, unknown>;
     delete data.resumeVerificationToken;
-    // Client-owned continuation hint only — never persist into quiz/intake payloads
+    // Client-owned continuation hint only, never persist into quiz/intake payloads
     delete data.userId;
 
     // Log incoming data for debugging
@@ -361,7 +361,7 @@ export async function POST(req: NextRequest) {
         try {
           const userUpdateData: Record<string, unknown> = {};
 
-          // Personal details — keep User + ProgramMember in sync on resume
+          // Personal details, keep User + ProgramMember in sync on resume
           if (data.firstName) userUpdateData.firstName = data.firstName.trim();
           if (data.lastName) userUpdateData.lastName = data.lastName.trim();
           if (data.phone) userUpdateData.phone = data.phone.trim();
@@ -952,24 +952,24 @@ async function saveNotesForProgram(userId: string, programType: ProgramType, dat
 
   if (programType === "WEIGHT_MANAGEMENT") {
     noteGroups.push(
-      { title: "Triage — Metabolic Conditions",      conditions: (data.metabolicConditions as string[]) || [] },
-      { title: "Triage — Digestive Conditions",      conditions: (data.digestiveConditions as string[]) || [] },
-      { title: "Triage — Cardiovascular Conditions", conditions: (data.cardiovascularConditions as string[]) || [] },
-      { title: "Triage — Mental Health Conditions",  conditions: (data.mentalHealthConditions as string[]) || [] },
-      { title: "Triage — Serious Conditions (FLAG)", conditions: ((data.seriousConditions as string[]) || []).filter((c: string) => c !== "None of these apply") },
-      { title: "Triage — Current Medications",       conditions: (data.currentMedications as string[]) || [] },
+      { title: "Triage, Metabolic Conditions",      conditions: (data.metabolicConditions as string[]) || [] },
+      { title: "Triage, Digestive Conditions",      conditions: (data.digestiveConditions as string[]) || [] },
+      { title: "Triage, Cardiovascular Conditions", conditions: (data.cardiovascularConditions as string[]) || [] },
+      { title: "Triage, Mental Health Conditions",  conditions: (data.mentalHealthConditions as string[]) || [] },
+      { title: "Triage, Serious Conditions (FLAG)", conditions: ((data.seriousConditions as string[]) || []).filter((c: string) => c !== "None of these apply") },
+      { title: "Triage, Current Medications",       conditions: (data.currentMedications as string[]) || [] },
       { title: "Patient Motivations",                conditions: (data.motivations as string[]) || [] },
     );
   }
 
   if (programType === "WOMENS_HEALTH") {
     noteGroups.push(
-      { title: "Women's Health — Category",          conditions: [(data.category as string) || "general"] },
-      { title: "Women's Health — Primary Concerns",  conditions: (data.primaryConcerns as string[]) || [] },
-      { title: "Women's Health — Medical Conditions",conditions: (data.medicalConditions as string[]) || [] },
-      { title: "Women's Health — Family History",    conditions: (data.familyHistory as string[]) || [] },
-      { title: "Women's Health — Current Treatments",conditions: (data.currentTreatments as string[]) || [] },
-      { title: "Women's Health — Goals",             conditions: (data.goals as string[]) || [] },
+      { title: "Women's Health, Category",          conditions: [(data.category as string) || "general"] },
+      { title: "Women's Health, Primary Concerns",  conditions: (data.primaryConcerns as string[]) || [] },
+      { title: "Women's Health, Medical Conditions",conditions: (data.medicalConditions as string[]) || [] },
+      { title: "Women's Health, Family History",    conditions: (data.familyHistory as string[]) || [] },
+      { title: "Women's Health, Current Treatments",conditions: (data.currentTreatments as string[]) || [] },
+      { title: "Women's Health, Goals",             conditions: (data.goals as string[]) || [] },
     );
   }
 
@@ -977,44 +977,44 @@ async function saveNotesForProgram(userId: string, programType: ProgramType, dat
     const canonicalKey = resolveMensHealthCanonicalKey((data.concern as string) || "");
     if (canonicalKey === "MENS_HEALTH_SEXUAL") {
       noteGroups.push(
-        { title: "Men's Health — Primary Concern", conditions: [(data.concern as string) || "sexual-health"] },
-        { title: "Men's Sexual Health — Focus", conditions: [(data.treatmentFocus as string) || ""] },
-        { title: "Men's Sexual Health — ED Duration", conditions: data.edDuration ? [`Duration: ${data.edDuration}`] : [] },
-        { title: "Men's Sexual Health — ED Severity", conditions: data.edSeverity ? [`Severity: ${data.edSeverity}`] : [] },
-        { title: "Men's Sexual Health — ED Main Issue", conditions: data.edMainIssue ? [`Issue: ${data.edMainIssue}`] : [] },
-        { title: "Men's Sexual Health — PE Duration", conditions: data.peDuration ? [`Duration: ${data.peDuration}`] : [] },
-        { title: "Men's Sexual Health — PE Frequency", conditions: data.peFrequency ? [`Frequency: ${data.peFrequency}`] : [] },
-        { title: "Men's Sexual Health — PE Timing", conditions: data.peTiming ? [`Timing: ${data.peTiming}`] : [] },
-        { title: "Men's Sexual Health — PE Distress", conditions: data.peDistress ? [`Distress: ${data.peDistress}`] : [] },
-        { title: "Men's Sexual Health — Previous Treatment", conditions: data.previousTreatment ? [`Previous: ${data.previousTreatment}`] : [] },
-        { title: "Men's Sexual Health — Start Timing", conditions: data.startTiming ? [`Timing: ${data.startTiming}`] : [] },
-        { title: "Men's Sexual Health — Nitrates (FLAG)", conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES — DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
+        { title: "Men's Health, Primary Concern", conditions: [(data.concern as string) || "sexual-health"] },
+        { title: "Men's Sexual Health, Focus", conditions: [(data.treatmentFocus as string) || ""] },
+        { title: "Men's Sexual Health, ED Duration", conditions: data.edDuration ? [`Duration: ${data.edDuration}`] : [] },
+        { title: "Men's Sexual Health, ED Severity", conditions: data.edSeverity ? [`Severity: ${data.edSeverity}`] : [] },
+        { title: "Men's Sexual Health, ED Main Issue", conditions: data.edMainIssue ? [`Issue: ${data.edMainIssue}`] : [] },
+        { title: "Men's Sexual Health, PE Duration", conditions: data.peDuration ? [`Duration: ${data.peDuration}`] : [] },
+        { title: "Men's Sexual Health, PE Frequency", conditions: data.peFrequency ? [`Frequency: ${data.peFrequency}`] : [] },
+        { title: "Men's Sexual Health, PE Timing", conditions: data.peTiming ? [`Timing: ${data.peTiming}`] : [] },
+        { title: "Men's Sexual Health, PE Distress", conditions: data.peDistress ? [`Distress: ${data.peDistress}`] : [] },
+        { title: "Men's Sexual Health, Previous Treatment", conditions: data.previousTreatment ? [`Previous: ${data.previousTreatment}`] : [] },
+        { title: "Men's Sexual Health, Start Timing", conditions: data.startTiming ? [`Timing: ${data.startTiming}`] : [] },
+        { title: "Men's Sexual Health, Nitrates (FLAG)", conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES, DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
       );
     } else {
       noteGroups.push(
-        { title: "Men's Health — Primary Concern",     conditions: [(data.concern as string) || ""] },
-        { title: "Men's Health — ED Details",          conditions: [
+        { title: "Men's Health, Primary Concern",     conditions: [(data.concern as string) || ""] },
+        { title: "Men's Health, ED Details",          conditions: [
             `Duration: ${(data.edDuration as string) || "n/a"}`,
             `Severity: ${(data.edSeverity as string) || "n/a"}`,
             `Morning erections: ${(data.morningErections as string) || "n/a"}`,
           ].filter(Boolean)
         },
-        { title: "Men's Health — Contributing Causes", conditions: (data.edCauses as string[]) || [] },
-        { title: "Men's Health — Medical Conditions",  conditions: (data.medicalConditions as string[]) || [] },
-        { title: "Men's Health — Lifestyle Factors",   conditions: (data.lifestyleFactors as string[]) || [] },
-        { title: "Men's Health — Nitrates (FLAG)",     conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES — DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
-        { title: "Men's Health — Other Concerns",      conditions: (data.otherConcerns as string[]) || [] },
+        { title: "Men's Health, Contributing Causes", conditions: (data.edCauses as string[]) || [] },
+        { title: "Men's Health, Medical Conditions",  conditions: (data.medicalConditions as string[]) || [] },
+        { title: "Men's Health, Lifestyle Factors",   conditions: (data.lifestyleFactors as string[]) || [] },
+        { title: "Men's Health, Nitrates (FLAG)",     conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES, DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
+        { title: "Men's Health, Other Concerns",      conditions: (data.otherConcerns as string[]) || [] },
       );
     }
   }
 
   if (programType === "HAIR_LOSS") {
     noteGroups.push(
-      { title: "Hair Loss — Stage",                  conditions: [(data.hairStage as string) || ""] },
-      { title: "Hair Loss — Timeline",               conditions: [(data.hairLossTimeline as string) || ""] },
-      { title: "Hair Loss — Family History",         conditions: [(data.familyHistory as string) || ""] },
-      { title: "Hair Loss — Medical Conditions",     conditions: (data.medicalConditions as string[]) || [] },
-      { title: "Hair Loss — Pregnancy Status (FLAG)",conditions: data.pregnancyStatus === "pregnant" ? ["PATIENT IS PREGNANT — NO FINASTERIDE"] : [] },
+      { title: "Hair Loss, Stage",                  conditions: [(data.hairStage as string) || ""] },
+      { title: "Hair Loss, Timeline",               conditions: [(data.hairLossTimeline as string) || ""] },
+      { title: "Hair Loss, Family History",         conditions: [(data.familyHistory as string) || ""] },
+      { title: "Hair Loss, Medical Conditions",     conditions: (data.medicalConditions as string[]) || [] },
+      { title: "Hair Loss, Pregnancy Status (FLAG)",conditions: data.pregnancyStatus === "pregnant" ? ["PATIENT IS PREGNANT, NO FINASTERIDE"] : [] },
     );
   }
 
@@ -1062,7 +1062,7 @@ async function createWomensHealthAppointment(userId: string, data: Record<string
       data: {
         userId:      userId,
         type:        "CONSULTATION",
-        title:       `Women's Health Consultation — ${(data.category as string) || "General"}`,
+        title:       `Women's Health Consultation, ${(data.category as string) || "General"}`,
         scheduledAt: selectedDate,
         duration:    30,
         location:    "Video",

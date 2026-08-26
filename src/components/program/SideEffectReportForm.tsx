@@ -104,8 +104,8 @@ export function SideEffectReportForm({
       });
       toast.success(
         data.plan?.requiresEscalation
-          ? "Report submitted — your care team has been notified"
-          : "Thanks — here’s what may help"
+          ? "Report submitted, your care team has been notified"
+          : "Thanks, here’s what may help"
       );
       onComplete?.(data.report?.id);
     } catch (e) {
@@ -289,7 +289,7 @@ function NoSideEffectsCard({
         <div className="min-w-0 flex-1">
           <p className="text-lg font-bold leading-tight">No side effects</p>
           <p className="mt-1 text-sm text-emerald-50/95">
-            I&apos;m feeling fine — skip this check-in
+            I&apos;m feeling fine, skip this check-in
           </p>
         </div>
       </div>

@@ -12,7 +12,7 @@ const STAGE_DESCRIPTIONS: Record<string, { stage: string; description: string }>
   SURVEY_COMPLETED: { stage: "pre-consultation", description: "Health assessment complete" },
   CONSULTATION_BOOKING_STARTED: { stage: "pre-consultation", description: "Booking your consultation" },
   CONSULTATION_BOOKED: { stage: "pre-consultation", description: "Consultation booked" },
-  CONSULTATION_PAID: { stage: "pre-consultation", description: "Payment received — awaiting consultation" },
+  CONSULTATION_PAID: { stage: "pre-consultation", description: "Payment received, awaiting consultation" },
 
   // Pre-triage
   PRE_TRIAGE_PENDING: { stage: "pre-consultation", description: "Care team reviewing your details" },
@@ -20,19 +20,19 @@ const STAGE_DESCRIPTIONS: Record<string, { stage: string; description: string }>
 
   // Consultation
   AWAITING_DOCTOR_CALL: { stage: "consultation", description: "Doctor will call at your scheduled time" },
-  CONSULT_COMPLETED: { stage: "consultation", description: "Consultation complete — awaiting decision" },
+  CONSULT_COMPLETED: { stage: "consultation", description: "Consultation complete, awaiting decision" },
   AWAITING_DOCTOR_DECISION: { stage: "consultation", description: "Doctor reviewing your case" },
 
   // UAT8-GAP-006: Approved with testing - patient proceeds while tests are tracked
   // These statuses no longer block the program
-  APPROVED_PENDING_TESTS: { stage: "approved", description: "Program approved — blood tests ordered for monitoring" },
-  TESTS_ORDERED: { stage: "approved", description: "Program approved — blood tests being arranged" },
-  AWAITING_TESTS: { stage: "approved", description: "Program approved — awaiting test results" },
-  RESULTS_RECEIVED: { stage: "approved", description: "Test results received — under review" },
+  APPROVED_PENDING_TESTS: { stage: "approved", description: "Program approved, blood tests ordered for monitoring" },
+  TESTS_ORDERED: { stage: "approved", description: "Program approved, blood tests being arranged" },
+  AWAITING_TESTS: { stage: "approved", description: "Program approved, awaiting test results" },
+  RESULTS_RECEIVED: { stage: "approved", description: "Test results received, under review" },
   FINAL_DOCTOR_REVIEW: { stage: "approved", description: "Doctor reviewing your test results" },
 
   // Approved
-  APPROVED: { stage: "approved", description: "Doctor approved — preparing your program" },
+  APPROVED: { stage: "approved", description: "Doctor approved: preparing your program" },
   DECLINED: { stage: "declined", description: "Program not suitable at this time" },
   REFUND_PENDING: { stage: "refund", description: "Refund is being processed" },
   REFUNDED: { stage: "refund", description: "Refund has been processed" },

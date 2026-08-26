@@ -1,5 +1,5 @@
 /**
- * In-portal women's sexual health quiz — branches on libido / pain / both,
+ * In-portal women's sexual health quiz, branches on libido / pain / both,
  * then recommends a doctor consultation before any prescribed program.
  */
 

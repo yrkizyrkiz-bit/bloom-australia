@@ -390,7 +390,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         otherGoals: (intakeData.otherGoals as string[]) || [],
       },
 
-      // Active consultation (authoritative schedule — not stale intake dates)
+      // Active consultation (authoritative schedule, not stale intake dates)
       activeConsultation: activeBooking
         ? {
             id: activeBooking.id,

@@ -1,51 +1,74 @@
-import Link from "next/link";
+"use client";
+
+type TeamMember = {
+  name: string;
+  title: string;
+  subtitle?: string;
+  specialties: string[];
+  description: string;
+  image?: string;
+  initials: string;
+  color: string;
+};
+
+/** Same clinical team as weight-management “Precise care. Trusted Australian doctors”. */
+const doctors: TeamMember[] = [
+  {
+    name: "Dr Phillip Seeley",
+    title: "Chief Medical Officer",
+    subtitle: "Preventative Medicine | Weight Management",
+    specialties: [],
+    description:
+      "Specialist in preventative medicine, metabolic medicine and obesity treatment. Dr. Seeley ensures our weight management protocols meet the highest clinical standards.",
+    initials: "PS",
+    color: "from-[#7b8967] to-[#5d6a4d]",
+  },
+  {
+    name: "Dr George Wassif",
+    title: "General Practitioner",
+    specialties: ["MBBS", "Men's Health"],
+    description:
+      "Dedicated practitioner specialising in men's health and metabolic care. Dr Wassif takes a patient-centred approach to metabolic weight management.",
+    image: "/images/team/george-wassif.webp",
+    initials: "GW",
+    color: "from-[#9abdb1] to-[#7b8967]",
+  },
+  {
+    name: "Mia Davies",
+    title: "Head of Metabolic Health | Care Partner",
+    specialties: ["Patient Care Journey"],
+    description:
+      "With years of experience in health and wellbeing support, Mia ensures you feel cared for at every step of your weight management journey. She focuses on metabolic health, helping you understand your markers and stay on track.",
+    image: "/images/team/mia.webp",
+    initials: "MD",
+    color: "from-[#5d6a4d] to-[#313630]",
+  },
+  {
+    name: "Olfat Zekry",
+    title: "Clinical Pharmacist",
+    specialties: ["BPharm", "Clinical Safety"],
+    description:
+      "Olly brings clinical pharmacy expertise to support safe, effective care. She helps ensure your care plan is clinically sound and answers questions about your program.",
+    image: "/images/team/olfat-zekry.webp",
+    initials: "OZ",
+    color: "from-[#b4cdc4] to-[#7b8967]",
+  },
+];
 
 export function DoctorsSection() {
-  const doctors = [
-    {
-      name: "Dr. Sarah Chen",
-      title: "Chief Medical Officer",
-      initials: "SC",
-      specialties: ["Women's Health", "Hormone Health"],
-      description: "A board-certified GP with 15+ years experience in women's health. Dr. Chen leads our medical team with a focus on personalised, evidence-based care.",
-      color: "from-[#c17a58] to-[#a9634a]",
-    },
-    {
-      name: "Dr. Emma Thompson",
-      title: "Head of Weight Management",
-      initials: "ET",
-      specialties: ["Metabolic Health", "Obesity Medicine"],
-      description: "Specialist in metabolic medicine and obesity treatment. Dr. Thompson ensures our weight management protocols meet the highest clinical standards.",
-      color: "from-[#5c7a52] to-[#4a6243]",
-    },
-    {
-      name: "Dr. Priya Sharma",
-      title: "Dermatology Lead",
-      initials: "PS",
-      specialties: ["Skin Health", "Anti-Ageing"],
-      description: "Fellow of the Australasian College of Dermatologists with expertise in medical dermatology and cosmetic treatments.",
-      color: "from-[#7e9a72] to-[#5c7a52]",
-    },
-    {
-      name: "Dr. Rachel Williams",
-      title: "Mental Health Lead",
-      initials: "RW",
-      specialties: ["Psychiatry", "Women's Mental Health"],
-      description: "Psychiatrist specialising in women's mental health, anxiety, and mood disorders. Dr. Williams brings compassionate care to our mental wellness programs.",
-      color: "from-[#a8bb9e] to-[#7e9a72]",
-    },
-  ];
-
   return (
     <section className="py-20 lg:py-28 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <span className="text-[#c17a58] font-serif text-3xl sm:text-4xl italic">Earlier insight.</span>
+          <span className="text-[#c17a58] font-serif text-3xl sm:text-4xl italic">
+            Earlier insight.
+          </span>
           <h2 className="text-4xl sm:text-5xl font-serif text-[#2c3628] mt-2">
             Precise care. Trusted Australian doctors
           </h2>
           <p className="mt-4 text-lg text-[#5c7a52] max-w-2xl mx-auto">
-            Meet our team of AHPRA-registered doctors with decades of combined experience across key specialties.
+            Meet our team of AHPRA-registered doctors with decades of combined
+            experience across key specialties.
           </p>
         </div>
 
@@ -55,29 +78,49 @@ export function DoctorsSection() {
               key={doctor.name}
               className="group bg-[#f4f7f2] rounded-3xl overflow-hidden hover:shadow-lg transition-shadow"
             >
-              {/* Avatar Header */}
               <div className={`bg-gradient-to-br ${doctor.color} p-6 pb-12`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-xl font-medium">
-                    {doctor.initials}
-                  </div>
+                  {doctor.image ? (
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/20 backdrop-blur-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={doctor.image}
+                        alt={doctor.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center text-white text-xl font-medium">${doctor.initials}</div>`;
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-xl font-medium">
+                      {doctor.initials}
+                    </div>
+                  )}
                   <div>
                     <p className="text-white/80 text-sm">{doctor.title}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {doctor.specialties.map((specialty) => (
-                        <span
-                          key={specialty}
-                          className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white"
-                        >
-                          {specialty}
-                        </span>
-                      ))}
-                    </div>
+                    {doctor.subtitle ? (
+                      <p className="mt-1 text-xs leading-snug text-white/75">
+                        {doctor.subtitle}
+                      </p>
+                    ) : null}
+                    {doctor.specialties.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {doctor.specialties.map((specialty) => (
+                          <span
+                            key={specialty}
+                            className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white"
+                          >
+                            {specialty}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
 
-              {/* Content */}
               <div className="p-6 -mt-6">
                 <div className="bg-white rounded-2xl p-4 shadow-sm">
                   <h3 className="text-lg font-serif text-[#2c3628] mb-2">
@@ -90,15 +133,6 @@ export function DoctorsSection() {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-12 text-center">
-          <Link
-            href="/doctors"
-            className="btn-secondary"
-          >
-            Meet the full team
-          </Link>
         </div>
       </div>
     </section>

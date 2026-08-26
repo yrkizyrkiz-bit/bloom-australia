@@ -67,7 +67,7 @@ export function DoctorSection() {
               {/* Main Image */}
               <div className="rounded-[32px] overflow-hidden shadow-2xl">
                 <Image
-                  src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=800&q=80"
+                  src="/images/remote/unsplash/photo-1559839734-2b71ea197ec2.webp"
                   alt="Australian healthcare professionals"
                   width={600}
                   height={700}
@@ -112,7 +112,7 @@ export function DoctorSection() {
             </h2>
 
             <p className="text-lg text-[#5c7a52] leading-relaxed">
-              Unlike many online programs, we do not rely on a simple questionnaire alone. We use clinical review, symptoms and medical history to understand your situation. Where appropriate, testing may be used to help identify potential contributing factors — but it is not required for all patients.
+              Unlike many online programs, we do not rely on a simple questionnaire alone. We use clinical review, symptoms and medical history to understand your situation. Where appropriate, testing may be used to help identify potential contributing factors, but it is not required for all patients.
             </p>
 
             {/* Trust Bullets */}

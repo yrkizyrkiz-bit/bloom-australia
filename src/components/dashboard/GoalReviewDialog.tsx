@@ -104,7 +104,7 @@ export function GoalReviewDialog({
 
       toast.success(
         action === "achieve"
-          ? "Goal marked as achieved — well done!"
+          ? "Goal marked as achieved, well done!"
           : "Next review scheduled"
       );
       onOpenChange(false);

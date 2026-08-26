@@ -385,7 +385,7 @@ function generateFallbackResponse(userMessage: string): string {
   }
 
   if (message.includes("hair") || message.includes("finasteride") || message.includes("minoxidil")) {
-    return "Ah, the hair journey! Great question. Our doctors create personalised hair loss care plans based on your assessment — specific treatment options are discussed privately in consultation. Patience is key: most people start noticing changes around the 3–6 month mark. For personalised advice, your care partner can walk you through what to expect.";
+    return "Ah, the hair journey! Great question. Our doctors create personalised hair loss care plans based on your assessment, specific treatment options are discussed privately in consultation. Patience is key: most people start noticing changes around the 3–6 month mark. For personalised advice, your care partner can walk you through what to expect.";
   }
 
   if (message.includes("medication") || message.includes("dose") || message.includes("side effect")) {

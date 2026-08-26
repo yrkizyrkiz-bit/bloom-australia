@@ -115,7 +115,7 @@ export function LabsConciergeSearch({
 
   return (
     <div
-      className={`relative z-30 w-full max-w-lg ${
+      className={`relative z-30 w-full min-w-0 max-w-full sm:max-w-lg ${
         align === "end" ? "mx-auto lg:mx-0 lg:ml-auto" : "mx-0"
       }`}
     >
@@ -130,14 +130,14 @@ export function LabsConciergeSearch({
             <span className="italic text-[#5c7a52]">stay ahead</span>
           </p>
           <p className="mt-1.5 text-sm text-[#5c7a52]/90">
-            Ask a question — we&apos;ll point you to the right tests
+            Ask a question, we&apos;ll point you to the right tests
           </p>
         </div>
       )}
 
       <form
         onSubmit={onSubmit}
-        className="flex w-full cursor-pointer items-center gap-2.5 rounded-full border border-[#34412f]/12 bg-white/80 py-2.5 pl-3.5 pr-2 shadow-[0_8px_28px_rgba(52,65,47,0.10)] backdrop-blur-md transition-all duration-200 hover:border-[#34412f]/25 hover:bg-white/95"
+        className="flex h-12 w-full min-w-0 max-w-full cursor-pointer items-center gap-2 overflow-hidden rounded-full border border-[#34412f]/12 bg-white/80 py-1.5 pl-2.5 pr-1.5 shadow-[0_8px_28px_rgba(52,65,47,0.10)] backdrop-blur-md transition-all duration-200 hover:border-[#34412f]/25 hover:bg-white/95 sm:h-[3.25rem] sm:gap-2.5 sm:py-2.5 sm:pl-3.5 sm:pr-2"
         role="search"
         aria-label="Start biomarker intake"
         onClick={() => router.push("/biomarker-intake")}
@@ -149,11 +149,11 @@ export function LabsConciergeSearch({
           <Sparkles className="h-4 w-4" strokeWidth={2.25} />
         </span>
 
-        <div className="relative min-w-0 flex-1 py-0.5">
+        <div className="relative min-w-0 flex-1 overflow-hidden py-0.5">
           <span
             ref={ghostRef}
             aria-live="polite"
-            className="flex min-h-[1.5rem] items-center truncate text-[0.95rem] sm:text-base text-[#5c7a52] [mask-image:linear-gradient(to_right,#000_82%,transparent)]"
+            className="block h-6 w-full overflow-hidden whitespace-nowrap text-sm leading-6 text-[#5c7a52] sm:text-[0.95rem] [mask-image:linear-gradient(to_right,#000_78%,transparent)]"
           />
         </div>
 

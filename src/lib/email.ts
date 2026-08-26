@@ -25,7 +25,7 @@ function getResendClient(): Resend | null {
   return resendClient;
 }
 
-// Sender — aligned with verification route (EMAIL_FROM / EMAIL_FROM_NAME)
+// Sender, aligned with verification route (EMAIL_FROM / EMAIL_FROM_NAME)
 const EMAIL_FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Sanative Health";
 
@@ -98,7 +98,7 @@ export async function sendMembershipWelcomeEmail(params: {
   const cta = params.needsPassword
     ? "Set your password & open your portal"
     : "Open your portal";
-  const subject = "Welcome to Sanative — your membership is active";
+  const subject = "Welcome to Sanative: your membership is active";
 
   const html = `
   <div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #2c3628;">
@@ -108,7 +108,7 @@ export async function sendMembershipWelcomeEmail(params: {
     <p>Your membership <strong>auto-renews annually</strong> using the card on file. You can update your payment method or cancel anytime from your portal.</p>
     <p><strong>What happens next</strong></p>
     <ol style="padding-left: 20px; line-height: 1.7;">
-      <li>Your doctor consultation — we'll confirm your booking by email.</li>
+      <li>Your doctor consultation: we'll confirm your booking by email.</li>
       <li>Your doctor issues your pathology request for the Essential panel.</li>
       <li>Results and personalised insights appear in your portal.</li>
     </ol>
@@ -126,7 +126,7 @@ export async function sendMembershipWelcomeEmail(params: {
     "Your membership auto-renews annually using the card on file. You can update your payment method or cancel anytime from your portal.",
     "",
     "What happens next:",
-    "1. Your doctor consultation — we'll confirm your booking by email.",
+    "1. Your doctor consultation: we'll confirm your booking by email.",
     "2. Your doctor issues your pathology request for the Essential panel.",
     "3. Results and personalised insights appear in your portal.",
     "",
@@ -232,7 +232,7 @@ export async function sendMembershipCancellationEmail(params: {
     <h1 style="font-size: 22px; margin: 0 0 16px;">Membership cancelled</h1>
     <p>${greeting}</p>
     <p>We've cancelled your Sanative Membership as requested. ${accessLine}</p>
-    <p>Your health records stay safely stored — if you rejoin, everything will be right where you left it.</p>
+    <p>Your health records stay safely stored, if you rejoin, everything will be right where you left it.</p>
     <p style="margin: 28px 0;">
       <a href="${baseUrl}/membership/checkout" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">Rejoin Sanative</a>
     </p>
@@ -243,7 +243,7 @@ export async function sendMembershipCancellationEmail(params: {
     greeting,
     "",
     `We've cancelled your Sanative Membership as requested. ${accessLineText}`,
-    "Your health records stay safely stored — if you rejoin, everything will be right where you left it.",
+    "Your health records stay safely stored, if you rejoin, everything will be right where you left it.",
     "",
     `Rejoin: ${baseUrl}/membership/checkout`,
   ].join("\n");

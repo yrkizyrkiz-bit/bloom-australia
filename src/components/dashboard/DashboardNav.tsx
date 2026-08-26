@@ -63,7 +63,7 @@ export function DashboardNav() {
 
           {/* Nav Items */}
           <div className="hidden md:flex items-center gap-1">
-            {/* Programs hub — default member home */}
+            {/* Programs hub, default member home */}
             <Link href={MEMBER_PROGRAMS_HOME}>
               <Button
                 variant="ghost"
@@ -75,7 +75,7 @@ export function DashboardNav() {
               </Button>
             </Link>
 
-            {/* Classic health overview — biomarker dashboard when labs are unlocked */}
+            {/* Classic health overview, biomarker dashboard when labs are unlocked */}
             {biomarkersUnlocked && (
               <Link href="/dashboard">
                 <Button

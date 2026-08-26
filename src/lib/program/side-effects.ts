@@ -123,7 +123,7 @@ const MITIGATION_BY_SYMPTOM: Record<SideEffectSymptomId, MitigationTip[]> = {
     {
       id: "fatigue-protein",
       title: "Check protein intake",
-      description: "Low energy can relate to low calorie intake — ensure adequate protein across the day.",
+      description: "Low energy can relate to low calorie intake, ensure adequate protein across the day.",
       priority: "normal",
     },
   ],
@@ -131,7 +131,7 @@ const MITIGATION_BY_SYMPTOM: Record<SideEffectSymptomId, MitigationTip[]> = {
     {
       id: "headache-hydration",
       title: "Hydration check",
-      description: "Headaches can worsen with dehydration — drink water steadily through the day.",
+      description: "Headaches can worsen with dehydration, drink water steadily through the day.",
       priority: "high",
     },
   ],
@@ -161,7 +161,7 @@ const MITIGATION_BY_SYMPTOM: Record<SideEffectSymptomId, MitigationTip[]> = {
     {
       id: "dizzy-sit",
       title: "Stand up slowly",
-      description: "Rise slowly from sitting. Ensure you are eating and drinking enough — contact care team if persistent.",
+      description: "Rise slowly from sitting. Ensure you are eating and drinking enough, contact care team if persistent.",
       priority: "high",
     },
   ],

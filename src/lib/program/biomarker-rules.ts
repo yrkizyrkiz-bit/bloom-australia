@@ -39,13 +39,13 @@ function evaluateValue(
 const FOCUS_BY_MARKER: Record<string, { high?: string; low?: string; borderline?: string }> = {
   hba1c: {
     high: "Prioritise steady protein at meals and discuss glucose trends with your care partner.",
-    borderline: "Keep logging meals — small, regular portions help glucose stability on GLP-1 therapy.",
+    borderline: "Keep logging meals, small, regular portions help glucose stability on GLP-1 therapy.",
   },
   glucose: {
     high: "Avoid skipping meals; pair carbs with protein to reduce glucose spikes.",
   },
   alt: {
-    high: "Limit alcohol and notify your care team — liver markers need clinician review on weight-loss medication.",
+    high: "Limit alcohol and notify your care team, liver markers need clinician review on weight-loss medication.",
     borderline: "Stay well hydrated and avoid heavy alcohol while on program.",
   },
   ldl_cholesterol: {

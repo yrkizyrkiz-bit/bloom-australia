@@ -118,7 +118,7 @@ export function PathologyReferralFormFields({
           <h3 className="text-sm font-semibold">2. Clinical indication &amp; notes</h3>
           <p className="text-xs text-muted-foreground mt-1">
             Medicare clinical indications are pulled from the member&apos;s program quiz where
-            available — edit or add notes before generating the PDF.
+            available, edit or add notes before generating the PDF.
           </p>
         </div>
         <Textarea

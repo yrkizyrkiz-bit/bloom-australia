@@ -8,7 +8,7 @@ import { ORGAN_CARE_CARD } from "@/lib/programs/catalog";
 import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 
 /**
- * DEPRECATED — Organ Care is no longer a standalone purchase. It is included
+ * DEPRECATED, Organ Care is no longer a standalone purchase. It is included
  * with every biomarker panel and with Sanative Membership. Entitled members go
  * to the Organ Care hub; everyone else goes to the biomarker panel quiz
  * (any panel unlocks Organ Care).

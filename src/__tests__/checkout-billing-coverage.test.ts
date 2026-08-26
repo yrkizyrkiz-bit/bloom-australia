@@ -1,5 +1,5 @@
 /**
- * Checkout path billing coverage — documents expected MemberSubscription + Entitlement writes.
+ * Checkout path billing coverage, documents expected MemberSubscription + Entitlement writes.
  * Update this table when adding a new purchase flow.
  */
 import { describe, expect, it } from "vitest";

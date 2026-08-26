@@ -178,7 +178,7 @@ export function PortalPaymentForm(props: PortalPaymentFormProps) {
   if (!stripePromise) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-        Payment is unavailable — Stripe is not configured for this environment.
+        Payment is unavailable, Stripe is not configured for this environment.
       </div>
     );
   }

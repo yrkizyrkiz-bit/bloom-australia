@@ -65,7 +65,7 @@ function overallRiskFromScore(score: number): OrganCareAIReport["overallRisk"] {
   return "high";
 }
 
-/** Client-safe sanitizer — ensures arrays/fields exist before rendering. */
+/** Client-safe sanitizer, ensures arrays/fields exist before rendering. */
 export function sanitizeOrganCareReport(
   report: Partial<OrganCareAIReport> | null | undefined
 ): OrganCareAIReport | null {

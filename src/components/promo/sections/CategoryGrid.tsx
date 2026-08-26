@@ -106,12 +106,12 @@ export function CategoryGrid() {
               </h3>
               <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
             </div>
-            <p className="text-[#7e9a72] text-sm">Test 80+ biomarkers at home</p>
+            <p className="text-[#7e9a72] text-sm">Test 85+ biomarkers at home</p>
           </Link>
 
           {/* Menopause */}
           <Link
-            href="/menopause"
+            href="/womens-health"
             className="md:col-span-2 group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#f8f4ec] to-[#f0e8d8] p-6 lg:p-8 min-h-[160px] flex items-center justify-between transition-transform duration-300 hover:scale-[1.02]"
           >
             <div>

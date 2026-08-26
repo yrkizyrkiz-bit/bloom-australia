@@ -13,7 +13,7 @@ function requireAdmin(session: { user?: { id?: string; role?: string } } | null)
   return true;
 }
 
-/** GET — migration status summary */
+/** GET, migration status summary */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -41,7 +41,7 @@ export async function GET() {
   }
 }
 
-/** POST — run migration (preview or execute) */
+/** POST, run migration (preview or execute) */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       success: true,
       result,
       message: dryRun
-        ? "Preview complete — no changes written"
+        ? "Preview complete, no changes written"
         : `Migration complete: ${result.created} created, ${result.upgraded} upgraded`,
     });
   } catch (error) {

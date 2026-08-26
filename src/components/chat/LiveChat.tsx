@@ -255,7 +255,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
     }
   }, [isOpen, minimized, initializeChat]);
 
-  // Poll for coach replies only — AI responses come back on the send POST
+  // Poll for coach replies only, AI responses come back on the send POST
   useEffect(() => {
     if (
       session &&

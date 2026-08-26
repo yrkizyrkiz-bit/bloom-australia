@@ -250,7 +250,7 @@ function normalizeStandardAnalysis(
         id: `${organ}-bio-${fIndex}-${bIndex}`,
         biomarkerId,
         biomarkerName: definition?.name ?? bio.name,
-        reason: `${bio.name} is ${bio.status.replace("_", " ")} (${bio.value} ${bio.unit}) — ${factor.name ?? "risk factor"}`,
+        reason: `${bio.name} is ${bio.status.replace("_", " ")} (${bio.value} ${bio.unit}), ${factor.name ?? "risk factor"}`,
         suggestedTarget: suggestedTargetForBiomarker(biomarkerId, bio.value),
         currentValue: bio.value,
         unit: bio.unit || definition?.ranges.male.unit || "",

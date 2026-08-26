@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { KidneyHealthCalculator } from "@/components/promo/KidneyHealthCalculator";
 import { CKDStageChart } from "@/components/promo/CKDStageChart";
-import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
+import { OrganCareMembershipSection } from "@/components/promo/sections/OrganCareMembershipSection";
 import {
   ArrowRight,
   AlertTriangle,
@@ -105,67 +105,17 @@ function EGFRGauge() {
   );
 }
 
-// Portal Screenshot Slider
-function PortalSlider() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const slides = [
-    { title: "Kidney Health Dashboard", description: "Track renal biomarkers in real-time", gradient: "from-teal-50 to-cyan-100" },
-    { title: "eGFR Tracking", description: "Monitor kidney function over time", gradient: "from-emerald-50 to-green-100" },
-    { title: "Personalised Insights", description: "AI-powered analysis of your kidney health trends", gradient: "from-sky-50 to-blue-100" },
-    { title: "Care Team Support", description: "Direct messaging with your care partners", gradient: "from-violet-50 to-purple-100" },
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slides.length), 4000);
-    return () => clearInterval(interval);
-  }, [slides.length]);
-
-  return (
-    <div className="relative">
-      <div className="overflow-hidden rounded-2xl">
-        <div className="flex transition-transform duration-500" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
-          {slides.map((slide, index) => (
-            <div key={index} className={`w-full flex-shrink-0 bg-gradient-to-br ${slide.gradient} p-8 min-h-[320px] flex flex-col justify-center`}>
-              <div className="bg-white rounded-xl shadow-lg p-6 max-w-sm mx-auto">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center">
-                    <Droplets className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm">{slide.title}</p>
-                    <p className="text-xs text-gray-500">{slide.description}</p>
-                  </div>
-                </div>
-                <div className="h-24 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg flex items-end justify-around px-4 pb-2">
-                  {[40, 65, 55, 80, 70, 90, 75].map((height, i) => (
-                    <div key={i} className="w-4 bg-gradient-to-t from-teal-500 to-cyan-400 rounded-t" style={{ height: `${height}%` }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center justify-center gap-2 mt-4">
-        {slides.map((_, index) => (
-          <button key={index} onClick={() => setCurrentSlide(index)} className={`w-2 h-2 rounded-full transition-colors ${currentSlide === index ? "bg-teal-500" : "bg-gray-300"}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function KidneyHealthPage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(0);
 
   const epidemicStats = [
     { value: "1.7M", label: "Australians have chronic kidney disease", subtext: "Many don't know they have it", citation: "Kidney Health Australia, 2023" },
     { value: "90%", label: "of kidney function can be lost before symptoms", subtext: "Often called the 'silent disease'", citation: "National Kidney Foundation" },
-    { value: "30%", label: "of CKD cases are preventable", subtext: "Through early detection and intervention", citation: "AIHW, 2023" },
+    { value: "30%", label: "of CKD is linked to factors that can be reviewed", subtext: "Blood pressure, glucose and other clinical context", citation: "AIHW, 2023" },
   ];
 
   const conditions = [
-    { icon: Droplets, title: "Chronic Kidney Disease", description: "When your kidneys slowly lose their filtering power over time", detail: "Catching it early makes a huge difference" },
+    { icon: Droplets, title: "Chronic Kidney Disease", description: "When your kidneys slowly lose their filtering power over time", detail: "Often quiet in the early stages, testing can inform your doctor" },
     { icon: TrendingUp, title: "Fatty Kidney Disease", description: "Excess fat building up in your kidneys", detail: "Often goes hand-in-hand with weight and metabolic issues" },
     { icon: Zap, title: "Diabetic Kidney Disease", description: "Kidney damage caused by diabetes", detail: "The #1 cause of kidney problems in Australia" },
   ];
@@ -203,7 +153,7 @@ export default function KidneyHealthPage() {
       icon: BarChart3,
       color: "amber",
       markers: [
-        { name: "Triglycerides & LDL Cholesterol", description: "When these fats are high in your blood, they're often high in your organs too — including your kidneys" },
+        { name: "Triglycerides & LDL Cholesterol", description: "When these fats are high in your blood, they're often high in your organs too, including your kidneys" },
         { name: "Fasting Insulin & HbA1c", description: "These show how well your body handles sugar. High levels push fat into places it shouldn't be, like your kidneys" },
         { name: "Adipokines (Leptin/Adiponectin)", description: "These are hormones from your fat cells. An imbalance tells us fat is causing inflammation in your organs" },
       ]
@@ -213,7 +163,7 @@ export default function KidneyHealthPage() {
       icon: Target,
       color: "orange",
       markers: [
-        { name: "FIB-4 Index", description: "A score that measures liver scarring — and surprisingly, it also predicts kidney problems" },
+        { name: "FIB-4 Index", description: "A score used for liver scarring that has also been studied alongside kidney risk" },
         { name: "NAFLD Fibrosis Score", description: "Another liver health score. When it's elevated, your kidney risk goes up too" },
         { name: "ALT/AST Ratio", description: "Liver enzymes that help us see the bigger picture of your metabolic health" },
       ]
@@ -230,10 +180,10 @@ export default function KidneyHealthPage() {
   ];
 
   const processSteps = [
-    { icon: Eye, title: "Test", subtitle: "Get the full picture", description: "We run a complete kidney panel — not just the basics, but the markers that catch problems early." },
-    { icon: Wrench, title: "Plan", subtitle: "Your personal roadmap", description: "Based on your results, we create a plan that works for your life — diet, lifestyle, and medical support if needed." },
-    { icon: Check, title: "Track", subtitle: "See your progress", description: "Regular testing shows what's working. You'll see your numbers improve over time." },
-    { icon: RefreshCw, title: "Protect", subtitle: "Stay on track", description: "Ongoing support to keep your kidneys healthy for the long haul." },
+    { icon: Eye, title: "Test", subtitle: "Get the full picture", description: "Where clinically indicated, your doctor can request a kidney panel, including markers that may be useful before symptoms appear." },
+    { icon: Wrench, title: "Plan", subtitle: "Your personal roadmap", description: "Your doctor reviews the results with you and discusses diet, lifestyle and medical options only where they are clinically appropriate." },
+    { icon: Check, title: "Track", subtitle: "Review over time", description: "If a repeat test is useful, your doctor can compare the new numbers with your baseline. Frequency varies by member." },
+    { icon: RefreshCw, title: "Follow-up", subtitle: "Stay in the conversation", description: "Ongoing doctor-led support so kidney and metabolic markers can be reviewed as your situation changes." },
   ];
 
   const biomarkers = [
@@ -246,23 +196,23 @@ export default function KidneyHealthPage() {
   const faqs = [
     {
       question: "What exactly is chronic kidney disease?",
-      answer: "Think of your kidneys as filters for your blood. With chronic kidney disease (CKD), these filters slowly become less effective over time. The tricky part? You usually won't feel anything different in the early stages — that's why testing is so important. Doctors classify CKD into 5 stages based on your eGFR score, from mild (Stage 1-2) to severe (Stage 5, which is kidney failure)."
+      answer: "Think of your kidneys as filters for your blood. With chronic kidney disease (CKD), these filters slowly become less effective over time. The tricky part? You usually won't feel anything different in the early stages, that's why testing is so important. Doctors classify CKD into 5 stages based on your eGFR score, from mild (Stage 1-2) to severe (Stage 5, which is kidney failure)."
     },
     {
       question: "I've heard of fatty liver, but fatty kidneys?",
-      answer: "Yes, it's a real thing! Just like fat can build up in your liver, it can accumulate in your kidneys too. There's no single test that shows 'fatty kidneys,' but we can see the warning signs through blood markers like triglycerides, insulin levels, and HbA1c. Here's the interesting part: fatty kidney and fatty liver almost always happen together — they're both caused by the same metabolic issues, often related to weight."
+      answer: "Yes, it's a real thing! Just like fat can build up in your liver, it can accumulate in your kidneys too. There's no single test that shows 'fatty kidneys,' but we can see the warning signs through blood markers like triglycerides, insulin levels, and HbA1c. Here's the interesting part: fatty kidney and fatty liver almost always happen together, they're both caused by the same metabolic issues, often related to weight."
     },
     {
       question: "How can I find out if my kidneys are okay?",
-      answer: "A simple blood test can tell you a lot. The key numbers to look at are your creatinine (a waste product your kidneys filter out), eGFR (how well your kidneys are filtering), and uACR (checks for protein in your urine — a sign of kidney damage). The National Kidney Foundation recommends regular testing because you can lose up to 90% of your kidney function before you feel any symptoms at all."
+      answer: "A simple blood test can tell you a lot. The key numbers to look at are your creatinine (a waste product your kidneys filter out), eGFR (how well your kidneys are filtering), and uACR (checks for protein in your urine, a sign of kidney damage). The National Kidney Foundation recommends regular testing because you can lose up to 90% of your kidney function before you feel any symptoms at all."
     },
     {
-      question: "Can kidney damage be reversed?",
-      answer: "Good news: in many cases, yes — especially if you catch it early. Studies show that controlling your blood pressure, managing blood sugar, and losing weight can slow down or even stop CKD from getting worse. For fatty kidney disease, addressing the underlying metabolic issues (like insulin resistance) can make a real difference. That's exactly what our program is designed to help you do."
+      question: "Can kidney damage improve?",
+      answer: "Kidney damage is not always reversible. Research has associated blood-pressure care, glucose care and weight change with slower decline in some people, especially when changes are found earlier. Your Sanative doctor reviews your results and discusses what, if anything, is clinically appropriate. Individual outcomes vary and are not guaranteed."
     },
     {
       question: "What tests do you include in the kidney panel?",
-      answer: "We go beyond the basics. Our panel includes standard kidney markers (creatinine, eGFR, BUN, uACR) plus tests that predict problems before they happen — like metabolic markers (HbA1c, insulin), electrolytes (sodium, potassium, phosphorus, calcium), and inflammation markers (hs-CRP). It's the kind of thorough testing that gives you the full picture."
+      answer: "Where clinically indicated, the panel can include standard kidney markers (creatinine, eGFR, urea, UACR) plus metabolic markers (HbA1c, insulin), electrolytes and inflammation markers such as hs-CRP. Your doctor decides what is useful for you."
     },
   ];
 
@@ -274,12 +224,12 @@ export default function KidneyHealthPage() {
         <section className="relative py-12 lg:py-16 bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
-              <span className="inline-block px-4 py-1.5 text-sm font-medium bg-teal-100 text-teal-700 rounded-full mb-4">Metabolic Care</span>
+              <span className="inline-block px-4 py-1.5 text-sm font-medium bg-teal-100 text-teal-700 rounded-full mb-4">Organ Care</span>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-gray-900">
                 The Kidney Health <span className="text-teal-600 italic">Program</span>
               </h1>
               <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-                Your kidneys work hard every day to keep you healthy. We help you understand how they're doing — and catch problems early, when they're easiest to fix.
+                Your kidneys work hard every day. We help you understand how they're doing, and give your doctor numbers that can be useful before symptoms appear.
               </p>
             </div>
 
@@ -288,7 +238,7 @@ export default function KidneyHealthPage() {
               <div className="bg-gradient-to-br from-[#f0f7f5] to-[#e8f4f1] rounded-3xl shadow-xl border border-teal-100/50 overflow-hidden min-h-[580px] flex flex-col">
                 <div className="flex-1 flex items-center justify-center p-6 lg:p-8">
                   <Image
-                    src="/images/kidney-health.jpg"
+                    src="/images/kidney-health.webp"
                     alt="Anatomical illustration of healthy kidneys"
                     width={500}
                     height={500}
@@ -389,7 +339,7 @@ export default function KidneyHealthPage() {
                 </h2>
                 <p className="text-gray-600 mb-6">
                   Your <strong>eGFR</strong> (estimated glomerular filtration rate) is like a report card for your kidneys.
-                  It tells you how well they're filtering waste from your blood. <strong>Higher is better</strong> — and knowing your number is the first step to protecting your kidney health.
+                  It tells you how well they're filtering waste from your blood. <strong>Higher is better</strong>, and knowing your number is the first step to protecting your kidney health.
                 </p>
                 <div className="bg-white rounded-2xl p-6 border border-teal-100 mb-6">
                   <h3 className="font-medium text-gray-900 mb-4">What the numbers mean:</h3>
@@ -400,15 +350,15 @@ export default function KidneyHealthPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full bg-yellow-500" />
-                      <span className="text-sm"><strong>60-89:</strong> Mild decrease — worth keeping an eye on</span>
+                      <span className="text-sm"><strong>60-89:</strong> Mild decrease, worth keeping an eye on</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full bg-orange-500" />
-                      <span className="text-sm"><strong>30-59:</strong> Moderate kidney disease — time to take action</span>
+                      <span className="text-sm"><strong>30-59:</strong> Moderate kidney disease, time to take action</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full bg-red-500" />
-                      <span className="text-sm"><strong>Below 30:</strong> Severe — you need specialist care</span>
+                      <span className="text-sm"><strong>Below 30:</strong> Severe, you need specialist care</span>
                     </div>
                   </div>
                 </div>
@@ -439,7 +389,7 @@ export default function KidneyHealthPage() {
                 What is <span className="text-amber-600 italic">Fatty Kidney Disease?</span>
               </h2>
               <p className="text-gray-600 max-w-3xl mx-auto">
-                You've probably heard of fatty liver — but did you know fat can build up in your kidneys too?
+                You've probably heard of fatty liver, but did you know fat can build up in your kidneys too?
                 There's no single test that says "you have fatty kidneys," but we can look at a combination of blood markers that paint a clear picture.
                 If you're carrying extra weight and these markers are elevated, there's a strong chance fat is affecting your kidneys.
               </p>
@@ -481,7 +431,7 @@ export default function KidneyHealthPage() {
                   <h3 className="text-xl font-serif mb-2">If you have fatty liver, your kidneys might be affected too</h3>
                   <p className="text-amber-100 text-sm">
                     Here's something important: fatty kidneys and fatty liver (MASLD) almost always go together.
-                    They share the same underlying cause — metabolic dysfunction. That's why liver health scores like the <strong>FIB-4 Index</strong> can actually help predict kidney problems.
+                    They share the same underlying cause, metabolic dysfunction. That's why liver health scores like the <strong>FIB-4 Index</strong> are sometimes reviewed alongside kidney markers.
                     If your liver is showing signs of fat buildup, it's a good idea to check on your kidneys too.
                   </p>
                 </div>
@@ -512,7 +462,7 @@ export default function KidneyHealthPage() {
                   <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-teal-600" /> Signs to watch for
                   </h3>
-                  <p className="text-sm text-gray-600 mb-3">Most people with early kidney disease feel completely fine — that's why it's called the "silent disease." But later on, you might notice:</p>
+                  <p className="text-sm text-gray-600 mb-3">Most people with early kidney disease feel completely fine, that's why it's called the "silent disease." But later on, you might notice:</p>
                   <div className="grid sm:grid-cols-2 gap-2 text-sm text-gray-600">
                     <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" />Swollen feet or ankles</div>
                     <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" />Feeling tired all the time</div>
@@ -559,11 +509,11 @@ export default function KidneyHealthPage() {
                   We test what <span className="text-teal-600 italic">others miss</span>
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  A standard kidney test might check your creatinine and call it a day. But that's not enough to catch problems early.
-                  We look at the full picture — including markers that show metabolic stress on your kidneys <em>before</em> damage happens.
+                  A standard kidney test might check your creatinine and stop there. Your doctor can also review related metabolic and inflammation markers when they are clinically useful.
+                  We look at the full picture, including markers that show metabolic stress on your kidneys <em>before</em> damage happens.
                 </p>
                 <p className="text-gray-600 mb-6">
-                  We also track <strong className="text-teal-600">uACR and metabolic markers</strong> — protein in urine and blood sugar stress on the kidneys often show up before creatinine rises.
+                  We also track <strong className="text-teal-600">uACR and metabolic markers</strong>, protein in urine and blood sugar stress on the kidneys often show up before creatinine rises.
                 </p>
                 <div className="bg-white rounded-2xl p-4 text-xs text-gray-600 border border-teal-100">
                   <p className="font-medium mb-2">References:</p>
@@ -665,51 +615,7 @@ export default function KidneyHealthPage() {
           </div>
         </section>
 
-        {/* Membership Panel with Slider */}
-        <section id="membership" className="py-20 bg-gradient-to-br from-gray-50 to-teal-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <PortalSlider />
-              <div>
-                <span className="inline-block px-4 py-1.5 text-sm font-medium bg-teal-100 text-teal-600 rounded-full mb-4">Ready to get started?</span>
-                <h2 className="text-3xl sm:text-4xl font-serif text-gray-900 mb-6">
-                  Organ & Metabolic Care <span className="text-teal-600 italic">— all organs</span>
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  One annual membership includes kidney, heart, liver, thyroid, hormones and metabolic
-                  dashboards — not a per-organ fee.
-                </p>
-                <ul className="space-y-3 mb-8">
-                  {ORGAN_CARE_PUBLIC_OFFER.includes.map((item) => (
-                    <li key={item} className="flex items-center gap-3 text-gray-700">
-                      <CheckCircle className="w-5 h-5 text-teal-500 flex-shrink-0" /><span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-baseline gap-2 mb-6">
-                  <span className="text-5xl font-serif text-gray-900">{ORGAN_CARE_PUBLIC_OFFER.priceLabel.replace("/year", "")}</span>
-                  <span className="text-gray-500">/year · all organs</span>
-                </div>
-                <Link href={ORGAN_CARE_PUBLIC_OFFER.checkoutPath} className="block w-full py-4 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl text-center transition-colors">Start Organ Care membership</Link>
-                <div className="flex flex-wrap justify-center gap-4 mt-4">
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-teal-500" />
-                    <span>Cancel anytime</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-teal-500" />
-                    <span>Results in a week</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-teal-500" />
-                    <span>NATA-accredited labs</span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-400 mt-3 text-center">The sooner you test, the more you can do to protect your kidneys.</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <OrganCareMembershipSection accent="teal" />
 
         {/* Trust */}
         <section className="py-16 bg-teal-100">
@@ -766,8 +672,7 @@ export default function KidneyHealthPage() {
               Know your numbers. <span className="text-teal-200 italic">Take control.</span>
             </h2>
             <p className="text-lg text-teal-100 mb-10 max-w-2xl mx-auto">
-              You can't feel kidney problems early on — but a blood test can catch them. The earlier you know, the more you can do about it.
-              Don't wait until symptoms appear.
+              Kidney changes are often quiet at first. A blood test can give your doctor useful numbers to review, you do not have to wait for symptoms.
             </p>
             <Link href="/membership/checkout" className="inline-flex items-center justify-center gap-3 text-lg px-12 py-5 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-md mx-auto">
               Start your membership now <ArrowRight className="w-5 h-5" />

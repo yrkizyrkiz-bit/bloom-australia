@@ -8,6 +8,7 @@ import { signMagicLoginToken } from "@/lib/magic-link";
 import { resolveAppBaseUrl } from "@/lib/app-base-url";
 import { sendMembershipWelcomeEmail } from "@/lib/email";
 import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscription";
+import { getStripeSubscriptionPeriod } from "@/lib/stripe/subscription-period";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
 
@@ -33,23 +34,6 @@ function parseAuDate(value?: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function subscriptionPeriod(subscription: Stripe.Subscription): {
-  start: Date | null;
-  end: Date | null;
-} {
-  const subData = subscription as unknown as Record<string, unknown>;
-  return {
-    start:
-      typeof subData.current_period_start === "number"
-        ? new Date(subData.current_period_start * 1000)
-        : null,
-    end:
-      typeof subData.current_period_end === "number"
-        ? new Date(subData.current_period_end * 1000)
-        : null,
-  };
-}
-
 /**
  * Activate Sanative Membership after the first subscription invoice is paid:
  * user record, Stripe subscription linkage, entitlements, invoice, triage,
@@ -73,6 +57,7 @@ export async function POST(request: NextRequest) {
       suburb,
       state,
       postcode,
+      gender,
       intentProgram,
       clientOrigin,
     } = body as Record<string, string | undefined>;
@@ -128,7 +113,7 @@ export async function POST(request: NextRequest) {
     let periodEnd: Date | null = null;
     if (stripeSubscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-      const period = subscriptionPeriod(subscription);
+      const period = getStripeSubscriptionPeriod(subscription);
       periodStart = period.start;
       periodEnd = period.end;
     }
@@ -147,6 +132,7 @@ export async function POST(request: NextRequest) {
       suburb,
       state,
       postcode,
+      gender: gender === "MALE" || gender === "FEMALE" ? gender : null,
       intentProgram: intentProgram || paymentIntent.metadata?.intentProgram || null,
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,

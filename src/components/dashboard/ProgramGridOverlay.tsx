@@ -32,7 +32,7 @@ export function ProgramGridOverlay() {
           window.dispatchEvent(new Event("sanative:grid-overlay-dismissed"));
         });
       } catch {
-        // sessionStorage unavailable — still hide for this mount.
+        // sessionStorage unavailable, still hide for this mount.
       }
     }
   }, [dismissKey]);
@@ -46,7 +46,7 @@ export function ProgramGridOverlay() {
         openedAtPath.current = pathname;
       }
     } catch {
-      // sessionStorage unavailable (private mode) — skip the overlay silently.
+      // sessionStorage unavailable (private mode), skip the overlay silently.
     }
     // Only evaluate once per user mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps

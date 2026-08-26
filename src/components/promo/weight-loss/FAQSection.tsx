@@ -19,7 +19,7 @@ const faqs: FAQ[] = [
   },
   {
     question: "How much does the program cost?",
-    answer: "We offer two plans: Sanative Core starts at $249 for your first month (then from $349/month ongoing), and Sanative Precision starts at $399 for your first month (then from $499/month ongoing). Both include doctor consultations, Care Partner support, portal access, and ongoing clinical monitoring. Precision includes more frequent doctor check-ins and enhanced biomarker monitoring. No hidden fees or lock-in contracts — cancel anytime.",
+    answer: "We offer two plans: Sanative Core starts at $249 for your first month (then from $349/month ongoing), and Sanative Precision starts at $399 for your first month (then from $499/month ongoing). Both include doctor consultations, Care Partner support, portal access, and ongoing clinical monitoring. Precision includes more frequent doctor check-ins and enhanced biomarker monitoring. No hidden fees or lock-in contracts, cancel anytime.",
   },
   {
     question: "What does the monthly fee cover?",
@@ -39,7 +39,7 @@ const faqs: FAQ[] = [
   },
   {
     question: "What about treatment options?",
-    answer: "Treatment options are discussed privately with your doctor if clinically appropriate. Your monthly program fee covers clinical assessment, monitoring, and portal access — not medicine bundles.",
+    answer: "Treatment options are discussed privately with your doctor if clinically appropriate. Your monthly program fee covers clinical assessment, monitoring, and portal access, not medicine bundles.",
   },
   {
     question: "How long should I stay on the program?",

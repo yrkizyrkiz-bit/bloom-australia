@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     if (missing.length > 0) {
       return NextResponse.json(
         {
-          error: "Incomplete quiz — please answer every section before submitting.",
+          error: "Incomplete quiz, please answer every section before submitting.",
           missing,
         },
         { status: 400 }
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     const warnings: string[] = [];
 
-    // Paid activation happens via biomarkers-checkout after Stripe payment — no free entitlement here.
+    // Paid activation happens via biomarkers-checkout after Stripe payment, no free entitlement here.
     try {
       const existing = await prisma.careCommunication.findFirst({
         where: {
@@ -104,7 +104,7 @@ Action: AHPRA doctor to review clinical indications, request Medicare-eligible p
       result,
       warnings,
       message:
-        "Thank you. A doctor will review your clinical indications and our care team will arrange the right pathology — including Medicare-eligible tests where appropriate.",
+        "Thank you. A doctor will review your clinical indications and our care team will arrange the right pathology, including Medicare-eligible tests where appropriate.",
     });
   } catch (error) {
     console.error("[portal/biomarkers-quiz]", error);

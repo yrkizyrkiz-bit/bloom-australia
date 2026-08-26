@@ -1,4 +1,4 @@
-/* Full-card care plan hero — each slide is a baked 1672×941 JPEG. */
+/* Full-card care plan hero — static base + transparent screen overlays. */
 
 .care-plan-hero {
   position: relative;
@@ -14,6 +14,7 @@
   inset: 0;
 }
 
+.care-plan-hero__base,
 .care-plan-hero__slide {
   position: absolute;
   inset: 0;
@@ -28,6 +29,14 @@
   filter: none;
   user-select: none;
   pointer-events: none;
+}
+
+.care-plan-hero__base {
+  z-index: 0;
+}
+
+.care-plan-hero__slide {
+  z-index: 1;
   opacity: 0;
   transition: opacity 720ms ease;
 }

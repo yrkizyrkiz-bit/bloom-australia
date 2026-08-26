@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Persist clinical sex onto the member profile when they answered it in-funnel.
-      // User.gender defaults to OTHER, so treat OTHER/unset as needing an update —
+      // User.gender defaults to OTHER, so treat OTHER/unset as needing an update,
       // `!user.gender` is never true for a normal member row.
       const resolved = resolveBiomarkersQuizGender(user.gender, answers.clinicalSex);
       const profileUnset =

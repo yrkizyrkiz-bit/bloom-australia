@@ -22,7 +22,7 @@ const benefits = [
   {
     icon: FlaskConical,
     title: "Biomarker-first approach",
-    description: "We look at hormones, thyroid, and metabolic markers — not just BMI.",
+    description: "We look at hormones, thyroid, and metabolic markers, not just BMI.",
   },
   {
     // GAP-023: Removed "free" biomarker positioning
@@ -49,7 +49,7 @@ const benefits = [
   {
     icon: HeartHandshake,
     title: "Real clinical support",
-    description: "Ongoing guidance — not automated checkboxes.",
+    description: "Ongoing guidance, not automated checkboxes.",
   },
 ];
 
@@ -153,7 +153,7 @@ export function WhyWomenChoose() {
                 Unlike BMI-only programs, we look at your full metabolic picture
               </p>
               <p className="text-sm text-[#a8bb9e] leading-relaxed">
-                Your care plan is guided by symptoms, health history, and biomarkers where clinically appropriate — with ongoing clinical support to help you stay consistent.
+                Your care plan is guided by symptoms, health history, and biomarkers where clinically appropriate, with ongoing clinical support to help you stay consistent.
               </p>
             </div>
           </div>

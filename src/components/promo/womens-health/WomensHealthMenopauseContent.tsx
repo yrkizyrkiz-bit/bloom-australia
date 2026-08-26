@@ -7,7 +7,6 @@ import {
   Beaker,
   Lock,
   MessageSquare,
-  Phone,
   Shield,
   Stethoscope,
   Users,
@@ -21,30 +20,6 @@ const trustBadges = [
   { icon: Users, label: "Care team support" },
 ];
 
-const processSteps = [
-  {
-    number: "01",
-    icon: MessageSquare,
-    title: "Health assessment",
-    description:
-      "Become a member and complete a confidential questionnaire about your symptoms, cycle history, medical background, and goals — tailored for perimenopause and menopause.",
-  },
-  {
-    number: "02",
-    icon: Beaker,
-    title: "Biomarkers where appropriate",
-    description:
-      "Your doctor may recommend blood tests — for example hormones, thyroid, metabolic and bone-health markers — to inform a safe, personalised plan.",
-  },
-  {
-    number: "03",
-    icon: Phone,
-    title: "Telehealth consultation",
-    description:
-      "An AHPRA-registered Australian doctor reviews your assessment and results, then discusses what is clinically appropriate for you in a private 30-minute consult.",
-  },
-];
-
 const benefits = [
   {
     icon: Stethoscope,
@@ -56,7 +31,7 @@ const benefits = [
     icon: Beaker,
     title: "Biomarker-informed care",
     description:
-      "Hormone and metabolic testing helps your doctor understand your biology — not guesswork based on symptoms alone.",
+      "Hormone and metabolic testing helps your doctor understand your biology, not guesswork based on symptoms alone.",
   },
   {
     icon: Lock,
@@ -108,7 +83,7 @@ export function WomensHealthMenopauseContent() {
                 </h2>
                 <p className="text-lg text-[#5c7a52] leading-relaxed mb-6">
                   Menopause marks the end of menstrual periods, usually between ages 45 and 55 in
-                  Australia. For many women, perimenopause — the years leading up to it — brings the
+                  Australia. For many women, perimenopause (the years leading up to it) brings the
                   most disruptive symptoms as oestrogen and progesterone levels change.
                 </p>
                 <p className="text-[#5c7a52] leading-relaxed">
@@ -160,7 +135,7 @@ export function WomensHealthMenopauseContent() {
               <div className="order-2 lg:order-1 bg-gradient-to-br from-[#e8d5e8]/30 to-[#fef4f0] rounded-3xl p-8 lg:p-10 border border-[#e8d5e8]/40">
                 <h3 className="text-2xl font-serif text-[#2c3628] mb-4">How menopause is diagnosed</h3>
                 <p className="text-[#5c7a52] leading-relaxed mb-4">
-                  In women over 45, diagnosis is usually based on your symptoms and menstrual pattern —
+                  In women over 45, diagnosis is usually based on your symptoms and menstrual pattern,
                   blood tests are not always required. Under 45, or with unusual symptoms, your doctor
                   may order tests to confirm ovarian function and exclude other conditions.
                 </p>
@@ -178,7 +153,7 @@ export function WomensHealthMenopauseContent() {
                   <span className="text-[#c17a58] italic">before periods stop</span>
                 </h2>
                 <p className="text-lg text-[#5c7a52] leading-relaxed mb-4">
-                  Perimenopause can last several years. Hormone levels rise and fall unpredictably —
+                  Perimenopause can last several years. Hormone levels rise and fall unpredictably,
                   which is why symptoms can come and go and why a one-off blood test may not tell the
                   full story.
                 </p>
@@ -204,7 +179,7 @@ export function WomensHealthMenopauseContent() {
               </h2>
               <p className="text-lg text-[#5c7a52] max-w-3xl mx-auto">
                 Declining oestrogen drives many menopause symptoms. Your doctor may discuss lifestyle
-                changes, non-hormonal options, or medical and clinical therapy — based on your
+                changes, non-hormonal options, or medical and clinical therapy, based on your
                 symptoms, age, and medical history. Nothing is one-size-fits-all.
               </p>
             </div>
@@ -213,7 +188,7 @@ export function WomensHealthMenopauseContent() {
               {[
                 {
                   title: "Lifestyle & self-care",
-                  body: "Sleep hygiene, exercise, stress management, and dietary support — practical foundations your doctor can help personalise.",
+                  body: "Sleep hygiene, exercise, stress management, and dietary support, practical foundations your doctor can help personalise.",
                 },
                 {
                   title: "Non-hormonal options",
@@ -221,7 +196,7 @@ export function WomensHealthMenopauseContent() {
                 },
                 {
                   title: "Medical and clinical therapy",
-                  body: "Where clinically appropriate, your doctor may discuss medical or clinical therapy in a private consult. What is suitable — if anything — depends on your symptoms, history, and clinical assessment.",
+                  body: "Where clinically appropriate, your doctor may discuss medical or clinical therapy in a private consult. What is suitable (if anything) depends on your symptoms, history, and clinical assessment.",
                 },
               ].map((card) => (
                 <div
@@ -256,53 +231,6 @@ export function WomensHealthMenopauseContent() {
                   <span className="text-sm">{label}</span>
                 </div>
               ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Process */}
-        <section id="process" className="py-20 lg:py-28 bg-[#fef4f0] scroll-mt-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-4">
-                How Sanative{" "}
-                <span className="text-[#c17a58] italic">works</span>
-              </h2>
-              <p className="text-lg text-[#5c7a52] max-w-2xl mx-auto">
-                A clear clinical pathway — from assessment to doctor review and ongoing support.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {processSteps.map((step, index) => (
-                <div key={step.number} className="relative">
-                  {index < processSteps.length - 1 && (
-                    <div className="hidden md:block absolute top-12 left-[60%] w-[80%] h-px bg-[#e8b4b4]/50" />
-                  )}
-                  <div className="bg-white rounded-3xl p-8 border border-[#f8e1e1] relative z-10 shadow-sm">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-12 h-12 rounded-full bg-[#c17a58] flex items-center justify-center">
-                        <span className="text-sm font-bold text-white">{step.number}</span>
-                      </div>
-                      <div className="w-12 h-12 rounded-2xl bg-[#f8e1e1]/60 flex items-center justify-center">
-                        <step.icon className="w-6 h-6 text-[#c17a58]" />
-                      </div>
-                    </div>
-                    <h3 className="text-xl font-serif text-[#2c3628] mb-3">{step.title}</h3>
-                    <p className="text-[#5c7a52] leading-relaxed text-sm">{step.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-12 text-center">
-              <Link
-                href="/womens-health/assessment?category=menopause"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#c17a58] hover:bg-[#a86548] text-white rounded-full font-medium transition-all"
-              >
-                Start your assessment
-                <ArrowRight className="w-5 h-5" />
-              </Link>
             </div>
           </div>
         </section>

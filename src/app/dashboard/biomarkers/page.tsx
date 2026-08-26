@@ -33,6 +33,7 @@ import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 import { resolveInsightDisplayState } from "@/lib/membership/insight-display";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 import { calculateAllHealthTestScores } from "@/lib/healthTestScoring";
+import { shouldShowPortalMarkerCard } from "@/lib/biomarkers/panel-biomarker-display";
 import {
   isProgramEssentialSlug,
   type ProgramEssentialSlug,
@@ -196,6 +197,7 @@ function BiomarkersPageContent() {
     for (const [category, config] of Object.entries(bloodPanelConfig)) {
       for (const biomarker of config.biomarkers) {
         const result = biomarkerResultsMap[biomarker.id] || null;
+        if (!shouldShowPortalMarkerCard(biomarker.id, result !== null)) continue;
         const biomarkerDef = getBiomarkerById(biomarker.id);
         items.push({
           category: category as BloodPanelCategoryKey,
@@ -210,11 +212,23 @@ function BiomarkersPageContent() {
     return items;
   }, [biomarkerResultsMap]);
 
+  const visibleCategories = useMemo(() => {
+    const keys = new Set(allBiomarkersWithResults.map((item) => item.category));
+    return (Object.keys(bloodPanelConfig) as BloodPanelCategoryKey[]).filter((key) =>
+      keys.has(key)
+    );
+  }, [allBiomarkersWithResults]);
+
   // Filter biomarkers
   const filteredBiomarkers = useMemo(() => {
+    const categoryFilter =
+      selectedCategory && visibleCategories.includes(selectedCategory)
+        ? selectedCategory
+        : null;
+
     return allBiomarkersWithResults.filter(({ category, biomarker, result }) => {
       // Category filter
-      if (selectedCategory && category !== selectedCategory) {
+      if (categoryFilter && category !== categoryFilter) {
         return false;
       }
 
@@ -251,7 +265,7 @@ function BiomarkersPageContent() {
 
       return true;
     });
-  }, [allBiomarkersWithResults, selectedCategory, statusFilter, searchQuery, gender]);
+  }, [allBiomarkersWithResults, selectedCategory, visibleCategories, statusFilter, searchQuery, gender]);
 
   // Group by category
   const groupedBiomarkers = useMemo(() => {
@@ -377,10 +391,10 @@ function BiomarkersPageContent() {
           </h1>
           <p className="text-muted-foreground mt-1">
             {viewMode === "program"
-              ? "Essential monitoring panels by clinical program — toggle Weight, Hair, Men's or Women's"
+              ? "Essential monitoring panels by clinical program, toggle Weight, Hair, Men's or Women's"
               : viewMode === "history"
                 ? "View your test history and generate AI-powered health reports"
-                : `View and explore all ${counts.totalInPanel} biomarkers across ${Object.keys(bloodPanelConfig).length} health categories`}
+                : `View and explore ${counts.totalInPanel} biomarkers across ${visibleCategories.length} health categories`}
           </p>
         </div>
         <Link
@@ -536,11 +550,11 @@ function BiomarkersPageContent() {
                   >
                     All
                   </Button>
-                  {Object.entries(bloodPanelConfig).map(([key, config]) => {
-                    const catKey = key as BloodPanelCategoryKey;
+                  {visibleCategories.map((catKey) => {
+                    const config = bloodPanelConfig[catKey];
                     return (
                       <Button
-                        key={key}
+                        key={catKey}
                         variant={selectedCategory === catKey ? "secondary" : "ghost"}
                         size="sm"
                         className="shrink-0"

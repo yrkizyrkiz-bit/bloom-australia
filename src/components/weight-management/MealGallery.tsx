@@ -25,7 +25,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "1",
     name: "Greek Yogurt Parfait",
-    image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1488477181946-6428a0291777.webp",
     category: "Breakfast",
     calories: 280,
     prepTime: "5 min",
@@ -34,7 +34,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "2",
     name: "Avocado Toast with Eggs",
-    image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1525351484163-7529414344d8.webp",
     category: "Breakfast",
     calories: 420,
     prepTime: "10 min",
@@ -43,7 +43,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "3",
     name: "Overnight Oats",
-    image: "https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1517673132405-a56a62b18caf.webp",
     category: "Breakfast",
     calories: 350,
     prepTime: "5 min",
@@ -52,7 +52,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "4",
     name: "Smoothie Bowl",
-    image: "https://images.unsplash.com/photo-1590301157890-4810ed352733?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1590301157890-4810ed352733.webp",
     category: "Breakfast",
     calories: 320,
     prepTime: "10 min",
@@ -62,7 +62,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "5",
     name: "Buddha Bowl",
-    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp",
     category: "Lunch",
     calories: 520,
     prepTime: "20 min",
@@ -71,7 +71,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "6",
     name: "Grilled Chicken Salad",
-    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1546069901-ba9599a7e63c.webp",
     category: "Lunch",
     calories: 450,
     prepTime: "15 min",
@@ -80,7 +80,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "7",
     name: "Mediterranean Wrap",
-    image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1626700051175-6818013e1d4f.webp",
     category: "Lunch",
     calories: 480,
     prepTime: "10 min",
@@ -89,7 +89,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "8",
     name: "Quinoa Power Bowl",
-    image: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1490645935967-10de6ba17061.webp",
     category: "Lunch",
     calories: 490,
     prepTime: "25 min",
@@ -99,7 +99,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "9",
     name: "Grilled Salmon",
-    image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1467003909585-2f8a72700288.webp",
     category: "Dinner",
     calories: 480,
     prepTime: "25 min",
@@ -108,7 +108,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "10",
     name: "Stir-Fry Vegetables",
-    image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1603133872878-684f208fb84b.webp",
     category: "Dinner",
     calories: 380,
     prepTime: "20 min",
@@ -117,7 +117,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "11",
     name: "Grilled Steak",
-    image: "https://images.unsplash.com/photo-1558030006-450675393462?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1558030006-450675393462.webp",
     category: "Dinner",
     calories: 550,
     prepTime: "30 min",
@@ -126,7 +126,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "12",
     name: "Herb Roasted Chicken",
-    image: "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1598515214211-89d3c73ae83b.webp",
     category: "Dinner",
     calories: 420,
     prepTime: "45 min",
@@ -136,7 +136,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "13",
     name: "Fresh Fruit Plate",
-    image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1619566636858-adf3ef46400b.webp",
     category: "Snacks",
     calories: 150,
     prepTime: "5 min",
@@ -145,7 +145,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "14",
     name: "Hummus & Veggies",
-    image: "https://images.unsplash.com/photo-1623428187969-5da2dcea5ebf?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1623428187969-5da2dcea5ebf.webp",
     category: "Snacks",
     calories: 180,
     prepTime: "5 min",
@@ -154,7 +154,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "15",
     name: "Protein Smoothie",
-    image: "https://images.unsplash.com/photo-1502741224143-90386d7f8c82?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1502741224143-90386d7f8c82.webp",
     category: "Snacks",
     calories: 250,
     prepTime: "5 min",
@@ -163,7 +163,7 @@ const MEAL_GALLERY: MealGalleryItem[] = [
   {
     id: "16",
     name: "Mixed Nuts",
-    image: "https://images.unsplash.com/photo-1606050627529-2f3c8c6b0b94?w=600&h=400&fit=crop",
+    image: "/images/remote/unsplash/photo-1606050627529-2f3c8c6b0b94.webp",
     category: "Snacks",
     calories: 200,
     prepTime: "0 min",

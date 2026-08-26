@@ -15,7 +15,7 @@ import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
-/** Organ & Metabolic Care overview — unified scores across all six health categories. */
+/** Organ & Metabolic Care overview, unified scores across all six health categories. */
 export default function OrganCareDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();

@@ -5,10 +5,10 @@ import type { ProgramKey } from "@/lib/membership/keys";
 import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
 import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 
-/** Program grid — default member home for portal upsells and pre-lab members. */
+/** Program grid, default member home for portal upsells and pre-lab members. */
 export const MEMBER_PROGRAMS_HOME = "/dashboard/programs";
 
-/** Classic biomarker overview — members with approved lab results. */
+/** Classic biomarker overview, members with approved lab results. */
 export const MEMBER_HEALTH_OVERVIEW = "/dashboard";
 
 /** Priority when a member has multiple active programs. */
@@ -50,7 +50,7 @@ export function memberHasClassicHealthDashboard(
   return biomarkersEntitled && organCareEntitled;
 }
 
-/** Back navigation from program shells — classic overview vs programs hub. */
+/** Back navigation from program shells, classic overview vs programs hub. */
 export function resolveMemberBackPath(
   portal: PortalContextPayload | null | undefined
 ): string {

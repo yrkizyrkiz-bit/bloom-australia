@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Pill, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SUPPLEMENTS_CARD } from "@/lib/programs/catalog";
 
-/** Placeholder categories — wire to Shopify / Snipcart / Medusa when ready. */
+/** Placeholder categories, wire to Shopify / Snipcart / Medusa when ready. */
 const COMING_SOON_CATEGORIES = [
   { name: "Vitamins & minerals", items: ["Vitamin D3", "B12", "Iron", "Magnesium"] },
   { name: "Program support", items: ["Hair growth", "Metabolic health", "Hormone balance"] },
@@ -56,7 +56,7 @@ export default function SupplementsPage() {
             <p className="font-medium text-[#34412f]">Member shop launching soon</p>
             <p className="mt-1 text-sm text-[#5c7a52]">
               We&apos;re preparing a curated supplement store matched to your programs and biomarkers.
-              Checkout will integrate with a standard ecommerce platform — no custom build required.
+              Checkout will integrate with a standard ecommerce platform, no custom build required.
             </p>
           </div>
         </div>

@@ -27,7 +27,7 @@ const content = [
     category: "hair",
     type: "article",
     duration: "5 min read",
-    image: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1585747860715-2ba37e788b70.webp",
     featured: true,
   },
   {
@@ -37,7 +37,7 @@ const content = [
     category: "hair",
     type: "video",
     duration: "8 min",
-    image: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1576091160550-2173dba999ef.webp",
   },
   {
     id: "3",
@@ -46,7 +46,7 @@ const content = [
     category: "vitality",
     type: "article",
     duration: "7 min read",
-    image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1571019614242-c5c5dee9f50b.webp",
     featured: true,
   },
   {
@@ -56,7 +56,7 @@ const content = [
     category: "ed",
     type: "article",
     duration: "6 min read",
-    image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1518611012118-696072aa579a.webp",
   },
   {
     id: "5",
@@ -65,7 +65,7 @@ const content = [
     category: "vitality",
     type: "video",
     duration: "10 min",
-    image: "https://images.unsplash.com/photo-1541480601022-2308c0f02487?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1541480601022-2308c0f02487.webp",
   },
   {
     id: "6",
@@ -74,7 +74,7 @@ const content = [
     category: "lifestyle",
     type: "article",
     duration: "8 min read",
-    image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1534438327276-14e5300c3a48.webp",
   },
   {
     id: "7",
@@ -83,7 +83,7 @@ const content = [
     category: "hair",
     type: "article",
     duration: "5 min read",
-    image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1556228720-195a672e8a03.webp",
   },
   {
     id: "8",
@@ -92,7 +92,7 @@ const content = [
     category: "vitality",
     type: "video",
     duration: "12 min",
-    image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1544367567-0f2fcb009e0b.webp",
   },
   {
     id: "9",
@@ -101,7 +101,7 @@ const content = [
     category: "ed",
     type: "article",
     duration: "4 min read",
-    image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1584308666744-24d5c474f2ae.webp",
   },
   {
     id: "10",
@@ -110,7 +110,7 @@ const content = [
     category: "lifestyle",
     type: "article",
     duration: "6 min read",
-    image: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=300&h=200&fit=crop",
+    image: "/images/remote/unsplash/photo-1490645935967-10de6ba17061.webp",
   },
 ];
 

@@ -9,15 +9,15 @@ import "./sanative-tablet-slider.css";
  */
 const slides = [
   {
-    src: "/images/tablet-slider/sanative-overview.png",
+    src: "/images/tablet-slider/sanative-overview.webp",
     alt: "Sanative health overview dashboard",
   },
   {
-    src: "/images/tablet-slider/sanative-categories.png",
+    src: "/images/tablet-slider/sanative-categories.webp",
     alt: "Sanative health category dashboard",
   },
   {
-    src: "/images/tablet-slider/sanative-scores.png",
+    src: "/images/tablet-slider/sanative-scores.webp",
     alt: "Sanative health score dashboard",
   },
 ] as const;
@@ -43,7 +43,7 @@ export function SanativeTabletSlider() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         className="sanative-hero__background"
-        src="/images/tablet-slider/sanative-hero-clean.jpg"
+        src="/images/tablet-slider/sanative-hero-clean.webp"
         alt="Woman holding a tablet displaying the Sanative health dashboard"
       />
 

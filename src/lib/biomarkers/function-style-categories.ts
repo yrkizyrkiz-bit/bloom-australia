@@ -17,13 +17,10 @@ export type FunctionStyleCategoryId =
   | "male-health"
   | "metabolic"
   | "nutrients"
-  | "stress-aging"
   | "biological-age"
   | "liver"
   | "blood"
-  | "kidneys"
-  | "electrolytes"
-  | "urine";
+  | "kidneys";
 
 export type FunctionStyleCategory = {
   id: FunctionStyleCategoryId;
@@ -59,6 +56,8 @@ export const FUNCTION_STYLE_CATEGORIES: FunctionStyleCategory[] = [
       "tg_hdl_ratio",
       "atherogenic_index_plasma",
       "vldl_cholesterol",
+      "remnant_cholesterol",
+      "atherogenic_coefficient",
     ],
   },
   {
@@ -66,11 +65,19 @@ export const FUNCTION_STYLE_CATEGORIES: FunctionStyleCategory[] = [
     name: "Thyroid",
     highlights: ["TSH", "Free T3", "Free T4"],
     tiers: ["essential", "advanced", "complete"],
-    markerIds: ["tsh", "free_t4", "free_t3", "free_t3_t4_ratio", "tpo_antibodies", "tg_antibodies"],
+    markerIds: [
+      "tsh",
+      "free_t4",
+      "free_t3",
+      "free_t3_t4_ratio",
+      "tsh_index",
+      "tpo_antibodies",
+      "tg_antibodies",
+    ],
   },
   {
     id: "immune",
-    name: "Immune regulation",
+    name: "Inflammation & Stress",
     highlights: ["WBC", "Differentials", "hs-CRP"],
     tiers: ["essential", "advanced", "complete"],
     markerIds: [
@@ -91,6 +98,12 @@ export const FUNCTION_STYLE_CATEGORIES: FunctionStyleCategory[] = [
       "nlr",
       "platelet_lymphocyte_ratio",
       "crp_albumin_ratio",
+      "sii",
+      "siri",
+      "mlr",
+      "nhr",
+      "cortisol",
+      "dhea_s",
     ],
   },
   {
@@ -141,6 +154,10 @@ export const FUNCTION_STYLE_CATEGORIES: FunctionStyleCategory[] = [
       "homa_ir",
       "tyg_index",
       "estimated_average_glucose",
+      "homa_b",
+      "quicki",
+      "mcauley_index",
+      "uric_acid_hdl_ratio",
     ],
   },
   {
@@ -166,19 +183,12 @@ export const FUNCTION_STYLE_CATEGORIES: FunctionStyleCategory[] = [
     ],
   },
   {
-    id: "stress-aging",
-    name: "Stress & aging",
-    highlights: ["Cortisol", "DHEA-S"],
-    tiers: ["advanced", "complete"],
-    markerIds: ["cortisol", "dhea_s"],
-  },
-  {
     id: "biological-age",
     name: "Biological age",
-    highlights: ["Health Age score"],
-    tiers: ["advanced", "complete"],
-    /** PhenoAge-style inputs — score itself is computed in portal */
-    markerIds: [...BIOLOGICAL_CLOCK_CORE_MARKERS],
+    highlights: ["PhenoAge", "Age acceleration"],
+    tiers: ["essential", "advanced", "complete"],
+    /** Levine PhenoAge inputs plus scored outputs once hs-CRP is on the request */
+    markerIds: [...BIOLOGICAL_CLOCK_CORE_MARKERS, "phenotypic_age", "age_acceleration"],
   },
   {
     id: "liver",
@@ -199,6 +209,8 @@ export const FUNCTION_STYLE_CATEGORIES: FunctionStyleCategory[] = [
       "ast_alt_ratio",
       "indirect_bilirubin",
       "bilirubin_albumin_ratio",
+      "fib4",
+      "apri",
     ],
   },
   {
@@ -216,6 +228,7 @@ export const FUNCTION_STYLE_CATEGORIES: FunctionStyleCategory[] = [
       "rdw",
       "platelets",
       "wbc",
+      "mentzer_index",
     ],
   },
   {
@@ -231,25 +244,17 @@ export const FUNCTION_STYLE_CATEGORIES: FunctionStyleCategory[] = [
       "sodium",
       "potassium",
       "chloride",
+      "bicarbonate",
+      "anion_gap",
       "urea_creatinine_ratio",
       "phosphorus",
       "pth",
       "calcium",
+      "corrected_calcium",
+      "calculated_osmolality",
+      "magnesium",
+      "kdigo_risk",
     ],
-  },
-  {
-    id: "electrolytes",
-    name: "Electrolytes",
-    highlights: ["Sodium", "Potassium", "Bicarbonate"],
-    tiers: ["essential", "advanced", "complete"],
-    markerIds: ["sodium", "potassium", "chloride", "bicarbonate", "anion_gap", "magnesium", "calcium"],
-  },
-  {
-    id: "urine",
-    name: "Urine",
-    highlights: ["UACR"],
-    tiers: ["essential", "advanced", "complete"],
-    markerIds: ["uacr"],
   },
 ];
 
@@ -284,6 +289,25 @@ export const FUNCTION_STYLE_CALCULATED_IDS = new Set([
   "monocyte_percent",
   "eosinophil_percent",
   "basophil_percent",
+  "remnant_cholesterol",
+  "atherogenic_coefficient",
+  "homa_b",
+  "quicki",
+  "mcauley_index",
+  "uric_acid_hdl_ratio",
+  "fib4",
+  "apri",
+  "sii",
+  "siri",
+  "mlr",
+  "nhr",
+  "corrected_calcium",
+  "calculated_osmolality",
+  "mentzer_index",
+  "kdigo_risk",
+  "tsh_index",
+  "phenotypic_age",
+  "age_acceleration",
 ]);
 
 /** Essential-only calculated markers surfaced on intake */
@@ -306,6 +330,7 @@ export const ESSENTIAL_EXTRA_CALCULATED_IDS = new Set([
   "albumin_globulin_ratio",
   "ast_alt_ratio",
   "indirect_bilirubin",
+  "bilirubin_albumin_ratio",
   "anion_gap",
   "urea_creatinine_ratio",
   "estimated_average_glucose",
@@ -313,6 +338,26 @@ export const ESSENTIAL_EXTRA_CALCULATED_IDS = new Set([
   "nlr",
   "platelet_lymphocyte_ratio",
   "crp_albumin_ratio",
+  "remnant_cholesterol",
+  "atherogenic_coefficient",
+  "homa_b",
+  "quicki",
+  "mcauley_index",
+  "uric_acid_hdl_ratio",
+  "fib4",
+  "apri",
+  "sii",
+  "siri",
+  "mlr",
+  "nhr",
+  "corrected_calcium",
+  "calculated_osmolality",
+  "mentzer_index",
+  "kdigo_risk",
+  "tsh_index",
+  "free_t3_t4_ratio",
+  "phenotypic_age",
+  "age_acceleration",
 ]);
 
 /**

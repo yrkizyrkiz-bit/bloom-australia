@@ -26,6 +26,7 @@ import {
   WOMENS_HEALTH_SUBCATEGORIES,
   type WomensHealthSubcategory,
 } from "@/lib/womens-health-biomarker-subcategories";
+import { shouldShowPortalMarkerCard } from "@/lib/biomarkers/panel-biomarker-display";
 import { MedicareEligibilityLegend } from "@/components/dashboard/MedicareEligibilityLegend";
 import { Info, User } from "lucide-react";
 
@@ -75,6 +76,7 @@ export function BiomarkerProgramEssentialView({
   const programRows = useMemo(() => {
     return rows.filter((row) => {
       if (!essentialIds.has(row.biomarker.id)) return false;
+      if (!shouldShowPortalMarkerCard(row.biomarker.id, row.result !== null)) return false;
       if (subcategoryIds && !subcategoryIds.has(row.biomarker.id)) return false;
       return true;
     });
@@ -146,7 +148,7 @@ export function BiomarkerProgramEssentialView({
               <h2 className="text-lg font-medium text-foreground">
                 {womensHealthSubcategory
                   ? womensHealthSubcategory.label
-                  : `${panelMeta.label} — Essential panel`}
+                  : `${panelMeta.label}, Essential panel`}
               </h2>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
                 {womensHealthSubcategory?.description || panelMeta.description}

@@ -66,7 +66,7 @@ export default function CareInboxPage() {
             WM Care inbox
           </h1>
           <p className="text-muted-foreground">
-            Active weight programs — adherence, side effects, and escalations
+            Active weight programs, adherence, side effects, and escalations
           </p>
         </div>
       </div>

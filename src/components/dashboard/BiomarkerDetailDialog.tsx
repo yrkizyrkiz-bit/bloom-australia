@@ -24,6 +24,7 @@ import {
   type Gender,
 } from "@/data/bloodPanelConfig";
 import { isDerivedBiomarker } from "@/lib/biomarker-medicare-eligibility";
+import { interpretDerivedScore } from "@/lib/derived-biomarker-interpretations";
 import { MedicareEligibilityBadge } from "@/components/dashboard/MedicareEligibilityBadge";
 
 interface BiomarkerDetailDialogProps {
@@ -125,6 +126,10 @@ export function BiomarkerDetailDialog({
 
   const { status: calculatedStatus, label: statusLabel } = getStatusFromPanel();
   const StatusIcon = isUntested ? (isDerived ? Calculator : Clock) : getStatusIcon(calculatedStatus);
+  const scoreBand =
+    result && Number.isFinite(result.value)
+      ? interpretDerivedScore(biomarker.id, result.value)
+      : null;
 
   const calculatePosition = (value: number) => {
     if (rangeSpan === 0) return 50;
@@ -278,6 +283,17 @@ export function BiomarkerDetailDialog({
                         </span>
                         <span>High: {displayRange.high}</span>
                       </div>
+                    </div>
+                  )}
+
+                  {scoreBand && (
+                    <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                      <p className="text-sm font-medium text-foreground">
+                        Score: {scoreBand.label}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                        {scoreBand.meaning}
+                      </p>
                     </div>
                   )}
 

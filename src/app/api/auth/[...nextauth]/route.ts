@@ -17,7 +17,7 @@ async function handleAuth(req: NextRequest, context: RouteContext) {
     const action = segments[0];
     console.error("[next-auth] Handler error:", action, error);
 
-    // Session polling must always return JSON — plain-text 500s cause CLIENT_FETCH_ERROR.
+    // Session polling must always return JSON, plain-text 500s cause CLIENT_FETCH_ERROR.
     if (req.method === "GET" && action === "session") {
       return Response.json({});
     }

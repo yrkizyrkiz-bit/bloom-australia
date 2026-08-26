@@ -790,7 +790,7 @@ export async function POST(req: NextRequest) {
             piPeek.metadata?.purchaseType === "sanative_membership" ||
             piPeek.metadata?.type === "organ_care_membership"
           ) {
-            // Consolidated membership funnel PI — even if hold notes still say
+            // Consolidated membership funnel PI, even if hold notes still say
             // a treatment program, verify as a paid membership consultation.
             treatAsMembershipBooking = true;
           }
@@ -954,7 +954,7 @@ export async function POST(req: NextRequest) {
       : null;
 
     // GAP-013: Create calendar event with all required fields
-    const calendarTitle = `Sanative ${programLabel} Phone Consult — ${patientName}`;
+    const calendarTitle = `Sanative ${programLabel} Phone Consult, ${patientName}`;
 
     // UAT8-GAP-007: Get doctor's email for calendar integration
     let doctorEmail: string | null = null;
@@ -1156,7 +1156,7 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Membership / panel purchases already record their own invoice at activation —
+        // Membership / panel purchases already record their own invoice at activation,
         // never create a treatment-program fallback invoice for those bookings.
         if (!existingInvoice && !isMembershipStyleBooking) {
           // Determine amount based on plan

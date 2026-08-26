@@ -10,7 +10,7 @@ const TASK_REMINDER_COPY: Record<string, { title: string; message: string; url: 
   },
   DOSE: {
     title: "Medication reminder",
-    message: "Your dose is due today — log it in your treatment hub when taken.",
+    message: "Your dose is due today, log it in your treatment hub when taken.",
     url: "/dashboard/weight-management/treatment",
   },
   SIDE_EFFECT_CHECK: {
@@ -25,7 +25,7 @@ const TASK_REMINDER_COPY: Record<string, { title: string; message: string; url: 
   },
   EXERCISE: {
     title: "Move today",
-    message: "Log any activity — even a short walk counts.",
+    message: "Log any activity, even a short walk counts.",
     url: "/dashboard/weight-management/exercise",
   },
   CHECK_IN: {
@@ -106,7 +106,7 @@ export async function sendProgramRemindersForUser(userId: string, memberProgramI
 
       await sendEmail({
         to: user.email,
-        subject: `Your program today — ${user.firstName || "there"}`,
+        subject: `Your program today, ${user.firstName || "there"}`,
         body: `
           <h2>Hi ${user.firstName || "there"},</h2>
           <p>Here's what's on your Sanative weight program for today:</p>

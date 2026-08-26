@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getDevVerificationCode } from "@/lib/auth/dev-verification";
 import { RATE_LIMITS, rateLimitBucketKey } from "@/lib/security/rate-limit-config";
 import {
   enforceDbRateLimits,
@@ -214,8 +215,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Generate code
-    const code = generateCode();
+    // Generate code (use the temporary dev code when it is configured)
+    const devCode = getDevVerificationCode();
+    const code = devCode ?? generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Store verification code
@@ -248,7 +250,10 @@ export async function POST(req: NextRequest) {
     // Always log code in development for easy testing
     console.log(`[Verification] Code for ${contact}: ${code}`);
 
-    if (type === 'email') {
+    if (devCode) {
+      console.warn("[DEV] Skipping email/SMS send; DEV_VERIFICATION_CODE is set");
+      sent = true;
+    } else if (type === 'email') {
       sent = await sendEmail(contact, code);
     } else {
       const message = `Your Sanative verification code is: ${code}. Expires in 10 minutes.`;
@@ -265,6 +270,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Verification code sent to ${type === 'email' ? contact : '•••• ' + contact.slice(-4)}`,
+      ...(devCode ? { devBypass: true } : {}),
     });
   } catch (error) {
     console.error("Error sending verification:", error);

@@ -120,7 +120,7 @@ export function HowSanativeWorks() {
           `}
         >
           <p className="text-[#5c7a52] font-medium">
-            Your plan is continuously guided and adjusted — not a one-off consult.
+            Your plan is continuously guided and adjusted, not a one-off consult.
           </p>
         </div>
 

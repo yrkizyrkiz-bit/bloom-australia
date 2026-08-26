@@ -47,7 +47,7 @@ export default function ForDoctorsPage() {
 
               {/* Subtext */}
               <p className="text-xl text-white/80 leading-relaxed mb-8 max-w-3xl">
-                Refer patients to a supervised preventative care program — your
+                Refer patients to a supervised preventative care program, your
                 care partners handle everything, while you stay in clinical
                 control.
               </p>
@@ -141,13 +141,13 @@ export default function ForDoctorsPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="bg-white rounded-2xl p-8 md:p-12 border-l-4 border-[#1D9E75] shadow-sm">
               <h2 className="text-2xl md:text-3xl font-serif text-[#34412f] mb-4">
-                We bring patients back to you — consistently
+                We bring patients back to you, consistently
               </h2>
               <p className="text-lg text-[#5c7a52] leading-relaxed mb-6 max-w-4xl">
                 Sanative care partners are responsible for ensuring your
                 referred patients on one of our programs attend their scheduled
                 GP visits. We coordinate reminders, flag missed check-ins, and
-                re-engage patients who start to drift — before they become a
+                re-engage patients who start to drift, before they become a
                 drop-off. You get a more engaged, better-managed patient panel
                 without any extra effort from your practice.
               </p>
@@ -167,14 +167,14 @@ export default function ForDoctorsPage() {
                 appointments
               </h2>
               <p className="text-lg text-[#5c7a52] leading-relaxed mb-6 max-w-4xl">
-                Our care partners coordinate follow-up consultations — in-clinic
-                or via Telehealth — and book them into your available
+                Our care partners coordinate follow-up consultations, in-clinic
+                or via Telehealth, and book them into your available
                 appointment slots. Your schedule stays productive, your patients
                 stay engaged, and every follow-up happens at the right clinical
                 moment without your team having to chase anyone.
               </p>
               <span className="inline-block px-4 py-2 bg-[#1D9E75]/10 text-[#1D9E75] rounded-full text-sm font-medium">
-                In-clinic or Telehealth — whatever suits your practice
+                In-clinic or Telehealth, whatever suits your practice
               </span>
             </div>
           </div>
@@ -209,7 +209,7 @@ export default function ForDoctorsPage() {
                 </h3>
                 <p className="text-[#5c7a52] leading-relaxed">
                   Longitudinal biomarker tracking means you can see whether your
-                  patients are improving between visits — the full trend, not
+                  patients are improving between visits, the full trend, not
                   just how they present on the day.
                 </p>
               </div>
@@ -240,7 +240,7 @@ export default function ForDoctorsPage() {
                 <p className="text-[#5c7a52] leading-relaxed">
                   You&apos;re notified when a biomarker shifts significantly, a
                   patient misses a milestone, or escalation is warranted. No
-                  noise — just the signals that need your attention.
+                  noise, just the signals that need your attention.
                 </p>
               </div>
             </div>
@@ -260,7 +260,7 @@ export default function ForDoctorsPage() {
               </h2>
               <p className="text-lg text-[#5c7a52] max-w-3xl">
                 A clinically meaningful program that goes far beyond standard
-                testing — giving patients the insight and support to take real
+                testing, giving patients the insight and support to take real
                 ownership of their health between consultations.
               </p>
             </div>
@@ -284,7 +284,7 @@ export default function ForDoctorsPage() {
                 </div>
                 <p className="text-[#5c7a52] leading-relaxed">
                   A comprehensive biomarker panel covering kidney, liver,
-                  metabolic, cardiovascular and hormonal health — run at
+                  metabolic, cardiovascular and hormonal health, run at
                   NATA-accredited labs and delivered to their dashboard.
                 </p>
               </div>
@@ -305,7 +305,7 @@ export default function ForDoctorsPage() {
                   </div>
                 </div>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  A biological age score derived from their biomarker results —
+                  A biological age score derived from their biomarker results,
                   showing patients how their body is ageing relative to their
                   chronological age and what&apos;s driving it.
                 </p>
@@ -327,8 +327,8 @@ export default function ForDoctorsPage() {
                   </div>
                 </div>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  A clear health score across key organ systems — kidney, liver,
-                  metabolic and more — highlighting risks early, before symptoms
+                  A clear health score across key organ systems, kidney, liver,
+                  metabolic and more, highlighting risks early, before symptoms
                   appear.
                 </p>
               </div>
@@ -349,8 +349,8 @@ export default function ForDoctorsPage() {
                   </div>
                 </div>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  Access to their care partner between GP visits — for guidance,
-                  check-ins, and accountability — so the program continues
+                  Access to their care partner between GP visits, for guidance,
+                  check-ins, and accountability, so the program continues
                   working even when they&apos;re not in your clinic.
                 </p>
               </div>
@@ -407,7 +407,7 @@ export default function ForDoctorsPage() {
                   </h3>
                   <p className="text-sm text-[#5c7a52] leading-relaxed">
                     Place the poster in your waiting room or hand patients a
-                    desk card. That&apos;s it. The QR code does the referring —
+                    desk card. That&apos;s it. The QR code does the referring,
                     no GP time required per patient.
                   </p>
                 </div>
@@ -448,7 +448,7 @@ export default function ForDoctorsPage() {
                   <p className="text-sm text-[#5c7a52] leading-relaxed">
                     The moment a patient enrols, you receive a notification. A
                     care partner is assigned, the first lab test is booked, and
-                    the program begins — all automatically.
+                    the program begins, all automatically.
                   </p>
                 </div>
               </div>
@@ -472,7 +472,7 @@ export default function ForDoctorsPage() {
                 </p>
                 <ul className="space-y-3">
                   {[
-                    "$0 to refer — no sign-up or platform fees for GPs",
+                    "$0 to refer, no sign-up or platform fees for GPs",
                     "Consultations handled outside the platform, as normal",
                     "MBS billing completely unaffected",
                     "Cancel or pause patient referrals anytime",

@@ -731,7 +731,7 @@ function AssessmentContent() {
               Your path to doctor-led sexual health care
             </h1>
             <p className="text-center text-[#5c7a52]">
-              Complete a confidential assessment, then book your doctor consultation — the same clinical pathway as in your Sanative portal.
+              Complete a confidential assessment, then book your doctor consultation (the same clinical pathway as in your Sanative portal).
             </p>
             <div className="space-y-4 mt-8">
               {[
@@ -969,7 +969,7 @@ function AssessmentContent() {
         return (
           <div className="space-y-6">
             <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628] text-center">Your path to better energy and vitality</h1>
-            <p className="text-center text-[#5c7a52]">Here's what to expect — personalised, practical, and confidential</p>
+            <p className="text-center text-[#5c7a52]">Here's what to expect: personalised, practical, and confidential</p>
             <div className="space-y-4 mt-8">
               {[
                 { num: 1, title: "Quick health check", description: "A few questions about energy, sleep, stress, hormones, and metabolic health.", icon: Heart },
@@ -1177,7 +1177,7 @@ function AssessmentContent() {
           <div className="space-y-6">
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Do you have any of these conditions?</h1>
-              <p className="mt-3 text-[#5c7a52]">Select all that apply — this is important for your safety.</p>
+              <p className="mt-3 text-[#5c7a52]">Select all that apply. This is important for your safety.</p>
             </div>
             <div className="space-y-3 mt-8 max-h-[50vh] overflow-y-auto pr-2">
               {medicalConditionsOptions.map((option) => (
@@ -1217,7 +1217,7 @@ function AssessmentContent() {
           <div className="space-y-6">
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Any lifestyle factors we should know about?</h1>
-              <p className="mt-3 text-[#5c7a52]">Select all that apply — no judgement, just helps us help you.</p>
+              <p className="mt-3 text-[#5c7a52]">Select all that apply. No judgement; this just helps us help you.</p>
             </div>
             <div className="space-y-3 mt-8">
               {lifestyleFactorsOptions.map((option) => (

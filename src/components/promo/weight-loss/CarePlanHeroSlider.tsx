@@ -4,26 +4,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./care-plan-hero-slider.css";
 
 /**
- * Each slide is a full opaque card JPEG with the app screen already
- * warped into the phone glass (scripts/warp-care-plan-screens.py).
- * No overlay, no matrix3d — alignment is baked into the pixels.
+ * Permanent care-plan phone slider:
+ * - Static base (scene + hands + Dynamic Island)
+ * - Pre-warped transparent overlays at the same 1672×941 size
+ * - Opacity crossfade only, no live matrix / warp in the browser
+ *
+ * Bake: python3 scripts/bake-care-plan-overlays.py
  */
+const BASE_SRC = "/images/care-plan-slider/care-plan-base.webp?v=opt-1";
+
 const slides = [
   {
-    src: "/images/care-plan-slider/baked/card-goals.jpg",
-    alt: "Sanative goals screen on a phone — get a personalized care plan",
+    src: "/images/care-plan-slider/overlays/overlay-01-treatment.webp?v=glass-clip-5",
+    alt: "Sanative program status and meal planning on a phone",
   },
   {
-    src: "/images/care-plan-slider/baked/card-treatment.jpg",
-    alt: "Sanative program status screen on a phone",
+    src: "/images/care-plan-slider/overlays/overlay-02-planner.webp?v=glass-clip-5",
+    alt: "Sanative weekly meal planner on a phone",
   },
   {
-    src: "/images/care-plan-slider/baked/card-planner.jpg",
-    alt: "Sanative weekly meal planner screen on a phone",
-  },
-  {
-    src: "/images/care-plan-slider/baked/card-trends.jpg",
-    alt: "Sanative biomarker trends screen on a phone",
+    src: "/images/care-plan-slider/overlays/overlay-03-chat.webp?v=glass-clip-5",
+    alt: "Sanative care partner chat on a phone",
   },
 ] as const;
 
@@ -62,6 +63,14 @@ export function CarePlanHeroSlider() {
       aria-label="Sanative personalised care plan"
     >
       <div className="care-plan-hero__stack" aria-live="polite">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="care-plan-hero__base"
+          src={BASE_SRC}
+          alt=""
+          aria-hidden
+          draggable={false}
+        />
         {slides.map((slide, index) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -69,7 +78,7 @@ export function CarePlanHeroSlider() {
             className={`care-plan-hero__slide${
               index === activeIndex ? " is-active" : ""
             }`}
-            src={`${slide.src}?v=restored-better-1`}
+            src={slide.src}
             alt={slide.alt}
             aria-hidden={index === activeIndex ? undefined : true}
             draggable={false}

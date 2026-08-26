@@ -25,7 +25,7 @@ export function billingTierToPublicTier(tier: BiomarkersPanelTier): BiomarkerSub
 /**
  * Advanced and Complete public panels normally bundle Organ Care entitlements.
  * Program funnels (hair / women's Advanced checkout) unlock biomarkers + that
- * program only — not Organ Care.
+ * program only, not Organ Care.
  */
 export function panelIncludesOrganCare(
   tier: BiomarkerSubscriptionTier,

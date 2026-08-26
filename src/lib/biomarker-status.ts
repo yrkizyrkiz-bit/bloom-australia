@@ -50,7 +50,7 @@ export function calculateBiomarkerStatus(
   return "OUT_OF_RANGE";
 }
 
-/** Human-readable label — matches member dashboard BiomarkerCard. */
+/** Human-readable label, matches member dashboard BiomarkerCard. */
 export function getBiomarkerStatusLabel(status: string): string {
   switch (status.toUpperCase()) {
     case "OPTIMAL":
@@ -66,7 +66,7 @@ export function getBiomarkerStatusLabel(status: string): string {
   }
 }
 
-/** Badge classes from globals.css — same as member biomarker section. */
+/** Badge classes from globals.css, same as member biomarker section. */
 export function getBiomarkerStatusBadgeClass(status: string): string {
   switch (status.toUpperCase()) {
     case "OPTIMAL":

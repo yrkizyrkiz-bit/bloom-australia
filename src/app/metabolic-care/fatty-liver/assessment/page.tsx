@@ -150,11 +150,11 @@ const PREVIOUS_TESTS = [
 ];
 
 const GOALS = [
-  "Reverse fatty liver",
+  "Support liver health",
   "Reduce liver inflammation",
   "Improve liver enzyme levels",
   "Lose weight to help liver",
-  "Prevent progression to cirrhosis",
+  "Discuss cirrhosis risk with my doctor",
   "Understand my condition better",
   "Get a personalised treatment plan",
   "Regular monitoring",
@@ -357,13 +357,13 @@ export default function FattyLiverAssessmentPage() {
                   Take control of your liver health
                 </h1>
                 <p className="mt-4 max-w-md mx-auto" style={{ color: themeColors.textMuted }}>
-                  Fatty liver disease is reversible. Let us help you create a personalised plan.
+                  Your doctor can review your liver health and discuss a personalised plan.
                 </p>
               </div>
 
               <div className="space-y-4 mt-8">
                 {[
-                  { step: 1, title: "Complete health assessment", desc: "About 5 minutes — covers your history and symptoms." },
+                  { step: 1, title: "Complete health assessment", desc: "About 5 minutes, covers your history and symptoms." },
                   { step: 2, title: "Doctor review", desc: "An AHPRA-registered doctor reviews your profile." },
                   { step: 3, title: "Personalised plan", desc: "Receive evidence-based treatment recommendations." },
                   { step: 4, title: "Ongoing monitoring", desc: "Track your progress with regular check-ins." },
@@ -401,7 +401,7 @@ export default function FattyLiverAssessmentPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm" style={{ color: themeColors.textMuted }}>
-                  <strong style={{ color: themeColors.text }}>Did you know?</strong> Up to 80% of fatty liver cases can be reversed with the right lifestyle changes and medical support.
+                  <strong style={{ color: themeColors.text }}>Did you know?</strong> Research has associated lifestyle change with reductions in liver fat in some people. Individual results vary and are not guaranteed.
                 </p>
               </div>
             </div>

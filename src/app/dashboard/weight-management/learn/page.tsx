@@ -201,7 +201,7 @@ export default function LearnPage() {
             </span>
             <span className="text-muted-foreground">
               {" "}
-              — content below is tailored to where you are in your program.
+             , content below is tailored to where you are in your program.
             </span>
           </CardContent>
         </Card>

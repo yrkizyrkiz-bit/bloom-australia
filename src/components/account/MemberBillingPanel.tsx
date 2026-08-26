@@ -50,6 +50,7 @@ const PROGRAM_SUPPORT_ROUTES: Record<string, string> = {
   womens_health_sexual: "/dashboard/womens-health/sexual-health",
   biological_clock: "/dashboard/biological-age",
   organ_care: "/dashboard/organ-care",
+  sanative_membership: "/dashboard/billing",
 };
 
 export type MemberBillingPanelData =
@@ -140,15 +141,19 @@ function ProgramSubscriptionCard({
 
         <div className="rounded-lg border p-4 bg-muted/30">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {isAnnual ? "Annual subscription" : "First month"}
+            {isAnnual ? "Annual subscription" : billing.firstMonth.status === "included" ? "First 30 days" : "First month"}
           </p>
           <div className="flex items-center justify-between mt-2">
             <p className="font-medium">
-              {billing.firstMonth.amountAud != null
-                ? formatAud(billing.firstMonth.amountAud)
-                : "—"}
+              {billing.firstMonth.status === "included"
+                ? "Included with membership"
+                : billing.firstMonth.amountAud != null
+                  ? formatAud(billing.firstMonth.amountAud)
+                  : "—"}
             </p>
-            <Badge variant="outline">{billing.firstMonth.status}</Badge>
+            <Badge variant="outline">
+              {billing.firstMonth.status === "included" ? "included" : billing.firstMonth.status}
+            </Badge>
           </div>
         </div>
 

@@ -62,7 +62,7 @@ export function HeroSection() {
               {/* Main large image */}
               <div className="col-span-2 relative h-64 rounded-3xl overflow-hidden shadow-2xl">
                 <Image
-                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&q=80"
+                  src="/images/remote/unsplash/photo-1573496359142-b8d87734a5a2.webp"
                   alt="Confident woman"
                   fill
                   className="object-cover"
@@ -73,7 +73,7 @@ export function HeroSection() {
               {/* Two smaller images */}
               <div className="relative h-48 rounded-2xl overflow-hidden shadow-xl">
                 <Image
-                  src="https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&q=80"
+                  src="/images/remote/unsplash/photo-1594824476967-48c8b964273f.webp"
                   alt="Woman wellness"
                   fill
                   className="object-cover"
@@ -81,7 +81,7 @@ export function HeroSection() {
               </div>
               <div className="relative h-48 rounded-2xl overflow-hidden shadow-xl">
                 <Image
-                  src="https://images.unsplash.com/photo-1571844307880-751c6d86f3f3?w=400&q=80"
+                  src="/images/remote/unsplash/photo-1571844307880-751c6d86f3f3.webp"
                   alt="Self care"
                   fill
                   className="object-cover"

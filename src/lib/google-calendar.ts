@@ -344,7 +344,7 @@ export function buildEventDescription(data: {
     if (data.scheduleHistory && data.scheduleHistory.length > 0) {
       lines.push(`Schedule changes:`);
       data.scheduleHistory.forEach((entry) => {
-        const reason = entry.reason ? ` — ${entry.reason}` : "";
+        const reason = entry.reason ? `, ${entry.reason}` : "";
         const when = new Date(entry.changedAt).toLocaleString("en-AU", {
           day: "numeric",
           month: "short",

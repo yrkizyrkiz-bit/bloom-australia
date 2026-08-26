@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Medicare provider number is required — enter it in Referral details and save to your doctor profile",
+            "Medicare provider number is required, enter it in Referral details and save to your doctor profile",
         },
         { status: 400 }
       );
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const telehealthLine = `Telehealth consultation — ${patient.firstName} ${patient.lastName}.`;
+    const telehealthLine = `Telehealth consultation, ${patient.firstName} ${patient.lastName}.`;
     const [portalQuizzes, programMembers] = await Promise.all([
       getLatestPortalQuizSubmissions(userId),
       prisma.programMember.findMany({

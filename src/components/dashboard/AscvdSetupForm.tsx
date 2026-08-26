@@ -113,7 +113,7 @@ export function AscvdSetupForm({
             />
             <ReadOnlyField
               label="Diabetes"
-              value={labInputs.diabetes ? `Yes${labInputs.diabetesDetail ? ` — ${labInputs.diabetesDetail}` : ""}` : "No"}
+              value={labInputs.diabetes ? `Yes${labInputs.diabetesDetail ? `, ${labInputs.diabetesDetail}` : ""}` : "No"}
             />
             {labInputs.dataDate && (
               <ReadOnlyField

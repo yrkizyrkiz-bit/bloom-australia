@@ -1,6 +1,6 @@
 /**
  * In-portal quiz steps aligned with public assessment funnels.
- * Clinical questions only — no PII, payment, or booking steps.
+ * Clinical questions only, no PII, payment, or booking steps.
  */
 
 import type { ProgramKey } from "@/lib/membership/keys";
@@ -63,7 +63,7 @@ const WEIGHT_QUIZ: QuizStep[] = [
       "Keto or low-carb diets",
       "Exercise programs",
       "Previous prescription medications",
-      "None — this is my first attempt",
+      "None, this is my first attempt",
     ]),
   },
   {

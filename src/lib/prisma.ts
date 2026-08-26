@@ -37,7 +37,7 @@ if (process.env.NODE_ENV !== "production" && !hasCurrentPrismaSchema(client)) {
   client = createPrismaClient();
   if (!hasCurrentPrismaSchema(client)) {
     console.warn(
-      "[prisma] Client missing billing/entitlement models — run `bun run db:generate` and restart the dev server"
+      "[prisma] Client missing billing/entitlement models, run `bun run db:generate` and restart the dev server"
     );
   }
 }

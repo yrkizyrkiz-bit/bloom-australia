@@ -40,7 +40,7 @@ const JOURNEY_STEPS = [
     number: "3",
     title: "Get your Biomarker Results",
     detail:
-      "Clear results appear in the app with insight — monitor health changes over time.",
+      "Clear results appear in the app with insight, monitor health changes over time.",
     visual: "results" as const,
   },
   {
@@ -94,7 +94,7 @@ function ResultsVisual() {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/images/biomarker-results-card.jpg"
+          src="/images/biomarker-results-card.webp"
           alt="Sanative app showing health score, biological age, and biomarker results"
           className="h-full w-full object-cover object-center"
         />
@@ -238,7 +238,7 @@ export function WomensHealthInsightsJourney({
         </h1>
         <p className="mx-auto max-w-2xl text-sm leading-relaxed sm:text-[15px]" style={{ color: MUTED }}>
           {isUnsure
-            ? "You don't need to diagnose yourself — testing and doctor review give you a clear picture of your health."
+            ? "You don't need to diagnose yourself, testing and doctor review give you a clear picture of your health."
             : `For your ${categoryLabel?.toLowerCase() ?? "women's health"} goals, biomarkers turn symptoms into measurable insight your doctor can act on.`}
         </p>
       </div>
@@ -271,7 +271,7 @@ export function WomensHealthInsightsJourney({
       </div>
 
       <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-relaxed" style={{ color: TEAL }}>
-        Symptom-based indicators only — not a diagnosis. All care decisions are made by
+        Symptom-based indicators only, not a diagnosis. All care decisions are made by
         AHPRA-registered Australian doctors.
       </p>
     </div>

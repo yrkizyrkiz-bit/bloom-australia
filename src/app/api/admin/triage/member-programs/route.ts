@@ -25,7 +25,7 @@ function parsePreTriageNote(notes: string | null): PreTriageNote | null {
   }
 }
 
-/** GET /api/admin/triage/member-programs — pre-triage queue for portal upsells + public consult bookings */
+/** GET /api/admin/triage/member-programs, pre-triage queue for portal upsells + public consult bookings */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

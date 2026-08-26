@@ -356,7 +356,7 @@ export default function PCOSPage() {
       icon: Eye,
       title: "Test",
       subtitle: "Comprehensive Assessment",
-      description: "We assess PCOS through blood testing — including hormonal markers (testosterone, DHEA, LH, FSH) and metabolic markers (insulin, glucose, HbA1c, HOMA-IR) to understand your unique profile.",
+      description: "We assess PCOS through blood testing, including hormonal markers (testosterone, DHEA, LH, FSH) and metabolic markers (insulin, glucose, HbA1c, HOMA-IR) to understand your unique profile.",
     },
     {
       icon: Wrench,
@@ -393,7 +393,7 @@ export default function PCOSPage() {
     {
       icon: Leaf,
       title: "Focus on Low-GI Foods",
-      description: "Choose complex carbohydrates that don't spike blood sugar — whole grains, legumes, and vegetables.",
+      description: "Choose complex carbohydrates that don't spike blood sugar, whole grains, legumes, and vegetables.",
     },
     {
       icon: Dumbbell,
@@ -415,7 +415,7 @@ export default function PCOSPage() {
   const faqs = [
     {
       question: "What is PCOS and why is it related to metabolic health?",
-      answer: "Polycystic ovary syndrome (PCOS) is a hormonal condition affecting up to 1 in 10 women. While it's known for reproductive symptoms, at its core is often insulin resistance — where cells don't respond properly to insulin. This causes the body to produce more insulin, which can stimulate the ovaries to produce excess androgens (male hormones), leading to the characteristic symptoms of PCOS. By addressing insulin resistance through diet, exercise, and when appropriate, medications, many PCOS symptoms can be significantly improved.",
+      answer: "Polycystic ovary syndrome (PCOS) is a hormonal condition affecting up to 1 in 10 women. While it's known for reproductive symptoms, at its core is often insulin resistance, where cells don't respond properly to insulin. This causes the body to produce more insulin, which can stimulate the ovaries to produce excess androgens (male hormones), leading to the characteristic symptoms of PCOS. By addressing insulin resistance through diet, exercise, and when appropriate, medications, many PCOS symptoms can be significantly improved.",
     },
     {
       question: "What biomarkers should I test for PCOS?",
@@ -423,7 +423,7 @@ export default function PCOSPage() {
     },
     {
       question: "Can diet really help manage PCOS?",
-      answer: "Yes, research strongly supports dietary interventions for PCOS management. A diet focused on regulating blood sugar and insulin levels — low glycemic index foods, adequate protein, healthy fats, and high fiber — can significantly improve PCOS symptoms. Studies show that even modest weight loss (5-10%) can restore menstrual regularity and improve fertility in many women with PCOS. Key nutrients like inositol, chromium, and omega-3s have also shown benefits.",
+      answer: "Yes, research strongly supports dietary interventions for PCOS management. A diet focused on regulating blood sugar and insulin levels (low glycemic index foods, adequate protein, healthy fats, and high fiber) can significantly improve PCOS symptoms. Studies show that even modest weight loss (5-10%) can restore menstrual regularity and improve fertility in many women with PCOS. Key nutrients like inositol, chromium, and omega-3s have also shown benefits.",
     },
     {
       question: "How often should I retest my biomarkers?",
@@ -669,7 +669,7 @@ export default function PCOSPage() {
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
               Insulin resistance is at the heart of most PCOS cases. When cells don't respond properly to insulin,
-              the body produces more — triggering a cascade of hormonal imbalances.
+              the body produces more, triggering a cascade of hormonal imbalances.
             </p>
           </div>
 
@@ -708,7 +708,7 @@ export default function PCOSPage() {
             <div className="mt-10 p-6 bg-gradient-to-r from-rose-50 to-purple-50 rounded-2xl">
               <p className="text-center text-gray-700">
                 <strong className="text-gray-900">The good news:</strong> By addressing insulin resistance through
-                diet, exercise, and when appropriate, medication — many PCOS symptoms can be significantly improved or even reversed.
+                diet, exercise, and when appropriate, medication, many PCOS symptoms can be significantly improved or even reversed.
               </p>
             </div>
           </div>

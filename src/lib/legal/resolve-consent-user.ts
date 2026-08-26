@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-/** Resolve a safe userId for consent — never pass a stale/invalid client id to the DB. */
+/** Resolve a safe userId for consent, never pass a stale/invalid client id to the DB. */
 export async function resolveConsentUserId(input: {
   userId?: string;
   email?: string;

@@ -36,9 +36,9 @@ const questions: Question[] = [
     icon: Scale,
     options: [
       { label: "No, my waist is proportional", value: 0 },
-      { label: "Slightly — some belly fat", value: 2 },
-      { label: "Yes — significant belly fat", value: 4 },
-      { label: "Yes — most of my weight is around my middle", value: 6 },
+      { label: "Slightly, some belly fat", value: 2 },
+      { label: "Yes, significant belly fat", value: 4 },
+      { label: "Yes, most of my weight is around my middle", value: 6 },
     ],
   },
   {
@@ -84,7 +84,7 @@ const questions: Question[] = [
     icon: Utensils,
     options: [
       { label: "Mostly whole foods, minimal processed food", value: 0 },
-      { label: "Mixed — some healthy, some processed", value: 2 },
+      { label: "Mixed, some healthy, some processed", value: 2 },
       { label: "Often processed foods, sugary drinks, fast food", value: 4 },
       { label: "Very high in processed foods and sugar", value: 5 },
     ],
@@ -156,7 +156,7 @@ function getRiskLevel(score: number): {
     return {
       level: "moderate",
       title: "Moderate Risk",
-      description: "Your responses indicate some risk factors for fatty liver disease. Early detection is key — fatty liver is often reversible when caught early. We recommend biomarker testing to assess your liver health.",
+      description: "Your responses indicate some risk factors for fatty liver disease. A doctor-reviewed liver and metabolic panel can inform the conversation about your liver health.",
       color: "text-[#c17a58]",
       bgColor: "bg-[#c17a58]",
       icon: AlertTriangle,
@@ -174,7 +174,7 @@ function getRiskLevel(score: number): {
     return {
       level: "high",
       title: "High Risk",
-      description: "Your responses indicate significant risk factors for fatty liver disease. This doesn't mean you have it, but testing is important. The good news: fatty liver is often reversible with proper treatment. We recommend comprehensive assessment.",
+      description: "Your responses indicate significant risk factors for fatty liver disease. This does not mean you have it. A doctor-reviewed assessment can inform next steps. Individual results vary.",
       color: "text-red-600",
       bgColor: "bg-red-600",
       icon: AlertCircle,
@@ -462,7 +462,7 @@ export function LiverHealthCalculator() {
               <p className={`text-xs mt-3 pt-3 border-t border-[#e6ebe3] transition-all duration-300 ${bmiScore >= 4 ? "text-red-600" : bmiScore >= 2 ? "text-[#c17a58]" : "text-[#5c7a52]"}`}>
                 {bmi < 18.5 && "Being underweight can also affect liver health. Let's assess other factors."}
                 {bmi >= 18.5 && bmi < 25 && "Great! A healthy BMI reduces fatty liver risk. Let's check other factors."}
-                {bmi >= 25 && bmi < 30 && "Being overweight increases fatty liver risk. Early detection is key."}
+                {bmi >= 25 && bmi < 30 && "Being overweight increases fatty liver risk. A doctor-reviewed assessment can inform next steps."}
                 {bmi >= 30 && bmi < 35 && "Obesity significantly increases fatty liver risk. Testing is recommended."}
                 {bmi >= 35 && "Severe obesity is strongly linked to fatty liver disease. Assessment is important."}
               </p>

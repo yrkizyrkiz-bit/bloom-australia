@@ -1,5 +1,5 @@
 /**
- * Organ & Metabolic Care — clinical intake quiz for the member portal.
+ * Organ & Metabolic Care, clinical intake quiz for the member portal.
  *
  * Organ-focused questions derived from the public biomarkers intake (heart, liver,
  * kidney, thyroid, hormones, metabolic) with Medicare-eligible indication mapping
@@ -41,7 +41,7 @@ const ORGAN_FOCUS_OPTIONS = [
   { id: "thyroid", label: "Thyroid function" },
   { id: "hormones", label: "Hormone balance" },
   { id: "metabolic", label: "Blood sugar & metabolic health" },
-  { id: "all", label: "All of the above — full organ review" },
+  { id: "all", label: "All of the above, full organ review" },
 ] as const;
 
 const ORGAN_FOCUS_QUESTION: BiomarkersQuizQuestion = {

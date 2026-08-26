@@ -162,7 +162,7 @@ export function buildMembershipSummary(input: {
   const sub = input.membership;
   if (sub?.stripeSubscriptionId && sub.status === "ACTIVE") {
     recurringStatus = "active";
-    recurringLabel = "Active — billed monthly";
+    recurringLabel = "Active (billed monthly)";
     recurringAmount = sub.amount;
     billingCycle = sub.billingCycle;
     nextBilling = sub.currentPeriodEnd?.toISOString() ?? null;

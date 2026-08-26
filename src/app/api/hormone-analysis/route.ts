@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     // Return the saved analysis whenever the biomarker data is unchanged. A new
     // analysis is only generated when the underlying results change (i.e. a new
-    // blood test is uploaded) — the report is never force-regenerated.
+    // blood test is uploaded), the report is never force-regenerated.
     const biomarkerHash = generateBiomarkerHash(uniqueResults);
 
     const existingAnalysis = await prisma.aIAnalysisCache.findUnique({

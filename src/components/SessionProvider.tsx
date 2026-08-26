@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 type SessionProviderProps = {
   children: ReactNode;
-  /** Server-prefetched session — avoids a client round-trip on first paint. */
+  /** Server-prefetched session, avoids a client round-trip on first paint. */
   session?: Session | null;
 };
 

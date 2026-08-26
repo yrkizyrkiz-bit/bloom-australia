@@ -6,6 +6,10 @@ import {
   getMemberBillingOverview,
 } from "@/lib/billing/member-billing-summary";
 import { resolveProgramSubscriptionGate } from "@/lib/billing/subscription-gate";
+import {
+  MEMBERSHIP_INCLUDED_SCOPE_SLUGS,
+  SANATIVE_MEMBERSHIP_SLUG,
+} from "@/lib/billing/program-slugs";
 
 export async function GET(request: Request) {
   try {
@@ -21,6 +25,33 @@ export async function GET(request: Request) {
 
     const overview = await getMemberBillingOverview(session.user.id);
     const summary = getBillingSummaryBySlug(overview, program);
+    const membership = getBillingSummaryBySlug(overview, SANATIVE_MEMBERSHIP_SLUG);
+    const includedWithMembership = (
+      MEMBERSHIP_INCLUDED_SCOPE_SLUGS as readonly string[]
+    ).includes(program);
+
+    if (!summary && includedWithMembership && membership?.subscriptionAccess.isActive) {
+      const gate = resolveProgramSubscriptionGate({
+        found: true,
+        subscriptionAccess: membership.subscriptionAccess,
+        programLabel: program === "organ_care" ? "Organ Care" : "Biological Clock",
+      });
+
+      return NextResponse.json({
+        program,
+        programLabel: program === "organ_care" ? "Organ Care" : "Biological Clock",
+        billingModel: "annual_subscription",
+        paidTill: membership.recurring.paidTill,
+        recurringStatus: membership.recurring.status,
+        found: true,
+        billingKnown: gate.billingKnown,
+        gateAction: gate.gateAction,
+        subscriptionAccess: {
+          ...gate.subscriptionAccess,
+          message: null,
+        },
+      });
+    }
 
     if (!summary) {
       const gate = resolveProgramSubscriptionGate({

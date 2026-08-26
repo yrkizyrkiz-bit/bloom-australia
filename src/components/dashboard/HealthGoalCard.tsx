@@ -194,7 +194,7 @@ export function HealthGoalCard({
           <Progress value={progress} className="h-2" />
         </div>
 
-        {/* Review date — subtle, no countdown */}
+        {/* Review date, subtle, no countdown */}
         {!isAchieved && (
           <button
             type="button"

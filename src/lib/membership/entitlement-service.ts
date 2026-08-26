@@ -52,6 +52,7 @@ export type EntitlementSignalsInput = {
   journeyStatus?: string | null;
   weightIntakePaymentStatus?: string | null;
   hasPaidWeightIntake?: boolean;
+  hasWeightIntake?: boolean;
   memberProgram?: { isActive?: boolean | null } | null;
   programMembers?: Array<{
     program?: string | null;
@@ -127,7 +128,7 @@ export function resolveProgramMemberProgramKey(
   if (program === "WOMENS_HEALTH") {
     const category = typeof intake.category === "string" ? intake.category : "";
     if (category) {
-      // May be null for unsure/undiagnosed — do not fall through to Vitality default.
+      // May be null for unsure/undiagnosed, do not fall through to Vitality default.
       return resolveWomensHealthCanonicalKey(category);
     }
   }
@@ -144,7 +145,7 @@ function resolveLegacyTierProgramKey(
 
   const tierNorm = (tier || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 
-  // Explicit focus in the subscription tier — never override with another ProgramMember row.
+  // Explicit focus in the subscription tier, never override with another ProgramMember row.
   if (tierNorm.includes("sex") && tierNorm.includes("mens")) return "MENS_HEALTH_SEXUAL";
   if (tierNorm.includes("sex") && tierNorm.includes("women")) return "WOMENS_HEALTH_SEXUAL";
   if (tierNorm.includes("vitality") && tierNorm.includes("mens")) return "MENS_HEALTH_VITALITY";
@@ -202,7 +203,7 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
 
   if (tierProgram) {
     let tierStatus = subscriptionTierStatus(input.subscriptionStatus);
-    // Recurring subscription not started yet — still grant WM access after funnel payment.
+    // Recurring subscription not started yet, still grant WM access after funnel payment.
     if (tierProgram === "WEIGHT_MANAGEMENT" && tierStatus === "INACTIVE" && weightJourneyPaid) {
       tierStatus = "ACTIVE";
     }
@@ -270,7 +271,7 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
     const scopeKey = normalizeScopeKey(text);
     if (scopeKey) add("SCOPE", scopeKey, status, "SUBSCRIPTION");
 
-    // Every biomarker panel includes Biological Clock + Organ Care — they are
+    // Every biomarker panel includes Biological Clock + Organ Care, they are
     // no longer standalone products.
     const slug = (sub.product?.slug || "").toLowerCase();
     const isPanel =
@@ -358,11 +359,7 @@ async function loadSignals(userId: string): Promise<EntitlementSignalsInput | nu
   });
 
   const journey = user.journeyStatus;
-  const isWeightTier = normalizeProgramKey(user.subscriptionTier) === "WEIGHT_MANAGEMENT";
-  const hasPaidWeightIntake =
-    isWeightTier &&
-    (weightIntake?.paymentStatus === "PAID" ||
-      (journey != null && PAID_WEIGHT_JOURNEY_STATUSES.has(journey)));
+  const hasPaidWeightIntake = weightIntake?.paymentStatus === "PAID";
 
   return {
     subscriptionTier: user.subscriptionTier,
@@ -371,6 +368,7 @@ async function loadSignals(userId: string): Promise<EntitlementSignalsInput | nu
     journeyStatus: journey,
     weightIntakePaymentStatus: weightIntake?.paymentStatus ?? null,
     hasPaidWeightIntake,
+    hasWeightIntake: !!weightIntake,
     memberProgram: user.memberProgram,
     memberSubscriptions: user.memberSubscriptions,
     programMembers,
@@ -393,7 +391,7 @@ export async function syncEntitlementsFromSignals(userId: string): Promise<void>
 
   for (const d of desired) {
     const current = existingMap.get(`${d.type}:${d.key}`);
-    // Respect manual admin grants and paid portal purchases — don't let derived sync clobber them.
+    // Respect manual admin grants and paid portal purchases, don't let derived sync clobber them.
     if (current?.source === "ADMIN_GRANT" || current?.source === "PORTAL_PURCHASE") continue;
 
     upserts.push(

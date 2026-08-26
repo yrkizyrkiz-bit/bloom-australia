@@ -122,34 +122,10 @@
   background: #6a8041;
 }
 
-.community {
+.measure {
   grid-column: 9 / span 4;
-  grid-row: 1;
-  background: #8a6f52;
-}
-
-.phone {
-  grid-column: 9 / span 4;
-  grid-row: 2;
-  background: linear-gradient(180deg, #b8d27a 0%, #a6c568 100%);
-}
-
-.phoneMedia {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 8% 0;
-}
-
-.phoneMedia img {
-  position: relative !important;
-  width: 76% !important;
-  height: 86% !important;
-  max-width: 76%;
-  object-fit: contain !important;
-  object-position: bottom center;
+  grid-row: 1 / span 2;
+  background: #6a8041;
 }
 
 /* ---- Tablet ---- */
@@ -182,8 +158,7 @@
 
   .biomarkers,
   .doctor,
-  .community,
-  .phone {
+  .measure {
     grid-column: auto;
     grid-row: auto;
   }
@@ -193,9 +168,9 @@
     min-height: 460px;
   }
 
-  .community,
-  .phone {
-    min-height: 300px;
+  .measure {
+    grid-column: 1 / -1;
+    min-height: 460px;
   }
 }
 
@@ -226,14 +201,9 @@
     order: 2;
   }
 
-  .community {
-    min-height: 320px;
+  .measure {
+    min-height: 460px;
     order: 3;
-  }
-
-  .phone {
-    min-height: 320px;
-    order: 4;
   }
 }
 
@@ -246,3 +216,4 @@
     transform: none;
   }
 }
+

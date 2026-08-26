@@ -62,6 +62,25 @@ const DERIVED_IDS = new Set([
   "ferritin_albumin_ratio",
   "nlr",
   "platelet_lymphocyte_ratio",
+  "remnant_cholesterol",
+  "atherogenic_coefficient",
+  "homa_b",
+  "quicki",
+  "mcauley_index",
+  "uric_acid_hdl_ratio",
+  "fib4",
+  "apri",
+  "sii",
+  "siri",
+  "mlr",
+  "nhr",
+  "corrected_calcium",
+  "calculated_osmolality",
+  "mentzer_index",
+  "kdigo_risk",
+  "tsh_index",
+  "phenotypic_age",
+  "age_acceleration",
 ]);
 
 const CATEGORY_ORDER: BloodPanelCategoryKey[] = [
@@ -186,13 +205,10 @@ const FUNCTION_CATEGORY_BADGE: Record<FunctionStyleCategoryId, string> = {
   "male-health": "bg-rose-600",
   metabolic: "bg-amber-500",
   nutrients: "bg-teal-500",
-  "stress-aging": "bg-violet-500",
   "biological-age": "bg-indigo-500",
   liver: "bg-emerald-500",
   blood: "bg-rose-500",
   kidneys: "bg-sky-500",
-  electrolytes: "bg-cyan-600",
-  urine: "bg-blue-400",
 };
 
 function resolveMarkerForDisplay(
@@ -257,6 +273,28 @@ export function getTierMarkerIdUniverse(tier: BiomarkerSubscriptionTier): Set<st
     getBiomarkerTierMarkerIds(tier),
     tier === "complete" ? getBiomarkerTierMarkerIds("advanced") : undefined
   );
+}
+
+const ESSENTIAL_PORTAL_MARKER_IDS = getTierMarkerIdUniverse("essential");
+
+/** Subscription Essential catalogue (measured + calculated), including Free T aliases. */
+export function isEssentialPortalMarker(id: string): boolean {
+  if (ESSENTIAL_PORTAL_MARKER_IDS.has(id)) return true;
+  if (id === "free_testosterone" || id === "testosterone_free") {
+    return (
+      ESSENTIAL_PORTAL_MARKER_IDS.has("free_testosterone") ||
+      ESSENTIAL_PORTAL_MARKER_IDS.has("testosterone_free")
+    );
+  }
+  return false;
+}
+
+/**
+ * Portal cards: Essential always (pending or resulted).
+ * Advanced / Complete extras only when a result exists.
+ */
+export function shouldShowPortalMarkerCard(id: string, hasResult: boolean): boolean {
+  return hasResult || isEssentialPortalMarker(id);
 }
 
 export type FunctionStyleCategoryPreview = FunctionStyleCategory & {

@@ -67,7 +67,7 @@ Rules:
 - No medical diagnosis or dose changes
 - Reference the member's actual data when provided
 - If adherence is low, be supportive not judgmental
-- Precision members may have biomarker context — mention lifestyle focus only, not treatment changes`;
+- Precision members may have biomarker context, mention lifestyle focus only, not treatment changes`;
 
   const userPrompt = `Week ${programWeek + 1} program review for ${ctx.memberName}.
 Plan: ${ctx.planTier}
@@ -136,12 +136,12 @@ ${biomarkerNote}`;
           ? `Weight trend: ${Math.abs(ctx.weightChangeKg)} kg down this week.`
           : "Log your weight at the same time each day for the clearest trend.",
         ctx.mealLogs > 0
-          ? `${ctx.mealLogs} meals logged — great awareness.`
+          ? `${ctx.mealLogs} meals logged, great awareness.`
           : "Try logging at least two meals a day this week.",
         "Message your care partner if side effects are bothering you.",
       ],
       focusArea: "Consistent daily logging",
-      encouragement: "Small steps each day add up — you're building lasting habits.",
+      encouragement: "Small steps each day add up, you're building lasting habits.",
     };
 
     await prisma.programWeekSummary.upsert({

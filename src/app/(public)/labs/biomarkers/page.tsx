@@ -142,7 +142,7 @@ export default function BiomarkersPreviewPage() {
               Learn about Biomarkers
             </h1>
             <p className="mt-4 text-lg text-[#a8bb9e] max-w-2xl">
-              Explore 80+ biomarkers we test. Members get access to detailed reference ranges,
+              Explore 85+ biomarkers we test. Members get access to detailed reference ranges,
               sample results, and personalised health insights.
             </p>
 
@@ -190,7 +190,7 @@ export default function BiomarkersPreviewPage() {
             {/* Section Header */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-serif text-[#2c3628]">Preview: Sample Biomarkers</h2>
-              <span className="text-sm text-[#7e9a72]">Showing 6 of 80+ biomarkers</span>
+              <span className="text-sm text-[#7e9a72]">Showing 6 of 85+ biomarkers</span>
             </div>
 
             {/* Preview Biomarkers Grid */}
@@ -330,7 +330,7 @@ export default function BiomarkersPreviewPage() {
                 <div className="w-12 h-12 rounded-xl bg-[#5c7a52]/10 flex items-center justify-center mb-4">
                   <FlaskConical className="w-6 h-6 text-[#5c7a52]" />
                 </div>
-                <h3 className="text-lg font-semibold text-[#2c3628] mb-2">80+ Biomarkers</h3>
+                <h3 className="text-lg font-semibold text-[#2c3628] mb-2">85+ Biomarkers</h3>
                 <p className="text-sm text-[#5c7a52]">
                   Comprehensive database covering heart, metabolism, hormones, thyroid, nutrients, and more.
                 </p>
@@ -362,7 +362,7 @@ export default function BiomarkersPreviewPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-[#2c3628] mb-2">Category Filtering</h3>
                 <p className="text-sm text-[#5c7a52]">
-                  Browse by category — heart, hormones, liver, kidney, nutrients, and more.
+                  Browse by category, heart, hormones, liver, kidney, nutrients, and more.
                 </p>
               </div>
 

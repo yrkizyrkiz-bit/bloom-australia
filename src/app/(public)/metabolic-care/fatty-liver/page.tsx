@@ -6,7 +6,11 @@ import Image from "next/image";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { LiverHealthCalculator } from "@/components/promo/LiverHealthCalculator";
-import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
+import { OrganCareMembershipSection } from "@/components/promo/sections/OrganCareMembershipSection";
+import {
+  BiomarkerHoneycomb,
+  LIVER_PANEL_HONEYCOMB_IDS,
+} from "@/components/promo/BiomarkerHoneycomb";
 import {
   ArrowRight,
   AlertTriangle,
@@ -94,8 +98,8 @@ export default function FattyLiverPage() {
     },
     {
       value: "~80%",
-      label: "of cases may go undetected",
-      subtext: "Standard liver tests may not detect early stages",
+      label: "of cases may have no early symptoms",
+      subtext: "Standard liver tests may not always show early stages",
       citation: "Lazarus JV, et al. Lancet Gastroenterol Hepatol. 2022;7(7):592-593",
     },
     {
@@ -129,7 +133,7 @@ export default function FattyLiverPage() {
       icon: Eye,
       title: "See",
       subtitle: "Comprehensive Assessment",
-      description: "We assess liver health through biomarker testing — not just standard liver enzymes, but a broader metabolic picture including markers associated with insulin resistance, inflammation, and lipid profiles.",
+      description: "We assess liver health through biomarker testing, not just standard liver enzymes, but a broader metabolic picture including markers associated with insulin resistance, inflammation, and lipid profiles.",
     },
     {
       icon: Wrench,
@@ -151,16 +155,9 @@ export default function FattyLiverPage() {
     },
   ];
 
-  const biomarkers = [
-    { name: "Liver Enzymes", markers: ["ALT", "AST", "GGT"], category: "Liver Function" },
-    { name: "Liver Metabolic Panel", markers: ["Fasting Glucose", "HbA1c", "Insulin"], category: "Blood Sugar" },
-    { name: "Lipid Profile", markers: ["Triglycerides", "LDL", "HDL"], category: "Cholesterol" },
-    { name: "Inflammation", markers: ["CRP", "Ferritin", "Uric Acid"], category: "Systemic" },
-  ];
-
   // GAP-017: Removed public medication names for TGA compliance
   const outcomes = [
-    { metric: "59%", description: "of study participants showed NASH resolution in a published clinical trial (research context only — not a treatment advertisement)", citation: "Newsome PN, et al. NEJM 2021;384(12):1113-1124" },
+    { metric: "59%", description: "of study participants showed NASH resolution in a published clinical trial (research context only, not a treatment advertisement)", citation: "Newsome PN, et al. NEJM 2021;384(12):1113-1124" },
     { metric: "90%", description: "NASH resolution observed in trial participants achieving ≥10% weight loss through lifestyle changes", citation: "Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378" },
     { metric: "45%", description: "of participants showed fibrosis improvement with lifestyle changes in study", citation: "Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378" },
     { metric: ">65%", description: "reduction in liver fat observed in some clinical research studies (individual results vary)", citation: "Loomba R, et al. Lancet Gastroenterol Hepatol 2023;8(6):511-522" },
@@ -185,7 +182,7 @@ export default function FattyLiverPage() {
     {
       icon: FlaskConical,
       title: "Supplement Considerations",
-      description: "Discussion of supplementation options based on your biomarker profile — including vitamin E and omega-3s, which have been studied in clinical research.³",
+      description: "Discussion of supplementation options based on your biomarker profile, including vitamin E and omega-3s, which have been studied in clinical research.³",
     },
   ];
 
@@ -264,7 +261,7 @@ export default function FattyLiverPage() {
                     <span className="text-[#5c7a52] italic">Your liver may be a factor.</span>
                   </h2>
                   <p className="text-[#5c7a52] leading-relaxed text-sm">
-                    Research suggests fatty liver is associated with a lower resting metabolic rate — meaning your body may burn fewer calories at rest, making weight loss more challenging.<sup>1</sup>
+                    Research suggests fatty liver is associated with a lower resting metabolic rate, meaning your body may burn fewer calories at rest, making weight loss more challenging.<sup>1</sup>
                   </p>
                 </div>
               </div>
@@ -338,7 +335,7 @@ export default function FattyLiverPage() {
 
             <div className="mt-12 text-center">
               <p className="text-[#a8bb9e] max-w-2xl mx-auto">
-                Research suggests standard liver function tests may not detect all cases of hepatic steatosis. Early assessment may be beneficial as fatty liver is often asymptomatic in early stages.
+                Research suggests standard liver function tests may not always show hepatic steatosis. Assessment can still be useful because fatty liver is often asymptomatic in early stages.
               </p>
             </div>
           </div>
@@ -409,7 +406,7 @@ export default function FattyLiverPage() {
               {/* Left Content */}
               <div>
                 <span className="inline-block px-4 py-1.5 text-sm font-medium bg-[#5c7a52]/20 text-[#5c7a52] rounded-full mb-4">
-                  The diagnostic edge
+                  A fuller picture
                 </span>
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-6">
                   Why weight loss{" "}
@@ -418,13 +415,13 @@ export default function FattyLiverPage() {
 
                 <div className="space-y-4 mb-8">
                   <p className="text-[#5c7a52] leading-relaxed">
-                    <strong className="text-[#2c3628]">Struggling to lose weight?</strong> Research shows that people with fatty liver have a significantly lower resting metabolic rate — burning fewer calories even at rest. This metabolic disadvantage may explain why weight loss feels harder than it should.<sup className="text-[#c17a58]">1</sup>
+                    <strong className="text-[#2c3628]">Struggling to lose weight?</strong> Research shows that people with fatty liver have a significantly lower resting metabolic rate, burning fewer calories even at rest. This metabolic disadvantage may explain why weight loss feels harder than it should.<sup className="text-[#c17a58]">1</sup>
                   </p>
                   <p className="text-[#5c7a52] leading-relaxed">
                     Interestingly, research also indicates that <strong className="text-[#c17a58]">rapid weight loss and restrictive diets may contribute to fatty liver development</strong>.<sup className="text-[#c17a58]">2</sup> When weight is lost too quickly, hepatic fat accumulation may occur.
                   </p>
                   <p className="text-[#5c7a52] leading-relaxed">
-                    Malnutrition — even in individuals with elevated body weight — has also been associated with fatty liver in research.<sup className="text-[#c17a58]">2</sup> Standard liver tests may not always detect early-stage hepatic steatosis.
+                    Malnutrition (even in individuals with elevated body weight) has also been associated with fatty liver in research.<sup className="text-[#c17a58]">2</sup> Standard liver tests may not always show early-stage hepatic steatosis.
                   </p>
                 </div>
 
@@ -494,11 +491,11 @@ export default function FattyLiverPage() {
                 Our approach
               </span>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] mb-6">
-                See. Fix. Verify.{" "}
-                <span className="text-[#5c7a52] italic">Optimise.</span>
+                See. Support. Verify.{" "}
+                <span className="text-[#5c7a52] italic">Follow-up.</span>
               </h2>
               <p className="text-lg text-[#5c7a52] max-w-3xl mx-auto">
-                A continuous metabolic care system — connecting diagnosis, intervention, measurement, and optimisation.
+                A continuous metabolic care system, connecting assessment, care, measurement, and follow-up.
               </p>
             </div>
 
@@ -542,39 +539,26 @@ export default function FattyLiverPage() {
                   Objective measurement. Longitudinal tracking. Data-informed decisions. Our comprehensive panel provides your doctor with information to help inform and adjust your care plan.
                 </p>
 
-                <div className="space-y-4">
-                  {biomarkers.map((panel) => (
-                    <div
-                      key={panel.name}
-                      className="bg-white/5 rounded-2xl p-5 border border-white/10"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium text-white">{panel.name}</h3>
-                        <span className="text-xs text-[#a8bb9e] bg-white/10 px-2 py-1 rounded-full">
-                          {panel.category}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {panel.markers.map((marker) => (
-                          <span
-                            key={marker}
-                            className="text-sm text-[#cdd8c6] bg-white/5 px-3 py-1 rounded-full"
-                          >
-                            {marker}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                <div className="w-full rounded-3xl bg-gradient-to-br from-[#cdd8c6] via-[#a8bb9e] to-[#5c7a52] px-6 py-8 sm:px-10 sm:py-10">
+                  <BiomarkerHoneycomb
+                    includeIds={LIVER_PANEL_HONEYCOMB_IDS}
+                    highlightAll
+                    showCategoryTabs={false}
+                    showCalculatedFooter={false}
+                    palette="sage"
+                    align="center"
+                  />
                 </div>
 
-                <Link
-                  href="/labs"
-                  className="inline-flex items-center gap-2 mt-8 text-[#a8bb9e] hover:text-white transition-colors"
-                >
-                  View all biomarkers we test
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                <div className="mt-8 flex justify-center">
+                  <Link
+                    href="/labs#biomarkers"
+                    className="inline-flex items-center gap-2 text-[#a8bb9e] hover:text-white transition-colors"
+                  >
+                    View biomarker panel
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
 
               {/* Outcomes */}
@@ -680,6 +664,8 @@ export default function FattyLiverPage() {
           </div>
         </section>
 
+        <OrganCareMembershipSection accent="sage" />
+
         {/* FAQ Section */}
         <section className="py-20 lg:py-28 bg-[#fdfbf7]">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -740,7 +726,7 @@ export default function FattyLiverPage() {
 
             {/* GAP-026: Removed 'No commitment' - payment required */}
             <p className="mt-6 text-sm text-[#7e9a72]">
-              Free assessment · {ORGAN_CARE_PUBLIC_OFFER.priceLabel} organ care membership
+              Free assessment · membership includes Organ Care
             </p>
           </div>
         </section>

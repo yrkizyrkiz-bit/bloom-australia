@@ -11,6 +11,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Loader2, Lock, CreditCard } from "lucide-react";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -28,6 +29,7 @@ interface PaymentFormProps {
   disabled?: boolean;
   userId?: string;
   customerEmail?: string;
+  customerName?: string;
 }
 
 function CheckoutForm({
@@ -37,6 +39,7 @@ function CheckoutForm({
   disabled,
   userId,
   customerEmail,
+  customerName,
 }: Omit<PaymentFormProps, "clientSecret">) {
   const stripe = useStripe();
   const elements = useElements();
@@ -73,6 +76,10 @@ function CheckoutForm({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/dashboard/welcome`,
+          ...stripePaymentMethodBillingDetails({
+            name: customerName,
+            email: customerEmail,
+          }),
         },
         redirect: "if_required",
       });
@@ -99,6 +106,13 @@ function CheckoutForm({
       <PaymentElement
         options={{
           layout: "tabs",
+          wallets: { link: "never" },
+          fields: {
+            billingDetails: {
+              email: "never",
+              name: "never",
+            },
+          },
         }}
       />
 
@@ -148,6 +162,7 @@ export function JoinPaymentForm({
   disabled,
   userId,
   customerEmail,
+  customerName,
 }: PaymentFormProps) {
   const appearance = {
     theme: "stripe" as const,
@@ -202,6 +217,7 @@ export function JoinPaymentForm({
         disabled={disabled}
         userId={userId}
         customerEmail={customerEmail}
+        customerName={customerName}
       />
     </Elements>
   );

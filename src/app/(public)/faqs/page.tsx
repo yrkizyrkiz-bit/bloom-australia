@@ -34,7 +34,7 @@ const faqs = [
   },
   {
     q: "Will I receive SMS or email?",
-    a: "Yes — service-related messages about bookings, your program, and billing. Marketing is optional. Reply STOP to opt out of SMS where supported.",
+    a: "Yes, service-related messages about bookings, your program, and billing. Marketing is optional. Reply STOP to opt out of SMS where supported.",
   },
 ];
 

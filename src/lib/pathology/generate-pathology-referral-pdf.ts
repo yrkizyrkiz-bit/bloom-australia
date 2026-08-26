@@ -301,7 +301,7 @@ function drawPractitionerSection(doc: jsPDF, x: number, y: number, w: number, pa
   doc.setFont("helvetica", "italic");
   doc.setFontSize(4.8);
   doc.setTextColor(...COL.red);
-  doc.text("Telehealth — signature on file", x + leftW + 2.5, y + 14.5);
+  doc.text("Telehealth, signature on file", x + leftW + 2.5, y + 14.5);
   doc.setTextColor(...COL.body);
 
   return y + h + GAP;
@@ -355,7 +355,7 @@ function drawSpecimenGrid(doc: jsPDF, x: number, y: number, w: number) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(4.8);
   doc.setTextColor(...COL.labelText);
-  doc.text("SPECIMEN TYPE — FOR LABORATORY USE", x + 1.2, y + 2.9);
+  doc.text("SPECIMEN TYPE, FOR LABORATORY USE", x + 1.2, y + 2.9);
 
   let ry = y + headerH + 0.4;
   for (const row of rows) {

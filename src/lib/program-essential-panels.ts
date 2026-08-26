@@ -18,7 +18,7 @@ export interface ProgramEssentialPanel {
   description: string;
 }
 
-/** Shared safety + baseline panel — every program Essential includes these. */
+/** Shared safety + baseline panel, every program Essential includes these. */
 export const SHARED_BASELINE_MARKER_IDS = [
   "wbc",
   "rbc",

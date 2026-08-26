@@ -305,7 +305,7 @@ async function main() {
       {
         clinicId: clinic1.id,
         type: "ENROLMENT",
-        message: "Sarah Mitchell has enrolled via your QR code — Kidney Health",
+        message: "Sarah Mitchell has enrolled via your QR code: Kidney Health",
         patientName: "Sarah Mitchell",
         patientId: member1.id,
         read: true,
@@ -314,7 +314,7 @@ async function main() {
       {
         clinicId: clinic1.id,
         type: "ENROLMENT",
-        message: "James Taylor has enrolled via your QR code — Fatty Liver",
+        message: "James Taylor has enrolled via your QR code: Fatty Liver",
         patientName: "James Taylor",
         patientId: member2.id,
         read: true,
@@ -341,7 +341,7 @@ async function main() {
       {
         clinicId: clinic1.id,
         type: "ENROLMENT",
-        message: "Emma Lee has enrolled via your QR code — Weight Management",
+        message: "Emma Lee has enrolled via your QR code: Weight Management",
         patientName: "Emma Lee",
         patientId: member3.id,
         read: false,

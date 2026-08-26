@@ -1,4 +1,5 @@
 import type { BillingInterval } from "@prisma/client";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   billingModelsAvailable,
@@ -6,9 +7,14 @@ import {
   resetBillingCatalogCache,
 } from "@/lib/billing/catalog";
 
+function invalidateCatalogCaches() {
+  invalidateCatalogCaches();
+  revalidateTag("billing-catalog");
+}
+
 /**
  * Admin-side catalog management. Products and prices live in the database
- * (Product / BillingPrice) and are fully managed here — the hardcoded catalog
+ * (Product / BillingPrice) and are fully managed here, the hardcoded catalog
  * in catalog.ts is only a first-run seed.
  */
 
@@ -154,7 +160,7 @@ export async function createCatalogProduct(input: CreateProductInput) {
     });
   }
 
-  resetBillingCatalogCache();
+  invalidateCatalogCaches();
   return product;
 }
 
@@ -176,7 +182,7 @@ export async function updateCatalogProduct(productId: string, input: UpdateProdu
   if (Object.keys(data).length === 0) return;
 
   await prisma.product.update({ where: { id: productId }, data });
-  resetBillingCatalogCache();
+  invalidateCatalogCaches();
 }
 
 /**
@@ -195,12 +201,12 @@ export async function deleteCatalogProduct(
       where: { id: productId },
       data: { isActive: false },
     });
-    resetBillingCatalogCache();
+    invalidateCatalogCaches();
     return { deleted: false, deactivated: true };
   }
 
   await prisma.product.delete({ where: { id: productId } });
-  resetBillingCatalogCache();
+  invalidateCatalogCaches();
   return { deleted: true, deactivated: false };
 }
 
@@ -231,7 +237,7 @@ export async function addCatalogPrice(productId: string, price: NewPriceInput) {
     },
   });
 
-  resetBillingCatalogCache();
+  invalidateCatalogCaches();
   return created;
 }
 
@@ -239,5 +245,5 @@ export async function deleteCatalogPrice(priceId: string) {
   // MemberSubscription.billingPriceId is onDelete: SetNull, so this is safe;
   // historical invoices keep their own amount snapshots.
   await prisma.billingPrice.delete({ where: { id: priceId } });
-  resetBillingCatalogCache();
+  invalidateCatalogCaches();
 }

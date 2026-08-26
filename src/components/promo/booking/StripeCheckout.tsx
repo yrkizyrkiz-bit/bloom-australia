@@ -11,6 +11,7 @@ import { stripePromise } from "@/lib/stripe-client";
 import { Shield, Check, Loader2 } from "lucide-react";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -20,10 +21,11 @@ interface CheckoutFormProps {
   onSuccess: (result: CheckoutPaymentSuccess) => void;
   onError: (error: string) => void;
   customerEmail: string;
+  customerName?: string;
   userId?: string;
 }
 
-function CheckoutForm({ onSuccess, onError, customerEmail, userId }: CheckoutFormProps) {
+function CheckoutForm({ onSuccess, onError, customerEmail, customerName, userId }: CheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -59,6 +61,10 @@ function CheckoutForm({ onSuccess, onError, customerEmail, userId }: CheckoutFor
       confirmParams: {
         receipt_email: customerEmail,
         return_url: `${window.location.origin}/womens-health/book/success`,
+        ...stripePaymentMethodBillingDetails({
+          name: customerName,
+          email: customerEmail,
+        }),
       },
       redirect: "if_required",
     });
@@ -82,6 +88,13 @@ function CheckoutForm({ onSuccess, onError, customerEmail, userId }: CheckoutFor
       <PaymentElement
         options={{
           layout: "tabs",
+          wallets: { link: "never" },
+          fields: {
+            billingDetails: {
+              email: "never",
+              name: "never",
+            },
+          },
         }}
       />
 
@@ -135,6 +148,7 @@ function CheckoutForm({ onSuccess, onError, customerEmail, userId }: CheckoutFor
 interface StripeCheckoutProps {
   clientSecret: string;
   customerEmail: string;
+  customerName?: string;
   userId?: string;
   onSuccess: (result: CheckoutPaymentSuccess) => void;
   onError: (error: string) => void;
@@ -143,6 +157,7 @@ interface StripeCheckoutProps {
 export function StripeCheckout({
   clientSecret,
   customerEmail,
+  customerName,
   userId,
   onSuccess,
   onError,
@@ -205,6 +220,7 @@ export function StripeCheckout({
         onSuccess={onSuccess}
         onError={onError}
         customerEmail={customerEmail}
+        customerName={customerName}
         userId={userId}
       />
     </Elements>

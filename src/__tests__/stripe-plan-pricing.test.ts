@@ -22,7 +22,7 @@ describe("stripe plan-pricing", () => {
     expect(charge?.selectedPlan).toBe("precision");
   });
 
-  it("ignores client tampering — amounts are fixed per program", () => {
+  it("ignores client tampering, amounts are fixed per program", () => {
     const mens = resolveFirstMonthCheckoutCharge("mens_health", "core");
     expect(mens?.amountCents).toBe(4900);
     const hair = resolveFirstMonthCheckoutCharge("hair_loss", "core");

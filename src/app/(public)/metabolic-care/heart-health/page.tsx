@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { HeartHealthCalculator } from "@/components/promo/HeartHealthCalculator";
-import { ORGAN_CARE_PUBLIC_OFFER } from "@/lib/programs/organ-care-public-offer";
+import {
+  BiomarkerHoneycomb,
+  HEART_PANEL_HONEYCOMB_IDS,
+} from "@/components/promo/BiomarkerHoneycomb";
+import { OrganCareMembershipSection } from "@/components/promo/sections/OrganCareMembershipSection";
 import {
   ArrowRight,
   ArrowLeft,
@@ -69,63 +73,13 @@ function FAQItem({
   );
 }
 
-// Portal Screenshot Slider
-function PortalSlider() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const slides = [
-    { title: "Heart Health Dashboard", description: "Track cardiovascular biomarkers in real-time", gradient: "from-rose-50 to-red-100" },
-    { title: "Lipid Profile Tracking", description: "Monitor cholesterol and triglycerides over time", gradient: "from-amber-50 to-orange-100" },
-    { title: "Personalised Insights", description: "AI-powered analysis of your heart health trends", gradient: "from-emerald-50 to-teal-100" },
-    { title: "Care Team Support", description: "Direct messaging with your care partners", gradient: "from-blue-50 to-indigo-100" },
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slides.length), 4000);
-    return () => clearInterval(interval);
-  }, [slides.length]);
-
-  return (
-    <div className="relative">
-      <div className="overflow-hidden rounded-2xl">
-        <div className="flex transition-transform duration-500" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
-          {slides.map((slide, index) => (
-            <div key={index} className={`w-full flex-shrink-0 bg-gradient-to-br ${slide.gradient} p-8 min-h-[320px] flex flex-col justify-center`}>
-              <div className="bg-white rounded-xl shadow-lg p-6 max-w-sm mx-auto">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
-                    <Heart className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm">{slide.title}</p>
-                    <p className="text-xs text-gray-500">{slide.description}</p>
-                  </div>
-                </div>
-                <div className="h-24 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg flex items-end justify-around px-4 pb-2">
-                  {[40, 65, 55, 80, 70, 90, 75].map((height, i) => (
-                    <div key={i} className="w-4 bg-gradient-to-t from-rose-500 to-red-400 rounded-t" style={{ height: `${height}%` }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center justify-center gap-2 mt-4">
-        {slides.map((_, index) => (
-          <button key={index} onClick={() => setCurrentSlide(index)} className={`w-2 h-2 rounded-full transition-colors ${currentSlide === index ? "bg-rose-500" : "bg-gray-300"}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function HeartHealthPage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(0);
 
   const epidemicStats = [
     { value: "1.2M", label: "Australians living with heart disease", subtext: "Leading cause of death in Australia", citation: "AIHW, 2023" },
     { value: "~6M", label: "Australians have high cholesterol", subtext: "One in three adults over 18", citation: "Heart Foundation, 2023" },
-    { value: "64%", label: "of cardiovascular disease is preventable", subtext: "Through lifestyle and medical intervention", citation: "Lancet Global Health, 2019" },
+    { value: "64%", label: "of cardiovascular deaths involve modifiable risk factors", subtext: "Lifestyle and medical factors your doctor can review", citation: "Lancet Global Health, 2019" },
   ];
 
   const conditions = [
@@ -147,20 +101,20 @@ export default function HeartHealthPage() {
     { icon: Eye, title: "Assess", subtitle: "Comprehensive Lipid Panel", description: "Standard lipid profile plus inflammation and metabolic markers." },
     { icon: Wrench, title: "Plan", subtitle: "Personalised Protocol", description: "Evidence-based care plan with dietary, lifestyle, and medication options." },
     { icon: Check, title: "Monitor", subtitle: "Track Progress", description: "Regular biomarker testing to guide treatment adjustments." },
-    { icon: RefreshCw, title: "Optimise", subtitle: "Long-term Management", description: "Ongoing support to maintain optimal cardiovascular markers." },
+    { icon: RefreshCw, title: "Follow-up", subtitle: "Long-term Management", description: "Ongoing doctor-led review of cardiovascular markers as your situation changes." },
   ];
 
   const biomarkers = [
-    { name: "Lipid Panel", markers: ["Total Cholesterol", "LDL-C", "HDL-C", "Triglycerides"], category: "Core" },
-    { name: "Inflammation", markers: ["hs-CRP", "Homocysteine"], category: "Risk" },
-    { name: "Metabolic", markers: ["HbA1c", "Fasting Glucose"], category: "Metabolic" },
+    { name: "Measured", markers: ["hs-CRP", "Total cholesterol", "LDL", "HDL", "Triglycerides"], category: "Essential" },
+    { name: "Calculated", markers: ["Non-HDL cholesterol", "Cholesterol/HDL ratio"], category: "Same draw" },
+    { name: "If risk factors exist", markers: ["Apolipoprotein B", "Lipoprotein (a)"], category: "Doctor-reviewed" },
   ];
 
   const faqs = [
-    { question: "What is dyslipidemia?", answer: "Dyslipidemia refers to abnormal levels of lipids in the blood. According to the Heart Foundation, it's a major risk factor for cardiovascular disease — Australia's leading cause of death." },
+    { question: "What is dyslipidemia?", answer: "Dyslipidemia refers to abnormal levels of lipids in the blood. According to the Heart Foundation, it's a major risk factor for cardiovascular disease, Australia's leading cause of death." },
     { question: "How does obesity affect cholesterol?", answer: "The AIHW reports two-thirds of Australian adults are overweight or obese. Excess body fat increases LDL cholesterol and triglycerides while lowering HDL. Studies show 5-10% weight loss significantly improves lipid profiles." },
-    { question: "Can high cholesterol be reversed?", answer: "In many cases, yes. Lifestyle modifications can reduce LDL by 10-15% (AIHW). However, some individuals need medication, especially those with genetic conditions like familial hypercholesterolemia." },
-    { question: "What biomarkers do you test?", answer: "Our heart health panel includes Total Cholesterol, LDL, HDL, Triglycerides, hs-CRP (inflammation), homocysteine, and HbA1c (metabolic health)." },
+    { question: "Can lifestyle change affect cholesterol?", answer: "The AIHW notes that diet, activity and weight can influence lipid levels, and some people also need medicine, especially those with genetic conditions such as familial hypercholesterolemia. Your Sanative doctor discusses what is clinically appropriate for you. Individual results vary." },
+    { question: "What biomarkers do you test?", answer: "The Heart Health Panel on Essential measures high-sensitivity CRP, total cholesterol, LDL, HDL and triglycerides. Non-HDL cholesterol and the cholesterol/HDL ratio are calculated from that same draw. Apolipoprotein B and lipoprotein (a) are not on the routine panel. Your doctor may add them when risk factors exist, such as a strong family history of premature heart disease." },
   ];
 
   return (
@@ -171,12 +125,12 @@ export default function HeartHealthPage() {
         <section className="relative py-12 lg:py-16 bg-gradient-to-br from-rose-50 via-red-50 to-orange-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
-              <span className="inline-block px-4 py-1.5 text-sm font-medium bg-rose-100 text-rose-700 rounded-full mb-4">Metabolic Care</span>
+              <span className="inline-block px-4 py-1.5 text-sm font-medium bg-rose-100 text-rose-700 rounded-full mb-4">Organ Care</span>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-gray-900">
                 The Heart Health <span className="text-rose-600 italic">Program</span>
               </h1>
               <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-                Evidence-based care for dyslipidemia, high cholesterol, and elevated triglycerides — conditions strongly linked to overweight and obesity.
+                Evidence-based care for dyslipidemia, high cholesterol, and elevated triglycerides, conditions strongly linked to overweight and obesity.
               </p>
             </div>
 
@@ -195,9 +149,9 @@ export default function HeartHealthPage() {
                 </div>
                 <div className="p-5 lg:p-6 border-t border-rose-200/50 bg-white/80 backdrop-blur-sm flex-shrink-0">
                   <h2 className="text-lg lg:text-xl font-serif text-gray-900 mb-2">
-                    <span className="text-rose-600">Heart disease</span> <span className="italic">is largely preventable.</span>
+                    <span className="text-rose-600">Heart risk</span> <span className="italic">can be reviewed before symptoms.</span>
                   </h2>
-                  <p className="text-gray-600 text-sm">Up to 64% of cardiovascular disease could be prevented through lifestyle and medical management.<sup>1</sup></p>
+                  <p className="text-gray-600 text-sm">Research has linked many cardiovascular deaths to factors your doctor can review, lipids, blood pressure, glucose and lifestyle.<sup>1</sup></p>
                 </div>
               </div>
 
@@ -316,15 +270,15 @@ export default function HeartHealthPage() {
                   Beyond standard <span className="text-rose-600 italic">cholesterol tests</span>
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  <strong>Standard lipid panels are the foundation of cardiovascular screening.</strong> We test total cholesterol, LDL, HDL, and triglycerides — the markers most commonly used to guide treatment.
+                  <strong>Standard lipid panels are the foundation of cardiovascular screening.</strong> We test total cholesterol, LDL, HDL, and triglycerides, the markers most commonly used to guide treatment.
                 </p>
                 <p className="text-gray-600 mb-6">
-                  <strong className="text-rose-600">Inflammation and metabolic markers</strong> add context: hs-CRP and homocysteine reflect vascular inflammation, while HbA1c and glucose capture metabolic risk that affects heart health.
+                  <strong className="text-rose-600">High-sensitivity CRP</strong> sits on the same Essential request, so your doctor can review low-grade inflammation with the lipid panel. Non-HDL and the cholesterol/HDL ratio are calculated from that draw. ApoB and lipoprotein (a) are added only when risk factors exist.
                 </p>
                 <div className="bg-white rounded-2xl p-4 text-xs text-gray-600 border border-rose-100">
                   <p className="font-medium mb-2">References:</p>
-                  <p className="mb-1"><sup>1</sup> Heart Foundation of Australia — Blood cholesterol guidelines.</p>
-                  <p><sup>2</sup> AIHW — Cardiovascular disease in Australia.</p>
+                  <p className="mb-1"><sup>1</sup> Heart Foundation of Australia, Blood cholesterol guidelines.</p>
+                  <p><sup>2</sup> AIHW, Cardiovascular disease in Australia.</p>
                 </div>
               </div>
 
@@ -335,19 +289,48 @@ export default function HeartHealthPage() {
                   </div>
                   <div>
                     <h3 className="text-xl font-serif">Heart Health Panel</h3>
-                    <p className="text-sm text-white/70">Comprehensive cardiac assessment</p>
+                    <p className="text-sm text-white/70">Measured on Essential</p>
                   </div>
                 </div>
-                <ul className="space-y-3 mb-6">
-                  {["Complete lipid panel (Total, LDL, HDL, Triglycerides)", "hs-CRP & homocysteine (inflammation)", "HbA1c & fasting glucose (metabolic)"].map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-rose-200 flex-shrink-0 mt-0.5" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link href="/labs#biomarkers" className="mt-6 w-full bg-white text-rose-700 rounded-full py-3 px-6 font-medium flex items-center justify-center gap-2 hover:bg-rose-50 transition-colors">
-                  View heart biomarkers <ArrowRight className="w-4 h-4" />
+
+                <div className="mx-auto w-fit rounded-2xl bg-gradient-to-br from-rose-200 via-rose-400 to-red-600 p-2.5">
+                  <BiomarkerHoneycomb
+                    includeIds={HEART_PANEL_HONEYCOMB_IDS}
+                    highlightAll
+                    showCategoryTabs={false}
+                    showCalculatedFooter={false}
+                    palette="rose"
+                    align="center"
+                  />
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-white/15">
+                  <p className="text-sm font-medium text-white mb-1">Measured if risk factors exist</p>
+                  <p className="text-xs text-white/70 mb-4">
+                    Your doctor may add these when family history or other cardiovascular risk factors warrant them.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      { short: "ApoB", full: "Apolipoprotein B" },
+                      { short: "Lp(a)", full: "Lipoprotein (a)" },
+                    ].map((marker) => (
+                      <div key={marker.short} className="flex items-center gap-3">
+                        <div
+                          className="w-12 h-14 flex items-center justify-center text-white text-xs font-medium bg-white/15"
+                          style={{
+                            clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+                          }}
+                        >
+                          {marker.short}
+                        </div>
+                        <span className="text-sm text-white/90">{marker.full}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Link href="/labs#biomarkers" className="mt-8 w-full bg-white text-rose-700 rounded-full py-3 px-6 font-medium flex items-center justify-center gap-2 hover:bg-rose-50 transition-colors">
+                  View biomarker panel <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
@@ -406,51 +389,7 @@ export default function HeartHealthPage() {
           </div>
         </section>
 
-        {/* Membership Panel with Slider */}
-        <section className="py-20 bg-gradient-to-br from-gray-50 to-rose-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <PortalSlider />
-              <div>
-                <span className="inline-block px-4 py-1.5 text-sm font-medium bg-rose-100 text-rose-600 rounded-full mb-4">Start today</span>
-                <h2 className="text-3xl sm:text-4xl font-serif text-gray-900 mb-6">
-                  Organ & Metabolic Care <span className="text-rose-600 italic">— all organs</span>
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  One annual membership covers heart, liver, kidney, thyroid, hormones and metabolic
-                  dashboards — not a single-organ add-on.
-                </p>
-                <ul className="space-y-3 mb-8">
-                  {ORGAN_CARE_PUBLIC_OFFER.includes.map((item) => (
-                    <li key={item} className="flex items-center gap-3 text-gray-700">
-                      <CheckCircle className="w-5 h-5 text-rose-500 flex-shrink-0" /><span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-baseline gap-2 mb-6">
-                  <span className="text-5xl font-serif text-gray-900">{ORGAN_CARE_PUBLIC_OFFER.priceLabel.replace("/year", "")}</span>
-                  <span className="text-gray-500">/year · all organs</span>
-                </div>
-                <Link href={ORGAN_CARE_PUBLIC_OFFER.checkoutPath} className="block w-full py-4 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl text-center transition-colors">Start Organ Care membership</Link>
-                <div className="flex flex-wrap justify-center gap-4 mt-4">
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-rose-500" />
-                    <span>Cancel anytime</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-rose-500" />
-                    <span>Results in a week</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-rose-500" />
-                    <span>NATA-accredited labs</span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-400 mt-3 text-center">Don't wait. Start testing now and take control of your heart health.</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <OrganCareMembershipSection accent="rose" />
 
         {/* Trust */}
         <section className="py-16 bg-rose-100">
@@ -499,7 +438,7 @@ export default function HeartHealthPage() {
               Your heart health is <span className="text-rose-200 italic">measurable</span>
             </h2>
             <p className="text-lg text-rose-100 mb-10 max-w-2xl mx-auto">
-              Don't wait for symptoms. Early detection of lipid disorders can significantly reduce your cardiovascular risk.
+              You do not have to wait for symptoms. A doctor-reviewed lipid and metabolic panel can inform the conversation about your cardiovascular risk.
             </p>
             <Link href="/membership/checkout" className="inline-flex items-center justify-center gap-3 text-lg px-12 py-5 bg-white text-rose-700 font-semibold rounded-full hover:bg-rose-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-md mx-auto">
               Start your membership now <ArrowRight className="w-5 h-5" />

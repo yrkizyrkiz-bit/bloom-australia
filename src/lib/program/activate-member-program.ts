@@ -168,7 +168,7 @@ export async function activateMemberProgram(
     subject: "Your Sanative program is now active!",
     body: `
       <h2>Hi ${user.firstName},</h2>
-      <p>Your Sanative weight management program is now active. You can start using your dashboard straight away — logging weight, meals, and goals during your first program week.</p>
+      <p>Your Sanative weight management program is now active. You can start using your dashboard straight away, logging weight, meals, and goals during your first program week.</p>
       <p><strong>First medication dose:</strong> scheduled for the start of week 2 (${firstDoseLabel}). Your care partner will confirm storage and usage instructions before then.</p>
       <div style="margin: 24px 0;">
         <a href="${dashboardUrl}" style="display:inline-block;background:#059669;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">

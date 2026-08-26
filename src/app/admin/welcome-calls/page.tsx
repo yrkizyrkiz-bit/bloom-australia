@@ -153,7 +153,7 @@ export default function WelcomeCallsPage() {
       }
       toast.success(
         activateProgram
-          ? "Welcome call complete — program activated (first dose week 2)"
+          ? "Welcome call complete, program activated (first dose week 2)"
           : "Welcome call marked complete"
       );
       setShowCompleteDialog(false);
@@ -183,7 +183,7 @@ export default function WelcomeCallsPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Failed to activate program");
       }
-      toast.success("Program activated — first dose scheduled for week 2");
+      toast.success("Program activated, first dose scheduled for week 2");
       load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to activate");
@@ -245,7 +245,7 @@ export default function WelcomeCallsPage() {
             Welcome Calls
           </h1>
           <p className="text-muted-foreground mt-1">
-            Onboard new members — welcome call, program walkthrough, and script follow-up
+            Onboard new members, welcome call, program walkthrough, and script follow-up
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>

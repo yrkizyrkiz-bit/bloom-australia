@@ -114,7 +114,7 @@ export async function createOrganCarePaymentIntent(input: OrganCareCheckoutInten
     billingPriceId: quote.panel!.id,
     amountCents: quote.panel!.amountCents,
     billingInterval: quote.panel!.billingInterval,
-    productName: `Biomarkers — ${panelTier}`,
+    productName: `Biomarkers, ${panelTier}`,
     metadata: { panelTier, source: "portal_organ_care" },
   });
 

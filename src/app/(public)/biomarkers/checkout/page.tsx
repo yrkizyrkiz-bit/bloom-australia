@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 /**
- * DEPRECATED FUNNEL — consolidated into Sanative Membership.
+ * DEPRECATED FUNNEL, consolidated into Sanative Membership.
  * All biomarker panel purchases now go through /membership/checkout
  * ($365/yr including the Essential panel). The `source` query param from
  * program assessments (hair, men's, women's) maps to the funnel intent.

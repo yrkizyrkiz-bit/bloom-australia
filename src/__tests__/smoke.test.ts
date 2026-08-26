@@ -357,9 +357,9 @@ describe('UAT8-GAP-006: Approved With Testing Model', () => {
   it('should map APPROVED_PENDING_TESTS to approved stage (not pending-tests)', () => {
     // UAT8-GAP-006: Stage should be "approved" not "pending-tests"
     const STAGE_DESCRIPTIONS: Record<string, { stage: string; description: string }> = {
-      APPROVED_PENDING_TESTS: { stage: "approved", description: "Program approved — blood tests ordered for monitoring" },
-      TESTS_ORDERED: { stage: "approved", description: "Program approved — blood tests being arranged" },
-      AWAITING_TESTS: { stage: "approved", description: "Program approved — awaiting test results" },
+      APPROVED_PENDING_TESTS: { stage: "approved", description: "Program approved, blood tests ordered for monitoring" },
+      TESTS_ORDERED: { stage: "approved", description: "Program approved, blood tests being arranged" },
+      AWAITING_TESTS: { stage: "approved", description: "Program approved, awaiting test results" },
     };
 
     expect(STAGE_DESCRIPTIONS['APPROVED_PENDING_TESTS'].stage).toBe('approved');
@@ -453,8 +453,9 @@ describe('UAT8-GAP-009: Legacy Payment Path Unreachable', () => {
 
   it('should use new payment flow ($249/$399) not legacy ($49)', () => {
     // The new payment flow uses:
-    // - Step 20: Booking screen with slot selection
-    // - Step 21: Payment screen with StripePaymentForm
+    // - Step 20: Payment screen with StripePaymentForm
+    // - Step 21: Booking screen with slot selection
+    // - Step 22: Welcome + set portal password
     // - Core: $249 first month (regularly $349)
     // - Precision: $399 first month (regularly $499)
     const NEW_CORE_PRICE = 249;
@@ -470,7 +471,7 @@ describe('UAT8-GAP-009: Legacy Payment Path Unreachable', () => {
   it('should redirect to booking step if invalid step reached', () => {
     // The default case now redirects to step 20 (booking screen)
     // instead of showing the old BiomarkerSnapshot with $49 handleSubmit
-    const BOOKING_STEP = 20;
+    const BOOKING_STEP = 21;
     expect(IF_STATEMENT_STEPS.includes(BOOKING_STEP)).toBe(true);
   });
 });

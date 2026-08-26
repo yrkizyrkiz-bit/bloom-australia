@@ -1,5 +1,5 @@
 /**
- * Security gate tests — production leak removal and access control.
+ * Security gate tests, production leak removal and access control.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -11,7 +11,7 @@ import { NextRequest } from "next/server";
 
 const BASE_URL = process.env.SECURITY_TEST_BASE_URL ?? "http://localhost:3000";
 
-describe("Security — patient clinical access", () => {
+describe("Security, patient clinical access", () => {
   it("allows admin to access any patient", () => {
     expect(
       canAccessPatientClinicalRecord({
@@ -79,7 +79,7 @@ describe("Security — patient clinical access", () => {
   });
 });
 
-describe("Security — production route guards", () => {
+describe("Security, production route guards", () => {
   const originalEnv = process.env.NODE_ENV;
 
   afterEach(() => {
@@ -128,7 +128,7 @@ describe("Security — production route guards", () => {
   });
 });
 
-describe("Security — unauthenticated API integration", () => {
+describe("Security, unauthenticated API integration", () => {
   it("logged-out user opening doctor brief API returns 401", async () => {
     const res = await fetch(`${BASE_URL}/api/admin/doctor-brief/test-intake-id`);
     expect(res.status).toBe(401);
@@ -170,7 +170,7 @@ describe("Security — unauthenticated API integration", () => {
   });
 });
 
-describe("Security — Stripe subscription userId tampering", () => {
+describe("Security, Stripe subscription userId tampering", () => {
   it("rejects payment when body userId does not match session (no session = allowed for anonymous checkout)", async () => {
     const res = await fetch(`${BASE_URL}/api/stripe/subscription`, {
       method: "POST",
@@ -180,12 +180,12 @@ describe("Security — Stripe subscription userId tampering", () => {
         planId: "core",
       }),
     });
-    // Without session: proceeds to user lookup — expect 404 not found
+    // Without session: proceeds to user lookup, expect 404 not found
     expect([404, 403, 400, 500]).toContain(res.status);
   });
 });
 
-describe("Security — booking confirm payment verification", () => {
+describe("Security, booking confirm payment verification", () => {
   it("rejects confirm without a valid Stripe payment intent", async () => {
     const res = await fetch(`${BASE_URL}/api/bookings/confirm`, {
       method: "POST",
@@ -205,7 +205,7 @@ describe("Security — booking confirm payment verification", () => {
   });
 });
 
-describe("Security — login page credential leaks", () => {
+describe("Security, login page credential leaks", () => {
   it("login page does not expose demo credentials", async () => {
     const res = await fetch(`${BASE_URL}/login`);
     const html = await res.text();

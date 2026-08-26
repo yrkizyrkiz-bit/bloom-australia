@@ -1,6 +1,24 @@
+const os = require("os");
+
+function lanDevOrigins() {
+  const hostname = os.hostname().replace(/\.local$/i, "");
+  const origins = new Set([
+    "*.preview.same-app.com",
+    `${hostname}.local`,
+  ]);
+  for (const addrs of Object.values(os.networkInterfaces())) {
+    for (const addr of addrs || []) {
+      if ((addr.family === "IPv4" || addr.family === 4) && !addr.internal) {
+        origins.add(addr.address);
+      }
+    }
+  }
+  return [...origins];
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ["*.preview.same-app.com"],
+  allowedDevOrigins: lanDevOrigins(),
   eslint: {
     // Allow production builds to complete even with ESLint errors
     ignoreDuringBuilds: true,

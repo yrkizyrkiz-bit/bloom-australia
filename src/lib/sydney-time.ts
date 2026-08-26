@@ -1,4 +1,4 @@
-/** Australia/Sydney helpers — single source of truth for booking + admin calendars */
+/** Australia/Sydney helpers, single source of truth for booking + admin calendars */
 
 export const SYDNEY_TZ = "Australia/Sydney";
 

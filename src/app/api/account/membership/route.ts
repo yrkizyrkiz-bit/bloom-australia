@@ -7,10 +7,11 @@ import {
   getMemberBillingOverview,
   type MemberBillingSummary,
 } from "@/lib/billing/member-billing-summary";
+import { SANATIVE_MEMBERSHIP_SLUG } from "@/lib/billing/program-slugs";
 import { derivePortalContext } from "@/lib/portal-context";
 
 const STAGE_DESCRIPTIONS: Record<string, string> = {
-  CONSULTATION_PAID: "First month paid — awaiting consultation",
+  CONSULTATION_PAID: "First month paid: awaiting consultation",
   PRE_TRIAGE_PENDING: "Care team reviewing your assessment",
   AWAITING_DOCTOR_CALL: "Doctor consultation scheduled",
   AWAITING_DOCTOR_DECISION: "Doctor reviewing your case",
@@ -82,7 +83,11 @@ export async function GET() {
       },
     };
 
-    const primaryBilling = billingOverview.programs[0] ?? emptyBilling;
+    const primaryBilling =
+      billingOverview.programs.find((p) => p.program === "weight_management") ??
+      billingOverview.programs.find((p) => p.program !== SANATIVE_MEMBERSHIP_SLUG) ??
+      billingOverview.programs[0] ??
+      emptyBilling;
 
     const summary = billingSummaryToMembershipSummary(primaryBilling);
     const booking = user.consultationBookings[0];
@@ -96,7 +101,11 @@ export async function GET() {
     const portal = derivePortalContext({
       journeyStatus: user.journeyStatus,
       subscriptionTier: user.subscriptionTier,
-      hasPaidWeightIntake: summary.firstMonth.status === "paid",
+      hasPaidWeightIntake:
+        summary.firstMonth.status === "paid" ||
+        billingOverview.programs.some(
+          (p) => p.program === "weight_management" && p.firstMonth.status === "included"
+        ),
     });
 
     return NextResponse.json({

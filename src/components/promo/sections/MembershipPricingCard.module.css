@@ -1,6 +1,16 @@
+.viewport {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
 .track {
   display: flex;
   width: max-content;
+  max-width: none;
   gap: 0.75rem;
   animation: membership-image-marquee 28s linear infinite;
 }

@@ -113,7 +113,7 @@ async function handleWeightManagementPayment(body: {
     return eligibility.error;
   }
 
-  // Unified checkout (WM funnel) always sends bookingHoldId — validate it when present
+  // Unified checkout (WM funnel) always sends bookingHoldId, validate it when present
   if (bookingHoldId || intakeId) {
     if (!bookingHoldId) {
       return NextResponse.json(
@@ -128,7 +128,7 @@ async function handleWeightManagementPayment(body: {
     }
   }
 
-  // Server-owned pricing — client amounts are ignored
+  // Server-owned pricing, client amounts are ignored
   const chargeDetails = resolveFirstMonthCheckoutCharge(programType, planId);
   if (!chargeDetails) {
     console.warn(`[STRIPE] Blocked invalid plan access attempt: ${planId}`);

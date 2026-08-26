@@ -25,6 +25,10 @@ export const RATE_LIMITS = {
   checkEmailIp: { limit: 30, windowSec: 60 * 60 },
   /** Checkout / payment intent creation per IP */
   checkoutIp: { limit: 20, windowSec: 60 * 60 },
+  /** Australian address autocomplete per IP */
+  addressSuggestIp: { limit: 40, windowSec: 60 },
+  /** Australian address place details per IP */
+  addressDetailsIp: { limit: 20, windowSec: 60 },
   /** Blood test parser per authenticated staff user */
   bloodTestParserUser: { limit: 30, windowSec: 60 * 60 },
   /** Blood test parser per IP (backup) */

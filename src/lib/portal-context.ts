@@ -1,5 +1,5 @@
 /**
- * Portal lifecycle — single source of truth for member-facing UI gating.
+ * Portal lifecycle, single source of truth for member-facing UI gating.
  * Derived from journeyStatus (and related flags) on the server.
  */
 
@@ -69,18 +69,18 @@ export const STAGE_DESCRIPTIONS: Record<string, string> = {
   SURVEY_COMPLETED: "Health assessment complete",
   CONSULTATION_BOOKING_STARTED: "Booking your consultation",
   CONSULTATION_BOOKED: "Consultation booked",
-  CONSULTATION_PAID: "Payment received — awaiting consultation",
+  CONSULTATION_PAID: "Payment received, awaiting consultation",
   PRE_TRIAGE_PENDING: "Care team reviewing your details",
   PRE_TRIAGE_COMPLETE: "Ready for doctor consultation",
   AWAITING_DOCTOR_CALL: "Doctor will call at your scheduled time",
-  CONSULT_COMPLETED: "Consultation complete — awaiting decision",
+  CONSULT_COMPLETED: "Consultation complete, awaiting decision",
   AWAITING_DOCTOR_DECISION: "Doctor reviewing your case",
-  APPROVED_PENDING_TESTS: "Program approved — blood tests ordered for monitoring",
-  TESTS_ORDERED: "Program approved — blood tests being arranged",
-  AWAITING_TESTS: "Program approved — awaiting test results",
-  RESULTS_RECEIVED: "Test results received — under review",
+  APPROVED_PENDING_TESTS: "Program approved, blood tests ordered for monitoring",
+  TESTS_ORDERED: "Program approved, blood tests being arranged",
+  AWAITING_TESTS: "Program approved, awaiting test results",
+  RESULTS_RECEIVED: "Test results received, under review",
   FINAL_DOCTOR_REVIEW: "Doctor reviewing your test results",
-  APPROVED: "Doctor approved — preparing your program",
+  APPROVED: "Doctor approved: preparing your program",
   DECLINED: "Program not suitable at this time",
   REFUND_PENDING: "Refund is being processed",
   REFUNDED: "Refund has been processed",
@@ -110,7 +110,7 @@ export function isWeightProgressPath(pathname: string): boolean {
   );
 }
 
-/** Weight program home after checkout — shows journey timeline + welcome banner. */
+/** Weight program home after checkout, shows journey timeline + welcome banner. */
 export const WM_POST_CHECKOUT_PATH =
   "/dashboard/weight-management?onboarding=post-checkout";
 

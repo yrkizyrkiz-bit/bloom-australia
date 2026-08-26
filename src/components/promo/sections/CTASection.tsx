@@ -18,7 +18,7 @@ export function CTASection() {
               </h2>
 
               <p className="mt-6 text-lg lg:text-xl text-[#a8bb9e] max-w-2xl mx-auto">
-                Doctor-led assessment and ongoing care from Australian-registered practitioners —
+                Doctor-led assessment and ongoing care from Australian-registered practitioners,
                 personalised to your health profile.
               </p>
 

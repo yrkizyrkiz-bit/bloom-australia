@@ -248,7 +248,7 @@ export default function AdminWeightManagementPage() {
         </Card>
       </div>
 
-      {/* Program migration — upgrade legacy members to orchestrated playbooks */}
+      {/* Program migration, upgrade legacy members to orchestrated playbooks */}
       <Card className="border-violet-200 bg-violet-50/50 dark:bg-violet-950/20">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">

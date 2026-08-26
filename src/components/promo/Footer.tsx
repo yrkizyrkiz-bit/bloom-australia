@@ -7,7 +7,7 @@ export function Footer() {
       { label: "Weight Management", href: "/weight-management" },
       { label: "Women's Health", href: "/womens-health" },
       { label: "Hair Health", href: "/hair-health" },
-      { label: "Metabolic Care", href: "/metabolic-care" },
+      { label: "Organ Care", href: "/organ-care" },
       { label: "Lab Testing", href: "/labs" },
     ],
     resources: [

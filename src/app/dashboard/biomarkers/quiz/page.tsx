@@ -289,7 +289,7 @@ export default function BiomarkersQuizPage() {
             </div>
             <h1 className="font-serif text-2xl text-[#2c3628]">Continue your biomarkers quiz?</h1>
             <p className="mt-2 text-sm text-[#5c7a52]">
-              You&apos;re about {resumeOffer.percent}% through — pick up where you left off.
+              You&apos;re about {resumeOffer.percent}% through, pick up where you left off.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Button
@@ -322,7 +322,7 @@ export default function BiomarkersQuizPage() {
           <h1 className="font-serif text-2xl text-[#2c3628]">Payment received</h1>
           <p className="mt-2 text-[#5c7a52]">
             {paidMessage ||
-              "Thank you — your biomarker subscription is confirmed."}
+              "Thank you, your biomarker subscription is confirmed."}
           </p>
         </div>
 
@@ -344,7 +344,7 @@ export default function BiomarkersQuizPage() {
                   2
                 </span>
                 <span>
-                  We&apos;ll book your doctor consultation — included in your first year.
+                  We&apos;ll book your doctor consultation, included in your first year.
                 </span>
               </li>
               <li className="flex gap-3">

@@ -62,7 +62,7 @@ export function DietitianHero() {
             {/* Secondary Text */}
             <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-[#e6ebe3]">
               <p className="text-[#34412f] leading-relaxed">
-                From protein-rich breakfasts to satisfying dinners, we&apos;ll help you discover delicious meals that support your goals — without feeling like you&apos;re on a diet.
+                From protein-rich breakfasts to satisfying dinners, we&apos;ll help you discover delicious meals that support your goals, without feeling like you&apos;re on a diet.
               </p>
             </div>
 
@@ -103,7 +103,7 @@ export function DietitianHero() {
             {/* Main Image */}
             <div className="relative rounded-[32px] overflow-hidden shadow-2xl">
               <Image
-                src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&q=80"
+                src="/images/remote/unsplash/photo-1490645935967-10de6ba17061.webp"
                 alt="Healthy meal preparation"
                 width={600}
                 height={700}
@@ -139,7 +139,7 @@ export function DietitianHero() {
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-xl overflow-hidden">
                   <Image
-                    src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&q=80"
+                    src="/images/remote/unsplash/photo-1546069901-ba9599a7e63c.webp"
                     alt="Healthy salad"
                     width={56}
                     height={56}

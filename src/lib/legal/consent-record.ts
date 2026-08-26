@@ -87,7 +87,7 @@ export async function validatePrePaymentConsent(
   if (record.consentVersion !== LEGAL_VERSION) {
     return {
       ok: false,
-      error: "Payment consent is out of date — please review and accept again",
+      error: "Payment consent is out of date. Please review and accept again",
       status: 400,
     };
   }
@@ -114,7 +114,7 @@ export async function validatePrePaymentConsent(
   if (ageMs > PRE_PAYMENT_CONSENT_MAX_AGE_MS) {
     return {
       ok: false,
-      error: "Payment consent has expired — please review and accept again",
+      error: "Payment consent has expired. Please review and accept again",
       status: 400,
     };
   }

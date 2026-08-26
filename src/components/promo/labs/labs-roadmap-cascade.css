@@ -1,0 +1,64 @@
+/*
+  Dual-layer roadmap visuals:
+  1) Bleed — cover + blur fills the card so imagery wraps edge-to-edge
+  2) Fit — contain keeps the full phone/hero art visible (no top/bottom crop)
+*/
+
+.labs-roadmap-stack .labs-roadmap-visual {
+  background: #142018;
+}
+
+/* Card 1 — wrap image edge-to-edge, no bleed/backdrop */
+.labs-roadmap-stack .labs-roadmap-visual--hero {
+  background: transparent;
+}
+
+.labs-roadmap-stack .labs-roadmap-visual__cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+/* Slide 2 — fill the panel more aggressively */
+.labs-roadmap-stack .labs-roadmap-visual__cover--slide-2 {
+  object-fit: cover;
+  object-position: center center;
+  transform: scale(1.08);
+  transform-origin: center center;
+}
+
+.labs-roadmap-stack .labs-roadmap-visual__bleed {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  object-position: center;
+  filter: blur(22px) saturate(1.08);
+  transform: scale(1.06);
+  opacity: 0.9;
+  pointer-events: none;
+  user-select: none;
+}
+
+.labs-roadmap-stack .labs-roadmap-visual__fit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  padding: clamp(14px, 2.2vw, 32px);
+  /* Soft vignette so the fit layer sits on the wrapped bleed */
+  filter: drop-shadow(0 18px 36px rgba(0, 0, 0, 0.22));
+}
+
+@media (max-width: 767px) {
+  .labs-roadmap-stack .labs-roadmap-visual__fit {
+    padding: 16px 14px;
+  }
+}

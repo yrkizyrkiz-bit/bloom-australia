@@ -86,6 +86,7 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       },
       { id: "total_cholesterol", name: "Total Cholesterol", shortName: "TC", unit: "mmol/L", optimalLow: 3.5, optimalHigh: 5.2, normalLow: 3.0, normalHigh: 6.2, criticalHigh: 7.0 },
       { id: "triglycerides", name: "Triglycerides", shortName: "TG", unit: "mmol/L", optimalLow: 0, optimalHigh: 1.7, normalLow: 0, normalHigh: 2.3, criticalHigh: 5.0 },
+      { id: "crp", name: "hs-CRP", shortName: "hsCRP", unit: "mg/L", optimalLow: 0, optimalHigh: 1.0, normalLow: 0, normalHigh: 3.0, criticalHigh: 10.0, note: "High-sensitivity CRP. Vascular inflammation and cardiovascular risk." },
       // Calculated/Derived markers
       { id: "non_hdl_cholesterol", name: "Non-HDL Cholesterol", shortName: "Non-HDL", unit: "mmol/L", optimalLow: 0, optimalHigh: 3.4, normalLow: 0, normalHigh: 4.9, criticalHigh: 6.0 },
       {
@@ -102,6 +103,8 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "tg_hdl_ratio", name: "TG/HDL Ratio", shortName: "TG/HDL", unit: "", optimalLow: 0.5, optimalHigh: 2.0, normalLow: 0.3, normalHigh: 4.0, criticalHigh: 6.0 },
       { id: "atherogenic_index_plasma", name: "Atherogenic Index of Plasma", shortName: "AIP", unit: "", optimalLow: -0.5, optimalHigh: 0.11, normalLow: -0.5, normalHigh: 0.21, criticalHigh: 0.35, note: "Calculated as log10(triglycerides / HDL). Lower is better." },
       { id: "vldl_cholesterol", name: "VLDL Cholesterol", shortName: "VLDL", unit: "mmol/L", optimalLow: 0, optimalHigh: 1.0, normalLow: 0, normalHigh: 1.5, criticalHigh: 2.5, note: "Calculated from triglycerides (÷ 2.2) when TG < 4.5 mmol/L" },
+      { id: "remnant_cholesterol", name: "Remnant Cholesterol", shortName: "Remnant", unit: "mmol/L", optimalLow: 0, optimalHigh: 0.7, normalLow: 0, normalHigh: 1.0, criticalHigh: 1.4, note: "Calculated as total cholesterol − HDL − LDL. Score: <0.7 optimal, 0.7–1.0 elevated, >1.0 high risk." },
+      { id: "atherogenic_coefficient", name: "Atherogenic Coefficient", shortName: "AC", unit: "", optimalLow: 0, optimalHigh: 2.0, normalLow: 0, normalHigh: 3.0, criticalHigh: 4.0, note: "(TC − HDL) / HDL. Score: <2 optimal, 2–3 borderline, >3 high risk." },
     ]
   },
   metabolism: {
@@ -117,6 +120,10 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "homa_ir", name: "HOMA-IR", shortName: "HOMA", unit: "", optimalLow: 0, optimalHigh: 1.0, normalLow: 0, normalHigh: 2.5, criticalHigh: 4.0 },
       { id: "tyg_index", name: "TyG Index", shortName: "TyG", unit: "", optimalLow: 0, optimalHigh: 8.5, normalLow: 0, normalHigh: 9.5, criticalHigh: 10.5, note: "Calculated from fasting triglycerides and glucose (mmol/L → mg/dL)" },
       { id: "estimated_average_glucose", name: "Estimated Average Glucose", shortName: "eAG", unit: "mmol/L", optimalLow: 3.9, optimalHigh: 5.5, normalLow: 3.5, normalHigh: 6.0, criticalHigh: 7.8, note: "Calculated from HbA1c (%)" },
+      { id: "homa_b", name: "HOMA-B", shortName: "HOMA-B", unit: "%", optimalLow: 70, optimalHigh: 200, normalLow: 40, normalHigh: 250, criticalLow: 20, criticalHigh: 350, note: "Beta-cell output. Score: <70 low, 70–200 adequate, >200 compensating." },
+      { id: "quicki", name: "QUICKI", shortName: "QUICKI", unit: "", optimalLow: 0.357, optimalHigh: 0.45, normalLow: 0.33, normalHigh: 0.45, criticalLow: 0.3, note: "Higher is more insulin-sensitive. Score: <0.33 resistant, 0.33–0.357 borderline, >0.357 sensitive." },
+      { id: "mcauley_index", name: "McAuley Index", shortName: "McAuley", unit: "", optimalLow: 6.3, optimalHigh: 12, normalLow: 5.8, normalHigh: 12, criticalLow: 4.5, note: "Higher is more insulin-sensitive. Score: <5.8 resistant, 5.8–6.3 borderline, >6.3 sensitive." },
+      { id: "uric_acid_hdl_ratio", name: "Uric Acid / HDL Ratio", shortName: "UA/HDL", unit: "", optimalLow: 0, optimalHigh: 0.3, normalLow: 0, normalHigh: 0.45, criticalHigh: 0.6, note: "Score: <0.30 optimal, 0.30–0.45 elevated, >0.45 high." },
       {
         id: "uric_acid",
         name: "Uric Acid",
@@ -142,6 +149,7 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "tpo_antibodies", name: "TPO Antibodies", shortName: "TPO-Ab", unit: "IU/mL", optimalLow: 0, optimalHigh: 35, normalLow: 0, normalHigh: 60, criticalHigh: 500 },
       { id: "tg_antibodies", name: "Thyroglobulin Antibodies", shortName: "TG-Ab", unit: "IU/mL", optimalLow: 0, optimalHigh: 40, normalLow: 0, normalHigh: 115, criticalHigh: 500 },
       { id: "free_t3_t4_ratio", name: "Free T3/T4 Ratio", shortName: "fT3/fT4", unit: "", optimalLow: 0.28, optimalHigh: 0.45, normalLow: 0.22, normalHigh: 0.55, criticalLow: 0.15, criticalHigh: 0.65, note: "Calculated from free T3 and free T4" },
+      { id: "tsh_index", name: "TSH Index", shortName: "TSHI", unit: "", optimalLow: 1.3, optimalHigh: 4.1, normalLow: 1.0, normalHigh: 4.5, criticalLow: 0.5, criticalHigh: 5.5, note: "Jostel index from TSH + FT4. Score: 1.3–4.1 euthyroid." },
     ]
   },
   hormones: {
@@ -355,6 +363,8 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "ast_alt_ratio", name: "AST/ALT Ratio (De Ritis)", shortName: "AST/ALT", unit: "", optimalLow: 0.8, optimalHigh: 1.2, normalLow: 0.6, normalHigh: 2.0, criticalHigh: 3.0, note: "Calculated from AST and ALT" },
       { id: "indirect_bilirubin", name: "Indirect Bilirubin", shortName: "Ind.Bil", unit: "µmol/L", optimalLow: 2, optimalHigh: 14, normalLow: 0, normalHigh: 17, criticalHigh: 25, note: "Calculated from total minus direct bilirubin" },
       { id: "bilirubin_albumin_ratio", name: "Bilirubin/Albumin Ratio", shortName: "BAR", unit: "", optimalLow: 0, optimalHigh: 0.4, normalLow: 0, normalHigh: 0.8, criticalHigh: 1.5, note: "Calculated from total bilirubin and albumin" },
+      { id: "fib4", name: "FIB-4 Score", shortName: "FIB-4", unit: "", optimalLow: 0, optimalHigh: 1.3, normalLow: 0, normalHigh: 2.67, criticalHigh: 3.25, note: "Score: <1.3 low fibrosis risk, 1.3–2.67 indeterminate, >2.67 high risk." },
+      { id: "apri", name: "APRI Score", shortName: "APRI", unit: "", optimalLow: 0, optimalHigh: 0.5, normalLow: 0, normalHigh: 1.5, criticalHigh: 2.0, note: "Score: <0.5 low, 0.5–1.5 indeterminate, >1.5 high fibrosis risk." },
     ]
   },
   kidney: {
@@ -383,6 +393,10 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "bicarbonate", name: "Bicarbonate", shortName: "HCO3", unit: "mmol/L", optimalLow: 22, optimalHigh: 28, normalLow: 20, normalHigh: 30, criticalLow: 15, criticalHigh: 35 },
       { id: "urea_creatinine_ratio", name: "Urea/Creatinine Ratio", shortName: "Urea/Cr", unit: "", optimalLow: 40, optimalHigh: 80, normalLow: 30, normalHigh: 100, criticalLow: 15, criticalHigh: 150, note: "Calculated from urea (mmol/L) and creatinine (µmol/L)" },
       { id: "anion_gap", name: "Anion Gap", shortName: "AG", unit: "mmol/L", optimalLow: 8, optimalHigh: 16, normalLow: 6, normalHigh: 20, criticalLow: 3, criticalHigh: 25, note: "Calculated from sodium, chloride and bicarbonate" },
+      { id: "calcium", name: "Calcium", shortName: "Ca", unit: "mmol/L", optimalLow: 2.15, optimalHigh: 2.55, normalLow: 2.1, normalHigh: 2.6, criticalLow: 1.9, criticalHigh: 2.8 },
+      { id: "corrected_calcium", name: "Corrected Calcium", shortName: "Corr Ca", unit: "mmol/L", optimalLow: 2.15, optimalHigh: 2.55, normalLow: 2.1, normalHigh: 2.6, criticalLow: 1.9, criticalHigh: 2.8, note: "Payne correction. Score: 2.15–2.55 optimal." },
+      { id: "calculated_osmolality", name: "Calculated Osmolality", shortName: "Osm", unit: "mOsm/kg", optimalLow: 275, optimalHigh: 295, normalLow: 270, normalHigh: 300, criticalLow: 260, criticalHigh: 320, note: "2×Na + glucose + urea. Score: 275–295 optimal." },
+      { id: "kdigo_risk", name: "KDIGO Kidney Risk", shortName: "KDIGO", unit: "", optimalLow: 1, optimalHigh: 1, normalLow: 1, normalHigh: 2, criticalHigh: 4, note: "Score: 1 low, 2 moderate, 3 high, 4 very high (eGFR + UACR)." },
     ]
   },
   blood: {
@@ -438,11 +452,12 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "eosinophil_percent", name: "Eosinophil %", shortName: "Eos%", unit: "%", optimalLow: 1, optimalHigh: 5, normalLow: 0, normalHigh: 10, criticalHigh: 15 },
       { id: "basophils", name: "Basophils", shortName: "Baso", unit: "×10⁹/L", optimalLow: 0, optimalHigh: 0.1, normalLow: 0, normalHigh: 0.2, criticalHigh: 0.5 },
       { id: "basophil_percent", name: "Basophil %", shortName: "Baso%", unit: "%", optimalLow: 0, optimalHigh: 2, normalLow: 0, normalHigh: 3, criticalHigh: 5 },
+      { id: "mentzer_index", name: "Mentzer Index", shortName: "Mentzer", unit: "", optimalLow: 13, optimalHigh: 16, normalLow: 12, normalHigh: 18, criticalLow: 10, criticalHigh: 22, note: "MCV/RBC. Score: <13 thalassaemia pattern, >13 iron-deficiency pattern if anaemic." },
     ]
   },
   inflammation: {
     name: "Inflammation & Stress",
-    description: "Inflammatory markers",
+    description: "Inflammatory and stress-related markers",
     icon: Zap,
     color: "#f43f5e",
     bgColor: "bg-rose-500/10",
@@ -474,6 +489,12 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
       { id: "ferritin_albumin_ratio", name: "Ferritin/Albumin Ratio", shortName: "FAR", unit: "", optimalLow: 0, optimalHigh: 10, normalLow: 0, normalHigh: 20, criticalHigh: 40, note: "Calculated from ferritin and albumin" },
       { id: "nlr", name: "Neutrophil/Lymphocyte Ratio", shortName: "NLR", unit: "", optimalLow: 0.5, optimalHigh: 2.5, normalLow: 0.5, normalHigh: 4.0, criticalHigh: 6.0, note: "Calculated from absolute neutrophil and lymphocyte counts" },
       { id: "platelet_lymphocyte_ratio", name: "Platelet/Lymphocyte Ratio", shortName: "PLR", unit: "", optimalLow: 50, optimalHigh: 150, normalLow: 30, normalHigh: 250, criticalHigh: 350, note: "Calculated from platelets and lymphocytes" },
+      { id: "sii", name: "Systemic Immune-Inflammation Index", shortName: "SII", unit: "", optimalLow: 200, optimalHigh: 500, normalLow: 100, normalHigh: 1000, criticalHigh: 1500, note: "Score: <500 low, 500–1000 moderate, >1000 high inflammation." },
+      { id: "siri", name: "Systemic Inflammation Response Index", shortName: "SIRI", unit: "", optimalLow: 0.2, optimalHigh: 1.0, normalLow: 0, normalHigh: 1.5, criticalHigh: 2.5, note: "Score: <1.0 low, 1.0–1.5 moderate, >1.5 high." },
+      { id: "mlr", name: "Monocyte/Lymphocyte Ratio", shortName: "MLR", unit: "", optimalLow: 0.1, optimalHigh: 0.3, normalLow: 0.05, normalHigh: 0.4, criticalHigh: 0.6, note: "Score: <0.3 optimal, 0.3–0.4 elevated, >0.4 high." },
+      { id: "nhr", name: "Neutrophil/HDL Ratio", shortName: "NHR", unit: "", optimalLow: 1, optimalHigh: 3.5, normalLow: 0.5, normalHigh: 5, criticalHigh: 8, note: "Score: <3.5 optimal, 3.5–5 elevated, >5 high." },
+      { id: "phenotypic_age", name: "Phenotypic Age", shortName: "PhenoAge", unit: "years", optimalLow: 25, optimalHigh: 70, normalLow: 18, normalHigh: 85, criticalHigh: 100, note: "Levine PhenoAge. Compare with calendar age; use Age Acceleration as the score." },
+      { id: "age_acceleration", name: "Age Acceleration", shortName: "Age Δ", unit: "years", optimalLow: -10, optimalHigh: 0, normalLow: -12, normalHigh: 3, criticalHigh: 8, note: "PhenoAge − calendar age. Score: <0 younger, 0–3 aligned, >3 older biologically." },
     ]
   }
 };
@@ -523,13 +544,13 @@ export function getBiomarkerFromPanel(id: string): { category: BloodPanelCategor
 
 // Get all biomarker IDs
 export function getAllBiomarkerIds(): string[] {
-  const ids: string[] = [];
+  const ids = new Set<string>();
   for (const config of Object.values(bloodPanelConfig)) {
     for (const biomarker of config.biomarkers) {
-      ids.push(biomarker.id);
+      ids.add(biomarker.id);
     }
   }
-  return ids;
+  return [...ids];
 }
 
 // Check if biomarker has gender-specific ranges

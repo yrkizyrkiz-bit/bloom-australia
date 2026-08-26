@@ -19,19 +19,35 @@
 .cascade-list {
   width: 100%;
   margin: 0;
-  padding-bottom: 12vh;
+  padding-bottom: 0;
   overflow: visible;
+}
+
+/*
+  Sticky pin room must be in-flow content after the last card — padding on
+  the list does not reliably extend the sticky constraint box, so card 5
+  never reached card 4's top before the stack released. ~16vh is enough
+  for cover in both scroll directions without the old ~70vh void.
+*/
+.cascade-list::after {
+  content: "";
+  display: block;
+  height: 16vh;
+  pointer-events: none;
 }
 
 .cascade-card {
   --card-index: 0;
 
   position: sticky;
-  top: calc(80px + var(--card-index) * 18px);
+  /* Same top for every slide so each fully covers the previous from the top */
+  top: 72px;
   z-index: calc(10 + var(--card-index));
+  margin-bottom: 13vh;
+}
 
-  margin-bottom: 18vh;
-  /* Sticky element itself must not use transform */
+.cascade-card:last-child {
+  margin-bottom: 0;
 }
 
 .cascade-card-inner {
@@ -48,29 +64,18 @@
   box-shadow:
     0 4px 10px rgb(15 39 31 / 3%),
     0 28px 70px rgb(15 39 31 / 10%);
-
-  transform-origin: center top;
-  will-change: transform, opacity;
 }
 
-/* First card: full-bleed tablet hero (copy is baked into the static image) */
+/* Full-bleed membership slides — lock to slide_1 aspect so sticky stack aligns */
 .cascade-card--tablet .cascade-card-inner {
+  position: relative;
   grid-template-columns: 1fr;
-  min-height: auto;
-  background: #f7f5f1;
-}
-
-.cascade-card--care-plan .cascade-card-inner {
-  background: #10150f;
-  border-block-color: rgb(255 255 255 / 6%);
-  /* Hug the card image — don't stretch taller than the asset */
   min-height: 0;
-  align-items: start;
-}
-
-.cascade-card--care-plan .care-plan-hero {
-  width: 100%;
-  align-self: stretch;
+  aspect-ratio: 1365 / 768;
+  background: #f7f5f1;
+  border: none;
+  border-block: none;
+  box-shadow: none;
 }
 
 .cascade-card-copy {
@@ -107,66 +112,23 @@
 }
 
 .cascade-card-visual--tablet {
+  position: absolute;
+  inset: 0;
   min-height: 0;
+  width: 100%;
+  height: 100%;
   background: #f7f5f1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .cascade-card-visual--tablet .cascade-tablet-static {
   display: block;
   width: 100%;
-  height: auto;
-  object-fit: unset;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
   max-width: none;
 }
 
-/* Frosted glass frame for full-bleed image cards (e.g. Slide_4) */
-.cascade-card--glass {
-  padding-inline: clamp(12px, 2.4vw, 28px);
-}
-
-.cascade-card--glass .cascade-card-inner {
-  position: relative;
-  border: 1px solid rgb(255 255 255 / 55%);
-  border-radius: 28px;
-  background:
-    linear-gradient(
-      155deg,
-      rgb(255 255 255 / 42%) 0%,
-      rgb(255 255 255 / 14%) 48%,
-      rgb(227 238 231 / 28%) 100%
-    );
-  box-shadow:
-    0 1px 0 rgb(255 255 255 / 65%) inset,
-    0 -1px 0 rgb(19 50 39 / 6%) inset,
-    0 18px 50px rgb(15 39 31 / 12%);
-  backdrop-filter: blur(22px) saturate(1.35);
-  -webkit-backdrop-filter: blur(22px) saturate(1.35);
-  overflow: hidden;
-}
-
-.cascade-card--glass .cascade-card-visual--tablet {
-  margin: 10px;
-  border-radius: 20px;
-  overflow: hidden;
-  background: transparent;
-  box-shadow: 0 1px 0 rgb(255 255 255 / 35%) inset;
-}
-
-.cascade-card--glass .cascade-tablet-static {
-  border-radius: 20px;
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .cascade-card--glass .cascade-card-inner {
-    background: rgb(243 245 239 / 88%);
-  }
-}
-
-/* Other cascade cards fill their visual pane; tablet hero must keep
-   natural aspect so the calibrated screen mask stays aligned. */
 .cascade-card-visual:not(.cascade-card-visual--tablet) img {
   width: 100%;
   height: 100%;
@@ -174,27 +136,30 @@
   display: block;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 900px) {
+  .cascade-section {
+    padding-top: 0;
+    padding-bottom: 0;
+    background: #3d4a30;
+  }
+
+  /* No trailing void before the next section */
+  .cascade-list::after {
+    display: none;
+    height: 0;
+  }
+
   .cascade-card {
-    top: calc(64px + var(--card-index) * 10px);
-    margin-bottom: 12vh;
+    top: 58px;
+    margin-bottom: 0;
+    height: auto;
+    min-height: 0;
+    display: block;
+    background: #3d4a30;
   }
 
-  .cascade-card--glass {
-    padding-inline: 10px;
-  }
-
-  .cascade-card--glass .cascade-card-inner {
-    border-radius: 20px;
-  }
-
-  .cascade-card--glass .cascade-card-visual--tablet,
-  .cascade-card--glass .cascade-tablet-static {
-    border-radius: 14px;
-  }
-
-  .cascade-card--glass .cascade-card-visual--tablet {
-    margin: 8px;
+  .cascade-card:last-child {
+    margin-bottom: 0;
   }
 
   .cascade-card-inner {
@@ -202,19 +167,68 @@
     min-height: auto;
   }
 
+  /*
+    Match mobile art (1024×1536 = 2:3). Forcing 100svh + object-fit:cover
+    on taller iPhones cropped left/right and cut off the copy.
+  */
+  .cascade-card--tablet .cascade-card-inner {
+    position: relative;
+    aspect-ratio: 2 / 3;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    border: none;
+    box-shadow: none;
+    background: #3d4a30;
+    display: block;
+    overflow: hidden;
+  }
+
+  .cascade-card--tablet .cascade-card-visual--tablet {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    line-height: 0;
+    background: #3d4a30;
+  }
+
+  .cascade-card--tablet .cascade-card-visual--tablet picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .cascade-card--tablet .cascade-tablet-static {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
+    object-position: center center;
+  }
+
   .cascade-card-copy {
-    min-height: 330px;
+    min-height: 0;
     padding: 30px 20px;
   }
 
   .cascade-card-visual {
-    min-height: 360px;
+    min-height: 0;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .cascade-card-inner {
-    transform: none !important;
-    opacity: 1 !important;
+/* Phones only — keep contain so every word stays on-screen */
+@media (max-width: 480px) {
+  .cascade-list::after {
+    display: none;
+    height: 0;
+  }
+
+  .cascade-card--tablet .cascade-tablet-static {
+    object-fit: contain;
+    object-position: center top;
   }
 }

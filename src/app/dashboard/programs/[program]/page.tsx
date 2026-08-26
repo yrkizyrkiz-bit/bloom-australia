@@ -217,12 +217,12 @@ export default function InPortalProgramPage() {
             ? firstName
               ? `Welcome, ${firstName}`
               : "Welcome to Sexual Health"
-            : `${label} — you're in`}
+            : `${label}, you're in`}
         </h1>
         {sexualHealth ? (
           <>
             <p className="mx-auto max-w-md text-[#5c7a52] leading-relaxed">
-              You&apos;re all set — thank you for trusting us with your care. Your subscription
+              You&apos;re all set, thank you for trusting us with your care. Your subscription
               includes a private doctor consultation, and our care team will reach out shortly to
               book a time that suits you.
             </p>
@@ -342,7 +342,7 @@ export default function InPortalProgramPage() {
             <h2 className="mb-1 text-lg font-medium text-[#2c3628]">Choose your plan</h2>
             <p className="mb-4 text-sm text-[#5c7a52]">
               All plans are subscriptions. Your first billing period includes your doctor
-              consultation and program access — not a separate consultation fee.
+              consultation and program access, not a separate consultation fee.
             </p>
 
             <div className="mb-4 space-y-2">
@@ -429,7 +429,7 @@ export default function InPortalProgramPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing checkout
                   </>
                 ) : (
-                  `Subscribe — ${selectedQuote?.dueTodayLabel ?? "…"}`
+                  `Subscribe, ${selectedQuote?.dueTodayLabel ?? "…"}`
                 )}
               </Button>
             )}

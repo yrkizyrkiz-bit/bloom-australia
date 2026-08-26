@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 const STAFF_ROLES = ["ADMIN", "CARE_PARTNER", "DOCTOR"];
 
-// GET /api/admin/welcome-calls — list onboarding / welcome call tasks
+// GET /api/admin/welcome-calls, list onboarding / welcome call tasks
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import {
   Activity,
   Heart,
@@ -10,160 +10,297 @@ import {
   ThermometerSun,
   Flame,
   TrendingUp,
-  ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
+import "./biomarker-health-marquee.css";
 
-const biomarkerCategories = [
+type BiomarkerCard = {
+  kind: "biomarker";
+  icon: LucideIcon;
+  title: string;
+  description: string;
+};
+
+type QuestionCard = {
+  kind: "question";
+  question: string;
+  tags: string[];
+};
+
+type MarqueeItem = BiomarkerCard | QuestionCard;
+
+const biomarkerCategories: BiomarkerCard[] = [
   {
+    kind: "biomarker",
     icon: Droplet,
     title: "Blood sugar and metabolic health",
     description: "HbA1c, fasting glucose, insulin markers",
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
   },
   {
+    kind: "biomarker",
     icon: Heart,
     title: "Cholesterol and cardiovascular risk markers",
     description: "Total cholesterol, LDL, HDL, triglycerides",
-    color: "text-rose-600",
-    bgColor: "bg-rose-50",
   },
   {
+    kind: "biomarker",
     icon: FlaskConical,
     title: "Liver function markers",
     description: "ALT, AST, GGT, bilirubin",
-    color: "text-amber-600",
-    bgColor: "bg-amber-50",
   },
   {
+    kind: "biomarker",
     icon: Zap,
     title: "Kidney function markers",
     description: "Creatinine, eGFR, urea",
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
   },
   {
+    kind: "biomarker",
     icon: ThermometerSun,
     title: "Thyroid function markers",
     description: "TSH, free T4, free T3",
-    color: "text-cyan-600",
-    bgColor: "bg-cyan-50",
   },
   {
+    kind: "biomarker",
     icon: Flame,
     title: "Inflammation and nutritional markers",
     description: "Where clinically appropriate",
-    color: "text-orange-600",
-    bgColor: "bg-orange-50",
   },
   {
+    kind: "biomarker",
     icon: Activity,
     title: "Health Age / biological-age style score",
     description: "Based on your metabolic health profile",
-    color: "text-green-600",
-    bgColor: "bg-green-50",
   },
   {
+    kind: "biomarker",
     icon: TrendingUp,
     title: "Progress trends over time",
     description: "Track improvement across all markers",
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-50",
   },
 ];
 
-export function BiomarkerHealthSection() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+const questionCards: QuestionCard[] = [
+  {
+    kind: "question",
+    question: "Why am I struggling to lose weight?",
+    tags: ["Insulin", "HbA1c", "Thyroid", "Cortisol"],
+  },
+  {
+    kind: "question",
+    question: "Why am I always tired?",
+    tags: ["Iron", "B12", "Vitamin D", "Thyroid"],
+  },
+  {
+    kind: "question",
+    question: "Why is my libido lower than it used to be?",
+    tags: ["Testosterone", "Oestrogen", "Cortisol"],
+  },
+  {
+    kind: "question",
+    question: "Why do I keep gaining weight around my stomach?",
+    tags: ["Insulin", "Cortisol", "Cholesterol"],
+  },
+  {
+    kind: "question",
+    question: "Why do I feel stressed or burnt out?",
+    tags: ["Cortisol", "Magnesium", "Vitamin D"],
+  },
+  {
+    kind: "question",
+    question: "Why do I feel different in my 40s or 50s?",
+    tags: ["Testosterone", "Oestrogen", "Thyroid"],
+  },
+];
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true);
-          }
-        });
-      },
-      { threshold: 0.2 }
+const marqueeRows: MarqueeItem[][] = [
+  biomarkerCategories.slice(0, 4),
+  questionCards,
+  biomarkerCategories.slice(4, 8),
+];
+
+function BiomarkerMarqueeCard({ item }: { item: BiomarkerCard }) {
+  const Icon = item.icon;
+
+  return (
+    <div className="marquee-card">
+      <div className="marquee-card__icon">
+        <Icon aria-hidden />
+      </div>
+      <h3 className="marquee-card__title">{item.title}</h3>
+      <p className="marquee-card__description">{item.description}</p>
+    </div>
+  );
+}
+
+function QuestionMarqueeCard({ item }: { item: QuestionCard }) {
+  return (
+    <div className="marquee-card marquee-card--question">
+      <div className="marquee-card__qmark" aria-hidden>
+        ?
+      </div>
+      <h3 className="marquee-card__question">{item.question}</h3>
+      <div className="marquee-card__meta">
+        <p className="marquee-card__tags-label">Markers that may be relevant:</p>
+        <div className="marquee-card__tags">
+          {item.tags.map((tag) => (
+            <span key={tag} className="marquee-card__tag">
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MarqueeCard({ item }: { item: MarqueeItem }) {
+  if (item.kind === "question") {
+    return <QuestionMarqueeCard item={item} />;
+  }
+  return <BiomarkerMarqueeCard item={item} />;
+}
+
+function MarqueeGroup({
+  items,
+  hidden,
+}: {
+  items: MarqueeItem[];
+  hidden?: boolean;
+}) {
+  return (
+    <div className="marquee-group" aria-hidden={hidden || undefined}>
+      {items.map((item, index) => {
+        const key =
+          item.kind === "question"
+            ? `${item.question}-${hidden ? "dup" : "src"}-${index}`
+            : `${item.title}-${hidden ? "dup" : "src"}-${index}`;
+        return <MarqueeCard key={key} item={item} />;
+      })}
+    </div>
+  );
+}
+
+/** Seconds for one full group-width cycle (matches prior CSS durations). */
+const ROW_CYCLE_SECONDS = [38, 44, 34] as const;
+
+export function BiomarkerHealthSection() {
+  const marqueeRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const root = marqueeRef.current;
+    if (!root) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reduceMotion) return;
+
+    const tracks = Array.from(
+      root.querySelectorAll<HTMLElement>(".marquee-track"),
     );
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
+    type RowState = {
+      track: HTMLElement;
+      index: number;
+      reverse: boolean;
+      distance: number;
+      /** Progress through one cycle, 0…distance */
+      offset: number;
+    };
 
-    return () => observer.disconnect();
+    const rows: RowState[] = tracks.map((track, index) => ({
+      track,
+      index,
+      reverse: index === 1,
+      distance: 0,
+      offset: 0,
+    }));
+
+    const measure = () => {
+      rows.forEach((row) => {
+        const group = row.track.querySelector<HTMLElement>(".marquee-group");
+        const distance = group?.offsetWidth ?? 0;
+        if (distance > 0 && row.distance > 0 && distance !== row.distance) {
+          row.offset = (row.offset / row.distance) * distance;
+        }
+        row.distance = distance;
+      });
+    };
+
+    measure();
+
+    let frame = 0;
+    let last = performance.now();
+
+    const tick = (now: number) => {
+      const dt = Math.min(now - last, 64);
+      last = now;
+
+      rows.forEach((row) => {
+        if (row.distance <= 0) return;
+        const cycleMs = (ROW_CYCLE_SECONDS[row.index] ?? 38) * 1000;
+        const speed = row.distance / cycleMs;
+        row.offset = (row.offset + speed * dt) % row.distance;
+        // Forward: 0 → -distance. Reverse: -distance → 0. Same wrap point.
+        const x = row.reverse
+          ? row.offset - row.distance
+          : -row.offset;
+        row.track.style.transform = `translate3d(${x}px, 0, 0)`;
+      });
+
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+
+    const observer = new ResizeObserver(measure);
+    tracks.forEach((track) => {
+      const group = track.querySelector(".marquee-group");
+      if (group) observer.observe(group);
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      tracks.forEach((track) => {
+        track.style.transform = "";
+      });
+    };
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative py-16 lg:py-24 overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white to-[#f4f7f2]" />
+    <section className="biomarker-health-section">
+      <div className="biomarker-health-section__bg" aria-hidden />
+      <div className="biomarker-health-section__glow" aria-hidden />
+      <div className="biomarker-health-section__noise" aria-hidden />
 
-      {/* Decorative Elements */}
-      <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-[#5c7a52]/5 rounded-full blur-3xl" />
-
-      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div
-          className={`
-            text-center mb-12 transition-all duration-700
-            ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}
-          `}
-        >
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] leading-tight mb-4">
-            More than weight loss.{" "}
-            <span className="text-[#5c7a52] italic">A clearer picture of your health.</span>
+      <div className="biomarker-health-section__inner">
+        <div className="biomarker-health-section__header">
+          <h2>
+            More than weight loss.
+            <span>A clearer picture of your health.</span>
           </h2>
-          <p className="text-lg text-[#5c7a52] max-w-3xl mx-auto">
-            Your Sanative program may include doctor-reviewed biomarker monitoring to help assess key areas linked with weight and metabolic health.
+          <p className="biomarker-health-section__lede">
+            Doctor-reviewed biomarker monitoring for the metabolic markers
+            that matter to your weight and long-term health.
           </p>
         </div>
 
-        {/* Biomarker Categories Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-10">
-          {biomarkerCategories.map((item, index) => (
-            <div
-              key={item.title}
-              className={`
-                flex flex-col items-center text-center rounded-2xl p-5 transition-all duration-500
-                bg-white border border-[#e6ebe3] hover:border-[#cdd8c6] hover:shadow-lg
-                ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}
-              `}
-              style={{ transitionDelay: `${index * 75}ms` }}
-            >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${item.bgColor}`}>
-                <item.icon className={`w-6 h-6 ${item.color}`} />
+        <section
+          ref={marqueeRef}
+          className="health-marquee"
+          aria-label="Biomarker health areas"
+        >
+          {marqueeRows.map((row, rowIndex) => (
+            <div className="marquee-row" key={`row-${rowIndex}`}>
+              <div className="marquee-track">
+                <MarqueeGroup items={row} />
+                <MarqueeGroup items={row} hidden />
               </div>
-
-              <h3 className="font-medium text-[#2c3628] mb-1 text-sm">
-                {item.title}
-              </h3>
-              <p className="text-xs text-[#7e9a72] leading-relaxed">
-                {item.description}
-              </p>
             </div>
           ))}
-        </div>
-
-        {/* Safety Note */}
-        <div
-          className={`
-            max-w-3xl mx-auto transition-all duration-700 delay-500
-            ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
-          `}
-        >
-          <div className="bg-[#5c7a52]/5 border border-[#5c7a52]/20 rounded-2xl p-5">
-            <div className="flex items-start gap-3">
-              <ShieldCheck className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm text-[#5c7a52] leading-relaxed">
-                  <strong>Reviewed in context by your doctor.</strong> Your results are reviewed by your Sanative doctor and used to support safe, personalised care. Blood tests are only requested where clinically appropriate.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        </section>
       </div>
     </section>
   );

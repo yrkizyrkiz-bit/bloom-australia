@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Beaker, Activity, Heart, Brain, Droplets, Zap } from "lucide-react";
 import { LabsConciergeSearch } from "@/components/promo/sections/LabsConciergeSearch";
+import "@/components/promo/sage-atmosphere.css";
 
 export function LabsSection() {
   const biomarkerCategories = [
@@ -20,22 +21,26 @@ export function LabsSection() {
   ];
 
   return (
-    <section className="pt-20 pb-0 lg:pt-28 lg:pb-0 bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 lg:pb-12">
+    <section className="sage-atmosphere pt-20 pb-0 lg:pt-28 lg:pb-0">
+      <div className="sage-atmosphere__bg" aria-hidden />
+      <div className="sage-atmosphere__glow" aria-hidden />
+      <div className="sage-atmosphere__noise" aria-hidden />
+
+      <div className="sage-atmosphere__inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 lg:pb-12">
         <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#34412f]/20 text-[#34412f] text-sm font-medium mb-6">
           <Beaker className="w-4 h-4" />
           labs by sanative
         </span>
 
-        <h2 className="max-w-5xl text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-serif text-[#2c3628] leading-tight">
+        <h2 className="max-w-5xl text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-serif text-[#173c32] leading-tight">
           Monitor early indicators of{" "}
           <span className="text-[#5c7a52] italic">500+ diseases</span>
         </h2>
 
-        <div className="mt-10 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="mt-10 grid min-w-0 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Content */}
-          <div>
-            <div className="max-w-lg">
+          <div className="min-w-0">
+            <div className="w-full min-w-0 max-w-lg">
               <div className="mb-3 text-left">
                 <p className="font-serif text-xl sm:text-2xl text-[#2c3628] leading-[1.15] tracking-tight">
                   Catch issues early and{" "}
@@ -75,8 +80,8 @@ export function LabsSection() {
           </div>
 
           {/* Right - Biomarkers Cloud */}
-          <div className="relative min-h-[280px] sm:min-h-[320px]">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#cdd8c6] via-transparent to-[#cdd8c6] z-10 pointer-events-none" />
+          <div className="relative min-h-[280px] min-w-0 sm:min-h-[320px]">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#dce8dc] via-transparent to-[#c9ddc5] z-10 pointer-events-none" />
 
             <div className="relative flex flex-wrap gap-2 justify-center opacity-70">
               {biomarkers.map((marker) => (
@@ -109,7 +114,7 @@ export function LabsSection() {
           ].map((feature) => (
             <div
               key={feature.title}
-              className="p-6 rounded-2xl bg-white/70 border border-[#cdd8c6]"
+              className="p-6 rounded-2xl bg-white/70 border border-[#bcd3bd]/80"
             >
               <h3 className="text-[#2c3628] font-medium mb-1">{feature.title}</h3>
               <p className="text-[#5c7a52] text-sm">{feature.desc}</p>

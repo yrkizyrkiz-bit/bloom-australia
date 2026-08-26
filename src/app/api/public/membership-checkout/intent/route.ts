@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         customerId,
         items: [{ priceId: stripePriceId }],
         metadata,
-        description: `${pricing.productName} — annual membership (auto-renews)`,
+        description: `${pricing.productName}, annual membership (auto-renews)`,
       });
 
     // Stripe receipts go to the customer email on the subscription invoices.

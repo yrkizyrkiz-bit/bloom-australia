@@ -668,7 +668,7 @@ Prescription ID: ${prescription.id}`,
 Welcome call / onboarding walkthrough:
 1. Walk through the program (what to expect, timeline, check-ins, dosing basics)
 2. Set expectations while script/pharmacy is being finalized (what happens next)
-3. Discuss preferred billing (currently monthly — offer quarterly or 6-month if suitable)
+3. Discuss preferred billing (currently monthly, offer quarterly or 6-month if suitable)
 4. Send onboarding materials and schedule first check-in
 5. Confirm portal access / next steps`,
             status: "PENDING",
@@ -1334,9 +1334,9 @@ Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
             createdBy: session.user.id,
             category: "MEDICAL",
             title: "Doctor Decision: APPROVED WITH TESTING",
-            content: `**Decision:** Approved for program — blood tests ordered for monitoring
+            content: `**Decision:** Approved for program, blood tests ordered for monitoring
 
-**Program Status:** ACTIVE — Patient can proceed while tests are completed
+**Program Status:** ACTIVE, Patient can proceed while tests are completed
 
 **Tests Required:**
 ${testsList.map((t) => `- ${t}`).join("\n")}
@@ -1372,7 +1372,7 @@ ${clinicalNotes}`,
             subject: `Pathology Request (Monitoring): ${user.firstName} ${user.lastName}`,
             notes: `Doctor has approved patient and requested blood tests for ongoing monitoring.
 
-**NOTE:** Patient program is ACTIVE — tests are for monitoring, not blocking.
+**NOTE:** Patient program is ACTIVE, tests are for monitoring, not blocking.
 
 **Tests Required:**
 ${testsList.map((t) => `- ${t}`).join("\n")}

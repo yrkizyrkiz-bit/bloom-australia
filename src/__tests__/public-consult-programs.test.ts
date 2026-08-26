@@ -73,7 +73,7 @@ describe("resolveWomensHealthCanonicalKey", () => {
   });
 
   it("does not use concerns to reroute (category-only signature)", () => {
-    // Fertility + sexual-sounding concerns still Vitality — reproductive, not Sexual SKU.
+    // Fertility + sexual-sounding concerns still Vitality, reproductive, not Sexual SKU.
     expect(resolveWomensHealthCanonicalKey("fertility")).toBe("WOMENS_HEALTH_VITALITY");
     expect(resolveWomensHealthCanonicalKey("contraception")).toBe("WOMENS_HEALTH_VITALITY");
     expect(resolveWomensHealthCanonicalKey("menopause")).toBe("WOMENS_HEALTH_VITALITY");

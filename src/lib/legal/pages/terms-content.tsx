@@ -11,7 +11,7 @@ import { LEGAL_LINKS, SANATIVE_LEGAL } from "@/lib/legal/constants";
 export function TermsContent() {
   return (
     <>
-      <LegalSection title="Important notices — please read">
+      <LegalSection title="Important notices: please read">
         <LegalUl>
           <li>
             <strong>Not for emergencies.</strong> Sanative is not an emergency service. If you think
@@ -189,11 +189,54 @@ export function TermsContent() {
       </LegalSection>
 
       <LegalSection title="Pathology, pharmacy, and third-party services">
+        <LegalH3>Sanative Membership biomarkers and blood collection</LegalH3>
         <LegalP>
-          Where clinically appropriate, your practitioner may order pathology or other diagnostic
-          tests. Tests may be performed by third-party laboratories. You may be charged separately for
-          pathology or laboratory services.
+          Sanative Membership biomarker testing requires a blood test (and any other samples your
+          doctor orders) at a pathology collection centre or other suitable collection location. Blood
+          collection is performed by third-party pathology providers, not by Sanative.
         </LegalP>
+
+        <LegalH3>Pathology and biomarker testing fees</LegalH3>
+        <LegalP>
+          Some Sanative programs require blood tests or other pathology testing as part of your
+          clinical assessment and ongoing care.
+        </LegalP>
+        <LegalP>
+          If you are eligible for Medicare, some pathology tests may be eligible for a Medicare
+          benefit where they are clinically indicated by your treating doctor and meet the relevant
+          Medicare Benefits Schedule requirements. Medicare eligibility and coverage cannot be
+          guaranteed and may vary depending on the tests ordered and the pathology provider used.
+        </LegalP>
+        <LegalP>
+          If you are not eligible for Medicare, or where a test is not eligible for a Medicare
+          benefit, including certain specialised or additional biomarker tests, pathology laboratory
+          fees may apply. These fees are charged separately by the pathology provider and are{" "}
+          <strong>not included</strong> in your Sanative membership or program fees unless expressly
+          stated otherwise.
+        </LegalP>
+        <LegalP>
+          Where practicable, you will be informed if additional pathology fees are expected before
+          proceeding with testing.
+        </LegalP>
+
+        <LegalH3>Pathology network and availability</LegalH3>
+        <LegalP>
+          Sanative may refer members to pathology providers within its network based on the
+          member&apos;s location and the testing required. Where possible, we will identify a
+          suitable pathology collection centre reasonably close to you.
+        </LegalP>
+        <LegalP>
+          While Sanative aims to provide access to pathology services across Australia, we cannot
+          guarantee that a participating pathology provider or collection centre will be available in
+          every location nationally. Availability may vary depending on geographic location, the type
+          of testing required, pathology provider coverage and local operating arrangements.
+        </LegalP>
+        <LegalP>
+          In some regional, rural or remote areas, members may be required to travel to an alternative
+          collection centre or use another suitable pathology provider.
+        </LegalP>
+
+        <LegalH3>Pharmacy and other third parties</LegalH3>
         <LegalP>
           If a prescription is issued, you may fulfil it through a pharmacy partner or a pharmacy of
           your choice, subject to availability and the pharmacy&apos;s clinical discretion. Sanative
@@ -221,6 +264,103 @@ export function TermsContent() {
       </LegalSection>
 
       <LegalSection title="Payments and subscriptions">
+        <LegalH3>Prices and GST</LegalH3>
+        <LegalP>
+          All prices quoted for Sanative membership and program fees are in Australian dollars (AUD)
+          and <strong>include GST</strong>, unless expressly stated otherwise at checkout.
+        </LegalP>
+
+        <LegalH3>Sanative Membership, $1/day billing</LegalH3>
+        <LegalP>
+          Where Sanative Membership is marketed as <strong>$1/day</strong>, that figure is an
+          illustrative daily equivalent of the annual membership fee. Membership is charged as{" "}
+          <strong>$365 billed annually</strong> (including GST), unless a different price is shown at
+          checkout.
+        </LegalP>
+        <LegalP>
+          By purchasing Sanative Membership, you authorise Sanative and our payment processor to charge{" "}
+          <strong>$365 billed annually</strong> (or the then-current annual membership price displayed
+          at checkout), and to process renewals in accordance with our{" "}
+          <Link href={LEGAL_LINKS.subscriptionTerms} className="underline text-[#5c7a52]">
+            Subscription Terms
+          </Link>
+          .
+        </LegalP>
+
+        <LegalH3>What is included in the $365 Sanative Membership</LegalH3>
+        <LegalP>
+          Subject to clinical appropriateness and the details shown at checkout, the $365 annual
+          Sanative Membership includes:
+        </LegalP>
+        <LegalUl>
+          <li>
+            Access to your Sanative Essential biomarker panel pathway (analysis of the biomarkers in
+            your selected panel, as described at checkout)
+          </li>
+          <li>
+            <strong>Doctor consultation included:</strong> an initial telehealth consultation with an
+            AHPRA-registered Sanative doctor for assessment, pathology referral where clinically
+            indicated, and review of your membership pathway
+          </li>
+          <li>
+            <strong>Follow-up doctor consultations included:</strong> follow-up telehealth
+            consultations with a Sanative doctor where clinically indicated to review your membership
+            biomarker results, discuss findings, and support your personalised health action plan,
+            subject to reasonable clinical use and any limits stated at checkout or in your care plan.
+            Follow-up doctor consultations outside those included above are{" "}
+            <strong>not included</strong> in the $365 membership fee unless they form part of another
+            Sanative care program you have purchased or that is otherwise included with your
+            membership (for example, an eligible care program&apos;s included period)
+          </li>
+          <li>
+            <strong>Biological-age reporting included:</strong> Biological Clock / biological-age
+            reporting where available for your panel and results
+          </li>
+          <li>
+            <strong>App / portal access included:</strong> access to the Sanative patient portal (and
+            any related member app features Sanative makes available) to view results, plans and
+            program information
+          </li>
+          <li>
+            <strong>Ongoing biomarker tracking included:</strong> ongoing tracking in the Sanative
+            portal of the biomarker results already obtained under your membership panel during the
+            12-month membership period. Extra or repeat biomarker tracking within that period that
+            requires new blood tests and additional doctor consultations is not included (see
+            exclusions below)
+          </li>
+          <li>
+            Clinician review of results with flagging of issues where clinically appropriate
+          </li>
+          <li>Personalised health action plan based on your assessment and results</li>
+          <li>Organ Care dashboards in your portal where available for your membership</li>
+          <li>
+            First 30 days of one eligible Sanative care program, subject to clinical suitability, as
+            described below
+          </li>
+        </LegalUl>
+        <LegalH3>Included care program period</LegalH3>
+        <LegalP>
+          The Sanative Membership includes the first 30 days of one eligible Sanative care program,
+          subject to clinical suitability. You must nominate your chosen program before or during
+          your initial doctor consultation so that your doctor can undertake the relevant clinical
+          assessment and review the medical history required for that program. The included 30-day
+          period is not available for a program selected after the initial consultation. Ongoing
+          program fees apply after the included period if you elect to continue.
+        </LegalP>
+        <LegalP>
+          <strong>Not included in the $365 membership fee</strong> (unless expressly stated otherwise
+          at checkout): follow-up doctor consultations outside those included above for membership
+          biomarker review and care planning (unless they form part of another Sanative care program
+          you have purchased or that is otherwise included with your membership); extra or ongoing
+          biomarker tracking during the 12-month membership period that requires new blood tests and
+          further doctor consultations (including any related pathology laboratory / collection fees
+          and consultation fees); pathology laboratory / collection fees charged by third-party
+          pathology providers for your membership panel or any additional testing; prescription
+          medicines, supplements or pharmacy dispensing fees; courier or delivery charges; and
+          care-program fees after any included introductory period.
+        </LegalP>
+
+        <LegalH3>Authorisation and other terms</LegalH3>
         <LegalP>
           Fees are displayed at checkout. By submitting payment details, you authorise Sanative and our
           payment processor to charge the amounts shown, including recurring subscription fees where

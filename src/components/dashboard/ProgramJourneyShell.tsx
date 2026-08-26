@@ -134,7 +134,7 @@ export function ProgramJourneyShell({
                     {getConsultationCountdown(journey.consultation.date)}
                   </p>
                   <p className="mt-1 text-sm text-amber-800/90">
-                    {journey.consultation.doctorName || "Your doctor"} will call you — keep your
+                    {journey.consultation.doctorName || "Your doctor"} will call you, keep your
                     phone nearby.
                   </p>
                 </div>

@@ -89,10 +89,18 @@ export function ProgramMembershipCard({ membership, loading }: ProgramMembership
             </p>
             <div className="flex items-center justify-between gap-2">
               <p className="text-lg font-semibold">
-                {firstMonth.amountAud != null ? formatAud(firstMonth.amountAud) : "—"}
+                {firstMonth.status === "included"
+                  ? "Included"
+                  : firstMonth.amountAud != null
+                    ? formatAud(firstMonth.amountAud)
+                    : "—"}
               </p>
               <Badge variant={statusBadgeVariant(firstMonth.status)}>
-                {firstMonth.status === "paid" ? "Paid" : firstMonth.status}
+                {firstMonth.status === "paid"
+                  ? "Paid"
+                  : firstMonth.status === "included"
+                    ? "Included"
+                    : firstMonth.status}
               </Badge>
             </div>
             {firstMonth.paidAt && (
@@ -146,7 +154,7 @@ export function ProgramMembershipCard({ membership, loading }: ProgramMembership
           <div className="rounded-lg bg-muted/50 p-4 text-sm">
             <p className="font-medium">Upcoming consultation</p>
             <p className="text-muted-foreground mt-1">
-              {consultation.doctorName || "Your doctor"} —{" "}
+              {consultation.doctorName || "Your doctor"},{" "}
               {new Date(consultation.scheduledAt).toLocaleString("en-AU", {
                 weekday: "long",
                 day: "numeric",

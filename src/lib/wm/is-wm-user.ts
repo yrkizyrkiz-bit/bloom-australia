@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-/** True only for weight-management portal members — does not affect other programs. */
+/** True only for weight-management portal members, does not affect other programs. */
 export async function isWeightManagementUser(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId },

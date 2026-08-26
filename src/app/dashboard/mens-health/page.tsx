@@ -148,7 +148,7 @@ export default function MensHealthPage() {
             : hairData?.status.label ?? "Enrolled",
           value: "Treatment",
         },
-        image: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=200&h=150&fit=crop",
+        image: "/images/remote/unsplash/photo-1585747860715-2ba37e788b70.webp",
       },
       {
         id: "vitality",
@@ -167,7 +167,7 @@ export default function MensHealthPage() {
               : "Check in",
           value: "Energy",
         },
-        image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=150&fit=crop",
+        image: "/images/remote/unsplash/photo-1571019614242-c5c5dee9f50b.webp",
       },
       {
         id: "sexual-health",
@@ -182,7 +182,7 @@ export default function MensHealthPage() {
           label: sexualData?.status.label ?? "Enrolled",
           value: "Program",
         },
-        image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=200&h=150&fit=crop",
+        image: "/images/remote/unsplash/photo-1518611012118-696072aa579a.webp",
       },
     ],
     [hairEntitled, vitalityEntitled, sexualEntitled, hairData, sexualData, todayVitality, vitalityCheckIns.length, weeklyEnergy, programQuizRoutes]

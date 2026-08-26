@@ -318,7 +318,7 @@ export async function activatePublicBiomarkersAfterPayment(input: {
     key: "BIOLOGICAL_CLOCK",
     status: "PENDING",
     source: "PORTAL_PURCHASE",
-    notes: `Public biomarkers ${publicPanelTier} — paid, quiz pending. PI ${input.paymentIntentId}`,
+    notes: `Public biomarkers ${publicPanelTier}, paid, quiz pending. PI ${input.paymentIntentId}`,
   });
 
   if (shouldBundleOrganCare(publicPanelTier, sourceProgram)) {
@@ -328,7 +328,7 @@ export async function activatePublicBiomarkersAfterPayment(input: {
       key: "ORGAN_CARE",
       status: "PENDING",
       source: "PORTAL_PURCHASE",
-      notes: `Organ Care bundled with ${plan.name} — paid, quiz pending. PI ${input.paymentIntentId}`,
+      notes: `Organ Care bundled with ${plan.name}, paid, quiz pending. PI ${input.paymentIntentId}`,
     });
   }
 
@@ -461,7 +461,7 @@ export async function completePublicBiomarkersEnrollment(input: {
     });
   }
 
-  // Women's funnel: same pattern as hair — unlock program + Advanced panel at payment.
+  // Women's funnel: same pattern as hair, unlock program + Advanced panel at payment.
   // Never keep Organ Care from Advanced panel bundling on this path.
   if (fromWomensHealth) {
     const womensProgramKey = resolveWomensProgramKeyFromPriorAnswers(
@@ -533,7 +533,7 @@ export async function completePublicBiomarkersEnrollment(input: {
     source: "public_biomarkers",
   });
 
-  // First booking already In Triage (public consult → program + panel) — keep one
+  // First booking already In Triage (public consult → program + panel), keep one
   // care-partner booking; do not create a separate biomarkers Pre-Triage task.
   const consultInTriage = await memberHasConsultInTriage(input.userId);
   const keepSingleInTriageBooking =
@@ -572,7 +572,7 @@ export async function completePublicBiomarkersEnrollment(input: {
           : `Biomarkers: ${plan.name} panel (annual)`,
   }).catch(() => undefined);
 
-  // Doctor/consult path already owns In Triage — don't duplicate into Pre-Triage Queue.
+  // Doctor/consult path already owns In Triage, don't duplicate into Pre-Triage Queue.
   if (!keepSingleInTriageBooking) {
     await enqueuePortalPurchaseTriage({
       source: "portal_biomarkers",

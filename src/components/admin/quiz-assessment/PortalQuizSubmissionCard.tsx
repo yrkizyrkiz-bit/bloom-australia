@@ -112,7 +112,7 @@ export function PortalQuizSubmissionCard({
 
         {parsed.panelMedicareBreakdown.length > 0 && (
           <div className="space-y-3">
-            <p className="text-sm font-medium">Panel tests — Medicare eligibility</p>
+            <p className="text-sm font-medium">Panel tests, Medicare eligibility</p>
             <p className="text-xs text-muted-foreground">
               For clinical team review only. Not shown to members during checkout.
             </p>

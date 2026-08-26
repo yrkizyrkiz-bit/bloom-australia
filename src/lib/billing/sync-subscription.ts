@@ -11,25 +11,13 @@ import {
 } from "./catalog";
 import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
 import { PROGRAM_SLUG } from "./program-slugs";
+import { getStripeSubscriptionPeriod } from "@/lib/stripe/subscription-period";
 
 function getSubscriptionPeriod(subscription: Stripe.Subscription): {
   start: Date;
   end: Date;
 } {
-  const subData = subscription as unknown as Record<string, unknown>;
-  const now = new Date();
-  let start = now;
-  let end = new Date(now);
-  end.setMonth(end.getMonth() + 1);
-
-  if (typeof subData.current_period_start === "number") {
-    start = new Date(subData.current_period_start * 1000);
-  }
-  if (typeof subData.current_period_end === "number") {
-    end = new Date(subData.current_period_end * 1000);
-  }
-
-  return { start, end };
+  return getStripeSubscriptionPeriod(subscription);
 }
 
 function mapStripeStatus(status: Stripe.Subscription.Status): MembershipStatus {

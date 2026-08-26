@@ -3,6 +3,8 @@
  * Used at upload time and when persisting missing derived results for a member.
  */
 
+import { tryCalculatePhenotypicAgeYears } from "@/lib/biological-age";
+
 export const DERIVED_BIOMARKER_IDS = [
   "lymphocyte_percent",
   "neutrophil_percent",
@@ -34,6 +36,25 @@ export const DERIVED_BIOMARKER_IDS = [
   "ferritin_albumin_ratio",
   "nlr",
   "platelet_lymphocyte_ratio",
+  "remnant_cholesterol",
+  "atherogenic_coefficient",
+  "homa_b",
+  "quicki",
+  "mcauley_index",
+  "uric_acid_hdl_ratio",
+  "fib4",
+  "apri",
+  "sii",
+  "siri",
+  "mlr",
+  "nhr",
+  "corrected_calcium",
+  "calculated_osmolality",
+  "mentzer_index",
+  "kdigo_risk",
+  "tsh_index",
+  "phenotypic_age",
+  "age_acceleration",
 ] as const;
 
 export type DerivedBiomarkerId = (typeof DERIVED_BIOMARKER_IDS)[number];
@@ -268,10 +289,12 @@ export function deriveBiomarkersForEpisode(
 
   const creatinine = getValue(map, "creatinine");
   const ageYears = context.ageYears ?? null;
+  let resolvedEgfr = getValue(map, "egfr");
   if (creatinine !== undefined && ageYears) {
     const egfr = calculateEgfrFromCreatinine(creatinine, ageYears, context.gender);
     if (egfr !== null) {
       push("egfr", egfr, "Calculated from creatinine, age and sex (CKD-EPI)");
+      if (resolvedEgfr === undefined) resolvedEgfr = egfr;
     }
   }
 
@@ -416,7 +439,238 @@ export function deriveBiomarkersForEpisode(
     }
   }
 
+  if (
+    totalCholesterol !== undefined &&
+    hdl !== undefined &&
+    ldl !== undefined
+  ) {
+    const remnant = Math.round((totalCholesterol - hdl - ldl) * 100) / 100;
+    if (remnant > -0.5 && remnant < 5) {
+      push(
+        "remnant_cholesterol",
+        remnant,
+        "Calculated as total cholesterol − HDL − LDL"
+      );
+    }
+  }
+
+  if (totalCholesterol !== undefined && hdl !== undefined && hdl > 0) {
+    const ac = Math.round(((totalCholesterol - hdl) / hdl) * 100) / 100;
+    if (ac > 0 && ac < 15) {
+      push(
+        "atherogenic_coefficient",
+        ac,
+        "Calculated as (total cholesterol − HDL) / HDL"
+      );
+    }
+  }
+
+  if (glucose !== undefined && insulin !== undefined && glucose > 3.5) {
+    const homaB = Math.round(((20 * insulin) / (glucose - 3.5)) * 10) / 10;
+    if (homaB > 0 && homaB < 500) {
+      push("homa_b", homaB, "HOMA-B from fasting insulin and glucose (mmol/L)");
+    }
+  }
+
+  if (glucose !== undefined && insulin !== undefined && glucose > 0 && insulin > 0) {
+    const glucoseMgDl = glucose * 18.018;
+    const quicki =
+      Math.round((1 / (Math.log10(insulin) + Math.log10(glucoseMgDl))) * 1000) / 1000;
+    if (Number.isFinite(quicki) && quicki > 0.2 && quicki < 0.5) {
+      push("quicki", quicki, "QUICKI from fasting insulin and glucose");
+    }
+  }
+
+  if (insulin !== undefined && triglycerides !== undefined && insulin > 0 && triglycerides > 0) {
+    const mcauley =
+      Math.round(
+        Math.exp(2.63 - 0.28 * Math.log(insulin) - 0.31 * Math.log(triglycerides)) * 100
+      ) / 100;
+    if (Number.isFinite(mcauley) && mcauley > 1 && mcauley < 20) {
+      push(
+        "mcauley_index",
+        mcauley,
+        "McAuley index from fasting insulin and triglycerides. Higher is more insulin-sensitive."
+      );
+    }
+  }
+
+  const uricAcid = getValue(map, "uric_acid");
+  if (uricAcid !== undefined && hdl !== undefined && hdl > 0) {
+    const uaHdl = Math.round((uricAcid / hdl) * 1000) / 1000;
+    if (uaHdl > 0 && uaHdl < 2) {
+      push("uric_acid_hdl_ratio", uaHdl, "Uric acid / HDL (both mmol/L)");
+    }
+  }
+
+  const ageYearsForScores = context.ageYears ?? null;
+  if (
+    ageYearsForScores &&
+    ast !== undefined &&
+    alt !== undefined &&
+    platelets !== undefined &&
+    alt > 0 &&
+    platelets > 0
+  ) {
+    const fib4 =
+      Math.round(((ageYearsForScores * ast) / (platelets * Math.sqrt(alt))) * 100) / 100;
+    if (Number.isFinite(fib4) && fib4 > 0 && fib4 < 20) {
+      push("fib4", fib4, "FIB-4 from age, AST, ALT and platelets");
+    }
+  }
+
+  if (ast !== undefined && platelets !== undefined && platelets > 0) {
+    const astUln = 40;
+    const apri = Math.round(((ast / astUln / platelets) * 100) * 100) / 100;
+    if (Number.isFinite(apri) && apri > 0 && apri < 20) {
+      push("apri", apri, "APRI from AST (ULN 40 U/L) and platelets");
+    }
+  }
+
+  const monocytes = getValue(map, "monocytes");
+  if (
+    neutrophils !== undefined &&
+    lymphocytes !== undefined &&
+    platelets !== undefined &&
+    lymphocytes > 0
+  ) {
+    const sii = Math.round((neutrophils * platelets) / lymphocytes);
+    if (sii > 0 && sii < 10000) {
+      push("sii", sii, "SII = (neutrophils × platelets) / lymphocytes");
+    }
+  }
+
+  if (
+    neutrophils !== undefined &&
+    monocytes !== undefined &&
+    lymphocytes !== undefined &&
+    lymphocytes > 0
+  ) {
+    const siri = Math.round(((neutrophils * monocytes) / lymphocytes) * 100) / 100;
+    if (siri > 0 && siri < 50) {
+      push("siri", siri, "SIRI = (neutrophils × monocytes) / lymphocytes");
+    }
+  }
+
+  if (monocytes !== undefined && lymphocytes !== undefined && lymphocytes > 0) {
+    const mlr = Math.round((monocytes / lymphocytes) * 100) / 100;
+    if (mlr >= 0 && mlr < 5) {
+      push("mlr", mlr, "Monocyte / lymphocyte ratio");
+    }
+  }
+
+  if (neutrophils !== undefined && hdl !== undefined && hdl > 0) {
+    const nhr = Math.round((neutrophils / hdl) * 100) / 100;
+    if (nhr > 0 && nhr < 50) {
+      push("nhr", nhr, "Neutrophil / HDL ratio (HDL in mmol/L)");
+    }
+  }
+
+  const calcium = getValue(map, "calcium");
+  if (calcium !== undefined && albumin !== undefined) {
+    const corrected = Math.round((calcium + 0.02 * (40 - albumin)) * 100) / 100;
+    if (corrected > 1.5 && corrected < 3.5) {
+      push(
+        "corrected_calcium",
+        corrected,
+        "Payne correction: calcium + 0.02 × (40 − albumin)"
+      );
+    }
+  }
+
+  if (sodium !== undefined && glucose !== undefined && urea !== undefined) {
+    const osm = Math.round((2 * sodium + glucose + urea) * 10) / 10;
+    if (osm > 240 && osm < 360) {
+      push(
+        "calculated_osmolality",
+        osm,
+        "Calculated osmolality = 2×Na + glucose + urea (mmol/L)"
+      );
+    }
+  }
+
+  const mcv = getValue(map, "mcv");
+  const rbc = getValue(map, "rbc");
+  if (mcv !== undefined && rbc !== undefined && rbc > 0) {
+    const mentzer = Math.round((mcv / rbc) * 10) / 10;
+    if (mentzer > 5 && mentzer < 40) {
+      push("mentzer_index", mentzer, "MCV / RBC. <13 suggests thalassaemia trait pattern");
+    }
+  }
+
+  const uacr = getValue(map, "uacr");
+  if (uacr !== undefined && resolvedEgfr !== undefined) {
+    const kdigo = kdigoRiskScore(resolvedEgfr, uacr);
+    if (kdigo !== null) {
+      push(
+        "kdigo_risk",
+        kdigo,
+        "KDIGO heat-map risk: 1 low, 2 moderate, 3 high, 4 very high"
+      );
+    }
+  }
+
+  const tsh = getValue(map, "tsh");
+  if (tsh !== undefined && freeT4 !== undefined && tsh > 0 && freeT4 > 0) {
+    const tshi = Math.round((Math.log(tsh) + 0.1345 * freeT4) * 100) / 100;
+    if (Number.isFinite(tshi) && tshi > -2 && tshi < 8) {
+      push("tsh_index", tshi, "Jostel TSH index from TSH and free T4");
+    }
+  }
+
+  if (ageYearsForScores && crp !== undefined) {
+    const lymphPct =
+      getValue(map, "lymphocyte_percent") ??
+      (wbc && lymphocytes !== undefined && wbc > 0
+        ? clampPercent((lymphocytes / wbc) * 100)
+        : undefined);
+    const rdw = getValue(map, "rdw");
+    const alp = getValue(map, "alp");
+    const pheno = tryCalculatePhenotypicAgeYears(ageYearsForScores, {
+      albumin,
+      creatinine,
+      glucose,
+      crp,
+      lymphocytePercent: lymphPct,
+      mcv,
+      rdw,
+      alp,
+      wbc,
+    });
+    if (pheno !== null) {
+      push("phenotypic_age", pheno, "Levine PhenoAge from 9 core blood markers plus age");
+      const accel = Math.round((pheno - ageYearsForScores) * 10) / 10;
+      if (accel > -25 && accel < 25) {
+        push(
+          "age_acceleration",
+          accel,
+          "PhenoAge minus chronological age. Negative means biologically younger."
+        );
+      }
+    }
+  }
+
   return derived;
+}
+
+function kdigoRiskScore(egfr: number, uacrMgMmol: number): number | null {
+  if (egfr <= 0 || uacrMgMmol < 0) return null;
+  const a = uacrMgMmol < 3 ? 1 : uacrMgMmol <= 30 ? 2 : 3;
+  let g = 6;
+  if (egfr >= 90) g = 1;
+  else if (egfr >= 60) g = 2;
+  else if (egfr >= 45) g = 3;
+  else if (egfr >= 30) g = 4;
+  else if (egfr >= 15) g = 5;
+  const table: Record<number, [number, number, number]> = {
+    1: [1, 2, 3],
+    2: [1, 2, 3],
+    3: [2, 3, 4],
+    4: [3, 3, 4],
+    5: [3, 4, 4],
+    6: [4, 4, 4],
+  };
+  return table[g]?.[a - 1] ?? null;
 }
 
 /** Client/server helper: enrich a latest-value map with derived biomarkers (display only). */

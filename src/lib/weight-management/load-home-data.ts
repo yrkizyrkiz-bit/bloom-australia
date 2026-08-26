@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { resolveWeightManagementClinicalStatus } from "@/lib/programs/quizzes/weight-management-clinical-quiz";
 
 const APPROVED_STATUSES = [
   "APPROVED",
@@ -30,7 +31,7 @@ const STAGE_DESCRIPTIONS: Record<string, { stage: string; description: string }>
   ONBOARDING_PENDING: { stage: "onboarding", description: "Complete your onboarding steps" },
   ONBOARDING_COMPLETE: { stage: "onboarding", description: "Onboarding complete" },
   ACTIVE: { stage: "active", description: "Program active" },
-  APPROVED: { stage: "approved", description: "Doctor approved — preparing your program" },
+  APPROVED: { stage: "approved", description: "Doctor approved: preparing your program" },
 };
 
 function stageFor(journeyStatus: string) {
@@ -206,7 +207,7 @@ export async function loadWeightManagementHome(userId: string) {
     }),
     prisma.weightManagementIntake.findFirst({
       where: { userId },
-      select: { scheduledAt: true },
+      select: { scheduledAt: true, quizData: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.careCommunication.findMany({
@@ -289,6 +290,13 @@ export async function loadWeightManagementHome(userId: string) {
         : null,
     },
     showOnboarding,
+    clinicalAssessment: {
+      status: resolveWeightManagementClinicalStatus(
+        intake?.quizData && typeof intake.quizData === "object"
+          ? (intake.quizData as Record<string, unknown>)
+          : null
+      ),
+    },
     progress,
     checkInStatus,
   };

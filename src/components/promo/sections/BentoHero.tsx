@@ -1,78 +1,9 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, X, AlertCircle, Pill, Sparkles, Heart, Beaker } from "lucide-react";
+import { ArrowRight, Pill, Sparkles, Beaker } from "lucide-react";
 
 export function BentoHero() {
-  const [showTriageModal, setShowTriageModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
-  const handleCardClick = (category: string, requiresBiomarker: boolean) => {
-    if (requiresBiomarker && (category === "weight-loss" || category === "hormones" || category === "menopause")) {
-      setSelectedCategory(category);
-      setShowTriageModal(true);
-    }
-  };
-
   return (
     <section className="bg-[#fdfbf7]">
-      {/* Full-bleed responsive banner — replaces headline */}
-      <div className="relative w-full overflow-hidden">
-        <h1 className="sr-only">
-          Australia&apos;s finest doctors. One complete care ecosystem.
-        </h1>
-        <picture>
-          {/* Mobile — same composition as desktop so slogan placement stays aligned */}
-          <source
-            media="(max-width: 767px)"
-            srcSet={[
-              "/images/home/banner-mobile-480.webp?v=21 480w",
-              "/images/home/banner-mobile-768.webp?v=21 768w",
-              "/images/home/banner-mobile-1200.webp?v=21 1200w",
-            ].join(", ")}
-            sizes="100vw"
-          />
-          {/* Desktop / ultra-wide — include full-res source for sharpness */}
-          <source
-            media="(min-width: 768px)"
-            srcSet={[
-              "/images/home/banner-desktop-768.webp?v=21 768w",
-              "/images/home/banner-desktop-1200.webp?v=21 1200w",
-              "/images/home/banner-desktop-1600.webp?v=21 1600w",
-              "/images/home/banner-desktop-2160.webp?v=21 2160w",
-              "/images/home/banner-desktop-full.webp?v=21 2172w",
-            ].join(", ")}
-            sizes="100vw"
-          />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/home/banner-desktop-full.webp?v=21"
-            alt="Sanative biomarkers dashboard — Health Score, Biological Age, and biomarker insights"
-            width={2172}
-            height={724}
-            className="block h-auto w-full object-cover object-center"
-            decoding="async"
-            fetchPriority="high"
-          />
-        </picture>
-
-        {/* Slogan — Labs section type; inline offsets so it always overlays the image */}
-        <p
-          className="pointer-events-none absolute z-20 m-0 max-w-[55%] text-left font-serif leading-tight text-[#2c3628] sm:max-w-[42%] md:max-w-[38%]"
-          style={{
-            top: "14%",
-            left: "58%",
-            fontSize: "clamp(1rem, 2.8vw, 2.25rem)",
-            textShadow: "0 1px 2px rgba(253,251,247,0.85)",
-          }}
-        >
-          Doctor-led care with
-          <br />
-          <span className="italic text-[#5c7a52]">biomarker insights</span>
-        </p>
-      </div>
-
       <div className="w-full px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
           {/* Weight Management - Large Card */}
@@ -121,7 +52,7 @@ export function BentoHero() {
                 <br /><span className="text-[#4a6243]">every year</span>
               </h3>
               <p className="text-[#4a6243] text-sm mt-3 leading-relaxed">
-                Starting with 85+ lab tests detecting 500+ conditions. Just $365 per year—{" "}
+                Starting with 85+ lab tests monitoring 500+ conditions. Just $365 per year, {" "}
                 <span className="italic font-medium text-[#2c3628]">$1 per day</span>.
               </p>
             </div>
@@ -179,7 +110,7 @@ export function BentoHero() {
               </h3>
               <ArrowRight className="w-5 h-5 text-[#34412f] group-hover:translate-x-1 transition-transform" />
             </div>
-            <p className="text-[#5c7a52] text-sm">Contraception, fertility & hormonal support</p>
+            <p className="text-[#5c7a52] text-sm">Menopause care, symptoms & hormone support</p>
           </Link>
 
           {/* Men's Health - Small Card (dark like Labs was) */}
@@ -196,25 +127,22 @@ export function BentoHero() {
             <p className="text-[#7e9a72] text-sm">Testosterone, hair loss & vitality</p>
           </Link>
 
-          {/* Metabolic Care - Wide Card */}
+          {/* Organ Care - Wide Card */}
           <Link
-            href="/metabolic-care/fatty-liver"
+            href="/organ-care"
             className="md:col-span-2 group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#f8f4ec] to-[#f0e8d8] p-6 lg:p-8 min-h-[160px] flex items-center justify-between transition-transform duration-300 hover:scale-[1.02]"
           >
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="inline-block px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-[#5c7a52] text-white rounded-full">
-                  The Scientific Approach
+                  Heart · Liver · Kidney
                 </span>
               </div>
               <h3 className="text-xl lg:text-2xl font-serif text-[#2c3628]">
-                Metabolic Care <span className="text-[#c17a58]">Rebuilt from the Liver Up</span>
+                Organ Care <span className="text-[#c17a58]">Three organs, one picture</span>
               </h3>
-              <p className="text-[#7e9a72] text-sm mt-2 uppercase tracking-wide font-medium">
-                The Hidden Epidemic
-              </p>
-              <p className="text-[#5c7a52] text-sm">
-                Metabolic dysfunction
+              <p className="text-[#5c7a52] text-sm mt-2">
+                Doctor-reviewed markers for heart, liver and kidney
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -251,75 +179,6 @@ export function BentoHero() {
           </div>
         </div>
       </div>
-
-      {/* Triage Modal */}
-      {showTriageModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setShowTriageModal(false)}
-              className="absolute top-4 right-4 p-2 text-[#5c7a52] hover:bg-[#e6ebe3] rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-start gap-4 mb-6">
-              <div className="w-12 h-12 rounded-full bg-[#c17a58]/10 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-6 h-6 text-[#c17a58]" />
-              </div>
-              <div>
-                <h3 className="text-xl font-serif text-[#2c3628] mb-2">
-                  Clinical Safety First
-                </h3>
-                <p className="text-[#5c7a52] text-sm leading-relaxed">
-                  To ensure clinical safety, we require a <strong>Biomarker Audit</strong> before prescribing any treatments for{" "}
-                  {selectedCategory === "weight-loss" ? "weight loss" : selectedCategory === "menopause" ? "menopause" : "hormone-related concerns"}.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-[#f4f7f2] rounded-2xl p-5 mb-6">
-              <h4 className="font-medium text-[#2c3628] mb-3">Start your diagnostic journey below</h4>
-              <ul className="space-y-2 text-sm text-[#5c7a52]">
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#7e9a72] mt-1.5 flex-shrink-0" />
-                  Identify underlying conditions that may affect treatment
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#7e9a72] mt-1.5 flex-shrink-0" />
-                  Ensure medications are safe for your specific health profile
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#7e9a72] mt-1.5 flex-shrink-0" />
-                  Create a baseline to track your progress over time
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#7e9a72] mt-1.5 flex-shrink-0" />
-                  Personalise your treatment plan based on your unique biology
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <Link
-                href={`/biomarker-intake?concern=${selectedCategory}`}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                Start your diagnostic journey
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => setShowTriageModal(false)}
-                className="w-full py-3 text-[#5c7a52] hover:text-[#34412f] transition-colors text-sm"
-              >
-                I&apos;ll come back later
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

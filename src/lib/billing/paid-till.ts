@@ -94,10 +94,25 @@ export function invoiceMatchesScope(
   }
 }
 
+export type BillingInvoiceMatchers = {
+  programKey?: ProgramKey;
+  scopeKey?: BillableScopeKey;
+  membership?: boolean;
+};
+
+export function invoiceMatchesMembership(
+  description: string | null | undefined
+): boolean {
+  const text = (description || "").toLowerCase();
+  if (!text) return false;
+  return text.includes("sanative membership") || text.includes("membership:");
+}
+
 export function invoiceMatchesBillingTarget(
   description: string | null | undefined,
-  target: { programKey?: ProgramKey; scopeKey?: BillableScopeKey }
+  target: BillingInvoiceMatchers
 ): boolean {
+  if (target.membership) return invoiceMatchesMembership(description);
   if (target.programKey) return invoiceMatchesProgram(description, target.programKey);
   if (target.scopeKey) return invoiceMatchesScope(description, target.scopeKey);
   return false;
@@ -107,12 +122,15 @@ export function invoiceMatchesBillingTarget(
 export function resolveInvoiceForBilling(
   invoices: BillingInvoiceRow[],
   entitlement: { notes: string | null } | null | undefined,
-  matchers: { programKey?: ProgramKey; scopeKey?: BillableScopeKey }
+  matchers: BillingInvoiceMatchers
 ): BillingInvoiceRow | undefined {
   const paymentIntentId = extractPaymentIntentId(entitlement?.notes);
   if (paymentIntentId) {
     const byPaymentIntent = invoices.find((inv) => inv.stripeId === paymentIntentId);
     if (byPaymentIntent) {
+      if (matchers.membership && !invoiceMatchesMembership(byPaymentIntent.description)) {
+        return undefined;
+      }
       if (matchers.scopeKey && !invoiceMatchesScope(byPaymentIntent.description, matchers.scopeKey)) {
         return undefined;
       }
@@ -123,6 +141,9 @@ export function resolveInvoiceForBilling(
     }
   }
 
+  if (matchers.membership) {
+    return invoices.find((inv) => invoiceMatchesMembership(inv.description));
+  }
   if (matchers.programKey) {
     const programKey = matchers.programKey;
     return invoices.find((inv) => invoiceMatchesProgram(inv.description, programKey));
@@ -158,10 +179,13 @@ export function addBillingInterval(start: Date, interval: BillingInterval): Date
 function invoiceCoversTarget(
   invoice: BillingInvoiceRow,
   entitlement: { notes: string | null } | null | undefined,
-  matchers: { programKey?: ProgramKey; scopeKey?: BillableScopeKey }
+  matchers: BillingInvoiceMatchers
 ): boolean {
   const paymentIntentId = extractPaymentIntentId(entitlement?.notes);
   if (paymentIntentId && invoice.stripeId === paymentIntentId) {
+    if (matchers.membership && !invoiceMatchesMembership(invoice.description)) {
+      return false;
+    }
     if (matchers.scopeKey && !invoiceMatchesScope(invoice.description, matchers.scopeKey)) {
       return false;
     }
@@ -181,7 +205,7 @@ export function resolveLatestPaidTill(input: {
   billingInterval: BillingInterval;
   invoices: BillingInvoiceRow[];
   entitlement?: { notes: string | null } | null;
-  matchers: { programKey?: ProgramKey; scopeKey?: BillableScopeKey };
+  matchers: BillingInvoiceMatchers;
   stripePeriodEnd?: Date | null;
   legacyPeriodEnd?: Date | null;
   intakePaidAt?: Date | null;

@@ -300,7 +300,7 @@ export function OrganCareAIReportDialog({
               </div>
               <h3 className="font-serif text-xl mb-2">Your personalised organ health report</h3>
               <p className="text-muted-foreground mb-2 max-w-md mx-auto text-sm">
-                Claude analyses your liver, kidney, heart, thyroid, hormone and metabolic markers —
+                Claude analyses your liver, kidney, heart, thyroid, hormone and metabolic markers,
                 including historical trends and combined risk patterns.
               </p>
               {state?.biomarkerCount === 0 ? (
@@ -354,7 +354,7 @@ export function OrganCareAIReportDialog({
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Hero — Superpower-style score summary */}
+              {/* Hero, Superpower-style score summary */}
               <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 text-white">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>

@@ -1,21 +1,16 @@
 "use client";
 
-import { useLayoutEffect, useRef, type CSSProperties } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { CarePlanHeroSlider } from "@/components/promo/weight-loss/CarePlanHeroSlider";
+import type { CSSProperties } from "react";
 import "./cascading-health-cards.css";
-
-gsap.registerPlugin(ScrollTrigger);
 
 type CascadeFeature = {
   eyebrow: string;
   title: string;
   description: string;
   image: string | null;
+  /** Portrait 9:16 art for full-screen mobile cascade */
+  imageMobile?: string | null;
   useTabletSlider?: boolean;
-  carePlanSlider?: boolean;
-  glass?: boolean;
 };
 
 const features: CascadeFeature[] = [
@@ -24,7 +19,8 @@ const features: CascadeFeature[] = [
     title: "Start with a complete view of your health",
     description:
       "Test the biomarkers that reveal where your health needs attention first.",
-    image: "/images/membership/slide_1.png",
+    image: "/images/membership/slide_1.webp",
+    imageMobile: "/images/membership/mobile/slide_1_mobile.webp?v=3",
     useTabletSlider: true,
   },
   {
@@ -32,112 +28,74 @@ const features: CascadeFeature[] = [
     title: "See all your health data in one place",
     description:
       "Understand your results, monitor changes and connect the patterns across your health.",
-    image: "/images/portal/webp/01-overview-dashboard.webp",
+    image: "/images/membership/slide_2.webp",
+    imageMobile: "/images/membership/mobile/slide_2_mobile.webp?v=2",
+    useTabletSlider: true,
   },
   {
     eyebrow: "YOUR ACTION PLAN",
     title: "Turn your results into precise care",
     description:
       "Receive a doctor-led plan shaped by your biomarkers, health history and goals.",
-    image: null,
-    carePlanSlider: true,
+    image: "/images/membership/Slide_3.webp",
+    imageMobile: "/images/membership/mobile/slide_3_mobile.webp?v=2",
+    useTabletSlider: true,
   },
   {
     eyebrow: "ONGOING CARE",
     title: "Stay supported as your health changes",
     description:
       "Access your Australian care team, follow your progress and adjust your plan when needed.",
-    image: "/images/membership/Slide_4.png",
+    image: "/images/membership/Slide_4.webp",
+    imageMobile: "/images/membership/mobile/slide_4_mobile.webp?v=2",
     useTabletSlider: true,
-    glass: true,
+  },
+  {
+    eyebrow: "YOUR JOURNEY",
+    title: "Keep improving with every check-in",
+    description:
+      "Revisit your biomarkers, refine your plan and build lasting habits with continuous clinical guidance.",
+    image: "/images/membership/slide_5.webp",
+    imageMobile: "/images/membership/mobile/slide_5_mobile.webp?v=2",
+    useTabletSlider: true,
   },
 ];
 
 export function CascadingHealthCards() {
-  const sectionRef = useRef<HTMLElement>(null);
-
-  useLayoutEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-
-    if (reducedMotion) return;
-
-    const context = gsap.context(() => {
-      const cards = gsap.utils.toArray<HTMLElement>(".cascade-card");
-
-      cards.forEach((card, index) => {
-        if (index === cards.length - 1) return;
-
-        const followingCard = cards[index + 1];
-        const inner = card.querySelector<HTMLElement>(".cascade-card-inner");
-        if (!inner || !followingCard) return;
-
-        gsap.to(inner, {
-          scale: 0.94,
-          y: -18,
-          opacity: 0.82,
-          ease: "none",
-          scrollTrigger: {
-            trigger: followingCard,
-            start: "top 82%",
-            end: "top 18%",
-            scrub: 0.6,
-            invalidateOnRefresh: true,
-          },
-        });
-      });
-    }, section);
-
-    const images = section.querySelectorAll("img");
-    const onLoad = () => ScrollTrigger.refresh();
-    images.forEach((img) => {
-      if (!img.complete) img.addEventListener("load", onLoad);
-    });
-
-    requestAnimationFrame(() => ScrollTrigger.refresh());
-
-    return () => {
-      images.forEach((img) => img.removeEventListener("load", onLoad));
-      context.revert();
-    };
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       className="cascade-section"
       aria-label="What your membership includes"
     >
       <div className="cascade-list">
         {features.map((feature, index) => {
-          const fullBleed =
-            feature.useTabletSlider || feature.carePlanSlider;
+          const fullBleed = feature.useTabletSlider;
 
           return (
             <article
               key={feature.title}
               className={`cascade-card${
                 fullBleed ? " cascade-card--tablet" : ""
-              }${feature.carePlanSlider ? " cascade-card--care-plan" : ""}${
-                feature.glass ? " cascade-card--glass" : ""
               }`}
               style={{ "--card-index": index } as CSSProperties}
             >
               <div className="cascade-card-inner">
-                {feature.carePlanSlider ? (
-                  <CarePlanHeroSlider />
-                ) : feature.useTabletSlider ? (
+                {feature.useTabletSlider ? (
                   <div className="cascade-card-visual cascade-card-visual--tablet">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      className="cascade-tablet-static"
-                      src={feature.image!}
-                      alt={feature.title}
-                    />
+                    <picture>
+                      {feature.imageMobile ? (
+                        <source
+                          media="(max-width: 900px)"
+                          srcSet={feature.imageMobile}
+                        />
+                      ) : null}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        className="cascade-tablet-static"
+                        src={feature.image!}
+                        alt={feature.title}
+                      />
+                    </picture>
                   </div>
                 ) : (
                   <>

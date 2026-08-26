@@ -34,7 +34,7 @@ export function WeightLossHero() {
 
             {/* Market leader statement */}
             <p className="text-base lg:text-lg text-[#5c7a52] leading-relaxed max-w-xl">
-              Sanative is Australia&apos;s doctor-led metabolic weight management program — guided by your health profile, symptoms, and biomarkers where clinically appropriate. Program access starts from $249 for your first month.
+              Sanative is Australia&apos;s doctor-led metabolic weight management program, guided by your health profile, symptoms, and biomarkers where clinically appropriate. Program access starts from $249 for your first month.
             </p>
 
             {/* Supporting line */}
@@ -144,7 +144,7 @@ export function WeightLossHero() {
             {/* Main Image */}
             <div className="relative rounded-[32px] overflow-hidden shadow-2xl w-full">
               <Image
-                src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80"
+                src="/images/remote/unsplash/photo-1571019613454-1cb2f99b2d8b.webp"
                 alt="Healthy lifestyle"
                 width={600}
                 height={700}
@@ -176,7 +176,7 @@ export function WeightLossHero() {
             {/* Stats Card */}
             <div className="absolute -right-4 lg:-right-8 bottom-24 bg-white rounded-2xl shadow-xl p-4 transform rotate-3 hover:rotate-0 transition-transform duration-500">
               <div className="text-center space-y-1">
-                <div className="text-3xl font-serif text-[#5c7a52]">80+</div>
+                <div className="text-3xl font-serif text-[#5c7a52]">85+</div>
                 <div className="text-xs text-[#7e9a72]">biomarkers monitored</div>
               </div>
             </div>

@@ -59,7 +59,7 @@ export function ResultsPhoneMock() {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                 <span className="text-[10px] text-white/50 leading-none">All</span>
-                <span className="text-lg font-semibold text-white leading-none mt-0.5">80+</span>
+                <span className="text-lg font-semibold text-white leading-none mt-0.5">85+</span>
                 <span className="text-[10px] text-white/50 leading-none mt-0.5">markers</span>
               </div>
             </div>
@@ -201,7 +201,7 @@ export function TreatmentMock() {
       <div className="relative rounded-3xl overflow-hidden aspect-[4/5] bg-[#34412f]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/images/ongoing-support.png"
+          src="/images/ongoing-support.webp"
           alt="Sanative doctor reviewing member care"
           className="absolute inset-0 w-full h-full object-cover object-top"
         />
@@ -224,7 +224,7 @@ export function TreatmentMock() {
             <div className="h-16 rounded-xl bg-[#f4f7f2]/15 flex items-center justify-center mb-2 overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/images/supplements-pills.png"
+                src="/images/supplements-pills.webp"
                 alt=""
                 className="h-14 w-auto object-contain opacity-95"
               />
@@ -350,7 +350,7 @@ export function ProgressProgramsMock() {
   const programs = [
     { label: "Heart Health", tone: "bg-[#7eb8c9]" },
     { label: "Hair Health", tone: "bg-[#8fbfa3]" },
-    { label: "Metabolic Care", tone: "bg-[#5c7a52]", active: true },
+    { label: "Organ Care", tone: "bg-[#5c7a52]", active: true },
     { label: "Weight Management", tone: "bg-[#6a8fad]" },
     { label: "Women's Health", tone: "bg-[#c49a72]" },
   ];
@@ -360,7 +360,7 @@ export function ProgressProgramsMock() {
       <div className="relative rounded-[2rem] overflow-hidden aspect-[3/5] bg-[#1a2218]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80"
+          src="/images/remote/unsplash/photo-1506905925346-21bda4d32df4.webp"
           alt=""
           className="absolute inset-0 w-full h-full object-cover opacity-50"
         />
@@ -381,7 +381,7 @@ export function ProgressProgramsMock() {
               </div>
               {p.active && (
                 <p className="mt-2 text-[11px] text-white font-medium text-center whitespace-nowrap">
-                  Metabolic Care
+                  Organ Care
                 </p>
               )}
             </div>

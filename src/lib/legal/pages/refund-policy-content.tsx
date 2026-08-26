@@ -36,7 +36,7 @@ export function RefundPolicyContent() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="Clinical unsuitability — first month program fee">
+      <LegalSection title="Clinical unsuitability: first month program fee">
         <LegalP>
           If your Sanative doctor determines that the program is{" "}
           <strong>not clinically suitable</strong> for you following your initial consultation, your{" "}
@@ -49,7 +49,7 @@ export function RefundPolicyContent() {
             judgment</li>
         </LegalUl>
         <LegalP>
-          This refund applies to the Sanative program membership fee — not to separate charges for
+          This refund applies to the Sanative program membership fee, not to separate charges for
           pathology, pharmacy, or third-party services.
         </LegalP>
         <LegalP>
@@ -116,7 +116,7 @@ export function RefundPolicyContent() {
           If you miss a scheduled consultation without rescheduling within the notice period stated
           at booking, we may not refund fees associated with that appointment. Repeated no-shows may
           result in suspension of booking privileges. Contact us if you were unable to attend due to
-          circumstances beyond your control — we will consider each case fairly.
+          circumstances beyond your control. We will consider each case fairly.
         </LegalP>
       </LegalSection>
 

@@ -105,7 +105,7 @@ export async function createBiomarkersPanelPaymentIntent(input: BiomarkersChecko
       billingPriceId: quote.panel.id,
       amountCents: quote.panel.amountCents,
       billingInterval: quote.panel.billingInterval,
-      productName: `Biomarkers — ${input.panelTier}`,
+      productName: `Biomarkers, ${input.panelTier}`,
       metadata: { panelTier: input.panelTier, source: "portal_biomarkers" },
     });
 

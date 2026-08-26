@@ -110,7 +110,7 @@ export function normalizeProgramKey(value?: string | null): ProgramKey | null {
   if (v.includes("weight") || v.includes("fatty") || v.includes("liver_program")) {
     return "WEIGHT_MANAGEMENT";
   }
-  // Sanative Membership is a scope, not a clinical program — must be checked
+  // Sanative Membership is a scope, not a clinical program, must be checked
   // before the generic "sanative" fallback below.
   if (v.includes("membership")) return null;
   // Plan strings such as sanative_core / sanative_precision imply weight management.
@@ -166,7 +166,7 @@ export const COMPLETE_HEALTH_SCOPES: ScopeKey[] = [
 
 /**
  * Scopes included with every biomarker panel (Essential and up). Biological
- * Clock and Organ Care are no longer standalone products — any panel purchase
+ * Clock and Organ Care are no longer standalone products, any panel purchase
  * unlocks both dashboards.
  */
 export const PANEL_INCLUDED_SCOPES: ScopeKey[] = [

@@ -109,7 +109,7 @@ export default function MensSexualHealthLogPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not save log");
 
-      toast.success("Use logged — thank you for keeping your care team informed.");
+      toast.success("Use logged, thank you for keeping your care team informed.");
       router.push("/dashboard/mens-health/sexual-health");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save log");

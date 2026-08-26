@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Check, ArrowRight } from "lucide-react";
 import {
-  BIOMARKER_SUBSCRIPTION_PLANS,
+  PUBLIC_BIOMARKER_COUNT_LABEL,
+  getPublicBiomarkerSubscriptionPlans,
   type BiomarkerSubscriptionTier,
 } from "@/lib/biomarkers/public-subscription-panels";
 
@@ -13,7 +14,7 @@ interface BiomarkerSubscriptionPlanCardsProps {
   variant: Variant;
   selectedId?: string | null;
   onSelect?: (tier: BiomarkerSubscriptionTier) => void;
-  /** Base path for pricing CTAs — defaults to biomarker intake */
+  /** Base path for pricing CTAs, defaults to biomarker intake */
   ctaBasePath?: string;
 }
 
@@ -23,9 +24,10 @@ export function BiomarkerSubscriptionPlanCards({
   onSelect,
   ctaBasePath = "/biomarkers/checkout",
 }: BiomarkerSubscriptionPlanCardsProps) {
+  const plans = getPublicBiomarkerSubscriptionPlans();
   return (
-    <div className="grid md:grid-cols-3 gap-6">
-      {BIOMARKER_SUBSCRIPTION_PLANS.map((plan) => {
+    <div className={plans.length === 1 ? "mx-auto max-w-md" : "grid md:grid-cols-3 gap-6"}>
+      {plans.map((plan) => {
         const isSelected = selectedId === plan.id;
         const cardClass = `relative flex flex-col p-6 rounded-2xl border-2 text-left transition-all ${
           variant === "select" && isSelected
@@ -43,7 +45,7 @@ export function BiomarkerSubscriptionPlanCards({
             <h3 className="text-xl font-serif text-[#2c3628] mb-2">{plan.name}</h3>
             <p className="text-sm text-[#5c7a52] mb-4 flex-1">{plan.tagline}</p>
             <p className="text-sm text-[#7e9a72] mb-4">
-              {plan.markerCount} tests & markers*
+              {PUBLIC_BIOMARKER_COUNT_LABEL} tests & markers*
             </p>
             <div className="mb-4">
               <p className="text-2xl font-serif text-[#34412f]">

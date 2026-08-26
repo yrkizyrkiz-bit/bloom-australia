@@ -40,7 +40,7 @@ export const PROGRAM_REQUIRED_PANEL_TIER: Record<
 };
 
 /**
- * The "unsure" / undiagnosed path has no program yet — the doctor classifies
+ * The "unsure" / undiagnosed path has no program yet, the doctor classifies
  * it at the care plan. It still needs a panel to make that classification, and
  * the broad hormone/thyroid/metabolic picture requires Advanced. Callers pass
  * `null` for the undiagnosed women's-health "not sure where to start" entry.

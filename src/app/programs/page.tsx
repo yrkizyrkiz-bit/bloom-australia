@@ -22,12 +22,12 @@ const PROGRAMS = [
   {
     id: "womens-health",
     title: "Women's Health",
-    subtitle: "Hormonal & Reproductive Care",
-    description: "Contraception, menopause, PCOS, and fertility support. Expert women's health specialists.",
-    href: "/womens-health/assessment",
+    subtitle: "Perimenopause & Menopause Care",
+    description: "Doctor-led menopause and perimenopause assessment, biomarker-informed review, and personalised care planning.",
+    href: "/womens-health/assessment?category=menopause",
     color: "#c17a58",
     bgColor: "bg-[#fef4f0]",
-    features: ["Female specialists", "Menopause & hormone care", "PCOS management", "Fertility support"],
+    features: ["AHPRA-registered doctors", "Menopause & hormone care", "Symptom assessment", "Ongoing support"],
     icon: (
       <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -176,7 +176,7 @@ export default function ProgramsPage() {
                   </p>
                   <h2 className="text-2xl font-serif">Biomarker Blood Tests</h2>
                   <p className="text-white/80 max-w-lg">
-                    Comprehensive blood panels with 80+ biomarkers. Track your health with detailed reports and AI-powered insights.
+                    Comprehensive blood panels with 85+ biomarkers. Track your health with detailed reports and AI-powered insights.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-white font-medium">

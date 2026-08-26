@@ -1,5 +1,5 @@
 /**
- * Public marketing compliance — AHPRA / TGA-aligned copy constants.
+ * Public marketing compliance, AHPRA / TGA-aligned copy constants.
  * Use on all public vertical pages (not only weight management).
  */
 

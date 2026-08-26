@@ -26,7 +26,7 @@ export function MedicalDisclaimerContent() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="General information only — not medical advice">
+      <LegalSection title="General information only: not medical advice">
         <LegalP>
           Content provided through Sanative is general health and program information intended to help
           you understand our services and complete onboarding. It is <strong>not</strong> a substitute

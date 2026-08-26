@@ -529,7 +529,7 @@ export default function SettingsPage() {
             <Link href="/dashboard/weight-management/support" className="flex-1">
               <Button variant="outline" className="w-full gap-2">
                 <MessageCircle className="w-4 h-4" />
-                Privacy questions — care team
+                Privacy questions, care team
               </Button>
             </Link>
             <a

@@ -3,14 +3,13 @@ import { Footer } from "@/components/promo/Footer";
 import { BentoHero } from "@/components/promo/sections/BentoHero";
 import { LabsSection } from "@/components/promo/sections/LabsSection";
 import { BiomarkersHeroBanner } from "@/components/promo/sections/BiomarkersHeroBanner";
+import { HomeLifestyleBanner } from "@/components/promo/sections/HomeLifestyleBanner";
 import { QuestionsSection } from "@/components/promo/sections/QuestionsSection";
 import { DoctorsSection } from "@/components/promo/sections/DoctorsSection";
 import { TestimonialsSection } from "@/components/promo/sections/TestimonialsSection";
-import { HowItWorksSection } from "@/components/promo/sections/HowItWorksSection";
+import { SanativeJourney } from "@/components/promo/sections/SanativeJourney";
 import { MembershipPricingSection } from "@/components/promo/sections/MembershipPricingSection";
 import { MemberProgramsSection } from "@/components/promo/sections/MemberProgramsSection";
-import { CTASection } from "@/components/promo/sections/CTASection";
-import { HomeFAQSection } from "@/components/promo/sections/HomeFAQSection";
 import { GPCTABand } from "@/components/promo/sections/GPCTABand";
 
 export default function HomePage() {
@@ -18,18 +17,17 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#fdfbf7]">
       <Header />
       <main>
+        <BiomarkersHeroBanner />
         <BentoHero />
         <LabsSection />
-        <BiomarkersHeroBanner />
-        <HowItWorksSection />
+        <HomeLifestyleBanner />
+        <SanativeJourney />
         <MembershipPricingSection />
         <MemberProgramsSection />
         <DoctorsSection />
         <GPCTABand />
         <QuestionsSection />
         <TestimonialsSection />
-        <CTASection />
-        <HomeFAQSection />
       </main>
       <Footer />
     </div>

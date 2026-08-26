@@ -70,6 +70,11 @@ interface PaymentFormProps {
   customerName: string;
   bookingHoldId?: string;
   intakeId?: string;
+  /**
+   * When false, create the PaymentIntent without a slot hold
+   * (payment-first funnels). Default true for unified checkout.
+   */
+  requireBookingHold?: boolean;
   /** Minimal card-only UI for unified checkout (no built-in CTA) */
   embedded?: boolean;
   /** Form id for external submit button */
@@ -467,6 +472,7 @@ export function StripePaymentForm({
   customerName,
   bookingHoldId,
   intakeId,
+  requireBookingHold = true,
   embedded = false,
   formId,
   enabled = true,
@@ -494,7 +500,7 @@ export function StripePaymentForm({
     (selectedPlan === "precision" ? "Sanative Precision" : "Sanative Core");
   const amount = firstMonthAmount;
 
-  // Check if we're in a preview/iframe environment (dev only — never in production)
+  // Check if we're in a preview/iframe environment (dev only, never in production)
   const isPreviewEnvironment =
     process.env.NODE_ENV !== "production" &&
     typeof window !== "undefined" &&
@@ -614,24 +620,33 @@ export function StripePaymentForm({
     }
   }, [userId, selectedPlan, consultationDate, consultationTime, customerEmail, customerName, bookingHoldId, intakeId, programType, onError]);
 
-  // Create or refresh payment intent when slot hold changes
+  // Create or refresh payment intent when slot hold changes (or once, if payment-first)
   useEffect(() => {
-    if (!enabled || !bookingHoldId) {
+    if (!enabled) {
       resetPaymentState();
       return;
     }
 
-    if (paymentIntentHoldId === bookingHoldId && clientSecret) {
+    if (requireBookingHold && !bookingHoldId) {
+      resetPaymentState();
       return;
     }
 
-    const softRefresh = Boolean(clientSecret);
+    if (requireBookingHold) {
+      if (paymentIntentHoldId === bookingHoldId && clientSecret) {
+        return;
+      }
+    } else if (clientSecret) {
+      return;
+    }
+
+    const softRefresh = requireBookingHold && Boolean(clientSecret);
     if (softRefresh) {
       refreshPaymentIntentForHold();
     }
     createPaymentIntent({ soft: softRefresh });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, userId, bookingHoldId]);
+  }, [enabled, userId, bookingHoldId, requireBookingHold]);
 
   // Handle retry
   useEffect(() => {
@@ -670,7 +685,7 @@ export function StripePaymentForm({
     return null;
   }
 
-  // Loading state — only block UI before first payment form render
+  // Loading state, only block UI before first payment form render
   if (isLoading && !clientSecret) {
     return (
       <div className={`${embedded ? "" : "bg-white rounded-2xl border border-[#e6ebe3]"} p-6 flex flex-col items-center justify-center min-h-[120px]`}>

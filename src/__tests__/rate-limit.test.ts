@@ -15,5 +15,7 @@ describe("Rate limit config", () => {
     expect(RATE_LIMITS.sendVerificationContact.limit).toBeGreaterThan(0);
     expect(RATE_LIMITS.authLoginIp.windowSec).toBe(15 * 60);
     expect(RATE_LIMITS.checkoutIp.limit).toBe(20);
+    expect(RATE_LIMITS.addressSuggestIp.limit).toBeGreaterThan(0);
+    expect(RATE_LIMITS.addressDetailsIp.windowSec).toBe(60);
   });
 });

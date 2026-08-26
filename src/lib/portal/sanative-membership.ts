@@ -1,10 +1,12 @@
 import type { BillingInterval } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
 import { ensureBillingCatalog, billingModelsAvailable } from "@/lib/billing/catalog";
 import {
   grantEntitlement,
   syncEntitlementsFromSignals,
 } from "@/lib/membership/entitlement-service";
+import { normalizeProgramKey } from "@/lib/membership/keys";
 import { createOnboardingPreTriageTask } from "@/lib/funnel/program-pre-triage";
 import {
   hasProcessedPortalPayment,
@@ -15,7 +17,7 @@ import { ensureStripePriceForBillingPrice } from "@/lib/portal/stripe-subscripti
 
 export const SANATIVE_MEMBERSHIP_PRODUCT_SLUG = "sanative_membership";
 
-/** Display fallbacks only — the DB catalog is the source of truth. */
+/** Display fallbacks only, the DB catalog is the source of truth. */
 const FALLBACK_AMOUNT_CENTS = 36500;
 
 export type SanativeMembershipPricing = {
@@ -29,7 +31,7 @@ export type SanativeMembershipPricing = {
 };
 
 /** Annual Sanative Membership price from the admin-managed catalog. */
-export async function getSanativeMembershipPricing(): Promise<SanativeMembershipPricing> {
+async function loadSanativeMembershipPricing(): Promise<SanativeMembershipPricing> {
   await ensureBillingCatalog();
 
   const product = billingModelsAvailable()
@@ -58,15 +60,24 @@ export async function getSanativeMembershipPricing(): Promise<SanativeMembership
   };
 }
 
+export const getSanativeMembershipPricing = unstable_cache(
+  loadSanativeMembershipPricing,
+  ["sanative-membership-pricing"],
+  { revalidate: 3600, tags: ["billing-catalog"] },
+);
+
 /**
  * Resolve (or create) the Stripe Price for Sanative Membership so we can
  * create an auto-renewing annual subscription with card-on-file.
+ *
+ * Reads the catalog live (not the display cache) so a catalog rebuild cannot
+ * leave payment using a deleted BillingPrice id.
  */
 export async function resolveSanativeMembershipStripePriceId(): Promise<{
   stripePriceId: string;
   pricing: SanativeMembershipPricing;
 }> {
-  const pricing = await getSanativeMembershipPricing();
+  const pricing = await loadSanativeMembershipPricing();
   if (!pricing.billingPriceId) {
     throw new Error("Sanative Membership price is not configured in the catalog");
   }
@@ -75,8 +86,11 @@ export async function resolveSanativeMembershipStripePriceId(): Promise<{
   const row = await prisma.billingPrice.findUnique({
     where: { id: pricing.billingPriceId },
   });
+  if (!row) {
+    throw new Error("Sanative Membership price is not configured in the catalog");
+  }
 
-  if (row?.stripePriceId && stripe) {
+  if (row.stripePriceId && stripe) {
     try {
       const existing = await stripe.prices.retrieve(row.stripePriceId);
       if (existing.active && existing.unit_amount === pricing.amountCents) {
@@ -88,7 +102,7 @@ export async function resolveSanativeMembershipStripePriceId(): Promise<{
   }
 
   const stripePriceId = await ensureStripePriceForBillingPrice({
-    billingPriceId: pricing.billingPriceId,
+    billingPriceId: row.id,
     amountCents: pricing.amountCents,
     billingInterval: pricing.billingInterval,
     productName: pricing.productName,
@@ -101,7 +115,7 @@ export async function resolveSanativeMembershipStripePriceId(): Promise<{
   });
 
   await prisma.billingPrice.update({
-    where: { id: pricing.billingPriceId },
+    where: { id: row.id },
     data: { stripePriceId },
   });
 
@@ -110,7 +124,7 @@ export async function resolveSanativeMembershipStripePriceId(): Promise<{
 
 export type ActivateSanativeMembershipInput = {
   paymentIntentId: string;
-  /** Stripe Subscription id — required for card-on-file auto-renewal. */
+  /** Stripe Subscription id, required for card-on-file auto-renewal. */
   stripeSubscriptionId?: string | null;
   customerId?: string | null;
   email: string;
@@ -123,6 +137,7 @@ export type ActivateSanativeMembershipInput = {
   suburb?: string | null;
   state?: string | null;
   postcode?: string | null;
+  gender?: "MALE" | "FEMALE" | null;
   /** Treatment program the member came for (e.g. WEIGHT_MANAGEMENT). */
   intentProgram?: string | null;
   currentPeriodStart?: Date | null;
@@ -138,7 +153,7 @@ export type ActivateSanativeMembershipResult = {
 /**
  * Idempotent activation for the consolidated Sanative Membership funnel.
  *
- * Membership is ACTIVE immediately — no doctor approval. Doctor approval only
+ * Membership is ACTIVE immediately, no doctor approval. Doctor approval only
  * gates treatment programs (weight management, hair loss, etc.), which the
  * member activates later from the portal.
  */
@@ -150,7 +165,7 @@ export async function activateSanativeMembership(
     throw new Error("Email is required to activate membership");
   }
 
-  const pricing = await getSanativeMembershipPricing();
+  const pricing = await loadSanativeMembershipPricing();
 
   let user = await prisma.user.findUnique({ where: { email: userEmail } });
   const alreadyProcessed = await hasProcessedPortalPayment(input.paymentIntentId);
@@ -168,6 +183,7 @@ export async function activateSanativeMembership(
         suburb: input.suburb ?? user.suburb,
         state: input.state ?? user.state,
         postcode: input.postcode ?? user.postcode,
+        ...(input.gender ? { gender: input.gender } : {}),
         subscriptionStatus: "ACTIVE",
         subscriptionTier: "membership",
         journeyStatus: "ACTIVE",
@@ -186,6 +202,7 @@ export async function activateSanativeMembership(
         suburb: input.suburb ?? null,
         state: input.state ?? null,
         postcode: input.postcode ?? null,
+        ...(input.gender ? { gender: input.gender } : {}),
         subscriptionStatus: "ACTIVE",
         subscriptionTier: "membership",
         journeyStatus: "ACTIVE",
@@ -235,7 +252,7 @@ export async function activateSanativeMembership(
     });
   }
 
-  // Legacy single-row membership record — portal billing overview still reads it.
+  // Legacy single-row membership record, portal billing overview still reads it.
   await prisma.membershipSubscription.upsert({
     where: { userId: user.id },
     update: {
@@ -263,7 +280,6 @@ export async function activateSanativeMembership(
     },
   });
 
-  // MEMBERSHIP entitlement; sync expands to Essential + Biological Clock + Organ Care.
   await grantEntitlement({
     userId: user.id,
     type: "SCOPE",
@@ -276,6 +292,21 @@ export async function activateSanativeMembership(
   }).catch((err) =>
     console.error("[sanative_membership] entitlement grant failed:", err)
   );
+
+  const intentProgramKey = normalizeProgramKey(input.intentProgram);
+  if (intentProgramKey) {
+    await grantEntitlement({
+      userId: user.id,
+      type: "PROGRAM",
+      key: intentProgramKey,
+      status: "ACTIVE",
+      source: "SUBSCRIPTION",
+      notes: `First 30 days included with Sanative Membership. PI ${input.paymentIntentId}`,
+    }).catch((err) =>
+      console.error("[sanative_membership] program entitlement grant failed:", err)
+    );
+  }
+
   await syncEntitlementsFromSignals(user.id).catch((err) =>
     console.error("[sanative_membership] entitlement sync failed:", err)
   );
@@ -285,7 +316,7 @@ export async function activateSanativeMembership(
       userId: user.id,
       paymentIntentId: input.paymentIntentId,
       amountAud: pricing.amountAud,
-      description: `${pricing.productName} — annual auto-renew (includes Essential biomarker panel)`,
+      description: `${pricing.productName}: annual auto-renew (includes Essential biomarker panel)`,
     }).catch((err) =>
       console.error("[sanative_membership] invoice record failed:", err)
     );
@@ -409,7 +440,7 @@ export async function renewSanativeMembershipFromStripe(params: {
           currency: "AUD",
           status: "PAID",
           paidAt: now,
-          description: "Sanative Membership — annual renewal",
+          description: "Sanative Membership: annual renewal",
         },
       })
       .catch((err) =>

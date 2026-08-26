@@ -193,7 +193,7 @@ export function patientWelcomeEmail(data: PatientWelcomeData): EmailTemplate {
     <div style="border-top: 1px solid #e6ebe3; padding-top: 24px;">
       <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #34412f;">What's included in your membership:</h4>
       <ul style="margin: 0; padding-left: 20px; color: #5c7a52; font-size: 14px; line-height: 1.8;">
-        <li>80+ biomarker panel at NATA-accredited labs</li>
+        <li>85+ biomarker panel at NATA-accredited labs</li>
         <li>Biological Clock &amp; organ health scores</li>
         <li>Care partner support between GP visits</li>
         <li>Personalised health insights</li>
@@ -327,7 +327,7 @@ export function gpEnrolmentNotificationEmail(data: GpEnrolmentNotificationData):
   `;
 
   return {
-    subject: `New patient enrolled: ${data.patientName} — ${data.program}`,
+    subject: `New patient enrolled: ${data.patientName} (${data.program})`,
     html: wrapEmail(content),
     text: `New patient enrolled!\n\nPatient: ${data.patientName}\nProgram: ${data.program}\nEnrolled: ${data.enrolledAt}\n\nView in dashboard: ${data.dashboardUrl}`,
   };
@@ -364,7 +364,7 @@ export function gpBiomarkerAlertEmail(data: GpBiomarkerAlertData): EmailTemplate
   `;
 
   return {
-    subject: `Biomarker alert: ${data.patientName} — ${data.biomarkerName} ${data.status.toLowerCase()}`,
+    subject: `Biomarker alert: ${data.patientName} (${data.biomarkerName} ${data.status.toLowerCase()})`,
     html: wrapEmail(content),
     text: `Biomarker alert!\n\nPatient: ${data.patientName}\nBiomarker: ${data.biomarkerName}\nResult: ${data.value} ${data.unit}\nStatus: ${data.status}\n\nView patient details: ${data.dashboardUrl}`,
   };
@@ -459,7 +459,7 @@ export function orderConfirmationEmail(data: OrderConfirmationData): EmailTempla
   `;
 
   return {
-    subject: `Order confirmed — Welcome to ${data.program}`,
+    subject: `Order confirmed: Welcome to ${data.program}`,
     html: wrapEmail(content),
     text: `Thank you for your order, ${data.firstName}!\n\nYour payment has been confirmed. Welcome to the ${data.program} program.\n\nOrder Summary:\n${data.program} Consultation: ${data.originalAmount.toFixed(2)}${hasDiscount ? `\n${discountLabel}: -${data.discountAmount.toFixed(2)}` : ''}\nTotal Paid: ${data.finalAmount.toFixed(2)} AUD\n\nOrder date: ${data.orderDate}${hasDiscount ? `\n\nYou saved ${data.discountAmount.toFixed(2)} with the ${discountLabel}!` : ''}\n\nGo to your dashboard: ${data.dashboardUrl}`,
   };
@@ -560,7 +560,7 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
       <h4 style="margin: 0 0 12px 0; font-size: 13px; color: #7e9a72; text-transform: uppercase; letter-spacing: 0.5px;">Payment Details</h4>
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
-          <td style="padding: 4px 0; font-size: 14px; color: #5c7a52;">${data.planName} — First month</td>
+          <td style="padding: 4px 0; font-size: 14px; color: #5c7a52;">${data.planName}: first month</td>
           <td style="padding: 4px 0; font-size: 14px; color: #2c3628; text-align: right;">${data.dueToday.toFixed(0)} AUD</td>
         </tr>
       </table>
@@ -587,13 +587,13 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
     <!-- Fine Print -->
     <div style="border-top: 1px solid #e6ebe3; padding-top: 16px;">
       <p style="margin: 0; font-size: 11px; color: #a8bb9e; line-height: 1.6;">
-        Treatment options are discussed privately with your doctor if clinically appropriate. Blood tests may be requested where clinically indicated. This email confirms your booking — it does not confirm clinical suitability.
+        Treatment options are discussed privately with your doctor if clinically appropriate. Blood tests may be requested where clinically indicated. This email confirms your booking. It does not confirm clinical suitability.
       </p>
     </div>
   `;
 
   // GAP-017: Updated subject line
-  const subject = "Welcome to Sanative — your doctor assessment is booked";
+  const subject = "Welcome to Sanative: your doctor assessment is booked";
 
   // Plain text version with GAP-017 compliant wording
   const textContent = `Hi ${data.firstName},
@@ -689,7 +689,7 @@ Dashboard: ${data.dashboardUrl}
 The Sanative Care Team`;
 
   return {
-    subject: `Your pathology referral — ${data.referralId}`,
+    subject: `Your pathology referral: ${data.referralId}`,
     html: wrapEmail(content),
     text,
   };

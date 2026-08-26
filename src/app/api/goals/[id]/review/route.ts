@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { appendReviewNote } from "@/lib/goal-review";
 
-// POST /api/goals/[id]/review — mark achieved or schedule next review
+// POST /api/goals/[id]/review, mark achieved or schedule next review
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

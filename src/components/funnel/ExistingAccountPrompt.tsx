@@ -8,7 +8,7 @@ type ExistingAccountPromptProps = {
   firstName?: string | null;
   loginHref: string;
   onUseDifferentEmail: () => void;
-  /** Primary CTA color — defaults to Sanative green */
+  /** Primary CTA color, defaults to Sanative green */
   accentClass?: string;
   accentHoverClass?: string;
 };

@@ -16,7 +16,7 @@ import {
 // Schedule: daily.
 //
 // New Sanative Memberships are Stripe Subscriptions with card-on-file
-// auto-renewal — Stripe charges them and invoice.paid / invoice.payment_failed
+// auto-renewal, Stripe charges them and invoice.paid / invoice.payment_failed
 // webhooks keep access in sync.
 //
 // This cron only covers legacy one-off memberships (no stripeSubscriptionId):

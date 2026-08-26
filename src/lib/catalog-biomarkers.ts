@@ -1,7 +1,7 @@
 import { getAllBiomarkerIds } from "@/data/bloodPanelConfig";
 
 /**
- * Retired private / out-of-catalog markers. Kept for API filtering and DB cleanup —
+ * Retired private / out-of-catalog markers. Kept for API filtering and DB cleanup,
  * they must not appear in My Biomarkers or member-facing results.
  */
 export const DEPRECATED_BIOMARKER_IDS = new Set<string>([

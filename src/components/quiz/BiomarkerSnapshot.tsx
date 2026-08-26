@@ -100,7 +100,7 @@ export function BiomarkerSnapshot({
           {firstName ? `${firstName.split(' ')[0]}, here's what we found` : "Here's what your answers suggest"}
         </h2>
         <p className="text-sm text-gray-500">
-          Based on your symptom pattern — not a diagnosis.
+          Based on your symptom pattern, not a diagnosis.
           Your Sanative doctor confirms this with clinical assessment.
         </p>
       </div>
@@ -111,7 +111,7 @@ export function BiomarkerSnapshot({
             We need to get some tests on the way for you.
           </p>
           <p className="text-sm text-[#5c7a52] leading-relaxed">
-            Understand your body&apos;s biomarkers — your doctor will use them to diagnose
+            Understand your body&apos;s biomarkers. Your doctor will use them to diagnose
             and improve your long-term health.
           </p>
         </div>
@@ -286,11 +286,11 @@ export function BiomarkerSnapshot({
         <div className="space-y-3">
           <button onClick={onPrimary}
             className="w-full py-4 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl text-sm transition-colors">
-            Start {primaryProgram} — {primaryPrice}
+            Start {primaryProgram}, {primaryPrice}
           </button>
           <button onClick={onLabs}
             className="w-full py-4 bg-white border-2 border-gray-100 hover:border-gray-200 text-gray-800 font-semibold rounded-xl text-sm transition-colors">
-            Confirm with a biomarker test first — $299
+            Confirm with a biomarker test first, $299
           </button>
         </div>
       )}
@@ -311,7 +311,7 @@ export function BiomarkerSnapshot({
       )}
 
       <p className="text-center text-xs text-gray-400 mt-4 leading-relaxed">
-        Symptom-based risk indicators only — not a medical diagnosis.
+        Symptom-based risk indicators only, not a medical diagnosis.
         All treatment decisions made by AHPRA-registered doctors.
       </p>
     </div>

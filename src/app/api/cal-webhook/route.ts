@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
       if (!user) {
         console.log("Cal.com webhook: user not found for", attendeeEmail);
-        // Don't fail — user may not exist yet (external booking)
+        // Don't fail, user may not exist yet (external booking)
         return NextResponse.json({ received: true, note: "User not found" });
       }
 

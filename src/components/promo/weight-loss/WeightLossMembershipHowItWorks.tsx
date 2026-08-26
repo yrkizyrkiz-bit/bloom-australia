@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.module.css";
 
 /**
- * Weight-loss membership offer — presentation mirrors MembershipPricingSection
+ * Weight-loss membership offer, presentation mirrors MembershipPricingSection
  * (split offer card). Numbering, copy style and sans fonts stay weight-page native.
  */
 const STEPS = [
@@ -35,6 +36,41 @@ const STEPS = [
   },
 ];
 
+const MARQUEE = [
+  {
+    src: "/images/membership/mens-marquee/biomarker-vial.webp",
+    alt: "Sanative biomarker blood test vial with metabolic markers",
+  },
+  {
+    src: "/images/membership/mens-marquee/organ-dashboard.webp",
+    alt: "Sanative organ and metabolic health dashboard",
+  },
+  {
+    src: "/images/membership/mens-marquee/app-insights.webp",
+    alt: "Sanative app showing health score and biomarker insights",
+  },
+] as const;
+
+function ImageMarquee() {
+  const loop = [...MARQUEE, ...MARQUEE];
+  return (
+    <div className={marqueeStyles.viewport} aria-hidden>
+      <div className={marqueeStyles.track}>
+        {loop.map((item, index) => (
+          // eslint-disable-next-line @next/next/no-img-element -- CSS marquee needs plain imgs
+          <img
+            key={`${item.src}-${index}`}
+            src={item.src}
+            alt=""
+            className="h-32 w-48 sm:h-40 sm:w-64 lg:h-44 lg:w-72 shrink-0 rounded-xl object-cover"
+            draggable={false}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function WeightLossMembershipHowItWorks() {
   return (
     <section
@@ -44,62 +80,55 @@ export function WeightLossMembershipHowItWorks() {
         marginTop: "clamp(-36px, -5vw, -56px)",
         borderTopLeftRadius: "clamp(1.5rem, 2.5vw, 2rem)",
         borderTopRightRadius: "clamp(1.5rem, 2.5vw, 2rem)",
-        paddingTop: "clamp(3.5rem, 7vw, 5.5rem)",
+        paddingTop: "clamp(2.25rem, 4vw, 3.25rem)",
       }}
     >
-      <div className="max-w-[1344px] mx-auto px-4 sm:px-6 lg:px-8 pb-14 lg:pb-20">
-        <h2 className="font-sans text-4xl sm:text-5xl lg:text-[3.25rem] font-semibold leading-[1.08] text-black mb-10 lg:mb-12 max-w-3xl">
+      <div className="max-w-[1344px] mx-auto min-w-0 px-4 sm:px-6 lg:px-8 pb-10 lg:pb-12">
+        <h2 className="font-sans text-3xl sm:text-4xl lg:text-[2.5rem] font-semibold leading-[1.08] text-black mb-6 lg:mb-7 max-w-3xl">
           How Sanative weight management program works
         </h2>
 
-        <div className="rounded-3xl bg-gradient-to-br from-[#e8efe0] to-[#d5e0cb] p-4 sm:p-6 lg:p-8">
+        <div className="rounded-3xl bg-gradient-to-br from-[#e8efe0] to-[#d5e0cb] p-3 sm:p-4 lg:p-5">
           {/* Mobile: two separate rounded cards. Desktop: original single split card. */}
-          <div className="grid gap-4 sm:gap-5 lg:gap-0 lg:grid-cols-2 lg:rounded-3xl lg:border lg:border-black/10 lg:bg-white lg:shadow-2xl lg:overflow-hidden">
-            {/* Offer — left */}
-            <div className="flex flex-col justify-between gap-10 rounded-3xl border border-black/10 bg-white p-8 sm:p-10 lg:p-12 shadow-xl lg:rounded-none lg:border-0 lg:border-r lg:border-black/10 lg:shadow-none">
+          <div className="grid min-w-0 w-full gap-3 sm:gap-4 lg:gap-0 lg:grid-cols-2 lg:rounded-3xl lg:border lg:border-black/10 lg:bg-white lg:shadow-2xl lg:overflow-hidden">
+            {/* Offer, left */}
+            <div className="flex min-w-0 max-w-full flex-col justify-between gap-6 overflow-hidden rounded-3xl border border-black/10 bg-white p-6 sm:p-7 lg:p-8 shadow-xl lg:rounded-none lg:border-0 lg:border-r lg:border-black/10 lg:shadow-none">
               <div>
-                <p className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#2c3628] leading-tight">
+                <p className="font-serif text-xl sm:text-2xl lg:text-3xl text-[#2c3628] leading-tight">
                   All Sanative Programs{" "}
                   <span className="text-[#5c7a52] italic">start with</span>
                 </p>
-                <h3 className="mt-4 font-sans text-3xl sm:text-[2.5rem] font-semibold text-black leading-tight tracking-tight">
+                <h3 className="mt-2 font-sans text-2xl sm:text-[2rem] font-semibold text-black leading-tight tracking-tight">
                   Sanative Membership
                 </h3>
-                <p className="mt-2 text-base text-black/55">
+                <p className="mt-1.5 text-sm sm:text-base text-black/55">
                   Comprehensive biomarker panel + first 30 days of Weight
                   Management Care
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-gradient-to-br from-[#eef4e6] to-[#dbe7cc] border border-[#b1cc7d]/50 p-6 sm:p-7 max-w-md">
-                <p className="text-lg sm:text-xl leading-snug font-medium text-[#3c4a27]">
-                  After your included 30 days, continue your Weight Management
-                  Program for{" "}
-                  <span className="font-semibold text-[#4f6038]">
-                    $360 every three months
-                  </span>
-                  .
-                </p>
+              <div className="flex-1 flex items-center min-h-0 min-w-0 w-full max-w-full">
+                <ImageMarquee />
               </div>
 
               <div>
-                <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
                   <div>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="font-sans text-6xl sm:text-7xl font-semibold tracking-tight text-black tabular-nums leading-none">
+                      <span className="font-sans text-5xl sm:text-6xl font-semibold tracking-tight text-black tabular-nums leading-none">
                         $1
                       </span>
-                      <span className="text-lg sm:text-xl font-medium text-black">
+                      <span className="text-base sm:text-lg font-medium text-black">
                         a day
                       </span>
                     </div>
-                    <p className="mt-2 text-sm font-medium text-black/50">
+                    <p className="mt-1.5 text-sm font-medium text-black/50">
                       $365 billed annually
                     </p>
                   </div>
                   <Link
                     href="/membership/checkout?intent=weight_management"
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#4f6038] px-6 py-3 text-sm sm:text-base font-semibold text-white transition-colors hover:bg-[#3c4a27] shrink-0"
+                    className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-[#4f6038] px-5 py-2.5 text-sm sm:text-base font-semibold text-white transition-colors hover:bg-[#3c4a27] shrink-0"
                   >
                     Join Sanative
                     <ArrowRight className="w-4 h-4" />
@@ -108,26 +137,26 @@ export function WeightLossMembershipHowItWorks() {
               </div>
             </div>
 
-            {/* How it works — right */}
-            <div className="flex flex-col justify-center rounded-3xl border border-black/10 bg-white p-8 sm:p-10 lg:p-12 shadow-xl lg:rounded-none lg:border-0 lg:shadow-none">
+            {/* How it works, right */}
+            <div className="flex min-w-0 max-w-full flex-col justify-center overflow-hidden rounded-3xl border border-black/10 bg-white p-6 sm:p-7 lg:p-8 shadow-xl lg:rounded-none lg:border-0 lg:shadow-none">
               <ol className="space-y-0">
                 {STEPS.map((step) => (
                   <li
                     key={step.number}
-                    className="flex gap-4 sm:gap-5 py-4 first:pt-0 last:pb-0"
+                    className="flex gap-3 sm:gap-4 py-2.5 first:pt-0 last:pb-0"
                   >
                     <div
-                      className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-sans text-lg sm:text-xl font-semibold text-[#3c4a27]"
+                      className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-sans text-base sm:text-lg font-semibold text-[#3c4a27]"
                       style={{ backgroundColor: "#b1cc7d" }}
                       aria-hidden
                     >
                       {step.number}
                     </div>
-                    <div className="pt-0.5">
-                      <h3 className="font-sans text-xl sm:text-2xl font-semibold text-black leading-tight">
+                    <div className="min-w-0 pt-0.5">
+                      <h3 className="font-sans text-lg sm:text-xl font-semibold text-black leading-tight">
                         {step.title}
                       </h3>
-                      <p className="mt-1.5 text-base leading-relaxed text-black/70">
+                      <p className="mt-1 text-sm sm:text-[15px] leading-relaxed text-black/70">
                         {step.body}
                       </p>
                     </div>
@@ -138,9 +167,11 @@ export function WeightLossMembershipHowItWorks() {
           </div>
         </div>
 
-        <p className="mt-10 text-xs leading-relaxed max-w-3xl mx-auto text-center text-black/45">
+        <p className="mt-6 text-xs leading-relaxed max-w-3xl mx-auto text-center text-black/45">
           Sanative Membership supports access to multiple care programs. One
-          included 30-day care period applies to your first eligible program.
+          included 30-day care period applies if you nominate that eligible
+          program before or during your initial doctor consultation. It is not
+          available for a program selected after that consultation.
           *Medication cost not included.
         </p>
       </div>

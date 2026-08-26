@@ -149,7 +149,7 @@ export function ProgramDoseSection() {
             Medication program
           </CardTitle>
           <CardDescription>
-            {treatment.medicationName} — {treatment.dosage} ({treatment.frequency})
+            {treatment.medicationName}, {treatment.dosage} ({treatment.frequency})
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -190,7 +190,7 @@ export function ProgramDoseSection() {
                     <p className="mt-1 text-sm text-violet-100">Available to log today</p>
                   )}
                   {isOverdue && (
-                    <p className="mt-1 text-sm text-violet-100">Ready to log — past scheduled date</p>
+                    <p className="mt-1 text-sm text-violet-100">Ready to log, past scheduled date</p>
                   )}
                 </div>
               </div>
@@ -221,7 +221,7 @@ export function ProgramDoseSection() {
                 </p>
                 <p className="text-xs text-amber-800 dark:text-amber-200">
                   Dose logging opens on that date. Please adhere to the dose and schedule
-                  prescribed by your clinician — do not take or log doses early.
+                  prescribed by your clinician. Do not take or log doses early.
                 </p>
               </div>
             </div>

@@ -67,7 +67,7 @@ export function PrivacyContent() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="Scope — who this policy applies to">
+      <LegalSection title="Scope: who this policy applies to">
         <LegalP>This Privacy Policy applies to:</LegalP>
         <LegalUl>
           <li>Visitors to our website and marketing pages</li>
@@ -78,8 +78,8 @@ export function PrivacyContent() {
             connection with your care (where permitted)</li>
         </LegalUl>
         <LegalP>
-          Some third parties you interact with through the Services — such as independent
-          practitioners, pathology providers, or pharmacies — may have their own privacy policies
+          Some third parties you interact with through the Services, such as independent
+          practitioners, pathology providers, or pharmacies, may have their own privacy policies
           and record-keeping obligations. We encourage you to read their policies where relevant.
         </LegalP>
       </LegalSection>
@@ -199,7 +199,7 @@ export function PrivacyContent() {
         <LegalH3>Marketing and communications</LegalH3>
         <LegalUl>
           <li>Send service-related emails and SMS (appointments, program updates, billing, care
-            reminders) — these are not marketing messages and you cannot opt out where they are
+            reminders). These are not marketing messages and you cannot opt out where they are
             necessary to provide the Services</li>
           <li>Send promotional communications about Sanative programs where permitted by law and
             with your consent or applicable soft opt-in rules</li>
@@ -285,39 +285,39 @@ export function PrivacyContent() {
         <LegalP>We may disclose personal information to:</LegalP>
         <LegalUl>
           <li>
-            <strong>Health practitioners and clinicians</strong> — AHPRA-registered doctors and
+            <strong>Health practitioners and clinicians:</strong> AHPRA-registered doctors and
             other clinicians who provide or support your care
           </li>
           <li>
-            <strong>Care partners and internal staff</strong> — employees and contractors who support
+            <strong>Care partners and internal staff:</strong> employees and contractors who support
             program delivery, subject to confidentiality obligations
           </li>
           <li>
-            <strong>Pathology and diagnostic providers</strong> — where tests are clinically ordered
+            <strong>Pathology and diagnostic providers:</strong> where tests are clinically ordered
           </li>
           <li>
-            <strong>Pharmacies and dispensing partners</strong> — where prescriptions are fulfilled
+            <strong>Pharmacies and dispensing partners:</strong> where prescriptions are fulfilled
             after consultation
           </li>
           <li>
-            <strong>Payment processors</strong> — e.g. Stripe, to process transactions
+            <strong>Payment processors:</strong> e.g. Stripe, to process transactions
           </li>
           <li>
-            <strong>Communication providers</strong> — email (e.g. Resend) and SMS providers for
+            <strong>Communication providers:</strong> email (e.g. Resend) and SMS providers for
             service messages
           </li>
           <li>
-            <strong>Technology and hosting providers</strong> — cloud hosting, security, analytics,
+            <strong>Technology and hosting providers:</strong> cloud hosting, security, analytics,
             scheduling, and platform support
           </li>
           <li>
-            <strong>Professional advisers</strong> — lawyers, accountants, and insurers where required
+            <strong>Professional advisers:</strong> lawyers, accountants, and insurers where required
           </li>
           <li>
-            <strong>Regulators and law enforcement</strong> — where required or authorised by law
+            <strong>Regulators and law enforcement:</strong> where required or authorised by law
           </li>
           <li>
-            <strong>Successors</strong> — in connection with a merger, acquisition, or sale of assets,
+            <strong>Successors:</strong> in connection with a merger, acquisition, or sale of assets,
             subject to applicable law
           </li>
         </LegalUl>
@@ -346,7 +346,7 @@ export function PrivacyContent() {
         <LegalUl>
           {LEGAL_SUBPROCESSORS.map((sp) => (
             <li key={sp.name}>
-              <strong>{sp.name}</strong> — {sp.purpose}. Location: {sp.location}.
+              <strong>{sp.name}</strong>: {sp.purpose}. Location: {sp.location}.
             </li>
           ))}
         </LegalUl>
@@ -426,7 +426,7 @@ export function PrivacyContent() {
           timeframe and in accordance with applicable law.
         </LegalP>
         <LegalP>
-          In some cases we may not be able to provide access or make corrections — for example, where
+          In some cases we may not be able to provide access or make corrections, for example, where
           access would unreasonably affect the privacy of others, where denial is required by law, or
           where access would prejudice legal proceedings. If we refuse a request, we will explain why
           and inform you of complaint options.

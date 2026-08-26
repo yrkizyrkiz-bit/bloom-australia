@@ -5,10 +5,9 @@ import { toast } from "sonner";
 import { scoreWeightManagement, fetchBiomarkerCampaigns, getBiomarkerFlags, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
-import {
-  ORGAN_CARE_CHECKOUT_PREFILL_KEY,
-  type OrganCareCheckoutPrefill,
-} from "@/lib/programs/organ-care-public-offer";
+import { FunnelMembershipPaymentScreen } from "@/components/checkout/FunnelMembershipPaymentScreen";
+import { MembershipConsultationBooking } from "@/components/membership/MembershipConsultationBooking";
+import { signIn } from "next-auth/react";
 import {
   formatDateInTimezone,
   formatTimeInTimezone,
@@ -52,6 +51,11 @@ import {
   CheckCircle2,
   FlaskConical,
   Timer,
+  Loader2,
+  Lock,
+  Target,
+  User,
+  type LucideIcon,
 } from "lucide-react";
 
 // Types
@@ -218,7 +222,7 @@ const previousAttemptsOptions = [
   "Previous prescription medications",
   "Weight loss surgery",
   "Commercial programs (e.g. Jenny Craig)",
-  "None — this is my first attempt",
+  "None, this is my first attempt",
 ];
 
 // Metabolic conditions
@@ -386,25 +390,27 @@ function hasAbsoluteContraindication(seriousConditions: string[]): boolean {
 // ─── End quiz engagement helpers ──────────────────────────────────────────────
 
 /** Steps using viewport-first shell (header fixed, options scroll, footer in flex column) */
-const VIEWPORT_QUIZ_STEPS = new Set([1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+const VIEWPORT_QUIZ_STEPS = new Set([1, 2, 3, 4, 8, 9, 10, 11]);
 
-/** BMI animation, email gate, graph reveal, and qualification — fill viewport without page scroll */
+/** BMI animation, email gate, graph reveal, and qualification, fill viewport without page scroll */
 const FULLSCREEN_IMMERSIVE_STEPS = new Set([5, 6, 7, 18]);
 
-const QUIZ_PHASES = [
-  { id: 1, label: "Your goal", steps: [1, 2, 3, 4, 5, 6, 7] },
-  { id: 2, label: "About you", steps: [8, 9, 10, 11] },
-  { id: 3, label: "Health history", steps: [12, 13, 14, 15, 16, 17] },
-  { id: 4, label: "Get started", steps: [18, 19, 20, 21] },
-] as const;
+const QUIZ_PHASES: {
+  id: number;
+  label: string;
+  icon: LucideIcon;
+  steps: readonly number[];
+}[] = [
+  { id: 1, label: "Your goal", icon: Target, steps: [1, 2, 3, 4, 5, 6, 7] },
+  { id: 2, label: "About you", icon: User, steps: [8, 9, 10, 11] },
+  { id: 3, label: "Get started", icon: Sparkles, steps: [18, 19, 20, 21, 22] },
+];
 
 function getQuizPhaseInfo(step: number) {
-  const phaseIndex = QUIZ_PHASES.findIndex((phase) =>
-    (phase.steps as readonly number[]).includes(step)
-  );
+  const phaseIndex = QUIZ_PHASES.findIndex((phase) => phase.steps.includes(step));
   const resolvedIndex = phaseIndex === -1 ? QUIZ_PHASES.length - 1 : phaseIndex;
   const phase = QUIZ_PHASES[resolvedIndex];
-  const withinPhaseIndex = Math.max(0, (phase.steps as readonly number[]).indexOf(step));
+  const withinPhaseIndex = Math.max(0, phase.steps.indexOf(step));
   const withinPhaseTotal = phase.steps.length;
   const phaseProgress =
     withinPhaseTotal > 0 ? ((withinPhaseIndex + 1) / withinPhaseTotal) * 100 : 100;
@@ -429,34 +435,65 @@ function QuizPhaseProgress({
         compact ? "px-4 pb-2" : "px-4 sm:px-6 pb-3"
       }`}
     >
-      <p className="text-[11px] sm:text-xs text-[#7e9a72] mb-1.5 tracking-wide">
-        Phase {phaseIndex + 1} of {QUIZ_PHASES.length} · {phase.label}
-      </p>
-      <div className="flex gap-1.5" role="progressbar" aria-valuenow={phaseIndex + 1} aria-valuemin={1} aria-valuemax={QUIZ_PHASES.length} aria-label={`Phase ${phaseIndex + 1} of ${QUIZ_PHASES.length}: ${phase.label}`}>
-        {QUIZ_PHASES.map((segment, index) => (
-          <div
-            key={segment.id}
-            className="flex-1 h-1 rounded-full bg-[#e6ebe3] overflow-hidden"
-          >
-            <div
-              className="h-full bg-[#5c7a52] rounded-full transition-all duration-500 ease-out"
-              style={{
-                width:
-                  index < phaseIndex
-                    ? "100%"
-                    : index === phaseIndex
-                    ? `${phaseProgress}%`
-                    : "0%",
-              }}
-            />
-          </div>
-        ))}
+      <div
+        className="flex gap-1.5 sm:gap-2"
+        role="progressbar"
+        aria-valuenow={phaseIndex + 1}
+        aria-valuemin={1}
+        aria-valuemax={QUIZ_PHASES.length}
+        aria-label={`Phase ${phaseIndex + 1} of ${QUIZ_PHASES.length}: ${phase.label}`}
+      >
+        {QUIZ_PHASES.map((segment, index) => {
+          const isActive = index === phaseIndex;
+          const isCompleted = index < phaseIndex;
+          const Icon = segment.icon;
+
+          return (
+            <div key={segment.id} className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
+                <div
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                    isCompleted || isActive
+                      ? "bg-[#5c7a52] text-white"
+                      : "bg-[#e6ebe3] text-[#7e9a72]"
+                  }`}
+                >
+                  {isCompleted ? (
+                    <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.5} />
+                  ) : (
+                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2} />
+                  )}
+                </div>
+                <span
+                  className={`text-xs sm:text-sm font-medium truncate ${
+                    isActive || isCompleted ? "text-[#2c3628]" : "text-[#7e9a72]"
+                  }`}
+                >
+                  {segment.label}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#e6ebe3] overflow-hidden">
+                <div
+                  className="h-full bg-[#5c7a52] rounded-full transition-all duration-500 ease-out"
+                  style={{
+                    width:
+                      index < phaseIndex
+                        ? "100%"
+                        : index === phaseIndex
+                          ? `${phaseProgress}%`
+                          : "0%",
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-const SHOW_QUIZ_PHASE_PROGRESS = (step: number) => step >= 1 && step <= 20;
+const SHOW_QUIZ_PHASE_PROGRESS = (step: number) => step >= 1 && step <= 21;
 
 function parseDobParts(dob: string) {
   if (dob.length !== 10) return { day: "", month: "", year: "" };
@@ -585,7 +622,7 @@ function DateOfBirthInput({
         {isComplete && !isValid
           ? "You must be at least 18 years old"
           : isComplete && isValid
-          ? `Age ${age} — eligible`
+          ? `Age ${age}, eligible`
           : " "}
       </p>
     </div>
@@ -640,7 +677,7 @@ function CircularProgressScreen({
   height: number;
   onComplete: () => void;
 }) {
-  // Calculate BMI — this is what the ring "calculates" toward
+  // Calculate BMI, this is what the ring "calculates" toward
   const bmi = height > 0
     ? parseFloat((currentWeight / Math.pow(height / 100, 2)).toFixed(1))
     : 28.0;
@@ -648,7 +685,7 @@ function CircularProgressScreen({
   const [displayNum, setDisplayNum] = useState(1);
   const [ringProgress, setRingProgress] = useState(0); // 0-100
 
-  // Duration: 3.5 seconds — NOT fast
+  // Duration: 3.5 seconds, NOT fast
   const DURATION = 3500;
 
   useEffect(() => {
@@ -709,7 +746,7 @@ function CircularProgressScreen({
             transform="rotate(-90 100 100)"
             style={{ transition: 'stroke-dashoffset 0.08s linear' }}
           />
-          {/* Number in centre — large, dark */}
+          {/* Number in centre, large, dark */}
           <text
             x="100" y="112"
             textAnchor="middle"
@@ -731,7 +768,7 @@ function CircularProgressScreen({
         Calculating your<br />potential weight loss
       </h2>
 
-      {/* Patient's own data — personal confirmation */}
+      {/* Patient's own data, personal confirmation */}
       <div className="text-center space-y-1">
         {height > 0 && (
           <p style={{ fontSize: '15px', color: '#888' }}>
@@ -918,7 +955,7 @@ function EmailGateScreen({
             'linear-gradient(to bottom, rgba(253,251,247,0.3) 0%, rgba(253,251,247,0.92) 45%, rgba(253,251,247,1) 60%)',
         }}
       />
-      {/* Original layout: flex spacer with graph peek — 36vh (was 45vh) so button fits without scroll */}
+      {/* Original layout: flex spacer with graph peek, 36vh (was 45vh) so button fits without scroll */}
       <div className="flex-1" style={{ minHeight: '36vh' }} aria-hidden="true" />
 
       {/* Duplicate Email Warning Modal */}
@@ -1128,7 +1165,7 @@ function WeightLossGraph({
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-[#7e9a72] sm:text-sm">
                   Your doctor will review your health profile and discuss suitable care options
-                  privately if clinically appropriate — alongside lifestyle guidance to support
+                  privately if clinically appropriate, alongside lifestyle guidance to support
                   your goals.
                 </p>
               </div>
@@ -1243,7 +1280,7 @@ function AddressFormStep({
           {errors.address && <p className="text-xs text-red-500 mt-1 ml-1">{errors.address}</p>}
         </div>
 
-        {/* Expanded address fields — shown after autocomplete or manual entry */}
+        {/* Expanded address fields, shown after autocomplete or manual entry */}
         {expanded && (
           <>
             <input
@@ -1633,10 +1670,10 @@ function ShippingInfoScreen({
         {/* Header */}
         <div className="mb-5">
           <h1 className="text-2xl font-serif text-[#2c3628] mb-1">
-            Let&apos;s confirm your details
+            Let&apos;s complete your profile
           </h1>
           <p className="text-sm text-[#5c7a52]">
-            We collect delivery details now so your order can be prepared if your doctor confirms the program is clinically suitable.
+            We collect these details now so we can set up your account and prepare your order if your doctor confirms the program is clinically suitable.
           </p>
         </div>
 
@@ -1734,7 +1771,7 @@ function ShippingInfoScreen({
               )}
             </div>
 
-            {/* Address search — after postcode */}
+            {/* Address search, after postcode */}
             <div className="mb-3 relative" ref={addressRef}>
               <label className="block text-sm font-medium text-[#2c3628] mb-1.5">Street address</label>
               <div className="relative">
@@ -1904,7 +1941,7 @@ function ShippingInfoScreen({
             </>
           ) : (
             <>
-              Continue to booking
+              Continue to payment
               <ArrowRight className="w-5 h-5" />
             </>
           )}
@@ -1915,6 +1952,246 @@ function ShippingInfoScreen({
             256-BIT TLS SECURITY
           </span>
         </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function magicTokenFromLink(link: string): string | null {
+  try {
+    const url = new URL(link, typeof window !== "undefined" ? window.location.origin : "https://sanative.com.au");
+    return url.searchParams.get("token");
+  } catch {
+    return null;
+  }
+}
+
+function WelcomeAndPasswordScreen({
+  firstName,
+  email,
+  consultationDate,
+  consultationTime,
+  magicLink,
+  userId,
+}: {
+  firstName: string;
+  email: string;
+  consultationDate: string;
+  consultationTime: string;
+  magicLink: string | null;
+  userId: string | null;
+}) {
+  const portalLink = magicLink
+    ? buildPortalActivationMagicLink(magicLink)
+    : `/login?redirect=${encodeURIComponent(WM_POST_CHECKOUT_PATH)}`;
+  const [needsPassword, setNeedsPassword] = useState(Boolean(userId));
+  const [checkingAccess, setCheckingAccess] = useState(Boolean(magicLink));
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!magicLink) {
+      setCheckingAccess(false);
+      return;
+    }
+    const token = magicTokenFromLink(magicLink);
+    if (!token) {
+      setCheckingAccess(false);
+      return;
+    }
+
+    let cancelled = false;
+    fetch("/api/auth/magic-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok) {
+          setNeedsPassword(Boolean(data.needsPassword));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCheckingAccess(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [magicLink]);
+
+  const activatePortal = async () => {
+    if (needsPassword) {
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match");
+        return;
+      }
+      if (!userId) {
+        setError("We could not find your account. Please use the email link we sent you.");
+        return;
+      }
+
+      setSaving(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/auth/set-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, password }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || "Could not set your password");
+        }
+
+        const token = magicLink ? magicTokenFromLink(magicLink) : null;
+        if (token && email) {
+          const result = await signIn("credentials", {
+            email,
+            magicToken: token,
+            redirect: false,
+          });
+          if (result?.ok) {
+            window.location.href = WM_POST_CHECKOUT_PATH;
+            return;
+          }
+        }
+        window.location.href = portalLink;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not set your password");
+        setSaving(false);
+      }
+      return;
+    }
+
+    window.location.href = portalLink;
+  };
+
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-gradient-to-b from-[#5c7a52] to-[#4a6343]">
+      <div className="mx-auto flex w-full max-w-sm min-h-0 flex-1 flex-col px-4 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+        <div className="shrink-0 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+            <CheckCircle2 className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="font-serif text-2xl text-white sm:text-3xl">
+            Welcome to Sanative{firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="mt-2 text-sm text-white/90 sm:text-base">
+            Your consultation is booked. Set a password to open your portal and follow your program journey.
+          </p>
+        </div>
+
+        <div className="my-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="rounded-2xl bg-white p-4 shadow-2xl">
+            {(consultationDate || consultationTime) && (
+              <div className="flex items-center gap-3 border-b border-[#e6ebe3] pb-3">
+                <Calendar className="h-5 w-5 flex-shrink-0 text-[#5c7a52]" />
+                <div className="text-left">
+                  <p className="text-xs text-[#7e9a72]">Your consultation</p>
+                  <p className="text-sm font-semibold text-[#2c3628]">{consultationDate}</p>
+                  <p className="text-sm text-[#5c7a52]">{consultationTime}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2.5 pt-3">
+              <div className="flex items-start gap-2.5">
+                <MessageCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                <p className="text-xs text-[#5c7a52] sm:text-sm">
+                  Confirmation email sent to {email}
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Stethoscope className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                <p className="text-xs text-[#5c7a52] sm:text-sm">
+                  Your doctor will confirm your care plan during the consultation
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Package className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
+                <p className="text-xs text-[#5c7a52] sm:text-sm">
+                  A care partner will reach out within 24 hours
+                </p>
+              </div>
+            </div>
+
+            {checkingAccess ? (
+              <div className="mt-3 flex items-center justify-center border-t border-[#e6ebe3] pt-4">
+                <Loader2 className="h-5 w-5 animate-spin text-[#5c7a52]" />
+              </div>
+            ) : needsPassword ? (
+              <div className="mt-3 space-y-3 border-t border-[#e6ebe3] pt-3">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-[#5c7a52]" />
+                  <p className="text-sm font-semibold text-[#2c3628]">Set your portal password</p>
+                </div>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Password (min 8 characters)"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError(null);
+                  }}
+                  className="w-full rounded-xl border-2 border-[#e6ebe3] px-4 py-3 text-sm outline-none focus:border-[#5c7a52]"
+                />
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Confirm password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setError(null);
+                  }}
+                  className="w-full rounded-xl border-2 border-[#e6ebe3] px-4 py-3 text-sm outline-none focus:border-[#5c7a52]"
+                />
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </div>
+            ) : (
+              <p className="mt-3 border-t border-[#e6ebe3] pt-3 text-xs leading-relaxed text-[#7e9a72] sm:text-sm">
+                Your portal is ready. Open it to follow your program journey. Progress tracking unlocks once
+                your doctor confirms your care plan.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="shrink-0 space-y-2">
+          <button
+            type="button"
+            onClick={activatePortal}
+            disabled={saving || checkingAccess}
+            className="block w-full rounded-full bg-white py-3.5 text-center text-base font-semibold text-[#2c3628] transition-colors hover:bg-white/95 disabled:opacity-60"
+          >
+            {saving ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </span>
+            ) : needsPassword ? (
+              "Set password & open portal"
+            ) : (
+              "Open my portal"
+            )}
+          </button>
+          {!magicLink && (
+            <p className="text-center text-xs text-white/70 sm:text-sm">
+              Check your email for your activation link, or sign in if you already have an account
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -2010,6 +2287,10 @@ export default function WeightLossAssessmentPage() {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [portalMagicLink, setPortalMagicLink] = useState<string | null>(null); // Magic link for portal access
+  const [checkoutPayment, setCheckoutPayment] = useState<{
+    paymentIntentId: string;
+    consentRecordId: string;
+  } | null>(null);
 
   // Booking state - UNIFIED CALENDAR (doctor assigned during triage)
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -2052,6 +2333,13 @@ export default function WeightLossAssessmentPage() {
     }
   }, [step, formData.selectedPlan]);
 
+  // Clinical history questions now live in the portal after first login
+  useEffect(() => {
+    if (step >= 12 && step <= 17) {
+      setStep(18);
+    }
+  }, [step]);
+
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
 
   // Hold countdown timer
@@ -2080,15 +2368,15 @@ export default function WeightLossAssessmentPage() {
     }
   }, [holdExpiry]);
 
-  // NEW FLOW (23 steps total):
+  // NEW FLOW:
   // 1=weightLossGoal, 2=firstName, 3=currentWeight, 4=height,
   // 5=circularProgress, 6=emailGate, 7=graphReveal,
   // 8=gender, 9=DOB, 10=motivations,
-  // 11=otherGoals (cross-sell),
-  // 12=metabolic, 13=digestive, 14=cardio, 15=mental, 16=serious,
-  // 17=currentMedications, 18=qualification, 19=shippingInfo (NEW),
-  // 20=unified checkout (booking + payment), 21=thankYou (biomarker upsell removed post-consult)
-  const totalSteps = 22;
+  // 11=otherGoals (cross-sell), then skip to qualification.
+  // Clinical history (metabolic/digestive/cardio/mental/serious/meds) is completed
+  // in the portal after first login.
+  // 18=qualification, 19=complete profile, 20=payment, 21=book doctor, 22=welcome + password
+  const totalSteps = 23;
 
   const updateFormData = (field: keyof FormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -2103,7 +2391,7 @@ export default function WeightLossAssessmentPage() {
       const current = prev[field] as string[];
       const exclusive = exclusiveValue || "None of these apply";
 
-      if (value === exclusive || value === "None — this is my first attempt" || value === "None of the above") {
+      if (value === exclusive || value === "None, this is my first attempt" || value === "None of the above") {
         return { ...prev, [field]: current.includes(value) ? [] : [value] };
       }
       if (current.includes(value)) {
@@ -2113,7 +2401,7 @@ export default function WeightLossAssessmentPage() {
         ...prev,
         [field]: [...current.filter(v =>
           v !== exclusive &&
-          v !== "None — this is my first attempt" &&
+          v !== "None, this is my first attempt" &&
           v !== "None of the above"
         ), value]
       };
@@ -2186,15 +2474,11 @@ export default function WeightLossAssessmentPage() {
       case 9: return formData.dateOfBirth.length === 10 && isValidAge;
       case 10: return formData.motivations.length > 0; // Motivations (moved earlier)
       case 11: return (formData.otherGoals || []).length > 0; // Other goals cross-sell
-      case 12: return formData.metabolicConditions.length > 0;
-      case 13: return formData.digestiveConditions.length > 0;
-      case 14: return formData.cardiovascularConditions.length > 0;
-      case 15: return formData.mentalHealthConditions.length > 0;
-      case 16: return formData.seriousConditions.length > 0;
-      case 17: return formData.currentMedications.length > 0;
       case 18: return true; // Qualification (continue button)
-      case 19: return true; // Shipping info (handled internally)
-      case 20: return true; // Unified checkout handles its own validation
+      case 19: return true; // Complete profile (handled internally)
+      case 20: return true; // Payment handles its own validation
+      case 21: return true; // Booking handles its own validation
+      case 22: return true; // Welcome + password
       default: return true;
     }
   };
@@ -2225,25 +2509,31 @@ export default function WeightLossAssessmentPage() {
       });
     }
     if (canProceed() && step < totalSteps) {
-      animateToStep(step + 1, 'forward');
+      if (step === 11) {
+        animateToStep(18, "forward");
+        return;
+      }
+      animateToStep(step + 1, "forward");
     }
   };
 
   const prevStep = () => {
     if (step > 1) {
-      // Skip back over auto-advancing screens
+      // Skip back over auto-advancing screens and deferred clinical history
       if (step === 7) {
-        animateToStep(4, 'backward');
+        animateToStep(4, "backward");
       } else if (step === 6) {
-        animateToStep(4, 'backward');
+        animateToStep(4, "backward");
+      } else if (step === 18) {
+        animateToStep(11, "backward");
       } else {
-        animateToStep(step - 1, 'backward');
+        animateToStep(step - 1, "backward");
       }
     }
   };
 
   // Save final quiz data to database (called at biomarker step or end)
-  const saveFinalQuizData = async () => {
+  const saveFinalQuizData = async (overrides?: { membershipPaid?: boolean }) => {
     try {
       const response = await fetch("/api/intake", {
         method: "POST",
@@ -2261,7 +2551,7 @@ export default function WeightLossAssessmentPage() {
           journeyStatus: "SURVEY_COMPLETED",
           completedAt: new Date().toISOString(),
           // Include payment info
-          membershipPaid,
+          membershipPaid: overrides?.membershipPaid ?? membershipPaid,
           biomarkersPaid,
         }),
       });
@@ -2279,7 +2569,8 @@ export default function WeightLossAssessmentPage() {
   // ─── UAT8-GAP-009: LEGACY CODE - DO NOT USE ───────────────────────────────
   // This function is dead code from the old $49 consultation flow.
   // It is NO LONGER CALLED - the quiz now uses:
-  // - Step 20: UnifiedCheckoutScreen (booking + Stripe payment in one step)
+  // - Step 20: Membership payment ($365/yr, Superpower-style layout)
+  // - Step 21: Book doctor (hold + /api/bookings/confirm → triage)
   // - handleCheckoutPaymentSuccess() for payment confirmation
   //
   // This function creates a $49 PaymentIntent and redirects to /payment which
@@ -2297,7 +2588,7 @@ export default function WeightLossAssessmentPage() {
     setSubmissionError(null);
 
     try {
-      // STEP 1: Send assessment data to portal — create patient record
+      // STEP 1: Send assessment data to portal, create patient record
       const intakeResponse = await fetch("/api/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2432,13 +2723,13 @@ export default function WeightLossAssessmentPage() {
               Your doctor will assess your full profile
             </p>
             <p className="text-xs text-amber-700">
-              Suitability is based on your full health picture — not BMI alone.
+              Suitability is based on your full health picture, not BMI alone.
             </p>
           </div>
         )}
 
         <p className="text-xs text-gray-400 text-center mb-6">
-          BMI is one factor — your doctor reviews your full medical profile.
+          BMI is one factor. Your doctor reviews your full medical profile.
         </p>
       </div>
     );
@@ -2662,90 +2953,88 @@ export default function WeightLossAssessmentPage() {
 
     const nextSteps = [
       {
-        title: "Join Sanative Membership",
-        detail: "Get your Biomarkers analysis included with membership.",
+        title: "Complete your profile",
+        detail: "A few details so we can set up your account and portal access.",
       },
       {
-        title: "Complete your doctor consultation",
-        detail: "An AHPRA-registered doctor reviews your assessment with you.",
+        title: "Secure payment",
+        detail: "Pay for your Sanative membership, which includes your 85+ biomarker health check and first 30 days of the weight loss program.",
       },
       {
-        title: "Start your plan and start losing weight",
-        detail: "Begin a personalised plan built around your body and goals.",
+        title: "Book your doctor consultation",
+        detail: "Your Sanative doctor will organise your health check and discuss your weight loss options to reach your goals.",
       },
     ];
 
     return (
-      <div className="flex h-full min-h-0 flex-1 flex-col bg-gradient-to-b from-[#f8faf8] to-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
-        <div className="mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col">
-          <div className="mb-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div className="relative mb-4 overflow-hidden rounded-2xl shadow-sm">
-              <Image
-                src="/images/membership/WM_quiz.png"
-                alt="You've come to the right place — doctor-led weight management with Sanative"
-                width={1200}
-                height={675}
-                className="h-auto w-full object-cover"
-                priority
-              />
-            </div>
-
-            <div className="mb-4 text-center">
-              {hasHardStop ? (
-                <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-amber-50">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
-                </div>
-              ) : (
-                <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-[#5c7a52]/10">
-                  <CheckCircle2 className="h-5 w-5 text-[#5c7a52]" />
-                </div>
-              )}
-              <h1 className="font-serif text-xl leading-tight text-[#2c3628] sm:text-2xl">
-                {hasHardStop ? "Additional review needed" : "Thanks for completing your assessment"}
-              </h1>
-              <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">
-                {hasHardStop
-                  ? "Your doctor will review your assessment and discuss how Sanative can support your metabolic health goals."
-                  : "Preliminary assessment complete. Here's what happens next."}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-[#e6ebe3] bg-white p-4 shadow-sm">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#5c7a52]">
-                Next steps
-              </p>
-              <ol className="space-y-0">
-                {nextSteps.map((step, index) => (
-                  <li key={step.title} className="relative flex gap-3 pb-4 last:pb-0">
-                    {index < nextSteps.length - 1 && (
-                      <span
-                        className="absolute left-[15px] top-8 bottom-0 w-px bg-[#e6ebe3]"
-                        aria-hidden
-                      />
-                    )}
-                    <div className="relative z-[1] flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#34412f] text-sm font-semibold text-white">
-                      {index + 1}
-                    </div>
-                    <div className="min-w-0 pt-0.5">
-                      <p className="text-sm font-semibold text-[#2c3628]">{step.title}</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-[#5c7a52]">{step.detail}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-[#f8faf8] to-white px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 sm:px-6">
+        <div className="mx-auto flex h-full w-full max-w-md min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="relative mb-2 min-h-[6.5rem] max-h-[240px] flex-1 overflow-hidden rounded-2xl shadow-sm">
+            <Image
+              src="/images/membership/WM_quiz.webp"
+              alt="You've come to the right place, doctor-led weight management with Sanative"
+              fill
+              sizes="(max-width: 448px) 100vw, 448px"
+              className="object-cover object-center"
+              priority
+            />
           </div>
 
-          <div className="shrink-0 space-y-2 pt-2">
+          <div className="mb-2.5 shrink-0 text-center">
+            {hasHardStop ? (
+              <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-amber-50">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+              </div>
+            ) : (
+              <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#5c7a52]/10">
+                <CheckCircle2 className="h-4 w-4 text-[#5c7a52]" />
+              </div>
+            )}
+            <h1 className="font-serif text-lg leading-tight text-[#2c3628] sm:text-xl">
+              {hasHardStop ? "Additional review needed" : "Thanks for completing your assessment"}
+            </h1>
+            <p className="mt-1 text-sm leading-snug text-[#5c7a52]">
+              {hasHardStop
+                ? "Your doctor will review your assessment and discuss how Sanative can support your metabolic health goals."
+                : "Preliminary assessment complete. Here's what happens next."}
+            </p>
+          </div>
+
+          <div className="shrink-0 rounded-2xl border border-[#e6ebe3] bg-white px-3.5 py-3 shadow-sm">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5c7a52]">
+              Next steps
+            </p>
+            <ol className="space-y-0">
+              {nextSteps.map((step, index) => (
+                <li key={step.title} className="relative flex gap-2.5 pb-2.5 last:pb-0">
+                  {index < nextSteps.length - 1 && (
+                    <span
+                      className="absolute left-[13px] top-7 bottom-0 w-px bg-[#e6ebe3]"
+                      aria-hidden
+                    />
+                  )}
+                  <div className="relative z-[1] flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#34412f] text-xs font-semibold text-white">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-sm font-semibold leading-tight text-[#2c3628]">{step.title}</p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-[#5c7a52]">{step.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="mt-2.5 shrink-0 space-y-1.5">
             <button
               onClick={() => animateToStep(19, "forward")}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#5c7a52] py-3.5 text-base font-semibold text-white shadow-[0_4px_20px_rgba(92,122,82,0.35)] transition-colors hover:bg-[#4a6343]"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#5c7a52] py-3 text-base font-semibold text-white shadow-[0_4px_20px_rgba(92,122,82,0.35)] transition-colors hover:bg-[#4a6343]"
             >
-              Join Sanative Membership
+              Complete your profile
               <ArrowRight className="h-5 w-5" />
             </button>
 
-            <p className="text-center text-[10px] leading-relaxed text-[#7e9a72] sm:text-xs">
+            <p className="text-center text-[10px] leading-snug text-[#7e9a72] sm:text-xs">
               AHPRA-registered Australian doctors · Cancel anytime · Full refund if the program
               isn&apos;t clinically suitable for you
             </p>
@@ -2804,8 +3093,8 @@ export default function WeightLossAssessmentPage() {
         setShowResumeVerification(false);
         setPendingShippingData(null);
         setResumeContext(null);
-        toast.success("Details saved!", { description: "Your information has been recorded." });
-        goToMembershipCheckout();
+        toast.success("Profile saved", { description: "Continue to secure payment." });
+        animateToStep(20, "forward");
         return true;
       }
 
@@ -2978,54 +3267,18 @@ export default function WeightLossAssessmentPage() {
     }
   };
 
-  // ─── Payment success: confirm booking + advance to thank you ───────────────
+  // ─── Payment success: record payment, then book the doctor ────────────────
   const handleCheckoutPaymentSuccess = async (result: CheckoutPaymentSuccess) => {
     setMembershipPaid(true);
     setShowPaymentForm(false);
-
-    if (bookingHoldId) {
-      try {
-        const confirmResponse = await fetch("/api/bookings/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            bookingHoldId,
-            paymentIntentId: result.paymentIntentId || "pi_manual_confirmation",
-            consentRecordId: result.consentRecordId,
-            userId,
-            selectedPlan: "CORE",
-            clientOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
-          }),
-        });
-
-        if (confirmResponse.ok) {
-          const confirmData = await confirmResponse.json();
-          if (confirmData.magicLink) {
-            setPortalMagicLink(confirmData.magicLink);
-          }
-          toast.success("Booking confirmed!", {
-            description: `Your consultation is scheduled for ${formData.consultationDate} at ${formData.consultationTime}`,
-          });
-        } else {
-          const errorData = await confirmResponse.json();
-          console.error("[Booking] Confirmation failed:", errorData);
-          toast.success("Payment successful!", {
-            description: "Your consultation will be confirmed shortly.",
-          });
-        }
-      } catch (error) {
-        console.error("[Booking] Confirmation error:", error);
-        toast.success("Payment successful!", {
-          description: "Your consultation will be confirmed shortly.",
-        });
-      }
-
-      setBookingHoldId(null);
-      setHoldExpiry(null);
-    } else {
-      toast.success("Payment successful!", { description: "Your consultation is booked." });
-    }
-
+    setCheckoutPayment({
+      paymentIntentId: result.paymentIntentId || "pi_manual_confirmation",
+      consentRecordId: result.consentRecordId,
+    });
+    await saveFinalQuizData({ membershipPaid: true });
+    toast.success("Payment successful!", {
+      description: "Your Sanative Membership is active. Book your doctor consultation.",
+    });
     animateToStep(21, "forward");
   };
 
@@ -3034,43 +3287,97 @@ export default function WeightLossAssessmentPage() {
     toast.error("Payment failed", { description: error });
   };
 
-  // ─── Step 20: Continue in the consolidated Sanative Membership funnel ──────
-  // Payment no longer happens inside the assessment. The member joins Sanative
-  // Membership ($365/yr incl. Essential panel + first 30 days of care) and the
-  // funnel handles OTP verification, payment, booking and clinical intake.
-  const goToMembershipCheckout = () => {
-    try {
-      const prefill: OrganCareCheckoutPrefill = {
-        source: "weight_management_assessment",
-        email: formData.email || "",
-        firstName: formData.firstName || "",
-        lastName: formData.lastName || "",
-        phone: formData.phone || undefined,
-        dateOfBirth: formData.dateOfBirth || undefined,
-        postcode: formData.postcode || undefined,
-      };
-      localStorage.setItem(ORGAN_CARE_CHECKOUT_PREFILL_KEY, JSON.stringify(prefill));
-    } catch {
-      // localStorage unavailable — checkout still works without prefill
+  // ─── Step 20: Membership payment ($365/yr), Superpower-style layout ────────
+  const renderPaymentScreen = () => {
+    if (!userId) {
+      return (
+        <div className="flex flex-col items-center rounded-2xl border border-[#e6ebe3] bg-white p-8">
+          <Loader2 className="mb-2 h-6 w-6 animate-spin text-[#5c7a52]" />
+          <p className="text-sm text-[#7e9a72]">Preparing your account...</p>
+        </div>
+      );
     }
-    window.location.href =
-      "/membership/checkout?intent=weight_management&source=weight_management_assessment";
-  };
 
-  // Step 20 was an intermediate "Your assessment is complete" screen.
-  // Members now go straight to secure membership checkout after shipping.
-  const renderUnifiedCheckoutScreen = () => {
-    if (typeof window !== "undefined") {
-      // Defer so we don't navigate during render
-      setTimeout(() => goToMembershipCheckout(), 0);
-    }
     return (
-      <div className="max-w-lg mx-auto text-center space-y-6 py-10">
-        <div className="w-8 h-8 border-2 border-[#5c7a52] border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-[#5c7a52]">Taking you to secure checkout...</p>
-      </div>
+      <FunnelMembershipPaymentScreen
+        userId={userId}
+        email={formData.email}
+        firstName={formData.firstName}
+        lastName={formData.lastName}
+        phone={formData.phone}
+        dateOfBirth={formData.dateOfBirth}
+        gender={formData.gender}
+        streetAddress={formData.streetAddress}
+        addressUnit={formData.addressUnit}
+        suburb={formData.suburb}
+        state={formData.state}
+        postcode={formData.postcode}
+        alreadyPaid={membershipPaid}
+        onContinueAfterPaid={() => animateToStep(21, "forward")}
+        onSuccess={handleCheckoutPaymentSuccess}
+        onError={handleCheckoutPaymentError}
+      />
     );
   };
+
+  // ─── Step 21: Book doctor (hold + confirm → triage) ────────────────────────
+  const renderBookDoctorScreen = () => (
+    <div className="max-w-lg mx-auto space-y-6 pb-8">
+      <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
+          <Check className="h-4 w-4 text-white" />
+        </div>
+        <span className="text-sm font-medium text-green-800">Membership active</span>
+      </div>
+
+      <div>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#5c7a52]">
+          Book your doctor
+        </p>
+        <h1 className="font-serif text-2xl text-[#2c3628]">Choose your consultation time</h1>
+        <p className="mt-1 text-sm text-[#5c7a52]">
+          Your doctor is assigned during triage by a care partner. You&apos;ll receive confirmation
+          once your appointment is locked in.
+        </p>
+      </div>
+
+      {userId && checkoutPayment ? (
+        <MembershipConsultationBooking
+          userId={userId}
+          paymentIntentId={checkoutPayment.paymentIntentId}
+          consentRecordId={checkoutPayment.consentRecordId}
+          firstName={formData.firstName}
+          lastName={formData.lastName}
+          email={formData.email}
+          phone={formData.phone}
+          postcode={formData.postcode}
+          programType="WEIGHT_MANAGEMENT"
+          selectedPlan="CORE"
+          patientBmi={calculateBMI() || undefined}
+          riskFlags={hasContraindications ? ["CONTRAINDICATION_FLAG"] : []}
+          onComplete={(result) => {
+            if (result?.magicLink) setPortalMagicLink(result.magicLink);
+            if (result?.consultationDate) updateFormData("consultationDate", result.consultationDate);
+            if (result?.consultationTime) updateFormData("consultationTime", result.consultationTime);
+            animateToStep(22, "forward");
+          }}
+        />
+      ) : (
+        <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            We need a successful payment before we can hold a consultation time.
+          </p>
+          <button
+            type="button"
+            onClick={() => animateToStep(20, "backward")}
+            className="text-sm font-medium text-[#5c7a52] underline"
+          >
+            Return to payment
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
 
   // ─── Step 22: Biomarker Upsell Screen (DEPRECATED - GAP-028) ─────────────────
@@ -3138,7 +3445,7 @@ export default function WeightLossAssessmentPage() {
           {/* Success Banner - Compliant copy */}
           <div className="flex items-center justify-center gap-2 mb-6 py-3 px-4 bg-[#5c7a52]/10 border border-[#5c7a52]/20 rounded-full">
             <CheckCircle2 className="w-5 h-5 text-[#5c7a52]" />
-            <span className="text-sm font-medium text-[#5c7a52]">Payment received — consultation booked</span>
+            <span className="text-sm font-medium text-[#5c7a52]">Payment received, consultation booked</span>
           </div>
 
           {/* Upsell Header */}
@@ -3250,84 +3557,17 @@ export default function WeightLossAssessmentPage() {
     );
   };
 
-  // ─── Step 23: Thank You Screen ───────────────────────────────────────────────
-  const renderThankYouScreen = () => {
-    const portalLink = portalMagicLink
-      ? buildPortalActivationMagicLink(portalMagicLink)
-      : `/login?redirect=${encodeURIComponent(WM_POST_CHECKOUT_PATH)}`;
-    const buttonText = portalMagicLink ? "Activate my portal" : "Go to my program";
-
-    return (
-      <div className="flex h-full min-h-0 flex-1 flex-col bg-gradient-to-b from-[#5c7a52] to-[#4a6343]">
-        <div className="mx-auto flex w-full max-w-sm min-h-0 flex-1 flex-col px-4 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
-          <div className="shrink-0 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-              <CheckCircle2 className="h-8 w-8 text-white" />
-            </div>
-            <h1 className="font-serif text-2xl text-white sm:text-3xl">
-              Thank you, {formData.firstName}!
-            </h1>
-            <p className="mt-2 text-sm text-white/90 sm:text-base">
-              Your consultation is booked. Activate your portal to follow your program journey.
-            </p>
-          </div>
-
-          <div className="my-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div className="rounded-2xl bg-white p-4 shadow-2xl">
-              <div className="flex items-center gap-3 border-b border-[#e6ebe3] pb-3">
-                <Calendar className="h-5 w-5 flex-shrink-0 text-[#5c7a52]" />
-                <div className="text-left">
-                  <p className="text-xs text-[#7e9a72]">Your consultation</p>
-                  <p className="text-sm font-semibold text-[#2c3628]">{formData.consultationDate}</p>
-                  <p className="text-sm text-[#5c7a52]">{formData.consultationTime}</p>
-                </div>
-              </div>
-
-              <div className="space-y-2.5 pt-3">
-                <div className="flex items-start gap-2.5">
-                  <MessageCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
-                  <p className="text-xs text-[#5c7a52] sm:text-sm">
-                    Confirmation email sent to {formData.email}
-                  </p>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <Stethoscope className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
-                  <p className="text-xs text-[#5c7a52] sm:text-sm">
-                    Your doctor will confirm your care plan during the consultation
-                  </p>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <Package className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#5c7a52]" />
-                  <p className="text-xs text-[#5c7a52] sm:text-sm">
-                    A care partner will reach out within 24 hours
-                  </p>
-                </div>
-              </div>
-
-              <p className="mt-3 border-t border-[#e6ebe3] pt-3 text-xs leading-relaxed text-[#7e9a72] sm:text-sm">
-                Set your password to open your weight program home. Progress tracking unlocks once
-                your doctor confirms your care plan.
-              </p>
-            </div>
-          </div>
-
-          <div className="shrink-0 space-y-2">
-            <a
-              href={portalLink}
-              className="block w-full rounded-full bg-white py-3.5 text-center text-base font-semibold text-[#2c3628] transition-colors hover:bg-white/95"
-            >
-              {buttonText}
-            </a>
-            {!portalMagicLink && (
-              <p className="text-center text-xs text-white/70 sm:text-sm">
-                Check your email for your activation link, or sign in if you already have an account
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // ─── Step 22: Welcome + set password ────────────────────────────────────────
+  const renderThankYouScreen = () => (
+    <WelcomeAndPasswordScreen
+      firstName={formData.firstName}
+      email={formData.email}
+      consultationDate={formData.consultationDate}
+      consultationTime={formData.consultationTime}
+      magicLink={portalMagicLink}
+      userId={userId}
+    />
+  );
 
   // ─── Address + Mobile Form Step ─────────────────────────────────────────────
   const renderAddressFormStep = () => {
@@ -3348,6 +3588,11 @@ export default function WeightLossAssessmentPage() {
   };
 
   const renderStep = () => {
+    // Clinical history is collected in the portal after first login
+    if (step >= 12 && step <= 17) {
+      return null;
+    }
+
     // Step 5: Circular progress animation
     if (step === 5) {
       return (
@@ -3426,7 +3671,7 @@ export default function WeightLossAssessmentPage() {
                 return;
               }
 
-              // Existing prospective WM leads can now continue without OTP — retry once
+              // Existing prospective WM leads can now continue without OTP, retry once
               // is unnecessary; advance and let shipping save with the same email.
               console.error("[Quiz] Error creating early user:", response.status, data);
             } catch (error) {
@@ -3468,18 +3713,23 @@ export default function WeightLossAssessmentPage() {
       return renderQualificationScreen();
     }
 
-    // Step 19: Shipping info screen (NEW)
+    // Step 19: Complete profile
     if (step === 19) {
       return renderShippingInfoScreen();
     }
 
-    // Step 20: Unified checkout (booking + payment)
+    // Step 20: Payment
     if (step === 20) {
-      return renderUnifiedCheckoutScreen();
+      return renderPaymentScreen();
     }
 
-    // Step 21: Thank you (step 22 biomarker upsell removed — post-consult only)
+    // Step 21: Book doctor (hold + confirm → triage)
     if (step === 21) {
+      return renderBookDoctorScreen();
+    }
+
+    // Step 22: Welcome + set password
+    if (step === 22) {
       return renderThankYouScreen();
     }
 
@@ -3763,7 +4013,7 @@ export default function WeightLossAssessmentPage() {
           What&apos;s your last name?
         </h1>
         <p className="mt-3 text-[#5c7a52]">
-          Required for your clinical record — we keep it confidential.
+          Required for your clinical record. We keep it confidential.
         </p>
       </div>
 
@@ -3830,7 +4080,7 @@ export default function WeightLossAssessmentPage() {
           How did you hear about Sanative?
         </h1>
         <p className="mt-3 text-[#5c7a52]">
-          Optional — this helps us improve our service.
+          Optional, this helps us improve our service.
         </p>
       </div>
       <div className="space-y-3 mt-8 max-h-[50vh] overflow-y-auto pr-2 pb-4">
@@ -3942,16 +4192,16 @@ export default function WeightLossAssessmentPage() {
   // Get button text based on step
   const getButtonText = () => {
     if (step === 7) return ""; // Loading screen has no button
-    if (step === 12 || step === 14) return "Continue";
     // Email gate CTA at step 9
     if (step === 9) return "Create my account →";
     return "Continue →";
   };
 
   const useViewportLayout = VIEWPORT_QUIZ_STEPS.has(step);
-  const isThankYouStep = step === 21;
+  const isThankYouStep = step === 22;
+  const isPaymentStep = step === 20;
   const useFullscreenImmersive = FULLSCREEN_IMMERSIVE_STEPS.has(step) || isThankYouStep;
-  const useCreamTheme = step === 19 || step === 20;
+  const useCreamTheme = step === 19 || step === 21;
 
   return (
     <div
@@ -3960,6 +4210,8 @@ export default function WeightLossAssessmentPage() {
           ? `h-[100dvh] flex flex-col overflow-hidden ${
               isThankYouStep ? "bg-[#5c7a52]" : "bg-[#fdfbf7]"
             }`
+          : isPaymentStep
+          ? "min-h-screen bg-[#f5f5f4] overflow-y-auto"
           : useCreamTheme
           ? "min-h-screen bg-[#fdfbf7] overflow-y-auto"
           : "min-h-screen bg-white overflow-y-auto"
@@ -3978,12 +4230,22 @@ export default function WeightLossAssessmentPage() {
 
       {!isThankYouStep && (
       <header
-        className={`${useViewportLayout || useFullscreenImmersive || useCreamTheme ? "flex-shrink-0" : "sticky top-0"} ${
-          useCreamTheme || useFullscreenImmersive ? "bg-[#fdfbf7]/95" : "bg-white/95"
+        className={`${useViewportLayout || useFullscreenImmersive || useCreamTheme || isPaymentStep ? "flex-shrink-0" : "sticky top-0"} ${
+          isPaymentStep
+            ? "bg-white/95"
+            : useCreamTheme || useFullscreenImmersive
+              ? "bg-[#fdfbf7]/95"
+              : "bg-white/95"
         } backdrop-blur-sm z-40 border-b border-[#e6ebe3]`}
       >
         <div
-          className={`${step === 20 ? "max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${useViewportLayout || useFullscreenImmersive ? "pt-3 pb-0" : "pt-4 pb-0"} flex items-center justify-between`}
+          className={`${isPaymentStep ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${
+            useViewportLayout || useFullscreenImmersive
+              ? "pt-3 pb-0"
+              : isPaymentStep
+                ? "pt-4 pb-4"
+                : "pt-4 pb-0"
+          } flex items-center justify-between`}
         >
           <Link href="/" className={`font-serif text-[#34412f] ${useViewportLayout || useFullscreenImmersive ? "text-xl" : "text-2xl"}`}>
             Sanative
@@ -3997,11 +4259,11 @@ export default function WeightLossAssessmentPage() {
             <span>Help</span>
           </button>
         </div>
-        {SHOW_QUIZ_PHASE_PROGRESS(step) && (
+        {SHOW_QUIZ_PHASE_PROGRESS(step) && !isPaymentStep && (
           <QuizPhaseProgress
             step={step}
             compact={useViewportLayout || useFullscreenImmersive}
-            wide={step === 20}
+            wide={false}
           />
         )}
       </header>
@@ -4010,14 +4272,14 @@ export default function WeightLossAssessmentPage() {
       {/* Main content - full width on immersive steps (5–7) and checkout (20) */}
       <main
         className={
-          step === 20
-            ? "relative z-10 bg-[#fdfbf7]"
+          isPaymentStep
+            ? "max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10 relative z-10"
+            : step === 19 || step === 21
+            ? "max-w-2xl mx-auto px-4 py-6 relative z-10 bg-[#fdfbf7]"
             : isThankYouStep
             ? "relative z-10 flex flex-1 min-h-0 w-full max-w-none flex-col overflow-hidden p-0"
             : useFullscreenImmersive
             ? "relative z-10 flex flex-1 min-h-0 w-full max-w-none flex-col overflow-hidden bg-[#fdfbf7] p-0"
-            : step === 19
-            ? "max-w-2xl mx-auto px-4 py-6 relative z-10 bg-[#fdfbf7]"
             : useViewportLayout
             ? "flex-1 min-h-0 flex flex-col max-w-2xl mx-auto w-full px-4 pt-3 relative z-10 bg-white"
             : "max-w-2xl mx-auto px-4 py-8 relative z-10 bg-white"
@@ -4039,7 +4301,7 @@ export default function WeightLossAssessmentPage() {
       </main>
 
       {/* Bottom navigation - hide on screens with their own fixed buttons AND when intro offer is open */}
-      {step < totalSteps && ![5, 6, 7, 18, 19, 20, 21].includes(step) && !showIntroOffer && (
+      {step < totalSteps && ![5, 6, 7, 18, 19, 20, 21, 22].includes(step) && !showIntroOffer && (
         <div
           className={
             useViewportLayout
@@ -4088,7 +4350,9 @@ export default function WeightLossAssessmentPage() {
 
       {/* Global white background to prevent any color bleeding */}
       <div
-        className={`fixed inset-0 -z-50 pointer-events-none ${useCreamTheme ? "bg-[#fdfbf7]" : "bg-white"}`}
+        className={`fixed inset-0 -z-50 pointer-events-none ${
+          isPaymentStep ? "bg-[#f5f5f4]" : useCreamTheme ? "bg-[#fdfbf7]" : "bg-white"
+        }`}
         aria-hidden="true"
       />
 

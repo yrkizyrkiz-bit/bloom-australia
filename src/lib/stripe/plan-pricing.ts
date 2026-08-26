@@ -7,7 +7,7 @@ import { WEIGHT_MANAGEMENT_PRICES } from "@/lib/stripe";
 export const WM_CORE_FIRST_MONTH_CENTS = WEIGHT_MANAGEMENT_PRICES.core.firstMonth.amount;
 export const WM_PRECISION_FIRST_MONTH_CENTS = WEIGHT_MANAGEMENT_PRICES.precision.firstMonth.amount;
 
-const NON_WM_ONGOING_CENTS = 7900; // $79/mo — men's / women's / hair public funnel pricing
+const NON_WM_ONGOING_CENTS = 7900; // $79/mo, men's / women's / hair public funnel pricing
 
 export type CheckoutProgramType =
   | "weight_management"
@@ -46,7 +46,7 @@ export function isAllowedCheckoutPlanId(planId: string): boolean {
   );
 }
 
-/** Server-owned first-month charge — never trust client-sent amounts. */
+/** Server-owned first-month charge, never trust client-sent amounts. */
 export function resolveFirstMonthCheckoutCharge(
   programType: CheckoutProgramType,
   planId: string

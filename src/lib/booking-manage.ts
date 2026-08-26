@@ -176,7 +176,7 @@ async function syncConsultationScheduleNote(
   const history = await getScheduleHistoryForBooking(bookingId);
   const historyLines = history.map((log) => {
     const entry = formatScheduleHistoryEntry(log);
-    return `• ${entry.summary}${entry.reason ? ` — ${entry.reason}` : ""} (${entry.changedBy})`;
+    return `• ${entry.summary}${entry.reason ? `, ${entry.reason}` : ""} (${entry.changedBy})`;
   });
 
   const content = `## Current appointment
@@ -261,7 +261,7 @@ async function syncCalendarEventForBooking(
   });
 
   return updateCalendarEvent(booking.calendarEventId, calendarId, {
-    summary: `Sanative Consultation — ${patientName}`,
+    summary: `Sanative Consultation, ${patientName}`,
     description,
     start: { dateTime: scheduledAt.toISOString(), timeZone: CLINIC_TIMEZONE },
     end: { dateTime: endTime.toISOString(), timeZone: CLINIC_TIMEZONE },

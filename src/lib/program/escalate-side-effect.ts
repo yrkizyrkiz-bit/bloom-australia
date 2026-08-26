@@ -104,7 +104,7 @@ Please contact the patient within 4 business hours (urgent: same day).`,
           userId,
           type: "SIDE_EFFECT_REVIEW",
           priority: "NORMAL",
-          subject: "Recurring side effects — care partner check-in",
+          subject: "Recurring side effects, care partner check-in",
           notes: `Multiple moderate+ side effect reports in 48h.
 
 Latest symptoms: ${labels.join(", ")}

@@ -63,7 +63,7 @@ const CHECKOUT_HOUR_END = 20;
 /** Right summary column height on desktop */
 const CHECKOUT_COLUMN_HEIGHT =
   "h-auto min-h-0 lg:h-[720px] lg:min-h-[720px] lg:max-h-[720px]";
-/** Fixed booking card — calendar fits without internal scroll */
+/** Fixed booking card, calendar fits without internal scroll */
 const BOOKING_CARD_HEIGHT = "h-[440px] min-h-[440px] max-h-[440px]";
 /** Premium card shell shared by booking + payment panels */
 const CHECKOUT_PANEL_CLASS =
@@ -95,7 +95,7 @@ function slotMatchesPeriod(isoString: string, period: TimePeriod, displayTimezon
   return h >= config.hourStart && h < config.hourEnd;
 }
 
-const CORE_PRICING = {
+export const CORE_PRICING = {
   planName: "Sanative Core",
   firstMonthList: 349,
   dueToday: 249,
@@ -427,7 +427,7 @@ export function ConsultationPicker({
 
       {hasSelectedSlot && (
         <p className="text-[10px] text-[#5c7a52] bg-[#5c7a52]/5 border border-[#5c7a52]/15 rounded-lg px-2.5 py-1.5 mb-2 shrink-0 leading-snug">
-          Tap another day or time to change — payment updates automatically.
+          Tap another day or time to change, payment updates automatically.
         </p>
       )}
 
@@ -599,7 +599,7 @@ export function ConsultationPicker({
                 </div>
               ) : (
                 <p className="text-xs text-[#7e9a72] py-3 text-center bg-[#f4f7f2] rounded-lg flex-1 flex items-center justify-center">
-                  No times in this period — try another.
+                  No times in this period, try another.
                 </p>
               )}
             </div>
@@ -910,7 +910,7 @@ function CheckoutPaymentPanel({
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex gap-2 mb-3">
             <Timer className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-800 leading-snug">
-              Your slot expired — choose a new time in the calendar above.
+              Your slot expired, choose a new time in the calendar above.
             </p>
           </div>
         )}

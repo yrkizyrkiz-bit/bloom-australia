@@ -9,6 +9,11 @@ export const PROGRAM_SLUG: Record<ProgramKey, string> = {
   WOMENS_HEALTH_SEXUAL: "womens_health_sexual",
 };
 
+export const SANATIVE_MEMBERSHIP_SLUG = "sanative_membership";
+
+/** Included with Sanative Membership, not billed as standalone subscriptions. */
+export const MEMBERSHIP_INCLUDED_SCOPE_SLUGS = ["organ_care", "biological_clock"] as const;
+
 export function programSlugFromProgramKey(key: ProgramKey): string {
   return PROGRAM_SLUG[key];
 }

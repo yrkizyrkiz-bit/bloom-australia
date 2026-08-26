@@ -57,7 +57,7 @@ export function resolvePreTriageProgramForBooking(ctx: {
   paymentMetadata?: Record<string, string> | null;
 }): PreTriageProgramInfo {
   // Hair / women's Advanced funnels pay for biomarkers but the clinical program
-  // is the condition — keep one In Triage booking, not a biomarkers pre-triage.
+  // is the condition, keep one In Triage booking, not a biomarkers pre-triage.
   if (ctx.paymentMetadata?.sourceProgram === "hair_loss") {
     return {
       slug: "hair_loss",
@@ -127,7 +127,7 @@ export async function createProgramPreTriageTask(
   input: CreateProgramPreTriageInput
 ): Promise<void> {
   // Public assessment bookings must land in In Triage (journey status) for care
-  // partners to assign a doctor. They must NOT create a Pre-Triage Queue task —
+  // partners to assign a doctor. They must NOT create a Pre-Triage Queue task,
   // that queue is for portal add-ons when a consult is already in triage.
   const existingPatient = await prisma.user.findUnique({
     where: { id: input.userId },

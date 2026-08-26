@@ -217,7 +217,7 @@ export function usePathologyReferralForm({
       referralDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       providerInputRef.current?.focus();
       toast.error(
-        "Your Medicare provider number is required — enter it in the first field under Referral details (not the patient Medicare number)"
+        "Your Medicare provider number is required, enter it in the first field under Referral details (not the patient Medicare number)"
       );
       return false;
     }

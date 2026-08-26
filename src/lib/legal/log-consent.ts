@@ -42,7 +42,7 @@ async function postConsent(body: ConsentRequestBody): Promise<RecordConsentResul
   }
 }
 
-/** Passive consent for quiz/contact steps — non-blocking for funnel continuity. */
+/** Passive consent for quiz/contact steps, non-blocking for funnel continuity. */
 export async function logConsentEvent(input: {
   consentType: Exclude<ConsentType, "PRE_PAYMENT">;
   sourcePage: string;
@@ -52,7 +52,7 @@ export async function logConsentEvent(input: {
   await postConsent(input);
 }
 
-/** Explicit pre-payment consent — must succeed before charging the card. */
+/** Explicit pre-payment consent, must succeed before charging the card. */
 export async function recordPrePaymentConsent(input: {
   sourcePage: string;
   email?: string;

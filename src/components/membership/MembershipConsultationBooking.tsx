@@ -20,9 +20,22 @@ type Props = {
   email: string;
   phone?: string;
   postcode?: string;
-  programType?: "ORGAN_CARE" | "MEMBERSHIP" | "BIOLOGICAL_CLOCK" | "HAIR_LOSS" | "WOMENS_HEALTH" | "MENS_HEALTH";
+  programType?:
+    | "ORGAN_CARE"
+    | "MEMBERSHIP"
+    | "BIOLOGICAL_CLOCK"
+    | "HAIR_LOSS"
+    | "WOMENS_HEALTH"
+    | "MENS_HEALTH"
+    | "WEIGHT_MANAGEMENT";
+  selectedPlan?: "CORE" | "PRECISION";
+  patientBmi?: number;
   riskFlags?: string[];
-  onComplete: () => void;
+  onComplete: (result?: {
+    magicLink?: string;
+    consultationDate?: string;
+    consultationTime?: string;
+  }) => void;
 };
 
 function formatSlotDate(isoString: string, timezone: string) {
@@ -106,9 +119,15 @@ export function MembershipConsultationBooking({
   phone,
   postcode,
   programType = "MEMBERSHIP",
-  riskFlags = ["ORGAN_CARE_MEMBERSHIP"],
+  selectedPlan,
+  patientBmi,
+  riskFlags,
   onComplete,
 }: Props) {
+  const holdRiskFlags =
+    riskFlags ?? (programType === "WEIGHT_MANAGEMENT" ? [] : ["ORGAN_CARE_MEMBERSHIP"]);
+  const holdSelectedPlan =
+    selectedPlan ?? (programType === "WEIGHT_MANAGEMENT" ? "CORE" : undefined);
   const patientTimezone = resolveAustralianTimezone(null, postcode || "");
   const [availableSlots, setAvailableSlots] = useState<UnifiedSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
@@ -218,8 +237,10 @@ export function MembershipConsultationBooking({
           userId,
           slotId: slot.slotId,
           programType,
+          selectedPlan: holdSelectedPlan,
           patientPhone: phone || undefined,
-          riskFlags,
+          patientBmi,
+          riskFlags: holdRiskFlags,
         }),
       });
 
@@ -313,7 +334,11 @@ export function MembershipConsultationBooking({
       toast.success("Consultation booked", {
         description: `${consultationDate} at ${consultationTime}`,
       });
-      onComplete();
+      onComplete({
+        magicLink: typeof data.magicLink === "string" ? data.magicLink : undefined,
+        consultationDate,
+        consultationTime,
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to confirm booking";

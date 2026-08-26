@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { sendOrderConfirmationEmail, sendEmail, sendWeightManagementConfirmationEmail } from "@/lib/email";
 import { sign } from "jsonwebtoken";
+import { getStripeSubscriptionPeriod } from "@/lib/stripe/subscription-period";
 
 // Lazy-initialized Stripe client (avoids build-time errors when env var is missing)
 let stripeClient: Stripe | null = null;
@@ -104,7 +105,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const stripe = getStripeClient();
   console.log("Payment succeeded:", paymentIntent.id);
 
-  // Consolidated Sanative Membership funnel — safety net if the client never
+  // Consolidated Sanative Membership funnel, safety net if the client never
   // reaches /api/public/membership-checkout/complete (e.g. closed the tab).
   if (paymentIntent.metadata?.purchaseType === "sanative_membership") {
     const { activateSanativeMembership } = await import(
@@ -117,13 +118,9 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     if (stripeSubscriptionId) {
       try {
         const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-        const subData = subscription as unknown as Record<string, unknown>;
-        if (typeof subData.current_period_start === "number") {
-          periodStart = new Date(subData.current_period_start * 1000);
-        }
-        if (typeof subData.current_period_end === "number") {
-          periodEnd = new Date(subData.current_period_end * 1000);
-        }
+        const period = getStripeSubscriptionPeriod(subscription);
+        periodStart = period.start;
+        periodEnd = period.end;
       } catch (err) {
         console.error("[webhook] could not load membership subscription:", err);
       }
@@ -666,7 +663,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
       ? invoiceData.subscription
       : (invoiceData.subscription as { id?: string } | null)?.id) || null;
 
-  // Annual Sanative Membership auto-renewal — extend period + restore access.
+  // Annual Sanative Membership auto-renewal, extend period + restore access.
   // Skip the initial subscription_create invoice (activation handles that).
   if (
     subscriptionId &&
@@ -713,7 +710,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     });
 
     if (user) {
-      // Create invoice record (idempotent — renewals / retries may re-fire)
+      // Create invoice record (idempotent, renewals / retries may re-fire)
       await prisma.invoice
         .upsert({
           where: { stripeId: invoice.id },
@@ -962,7 +959,7 @@ async function sendMagicLinkEmail(user: { id: string; email: string; firstName: 
     // UAT8-GAP-013: Updated wording - removed "consultation fee" language
     await sendEmail({
       to: user.email,
-      subject: "Your Sanative account is ready — click to get started",
+      subject: "Your Sanative account is ready, click to get started",
       body: `
         <h2>Welcome to Sanative Health, ${user.firstName}!</h2>
         <p>Your payment has been received and your account is ready.</p>

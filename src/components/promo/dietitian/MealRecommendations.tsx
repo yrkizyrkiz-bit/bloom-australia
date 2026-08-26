@@ -21,7 +21,7 @@ const meals: Meal[] = [
   {
     id: 1,
     name: "Greek Yogurt Protein Bowl",
-    image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1488477181946-6428a0291777.webp",
     calories: 320,
     protein: 28,
     prepTime: 5,
@@ -32,7 +32,7 @@ const meals: Meal[] = [
   {
     id: 2,
     name: "Spinach & Feta Egg White Omelette",
-    image: "https://images.unsplash.com/photo-1510693206972-df098062cb71?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1510693206972-df098062cb71.webp",
     calories: 245,
     protein: 26,
     prepTime: 10,
@@ -43,7 +43,7 @@ const meals: Meal[] = [
   {
     id: 3,
     name: "Overnight Protein Oats",
-    image: "https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1517673400267-0251440c45dc.webp",
     calories: 380,
     protein: 32,
     prepTime: 5,
@@ -54,7 +54,7 @@ const meals: Meal[] = [
   {
     id: 4,
     name: "Smoked Salmon Avocado Toast",
-    image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1525351484163-7529414344d8.webp",
     calories: 340,
     protein: 24,
     prepTime: 8,
@@ -65,7 +65,7 @@ const meals: Meal[] = [
   {
     id: 5,
     name: "Cottage Cheese Pancakes",
-    image: "https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1528207776546-365bb710ee93.webp",
     calories: 295,
     protein: 30,
     prepTime: 15,
@@ -78,7 +78,7 @@ const meals: Meal[] = [
   {
     id: 6,
     name: "Grilled Chicken Caesar Salad",
-    image: "https://images.unsplash.com/photo-1546793665-c74683f339c1?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1546793665-c74683f339c1.webp",
     calories: 385,
     protein: 42,
     prepTime: 15,
@@ -89,7 +89,7 @@ const meals: Meal[] = [
   {
     id: 7,
     name: "Tuna Poke Bowl",
-    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1546069901-ba9599a7e63c.webp",
     calories: 420,
     protein: 38,
     prepTime: 20,
@@ -100,7 +100,7 @@ const meals: Meal[] = [
   {
     id: 8,
     name: "Turkey & Quinoa Stuffed Peppers",
-    image: "https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1511690656952-34342bb7c2f2.webp",
     calories: 355,
     protein: 34,
     prepTime: 35,
@@ -111,7 +111,7 @@ const meals: Meal[] = [
   {
     id: 9,
     name: "Asian Chicken Lettuce Wraps",
-    image: "https://images.unsplash.com/photo-1529059997568-3d847b1154f0?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1529059997568-3d847b1154f0.webp",
     calories: 280,
     protein: 32,
     prepTime: 15,
@@ -122,7 +122,7 @@ const meals: Meal[] = [
   {
     id: 10,
     name: "Mediterranean Chickpea Bowl",
-    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp",
     calories: 395,
     protein: 18,
     prepTime: 15,
@@ -135,7 +135,7 @@ const meals: Meal[] = [
   {
     id: 11,
     name: "Herb-Crusted Salmon",
-    image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1467003909585-2f8a72700288.webp",
     calories: 410,
     protein: 44,
     prepTime: 25,
@@ -146,7 +146,7 @@ const meals: Meal[] = [
   {
     id: 12,
     name: "Lean Beef Stir-Fry",
-    image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1603133872878-684f208fb84b.webp",
     calories: 380,
     protein: 36,
     prepTime: 20,
@@ -157,7 +157,7 @@ const meals: Meal[] = [
   {
     id: 13,
     name: "Grilled Chicken with Roasted Vegetables",
-    image: "https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1532550907401-a500c9a57435.webp",
     calories: 365,
     protein: 40,
     prepTime: 30,
@@ -168,7 +168,7 @@ const meals: Meal[] = [
   {
     id: 14,
     name: "Shrimp & Cauliflower Rice",
-    image: "https://images.unsplash.com/photo-1551248429-40975aa4de74?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1551248429-40975aa4de74.webp",
     calories: 295,
     protein: 32,
     prepTime: 20,
@@ -179,7 +179,7 @@ const meals: Meal[] = [
   {
     id: 15,
     name: "Turkey Meatballs with Zoodles",
-    image: "https://images.unsplash.com/photo-1529042410759-befb1204b468?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1529042410759-befb1204b468.webp",
     calories: 340,
     protein: 38,
     prepTime: 30,
@@ -190,7 +190,7 @@ const meals: Meal[] = [
   {
     id: 16,
     name: "Baked Cod with Lemon Butter",
-    image: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1519708227418-c8fd9a32b7a2.webp",
     calories: 285,
     protein: 36,
     prepTime: 20,
@@ -201,7 +201,7 @@ const meals: Meal[] = [
   {
     id: 17,
     name: "Chicken Tikka with Raita",
-    image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1565557623262-b51c2513a641.webp",
     calories: 395,
     protein: 42,
     prepTime: 35,
@@ -214,7 +214,7 @@ const meals: Meal[] = [
   {
     id: 18,
     name: "Protein Energy Balls",
-    image: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1604329760661-e71dc83f8f26.webp",
     calories: 145,
     protein: 8,
     prepTime: 15,
@@ -225,7 +225,7 @@ const meals: Meal[] = [
   {
     id: 19,
     name: "Cottage Cheese & Fruit",
-    image: "https://images.unsplash.com/photo-1464305795204-6f5bbfc7fb81?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1464305795204-6f5bbfc7fb81.webp",
     calories: 180,
     protein: 18,
     prepTime: 3,
@@ -236,7 +236,7 @@ const meals: Meal[] = [
   {
     id: 20,
     name: "Edamame & Hummus Plate",
-    image: "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?w=600&q=80",
+    image: "/images/remote/unsplash/photo-1505253716362-afaea1d3d1af.webp",
     calories: 220,
     protein: 14,
     prepTime: 5,

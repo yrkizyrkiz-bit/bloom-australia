@@ -30,7 +30,9 @@ import {
   type OrganCareCheckoutPrefill,
 } from "@/lib/programs/organ-care-public-offer";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import { AustralianAddressLookup } from "@/components/checkout/AustralianAddressLookup";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
+import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -49,11 +51,11 @@ type Step = "verify" | "payment" | "onboard" | "booking" | "quiz" | "complete";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const MEMBERSHIP_BENEFITS = [
-  "Comprehensive Essential biomarker panel — 70+ markers",
+  "Comprehensive Essential biomarker panel, 85+ markers",
   "Doctor consultation and pathology referral included",
   "Biological Clock & Organ Care dashboards",
   "Personalised health insights reviewed by AHPRA doctors",
-  "First 30 days of your eligible care program included",
+  "First 30 days of one eligible care program, choose at your first doctor consultation",
   "Care partner support and 24/7 AI Health Assistant",
 ];
 
@@ -76,11 +78,13 @@ function PaymentForm({
   onSuccess,
   amountAud,
   customerEmail,
+  customerName,
   userId,
 }: {
   onSuccess: (result: CheckoutPaymentSuccess) => void;
   amountAud: number;
   customerEmail?: string;
+  customerName?: string;
   userId?: string;
 }) {
   const stripe = useStripe();
@@ -113,6 +117,10 @@ function PaymentForm({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/membership/checkout?step=complete`,
+        ...stripePaymentMethodBillingDetails({
+          name: customerName,
+          email: customerEmail,
+        }),
       },
       redirect: "if_required",
     });
@@ -139,6 +147,13 @@ function PaymentForm({
       <PaymentElement
         options={{
           layout: "tabs",
+          wallets: { link: "never" },
+          fields: {
+            billingDetails: {
+              email: "never",
+              name: "never",
+            },
+          },
         }}
       />
 
@@ -202,7 +217,7 @@ function IntakeQuizStep({
     answeredQuestionId: string
   ) => {
     // Clinical sex is a gate question: until it's answered, the quiz only
-    // contains that one item. After it, the full gender-specific list loads —
+    // contains that one item. After it, the full gender-specific list loads,
     // never treat the sex question as "last".
     if (answeredQuestionId === "clinicalSex") {
       setQuizIndex(0);
@@ -339,7 +354,7 @@ function IntakeQuizStep({
           disabled={saving}
           className="text-sm text-gray-400 hover:text-gray-600"
         >
-          Skip — I&apos;ll complete it in my portal
+          Skip, I&apos;ll complete it in my portal
         </button>
       </div>
     </div>
@@ -356,6 +371,7 @@ function MembershipCheckoutPageContent() {
   const [contact, setContact] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const [devBypass, setDevBypass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -382,6 +398,7 @@ function MembershipCheckoutPageContent() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
+  const [sex, setSex] = useState<"MALE" | "FEMALE" | "">("");
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
   const [suburb, setSuburb] = useState("");
@@ -441,6 +458,7 @@ function MembershipCheckoutPageContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
+      setDevBypass(Boolean(data.devBypass));
       setCodeSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send code");
@@ -484,8 +502,8 @@ function MembershipCheckoutPageContent() {
   };
 
   const createPaymentIntent = async () => {
-    if (!postcode || postcode.length !== 4) {
-      setError("Please enter a valid 4-digit postcode");
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Please enter your first and last name");
       return;
     }
 
@@ -500,8 +518,8 @@ function MembershipCheckoutPageContent() {
           sessionToken,
           email: email || (verifyMethod === "email" ? contact : null),
           postcode,
-          firstName,
-          lastName,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           phone: phone || (verifyMethod === "phone" ? contact : null),
           intentProgram,
         }),
@@ -551,6 +569,7 @@ function MembershipCheckoutPageContent() {
           suburb,
           state,
           postcode,
+          gender: sex || undefined,
           intentProgram,
           clientOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
         }),
@@ -625,6 +644,7 @@ function MembershipCheckoutPageContent() {
             setCodeSent(false);
             setCode("");
             setError(null);
+            setDevBypass(false);
           }}
           className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
             transition-all ${
@@ -642,6 +662,7 @@ function MembershipCheckoutPageContent() {
             setCodeSent(false);
             setCode("");
             setError(null);
+            setDevBypass(false);
           }}
           className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
             transition-all ${
@@ -690,10 +711,19 @@ function MembershipCheckoutPageContent() {
         <div className="space-y-4">
           <div className="bg-green-50 border border-green-200 rounded-xl p-3">
             <p className="text-sm text-green-800">
-              Code sent to{" "}
-              <span className="font-semibold">
-                {verifyMethod === "email" ? contact : `•••• ${contact.slice(-4)}`}
-              </span>
+              {devBypass ? (
+                <>
+                  Development testing is on. Enter <span className="font-semibold">000000</span>{" "}
+                  for email or mobile.
+                </>
+              ) : (
+                <>
+                  Code sent to{" "}
+                  <span className="font-semibold">
+                    {verifyMethod === "email" ? contact : `•••• ${contact.slice(-4)}`}
+                  </span>
+                </>
+              )}
             </p>
           </div>
           <div>
@@ -734,6 +764,7 @@ function MembershipCheckoutPageContent() {
               setCodeSent(false);
               setCode("");
               setError(null);
+              setDevBypass(false);
             }}
             className="w-full text-sm text-gray-500 hover:text-gray-700"
           >
@@ -773,33 +804,71 @@ function MembershipCheckoutPageContent() {
 
       <div>
         {stepBadge(2)}
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Payment</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+          {clientSecret ? "Payment" : "Your name"}
+        </h3>
       </div>
 
-      {/* Postcode input */}
+      {/* Name before payment */}
       {!clientSecret && (
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Where are you located?
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Enter your postcode"
-              value={postcode}
-              onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-                px-4 py-3.5 text-base outline-none transition-colors"
-              maxLength={4}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                First name
+              </label>
+              <input
+                type="text"
+                autoComplete="given-name"
+                placeholder="First"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                  px-4 py-3.5 text-base outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Last name
+              </label>
+              <input
+                type="text"
+                autoComplete="family-name"
+                placeholder="Last"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                  px-4 py-3.5 text-base outline-none transition-colors"
+              />
+            </div>
           </div>
+          {verifyMethod === "phone" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email
+              </label>
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                  px-4 py-3.5 text-base outline-none transition-colors"
+              />
+            </div>
+          )}
           {error && (
             <p className="text-sm text-red-600">{error}</p>
           )}
           <button
             onClick={createPaymentIntent}
-            disabled={postcode.length !== 4 || isLoading}
+            disabled={
+              !firstName.trim() ||
+              !lastName.trim() ||
+              (verifyMethod === "phone" && !email.trim()) ||
+              isLoading
+            }
             className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
               text-white font-semibold rounded-xl transition-colors flex items-center
               justify-center gap-2"
@@ -835,6 +904,7 @@ function MembershipCheckoutPageContent() {
             onSuccess={handlePaymentSuccess}
             amountAud={priceAud}
             customerEmail={existingUser?.email || (verifyMethod === "email" ? contact : email) || undefined}
+            customerName={`${firstName} ${lastName}`.trim() || undefined}
             userId={existingUser?.id}
           />
         </Elements>
@@ -861,32 +931,62 @@ function MembershipCheckoutPageContent() {
       </div>
 
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-                px-4 py-3 text-base outline-none transition-colors"
-              placeholder="First"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-                px-4 py-3 text-base outline-none transition-colors"
-              placeholder="Last"
-            />
+        <div className="rounded-xl border border-[#e6ebe3] bg-[#f7f4ed] px-4 py-3 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#5c7a52]">
+            Already collected
+          </p>
+          <dl className="space-y-1.5 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-gray-500">First name</dt>
+              <dd className="font-medium text-gray-900">{firstName || "-"}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-gray-500">Last name</dt>
+              <dd className="font-medium text-gray-900">{lastName || "-"}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-gray-500">{verifyMethod === "email" ? "Email" : "Mobile"}</dt>
+              <dd className="font-medium text-gray-900 break-all">
+                {verifyMethod === "email"
+                  ? email || contact
+                  : phone || contact}
+              </dd>
+            </div>
+            {verifyMethod === "phone" && email.trim() ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-gray-500">Email</dt>
+                <dd className="font-medium text-gray-900 break-all">{email}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Sex</label>
+          <div className="flex gap-2">
+            {(
+              [
+                { id: "MALE" as const, label: "Male" },
+                { id: "FEMALE" as const, label: "Female" },
+              ]
+            ).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSex(option.id)}
+                className={`flex-1 py-3 px-4 rounded-xl border-2 font-medium transition-all ${
+                  sex === option.id
+                    ? "border-gray-900 bg-gray-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {verifyMethod !== "email" && (
+        {verifyMethod === "phone" && !email.trim() && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
@@ -933,63 +1033,23 @@ function MembershipCheckoutPageContent() {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
-          <input
-            type="text"
-            value={addressLine1}
-            onChange={(e) => setAddressLine1(e.target.value)}
-            className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-              px-4 py-3 text-base outline-none transition-colors"
-            placeholder="123 Main St"
-          />
-        </div>
-
-        <div>
-          <input
-            type="text"
-            value={addressLine2}
-            onChange={(e) => setAddressLine2(e.target.value)}
-            className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-              px-4 py-3 text-base outline-none transition-colors"
-            placeholder="Unit / Apt (optional)"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Suburb</label>
-            <input
-              type="text"
-              value={suburb}
-              onChange={(e) => setSuburb(e.target.value)}
-              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-                px-4 py-3 text-base outline-none transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-            <select
-              value={state}
-              onChange={(e) => setState(e.target.value)}
-              className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-                px-4 py-3 text-base outline-none transition-colors bg-white"
-            >
-              <option value="">Select</option>
-              {["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <AustralianAddressLookup
+          value={{ addressLine1, addressLine2, suburb, state, postcode }}
+          onChange={(next) => {
+            setAddressLine1(next.addressLine1);
+            setAddressLine2(next.addressLine2);
+            setSuburb(next.suburb);
+            setState(next.state);
+            setPostcode(next.postcode);
+          }}
+          disabled={isLoading}
+        />
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <button
           onClick={completeOnboarding}
-          disabled={!firstName || !lastName || !dateOfBirth || isLoading}
+          disabled={!firstName || !lastName || !dateOfBirth || !sex || isLoading}
           className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
             text-white font-semibold rounded-xl transition-colors flex items-center
             justify-center gap-2"
@@ -1018,7 +1078,7 @@ function MembershipCheckoutPageContent() {
           <Check className="w-4 h-4 text-white" />
         </div>
         <span className="text-sm text-green-800 font-medium">
-          Membership active — welcome to Sanative
+          Membership active, welcome to Sanative
         </span>
       </div>
 
@@ -1132,7 +1192,7 @@ function MembershipCheckoutPageContent() {
           </div>
           <p className="text-sm text-amber-800">
             Your membership is active. Book your doctor consultation from your
-            dashboard when you&apos;re ready — we&apos;ll email you a reminder.
+            dashboard when you&apos;re ready, we&apos;ll email you a reminder.
           </p>
         </div>
       )}
@@ -1140,7 +1200,7 @@ function MembershipCheckoutPageContent() {
       {!quizDone && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left">
           <p className="text-sm text-gray-600">
-            You skipped the clinical intake — complete it in your portal before your
+            You skipped the clinical intake, complete it in your portal before your
             consultation so your doctor can prepare.
           </p>
         </div>
@@ -1213,7 +1273,7 @@ function MembershipCheckoutPageContent() {
                 One membership. Full clarity.
               </h1>
               <p className="text-gray-500 mb-6">
-                Doctor-led biomarker testing and ongoing insights. {priceLabel} —
+                Doctor-led biomarker testing and ongoing insights. {priceLabel},
                 auto-renews annually. Cancel anytime.
               </p>
 

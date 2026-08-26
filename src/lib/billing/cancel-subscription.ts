@@ -340,7 +340,7 @@ export async function cancelMemberProgramSubscription(
       }
       void updated;
     } else if (legacy && effective === "immediate") {
-      // One-off billing (no Stripe subscription) — cancel the record directly.
+      // One-off billing (no Stripe subscription), cancel the record directly.
       await prisma.membershipSubscription.update({
         where: { userId: input.memberId },
         data: { status: "CANCELLED", cancelledAt: new Date() },

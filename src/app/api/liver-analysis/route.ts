@@ -193,7 +193,7 @@ export async function GET() {
 
     // Return the saved analysis whenever the biomarker data is unchanged. A new
     // analysis is only generated when the underlying results change (i.e. a new
-    // blood test is uploaded) — the report is never force-regenerated.
+    // blood test is uploaded), the report is never force-regenerated.
     try {
       const cachedAnalysis = await prisma.aIAnalysisCache.findUnique({
         where: {

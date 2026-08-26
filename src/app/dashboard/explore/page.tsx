@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
-/** Legacy route — programs hub replaced the explore page. */
+/** Legacy route, programs hub replaced the explore page. */
 export default function ExploreRedirectPage() {
   const router = useRouter();
 

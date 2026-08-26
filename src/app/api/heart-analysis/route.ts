@@ -420,7 +420,7 @@ export async function GET() {
     const resultsStale = isResultsStale(dataDate);
 
     // Heart analysis also depends on the editable health profile (BP, smoking,
-    // race, etc.), so fold it into the cache key — changing the profile counts
+    // race, etc.), so fold it into the cache key, changing the profile counts
     // as changed data and produces an updated report.
     const healthProfile = await prisma.healthProfile.findUnique({
       where: { userId: session.user.id }
@@ -440,7 +440,7 @@ export async function GET() {
 
     // Return the saved analysis whenever the biomarker data is unchanged. A new
     // analysis is only generated when the underlying results change (i.e. a new
-    // blood test is uploaded) — the report is never force-regenerated.
+    // blood test is uploaded), the report is never force-regenerated.
     let cachedAnalysis: { biomarkerHash: string; analysisData: unknown } | null = null;
     {
       try {

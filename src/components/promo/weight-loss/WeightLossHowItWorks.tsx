@@ -92,7 +92,7 @@ const supportFeatures = [
   {
     icon: Shield,
     title: "Symptom support",
-    description: "Your care team helps you manage any symptoms early — so you can stay consistent with your plan",
+    description: "Your care team helps you manage any symptoms early, so you can stay consistent with your plan",
   },
   {
     icon: Users,
