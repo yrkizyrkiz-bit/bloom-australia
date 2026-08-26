@@ -501,6 +501,46 @@ function parseDobParts(dob: string) {
   return { day: day || "", month: month || "", year: year || "" };
 }
 
+function getAgeFromDob(dob: string): number {
+  const { day, month, year } = parseDobParts(dob);
+  if (!day || !month || !year) return 0;
+  const birthDate = new Date(Number(year), Number(month) - 1, Number(day));
+  if (
+    Number.isNaN(birthDate.getTime()) ||
+    birthDate.getDate() !== Number(day) ||
+    birthDate.getMonth() !== Number(month) - 1
+  ) {
+    return 0;
+  }
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+function formatDobInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+type ShippingProfilePayload = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  dateOfBirth: string;
+  phone: string;
+  streetAddress: string;
+  addressUnit: string;
+  suburb: string;
+  state: string;
+  postcode: string;
+};
+
 function DateOfBirthInput({
   value,
   onChange,
@@ -1420,6 +1460,9 @@ interface AddressSuggestion {
 
 // ─── ShippingInfoScreen Component ────────────────────────────────────────────
 const SHIPPING_FIELD_LABELS: Record<string, string> = {
+  firstName: "First name",
+  dateOfBirth: "Date of birth",
+  email: "Email",
   lastName: "Last name",
   phone: "Mobile number",
   address: "Street address",
@@ -1427,6 +1470,12 @@ const SHIPPING_FIELD_LABELS: Record<string, string> = {
   state: "State / territory",
   postcode: "Postcode",
 };
+
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const compactFieldClass = (hasError?: boolean) =>
+  `w-full border-2 rounded-xl px-3 py-2.5 text-sm outline-none transition-colors bg-white ${
+    hasError ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
+  }`;
 
 const SHIPPING_ADDRESS_FIELD_KEYS = new Set(["address", "suburb", "state", "postcode"]);
 
@@ -1442,17 +1491,12 @@ function ShippingInfoScreen({
   onSave,
 }: {
   formData: FormData;
-  onSave: (data: {
-    lastName: string;
-    phone: string;
-    streetAddress: string;
-    addressUnit: string;
-    suburb: string;
-    state: string;
-    postcode: string;
-  }) => void | Promise<void | boolean | string>;
+  onSave: (data: ShippingProfilePayload) => void | Promise<void | boolean | string>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [localFirstName, setLocalFirstName] = useState(formData.firstName || '');
+  const [localEmail, setLocalEmail] = useState(formData.email || '');
+  const [localDob, setLocalDob] = useState(formData.dateOfBirth || '');
   const [localLastName, setLocalLastName] = useState(formData.lastName || '');
   const [localPhone, setLocalPhone] = useState(formData.phone || '');
   const [localAddress, setLocalAddress] = useState(formData.streetAddress || '');
@@ -1460,12 +1504,13 @@ function ShippingInfoScreen({
   const [localSuburb, setLocalSuburb] = useState(formData.suburb || '');
   const [localState, setLocalState] = useState(formData.state || '');
   const [localPostcode, setLocalPostcode] = useState(formData.postcode || '');
-  const [addressExpanded, setAddressExpanded] = useState(
-    Boolean(formData.streetAddress && formData.suburb)
-  );
+  const [addressExpanded, setAddressExpanded] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const firstNameRef = useRef<HTMLDivElement>(null);
+  const dobRef = useRef<HTMLDivElement>(null);
+  const emailRef = useRef<HTMLDivElement>(null);
   const lastNameRef = useRef<HTMLDivElement>(null);
   const phoneRef = useRef<HTMLDivElement>(null);
   const postcodeRef = useRef<HTMLDivElement>(null);
@@ -1474,6 +1519,9 @@ function ShippingInfoScreen({
   const stateRef = useRef<HTMLDivElement>(null);
 
   const fieldRefs: Record<string, RefObject<HTMLDivElement | null>> = {
+    firstName: firstNameRef,
+    dateOfBirth: dobRef,
+    email: emailRef,
     lastName: lastNameRef,
     phone: phoneRef,
     postcode: postcodeRef,
@@ -1498,18 +1546,19 @@ function ShippingInfoScreen({
   const debounceRef = useRef<NodeJS.Timeout>();
 
   // Fetch address suggestions from Nominatim (OpenStreetMap)
-  const fetchSuggestions = async (query: string, postcode: string) => {
-    if (query.length < 3 || postcode.length !== 4) {
+  const fetchSuggestions = async (query: string) => {
+    if (query.length < 3) {
       setSuggestions([]);
       return;
     }
 
     setIsSearching(true);
     try {
+      const locationHint = localPostcode.length === 4 ? `, ${localPostcode}` : "";
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?` +
         new URLSearchParams({
-          q: `${query}, ${postcode}, Australia`,
+          q: `${query}${locationHint}, Australia`,
           format: "json",
           addressdetails: "1",
           countrycodes: "au",
@@ -1543,7 +1592,7 @@ function ShippingInfoScreen({
     }
 
     debounceRef.current = setTimeout(() => {
-      fetchSuggestions(value, localPostcode);
+      fetchSuggestions(value);
     }, 350);
   };
 
@@ -1605,6 +1654,17 @@ function ShippingInfoScreen({
 
   const validateFields = (): Record<string, string> => {
     const errs: Record<string, string> = {};
+    if (!localFirstName.trim()) errs.firstName = "First name is required";
+    if (!localDob.trim()) errs.dateOfBirth = "Date of birth is required";
+    else if (localDob.length !== 10 || getAgeFromDob(localDob) < 18) {
+      errs.dateOfBirth = getAgeFromDob(localDob) > 0 && getAgeFromDob(localDob) < 18
+        ? "You must be 18 or older"
+        : "Enter a valid date of birth (DD/MM/YYYY)";
+    }
+    if (!localEmail.trim()) errs.email = "Email is required";
+    else if (!EMAIL_FORMAT.test(localEmail.trim())) {
+      errs.email = "Enter a valid email address";
+    }
     if (!localLastName.trim()) errs.lastName = "Last name is required";
     if (!localPhone.trim()) errs.phone = "Mobile number is required";
     else if (!/^(\+61|0)[4-9]\d{8}$/.test(localPhone.replace(/\s/g, ""))) {
@@ -1621,7 +1681,7 @@ function ShippingInfoScreen({
   };
 
   const scrollToFirstError = (errs: Record<string, string>) => {
-    const order = ["lastName", "phone", "postcode", "address", "suburb", "state"];
+    const order = ["firstName", "dateOfBirth", "email", "lastName", "phone", "address", "suburb", "postcode", "state"];
     const firstKey = order.find((key) => errs[key]);
     const target = firstKey ? fieldRefs[firstKey]?.current : null;
     target?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1644,7 +1704,10 @@ function ShippingInfoScreen({
     setIsSaving(true);
     try {
       const saved = await onSave({
+        firstName: localFirstName.trim(),
         lastName: localLastName.trim(),
+        email: localEmail.trim().toLowerCase(),
+        dateOfBirth: localDob.trim(),
         phone: localPhone.trim(),
         streetAddress: localAddress.trim(),
         addressUnit: localUnit.trim(),
@@ -1662,45 +1725,73 @@ function ShippingInfoScreen({
     }
   };
 
-  const hasDeliverySuburb = Boolean(localSuburb.trim());
-
   return (
-    <div className="flex flex-col min-h-0">
-      <div className="flex-1 px-1 pb-36 overflow-y-auto">
-        {/* Header */}
-        <div className="mb-5">
-          <h1 className="text-2xl font-serif text-[#2c3628] mb-1">
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 min-h-0 px-0.5 overflow-y-auto">
+        <div className="mb-3">
+          <h1 className="text-xl font-serif text-[#2c3628] leading-tight">
             Let&apos;s complete your profile
           </h1>
-          <p className="text-sm text-[#5c7a52]">
-            We collect these details now so we can set up your account and prepare your order if your doctor confirms the program is clinically suitable.
+          <p className="text-xs text-[#5c7a52] mt-0.5 leading-snug">
+            These details set up your account and help us prepare your order if your doctor confirms the program is clinically suitable.
           </p>
         </div>
 
-        {/* Pre-filled Info Display */}
-        <div className="bg-[#f4f7f2] rounded-2xl p-4 mb-6">
-          <p className="text-xs font-medium text-[#7e9a72] uppercase tracking-wider mb-3">Your information</p>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">First name</span>
-              <span className="font-medium text-gray-900">{formData.firstName}</span>
+        <div className="bg-[#f4f7f2] rounded-xl p-3 mb-3">
+          <p className="text-[10px] font-medium text-[#7e9a72] uppercase tracking-wider mb-2">Your information</p>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <div ref={firstNameRef}>
+              <label className="block text-xs font-medium text-gray-700 mb-1">First name</label>
+              <input
+                type="text"
+                value={localFirstName}
+                onChange={(e) => {
+                  setLocalFirstName(e.target.value);
+                  clearFieldError("firstName");
+                }}
+                placeholder="First name"
+                autoComplete="given-name"
+                className={compactFieldClass(Boolean(fieldErrors.firstName))}
+              />
+              {fieldErrors.firstName && <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.firstName}</p>}
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Date of Birth</span>
-              <span className="font-medium text-gray-900">{formData.dateOfBirth}</span>
+            <div ref={dobRef}>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Date of birth</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={localDob}
+                onChange={(e) => {
+                  setLocalDob(formatDobInput(e.target.value));
+                  clearFieldError("dateOfBirth");
+                }}
+                placeholder="DD/MM/YYYY"
+                autoComplete="bday"
+                className={compactFieldClass(Boolean(fieldErrors.dateOfBirth))}
+              />
+              {fieldErrors.dateOfBirth && <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.dateOfBirth}</p>}
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Email</span>
-              <span className="font-medium text-gray-900 truncate ml-4 max-w-[180px]">{formData.email}</span>
-            </div>
+          </div>
+          <div ref={emailRef}>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={localEmail}
+              onChange={(e) => {
+                setLocalEmail(e.target.value);
+                clearFieldError("email");
+              }}
+              placeholder="you@example.com"
+              autoComplete="email"
+              className={compactFieldClass(Boolean(fieldErrors.email))}
+            />
+            {fieldErrors.email && <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.email}</p>}
           </div>
         </div>
 
-        {/* Form Fields */}
-        <div className="space-y-4">
-          {/* Last Name */}
+        <div className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-2 mb-3">
           <div ref={lastNameRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Last name</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Last name</label>
             <input
               type="text"
               value={localLastName}
@@ -1708,18 +1799,14 @@ function ShippingInfoScreen({
                 setLocalLastName(e.target.value);
                 clearFieldError("lastName");
               }}
-              placeholder="Enter your last name"
+              placeholder="Surname"
               autoComplete="family-name"
-              className={`w-full border-2 rounded-2xl px-5 py-4 text-base outline-none transition-colors ${
-                fieldErrors.lastName ? 'border-red-400' : 'border-gray-200 focus:border-[#5c7a52]'
-              }`}
+              className={compactFieldClass(Boolean(fieldErrors.lastName))}
             />
-            {fieldErrors.lastName && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.lastName}</p>}
+            {fieldErrors.lastName && <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.lastName}</p>}
           </div>
-
-          {/* Phone */}
           <div ref={phoneRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mobile number</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Mobile number</label>
             <input
               type="tel"
               value={localPhone}
@@ -1729,229 +1816,180 @@ function ShippingInfoScreen({
               }}
               placeholder="0400 000 000"
               autoComplete="tel"
-              className={`w-full border-2 rounded-2xl px-5 py-4 text-base outline-none transition-colors ${
-                fieldErrors.phone ? 'border-red-400' : 'border-gray-200 focus:border-[#5c7a52]'
-              }`}
+              className={compactFieldClass(Boolean(fieldErrors.phone))}
             />
-            {fieldErrors.phone && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.phone}</p>}
+            {fieldErrors.phone && <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.phone}</p>}
+          </div>
+        </div>
+
+        <div className="pt-2.5 border-t border-[#e6ebe3]">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Package className="w-4 h-4 text-[#5c7a52]" />
+            <p className="text-sm font-semibold text-[#2c3628]">Delivery address</p>
           </div>
 
-          {/* Delivery Address Section */}
-          <div className="pt-4 border-t border-[#e6ebe3]">
-            <div className="flex items-center gap-2 mb-4">
-              <Package className="w-5 h-5 text-[#5c7a52]" />
-              <p className="font-semibold text-[#2c3628]">Delivery address</p>
-            </div>
-
-            {/* Postcode first */}
-            <div className="mb-3" ref={postcodeRef}>
-              <label className="block text-sm font-medium text-[#2c3628] mb-1.5">Postcode</label>
+          <div className="mb-2 relative" ref={addressRef}>
+            <label className="block text-xs font-medium text-[#2c3628] mb-1">Street address</label>
+            <div className="relative">
               <input
                 type="text"
-                inputMode="numeric"
-                placeholder="e.g. 2000"
-                value={localPostcode}
+                placeholder="Start typing your street address..."
+                value={addressQuery || localAddress}
                 onChange={(e) => {
-                  const next = e.target.value.replace(/\D/g, "").slice(0, 4);
-                  setLocalPostcode(next);
-                  clearFieldError("postcode");
-                  if (next.length !== 4) {
-                    setAddressExpanded(false);
-                    setShowSuggestions(false);
-                  }
+                  handleAddressInput(e.target.value);
+                  setLocalAddress(e.target.value);
+                  clearFieldError("address");
+                  if (e.target.value.trim()) setAddressExpanded(true);
                 }}
-                maxLength={4}
-                autoComplete="postal-code"
-                className={`w-full border-2 rounded-2xl px-5 py-4 text-base outline-none transition-colors ${
-                  fieldErrors.postcode ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
-                }`}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                autoComplete="off"
+                className={compactFieldClass(Boolean(fieldErrors.address))}
               />
-              {fieldErrors.postcode && (
-                <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.postcode}</p>
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-[#5c7a52]/30 border-t-[#5c7a52] rounded-full animate-spin" />
+                </div>
               )}
             </div>
 
-            {/* Address search, after postcode */}
-            <div className="mb-3 relative" ref={addressRef}>
-              <label className="block text-sm font-medium text-[#2c3628] mb-1.5">Street address</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder={
-                    localPostcode.length === 4
-                      ? "Start typing your street address..."
-                      : "Enter your postcode first"
-                  }
-                  value={addressQuery || localAddress}
-                  disabled={localPostcode.length !== 4}
-                  onChange={(e) => {
-                    handleAddressInput(e.target.value);
-                    setLocalAddress(e.target.value);
-                    clearFieldError("address");
-                    if (e.target.value.trim()) setAddressExpanded(true);
-                  }}
-                  onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                  autoComplete="off"
-                  className={`w-full border-2 rounded-2xl px-5 py-4 text-base outline-none transition-colors disabled:bg-[#f4f7f2] disabled:text-[#7e9a72] ${
-                    fieldErrors.address ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
-                  }`}
-                />
-                {isSearching && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <div className="w-5 h-5 border-2 border-[#5c7a52]/30 border-t-[#5c7a52] rounded-full animate-spin" />
-                  </div>
-                )}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                {suggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                    className="w-full px-3 py-2 text-left hover:bg-[#f4f7f2] transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-2"
+                  >
+                    <svg className="w-3.5 h-3.5 mt-0.5 text-[#5c7a52] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-xs text-gray-700 line-clamp-2">{suggestion.display_name}</span>
+                  </button>
+                ))}
               </div>
-
-              {/* Autocomplete suggestions dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
-                  {suggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => handleSelectSuggestion(suggestion)}
-                      className="w-full px-4 py-3 text-left hover:bg-[#f4f7f2] transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-3"
-                    >
-                      <svg className="w-4 h-4 mt-1 text-[#5c7a52] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span className="text-sm text-gray-700 line-clamp-2">{suggestion.display_name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {fieldErrors.address && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.address}</p>}
-            </div>
-
-            {/* Expanded after selection or manual entry */}
-            {addressExpanded && (
-              <>
-                <input
-                  type="text"
-                  placeholder="Unit / Apt (optional)"
-                  value={localUnit}
-                  onChange={(e) => setLocalUnit(e.target.value)}
-                  className="w-full border-2 border-[#e6ebe3] focus:border-[#5c7a52] rounded-2xl px-5 py-4 text-base outline-none transition-colors mb-3"
-                />
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div ref={suburbRef}>
-                    <input
-                      type="text"
-                      placeholder="Suburb"
-                      value={localSuburb}
-                      onChange={(e) => {
-                        setLocalSuburb(e.target.value);
-                        clearFieldError("suburb");
-                      }}
-                      className={`w-full border-2 rounded-2xl px-4 py-4 text-base outline-none transition-colors ${
-                        fieldErrors.suburb ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
-                      }`}
-                    />
-                    {fieldErrors.suburb && (
-                      <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.suburb}</p>
-                    )}
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Postcode"
-                      value={localPostcode}
-                      readOnly
-                      className="w-full border-2 rounded-2xl px-4 py-4 text-base outline-none bg-[#f4f7f2] text-[#5c7a52] border-[#e6ebe3]"
-                    />
-                  </div>
-                </div>
-                <div ref={stateRef}>
-                <select
-                  value={localState}
-                  onChange={(e) => {
-                    setLocalState(e.target.value);
-                    clearFieldError("state");
-                  }}
-                  className={`w-full border-2 rounded-2xl px-5 py-4 text-base outline-none transition-colors bg-white appearance-none ${
-                    fieldErrors.state ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
-                  }`}
-                >
-                  <option value="">Select state / territory</option>
-                  {["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"].map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                {fieldErrors.state && (
-                  <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.state}</p>
-                )}
-                </div>
-              </>
             )}
 
-            {!addressExpanded && (
-              <button
-                type="button"
-                onClick={() => setAddressExpanded(true)}
-                className="text-sm text-[#5c7a52] underline text-left px-1"
-              >
-                Enter address manually
-              </button>
-            )}
+            {fieldErrors.address && <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.address}</p>}
           </div>
 
-          {/* Contact & SMS consent */}
-          <ConsentNotice variant="contact" className="mt-4" />
+          {addressExpanded && (
+            <>
+              <input
+                type="text"
+                placeholder="Unit / Apt (optional)"
+                value={localUnit}
+                onChange={(e) => setLocalUnit(e.target.value)}
+                className={`${compactFieldClass()} mb-2`}
+              />
+              <div className="grid grid-cols-[1.3fr_0.7fr_0.9fr] gap-2">
+                <div ref={suburbRef}>
+                  <input
+                    type="text"
+                    placeholder="Suburb"
+                    value={localSuburb}
+                    onChange={(e) => {
+                      setLocalSuburb(e.target.value);
+                      clearFieldError("suburb");
+                    }}
+                    className={compactFieldClass(Boolean(fieldErrors.suburb))}
+                  />
+                  {fieldErrors.suburb && (
+                    <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.suburb}</p>
+                  )}
+                </div>
+                <div ref={postcodeRef}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Postcode"
+                    value={localPostcode}
+                    onChange={(e) => {
+                      const next = e.target.value.replace(/\D/g, "").slice(0, 4);
+                      setLocalPostcode(next);
+                      clearFieldError("postcode");
+                    }}
+                    maxLength={4}
+                    autoComplete="postal-code"
+                    className={compactFieldClass(Boolean(fieldErrors.postcode))}
+                  />
+                  {fieldErrors.postcode && (
+                    <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.postcode}</p>
+                  )}
+                </div>
+                <div ref={stateRef}>
+                  <select
+                    value={localState}
+                    onChange={(e) => {
+                      setLocalState(e.target.value);
+                      clearFieldError("state");
+                    }}
+                    className={`${compactFieldClass(Boolean(fieldErrors.state))} appearance-none`}
+                  >
+                    <option value="">State</option>
+                    {["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"].map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.state && (
+                    <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.state}</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {!addressExpanded && (
+            <button
+              type="button"
+              onClick={() => setAddressExpanded(true)}
+              className="text-xs text-[#5c7a52] underline text-left px-1"
+            >
+              Enter address manually
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Fixed Bottom CTA + delivery summary */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-[#fdfbf7] border-t border-[#e6ebe3] z-[60]"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        className="shrink-0 bg-[#fdfbf7] pt-2"
+        style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}
       >
-        {hasDeliverySuburb && (
-          <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#f4f7f2] border-b border-[#e6ebe3] text-sm text-[#5c7a52]">
-            <Package className="w-4 h-4 flex-shrink-0" />
-            <span>
-              Delivering to <strong className="font-semibold text-[#2c3628]">{localSuburb}</strong>
-              {localState ? `, ${localState}` : ""}
-            </span>
+        {submitError && (
+          <div
+            className="mb-2 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2"
+            role="alert"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
+            <p className="text-xs leading-snug text-red-700">{submitError}</p>
           </div>
         )}
-        <div className="p-4">
-          {submitError && (
-            <div
-              className="mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5"
-              role="alert"
-            >
-              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
-              <p className="text-sm leading-snug text-red-700">{submitError}</p>
-            </div>
-          )}
-          <button
-            onClick={handleShippingContinue}
-            disabled={isSaving}
-            className="w-full py-4 bg-[#5c7a52] hover:bg-[#4a6343] disabled:opacity-50 text-white font-semibold rounded-full text-lg transition-colors flex items-center justify-center gap-2"
-          >
+        <ConsentNotice variant="contact" className="mb-2 leading-snug text-[11px]" />
+        <button
+          onClick={handleShippingContinue}
+          disabled={isSaving}
+          className="w-full py-3 bg-[#5c7a52] hover:bg-[#4a6343] disabled:opacity-50 text-white font-semibold rounded-full text-base transition-colors flex items-center justify-center gap-2"
+        >
           {isSaving ? (
             <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Saving...
             </>
           ) : (
             <>
               Continue to payment
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
-        <div className="flex items-center justify-center gap-2 mt-3">
-          <Shield className="w-4 h-4 text-[#7e9a72]" />
-          <span className="text-xs text-[#7e9a72] font-medium tracking-wide">
+        <div className="flex items-center justify-center gap-1.5 mt-1.5">
+          <Shield className="w-3.5 h-3.5 text-[#7e9a72]" />
+          <span className="text-[10px] text-[#7e9a72] font-medium tracking-wide">
             256-BIT TLS SECURITY
           </span>
-        </div>
         </div>
       </div>
     </div>
@@ -2269,15 +2307,7 @@ export default function WeightLossAssessmentPage() {
   const [showResumeVerification, setShowResumeVerification] = useState(false);
   const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
   const [resumeContext, setResumeContext] = useState<"email-gate" | "shipping" | null>(null);
-  const [pendingShippingData, setPendingShippingData] = useState<{
-    lastName: string;
-    phone: string;
-    streetAddress: string;
-    addressUnit: string;
-    suburb: string;
-    state: string;
-    postcode: string;
-  } | null>(null);
+  const [pendingShippingData, setPendingShippingData] = useState<ShippingProfilePayload | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
@@ -3046,15 +3076,7 @@ export default function WeightLossAssessmentPage() {
 
   // ─── Step 19: Shipping Info Screen (uses ShippingInfoScreen component) ──────
   const handleShippingSubmit = async (
-    data: {
-      lastName: string;
-      phone: string;
-      streetAddress: string;
-      addressUnit: string;
-      suburb: string;
-      state: string;
-      postcode: string;
-    },
+    data: ShippingProfilePayload,
     options?: { resumeVerificationToken?: string }
   ): Promise<boolean | string> => {
     const updatedFormData = {
@@ -4200,13 +4222,15 @@ export default function WeightLossAssessmentPage() {
   const useViewportLayout = VIEWPORT_QUIZ_STEPS.has(step);
   const isThankYouStep = step === 22;
   const isPaymentStep = step === 20;
+  const isProfileStep = step === 19;
   const useFullscreenImmersive = FULLSCREEN_IMMERSIVE_STEPS.has(step) || isThankYouStep;
-  const useCreamTheme = step === 19 || step === 21;
+  const useCreamTheme = isProfileStep || step === 21;
+  const lockToViewport = useFullscreenImmersive || useViewportLayout || isProfileStep;
 
   return (
     <div
       className={
-        useFullscreenImmersive || useViewportLayout
+        lockToViewport
           ? `h-[100dvh] flex flex-col overflow-hidden ${
               isThankYouStep ? "bg-[#5c7a52]" : "bg-[#fdfbf7]"
             }`
@@ -4216,7 +4240,7 @@ export default function WeightLossAssessmentPage() {
           ? "min-h-screen bg-[#fdfbf7] overflow-y-auto"
           : "min-h-screen bg-white overflow-y-auto"
       }
-      style={useFullscreenImmersive || useViewportLayout ? undefined : { WebkitOverflowScrolling: "touch" }}
+      style={lockToViewport ? undefined : { WebkitOverflowScrolling: "touch" }}
     >
       {/* UAT8-GAP-010: Legacy Intro Offer Popup - REMOVED
        * The old $50 promotion conflicted with the current $100 first-month discount.
@@ -4240,14 +4264,14 @@ export default function WeightLossAssessmentPage() {
       >
         <div
           className={`${isPaymentStep ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${
-            useViewportLayout || useFullscreenImmersive
+            useViewportLayout || useFullscreenImmersive || isProfileStep
               ? "pt-3 pb-0"
               : isPaymentStep
                 ? "pt-4 pb-4"
                 : "pt-4 pb-0"
           } flex items-center justify-between`}
         >
-          <Link href="/" className={`font-serif text-[#34412f] ${useViewportLayout || useFullscreenImmersive ? "text-xl" : "text-2xl"}`}>
+          <Link href="/" className={`font-serif text-[#34412f] ${useViewportLayout || useFullscreenImmersive || isProfileStep ? "text-xl" : "text-2xl"}`}>
             Sanative
           </Link>
           <button
@@ -4262,7 +4286,7 @@ export default function WeightLossAssessmentPage() {
         {SHOW_QUIZ_PHASE_PROGRESS(step) && !isPaymentStep && (
           <QuizPhaseProgress
             step={step}
-            compact={useViewportLayout || useFullscreenImmersive}
+            compact={useViewportLayout || useFullscreenImmersive || isProfileStep}
             wide={false}
           />
         )}
@@ -4274,7 +4298,9 @@ export default function WeightLossAssessmentPage() {
         className={
           isPaymentStep
             ? "max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10 relative z-10"
-            : step === 19 || step === 21
+            : isProfileStep
+            ? "flex-1 min-h-0 flex flex-col max-w-2xl mx-auto w-full px-4 pt-2 pb-0 relative z-10 bg-[#fdfbf7]"
+            : step === 21
             ? "max-w-2xl mx-auto px-4 py-6 relative z-10 bg-[#fdfbf7]"
             : isThankYouStep
             ? "relative z-10 flex flex-1 min-h-0 w-full max-w-none flex-col overflow-hidden p-0"
@@ -4287,7 +4313,7 @@ export default function WeightLossAssessmentPage() {
       >
         <div
           className={`transition-all duration-300 ease-out ${
-            useViewportLayout || useFullscreenImmersive ? "flex flex-col flex-1 min-h-0" : ""
+            useViewportLayout || useFullscreenImmersive || isProfileStep ? "flex flex-col flex-1 min-h-0" : ""
           } ${
             isAnimating
               ? animationDirection === 'forward'
