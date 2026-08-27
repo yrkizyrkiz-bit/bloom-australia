@@ -45,7 +45,7 @@ describe("weight-management funnel checkout sequence", () => {
 
   it("does not enqueue public WM members into Pre-Triage Queue at membership payment", () => {
     const membership = readSource("lib/portal/sanative-membership.ts");
-    expect(membership).toContain("isWeightManagementFunnel");
+    expect(membership).toContain("isClinicalProgramMembershipFunnel");
     expect(membership).toContain("createOnboardingPreTriageTask");
   });
 

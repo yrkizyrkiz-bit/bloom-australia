@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { userId, email, phone, firstName, lastName, postcode, intentProgram } =
+    const { userId, email, phone, firstName, lastName, postcode, intentProgram, source } =
       body as Record<string, string | undefined>;
 
     const resolvedEmail = (email || "").toLowerCase().trim();
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
       phone: resolvedPhone,
       postcode: postcode || "",
       userId: user.id,
-      source: "weight_management_assessment",
+      source: source || "weight_management_assessment",
     };
 
     const { subscriptionId, clientSecret, paymentIntentId } =

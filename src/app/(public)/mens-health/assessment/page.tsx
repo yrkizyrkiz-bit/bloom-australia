@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useEffect, useMemo } from "react";
+import { useState, Suspense, useEffect, useMemo, useRef } from "react";
 import type { QuizStep } from "@/lib/programs/quizzes/sexual-health-quiz-shared";
 import {
   getSexualHealthPublicQuizSteps,
@@ -9,21 +9,17 @@ import {
   isSexualHealthQuizStepComplete,
   normalizeSexualHealthConcern,
 } from "@/lib/funnel/mens-sexual-health-public-flow";
-import { scoreMensHealth, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
-import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import {
   resolveMensHealthCanonicalKey,
 } from "@/lib/funnel/public-consult-programs";
-import {
-  getBiomarkerSubscriptionPlan,
-  type BiomarkerSubscriptionTier,
-} from "@/lib/biomarkers/public-subscription-panels";
+import { type BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscription-panels";
 import { resolveRequiredPanelTier } from "@/lib/biomarkers/program-panel-requirements";
 import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
+import { getClinicalProgramFunnelConfig } from "@/lib/funnel/clinical-program-funnel";
 import {
-  navigateToProgramBiomarkersCheckout,
-  type ProgramBiomarkersCheckoutHandoff,
-} from "@/lib/funnel/program-biomarkers-checkout-handoff";
+  ProgramMembershipBackbone,
+  type FunnelProfileFields,
+} from "@/components/funnel/ProgramMembershipBackbone";
 import type { ProgramKey } from "@/lib/membership/keys";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
@@ -77,6 +73,10 @@ interface FormData {
   treatmentGoal: string;
   otherConcerns: string[];
   postcode: string;
+  streetAddress: string;
+  addressUnit: string;
+  suburb: string;
+  state: string;
   discountCode: string;
   confirmedAccurate: boolean;
   agreedToTerms: boolean;
@@ -281,6 +281,10 @@ function AssessmentContent() {
     treatmentGoal: "",
     otherConcerns: [],
     postcode: "",
+    streetAddress: "",
+    addressUnit: "",
+    suburb: "",
+    state: "",
     discountCode: "",
     confirmedAccurate: false,
     agreedToTerms: false,
@@ -295,7 +299,9 @@ function AssessmentContent() {
   const [showResumeVerification, setShowResumeVerification] = useState(false);
   const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
   const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
-  const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
+  const [showMembershipBackbone, setShowMembershipBackbone] = useState(false);
+  const [advanceMembershipToPay, setAdvanceMembershipToPay] = useState(false);
+  const latestProfileRef = useRef<FunnelProfileFields | null>(null);
 
   const sexualQuizSteps = useMemo(
     () => getSexualHealthPublicQuizSteps(quizAnswers),
@@ -306,22 +312,9 @@ function AssessmentContent() {
     [sexualQuizSteps.length]
   );
 
-  // Fetch biomarker campaigns for vitality flow only (no pre-checkout upsell for sexual health)
-  useEffect(() => {
-    if (!isSexualFlow) {
-      fetchBiomarkerCampaigns("MENS_HEALTH").then(setCampaigns);
-    }
-  }, [isSexualFlow]);
-
-  // Vitality: consent(17) → analyse(18) → snapshot(19) → external biomarkers checkout
-  // Sexual: consent → analyse → external biomarkers checkout
   const analyseStep = isSexualFlow ? sexualBounds.analyse : 18;
-  const snapshotStep = isSexualFlow ? -1 : 19;
-  const totalSteps = isSexualFlow ? sexualBounds.analyse + 1 : snapshotStep + 1;
+  const totalSteps = analyseStep + 1;
   const progress = Math.min(((step + 1) / totalSteps) * 100, 100);
-
-  const resolvedPanelTier = formData.panelTier || "advanced";
-  const resolvedPanelPlan = getBiomarkerSubscriptionPlan(resolvedPanelTier);
 
   // Get current phase for progress indicator
   const getPhase = () => {
@@ -335,7 +328,6 @@ function AssessmentContent() {
     if (step <= 15) return 2; // Health Assessment
     if (step === 16) return 2; // Contact details (still part of assessment)
     if (step === 17 || step === analyseStep) return 3;
-    if (step === snapshotStep) return 4;
     return 4;
   };
 
@@ -428,7 +420,6 @@ function AssessmentContent() {
       case 16: return formData.phone.length >= 10 && formData.postcode.length >= 4;
       case 17: return formData.confirmedAccurate;
       case analyseStep:
-      case snapshotStep:
         return true;
       default: return true;
     }
@@ -501,6 +492,7 @@ function AssessmentContent() {
       resolvedProgram?: ProgramKey;
       panelTier?: BiomarkerSubscriptionTier;
       resumeVerificationToken?: string;
+      profile?: FunnelProfileFields;
     }
   ): Promise<boolean> => {
     setIsSubmitting(true);
@@ -515,12 +507,14 @@ function AssessmentContent() {
         overrides?.panelTier ||
         formData.panelTier ||
         resolveRequiredPanelTier(resolvedProgram);
+      const profile = overrides?.profile || latestProfileRef.current;
 
       const result = await submitPublicIntake(
         {
           programType: "MENS_HEALTH",
           ...formData,
           ...quizAnswers,
+          ...(profile ?? {}),
           concern: normalizeSexualHealthConcern(formData.concern),
           resolvedProgram,
           panelTier,
@@ -533,7 +527,7 @@ function AssessmentContent() {
         setUserId(result.userId);
         setShowResumeVerification(false);
         toast.success("Assessment saved", {
-          description: "Continue to secure checkout and book your doctor consultation.",
+          description: "Continue to complete your Sanative membership.",
         });
         return true;
       }
@@ -567,48 +561,26 @@ function AssessmentContent() {
     }
   };
 
-  const redirectToMensBiomarkersCheckout = async (
-    overrides?: {
-      resolvedProgram?: ProgramKey;
-      panelTier?: BiomarkerSubscriptionTier;
-      resumeVerificationToken?: string;
-    }
-  ) => {
-    const resolvedProgram =
-      overrides?.resolvedProgram ||
-      formData.resolvedProgram ||
-      resolveMensHealthCanonicalKey(formData.concern);
-    const panelTier =
-      overrides?.panelTier ||
-      formData.panelTier ||
-      resolveRequiredPanelTier(resolvedProgram);
+  const applyProfileToForm = (next: FunnelProfileFields) => {
+    latestProfileRef.current = next;
+    setFormData((prev) => ({
+      ...prev,
+      firstName: next.firstName,
+      lastName: next.lastName,
+      email: next.email,
+      phone: next.phone,
+      dateOfBirth: next.dateOfBirth,
+      streetAddress: next.streetAddress,
+      addressUnit: next.addressUnit,
+      suburb: next.suburb,
+      state: next.state,
+      postcode: next.postcode,
+    }));
+  };
 
-    const saved = await saveMensIntake({ resolvedProgram, panelTier });
-    if (!saved) return;
-
-    const handoff: ProgramBiomarkersCheckoutHandoff = {
-      source: "mens_health",
-      skipQuiz: true,
-      panelTier,
-      programLabel: "Men's Health",
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      dateOfBirth: formData.dateOfBirth,
-      postcode: formData.postcode,
-      resolvedProgram,
-      quizAnswers: {
-        ...formData,
-        ...quizAnswers,
-        concern: normalizeSexualHealthConcern(formData.concern),
-        resolvedProgram,
-        panelTier,
-        billingPanelTier: publicTierToBillingTier(panelTier),
-        canonicalProgramKey: resolvedProgram,
-      },
-    };
-    navigateToProgramBiomarkersCheckout(handoff);
+  const startMembershipBackbone = () => {
+    setShowMembershipBackbone(true);
+    window.scrollTo(0, 0);
   };
 
   const handleAnalyseComplete = async () => {
@@ -619,18 +591,7 @@ function AssessmentContent() {
       resolvedProgram: program,
       panelTier,
     }));
-
-    if (isSexualFlow) {
-      await redirectToMensBiomarkersCheckout({ resolvedProgram: program, panelTier });
-      return;
-    }
-
-    setStep(snapshotStep);
-    window.scrollTo(0, 0);
-  };
-
-  const handleSnapshotContinue = async () => {
-    await redirectToMensBiomarkersCheckout();
+    startMembershipBackbone();
   };
 
   // Progress Step Indicator Component
@@ -1372,40 +1333,64 @@ function AssessmentContent() {
           />
         );
 
-      case 19: {
-        const risks = scoreMensHealth(formData as unknown as Record<string, unknown>, campaigns);
-        return (
-          <BiomarkerSnapshot
-            risks={risks}
-            primaryProgram="Men's Health Program"
-            primaryPrice="$49 first month"
-            firstName={formData.firstName}
-            offerMode="advancedPanel"
-            marketingHeadline="Biomarker analysis defines the biological starting point for your treatment plan"
-            marketingSubcopy={`Get your ${resolvedPanelPlan.name}, book your doctor consultation, and unlock a precise action plan based on your results.`}
-            advancedPanel={{
-              name: resolvedPanelPlan.name,
-              priceAud: resolvedPanelPlan.priceAud,
-              billingLabel: resolvedPanelPlan.billingLabel,
-              markerCount: resolvedPanelPlan.markerCount,
-              tagline: resolvedPanelPlan.tagline,
-              highlights: resolvedPanelPlan.highlights,
-              onSelect: () => {
-                void redirectToMensBiomarkersCheckout();
-              },
-            }}
-            onPrimary={handleSnapshotContinue}
-            onLabs={() => {
-              void redirectToMensBiomarkersCheckout();
-            }}
-          />
-        );
-      }
-
       default:
         return null;
     }
   };
+
+  const accountModals = (
+    <>
+      <ExistingAccountPrompt
+        open={showExistingAccountPrompt}
+        firstName={existingUserFirstName}
+        loginHref={buildLoginRedirectUrl("/dashboard")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+      />
+      <ProspectiveMemberResumeVerification
+        open={showResumeVerification}
+        email={formData.email}
+        firstName={resumeVerificationFirstName}
+        onVerified={async (sessionToken) => {
+          const saved = await saveMensIntake({ resumeVerificationToken: sessionToken });
+          if (!saved) return;
+          setShowMembershipBackbone(true);
+          setAdvanceMembershipToPay(true);
+        }}
+        onUseDifferentEmail={handleUseDifferentEmail}
+      />
+    </>
+  );
+
+  if (showMembershipBackbone) {
+    return (
+      <>
+        <ProgramMembershipBackbone
+          config={getClinicalProgramFunnelConfig("mens_health", formData.resolvedProgram)}
+          userId={userId}
+          returnPath={`/mens-health/assessment?concern=${encodeURIComponent(concernParam)}`}
+          advanceToPay={advanceMembershipToPay}
+          profile={{
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            dateOfBirth: formData.dateOfBirth,
+            gender: "male",
+            streetAddress: formData.streetAddress,
+            addressUnit: formData.addressUnit,
+            suburb: formData.suburb,
+            state: formData.state,
+            postcode: formData.postcode,
+          }}
+          onProfileSave={async (next) => {
+            applyProfileToForm(next);
+            return saveMensIntake({ profile: next });
+          }}
+        />
+        {accountModals}
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
@@ -1433,8 +1418,7 @@ function AssessmentContent() {
 
       {/* Bottom navigation */}
       {step < totalSteps - 1 &&
-        step !== analyseStep &&
-        step !== snapshotStep && (
+        step !== analyseStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
             {step > 0 && (
@@ -1467,22 +1451,7 @@ function AssessmentContent() {
         </div>
       )}
 
-      <ExistingAccountPrompt
-        open={showExistingAccountPrompt}
-        firstName={existingUserFirstName}
-        loginHref={buildLoginRedirectUrl("/dashboard")}
-        onUseDifferentEmail={handleUseDifferentEmail}
-      />
-
-      <ProspectiveMemberResumeVerification
-        open={showResumeVerification}
-        email={formData.email}
-        firstName={resumeVerificationFirstName}
-        onVerified={async (sessionToken) => {
-          await redirectToMensBiomarkersCheckout({ resumeVerificationToken: sessionToken });
-        }}
-        onUseDifferentEmail={handleUseDifferentEmail}
-      />
+      {accountModals}
 
       <style jsx>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

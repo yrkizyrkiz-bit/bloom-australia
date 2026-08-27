@@ -29,6 +29,7 @@ import {
   type PublicConsultProgram,
 } from "@/lib/funnel/public-consult-programs";
 import { createProgramPreTriageTask, isWeightManagementMembershipFunnel, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
+import { isClinicalProgramMembershipFunnel } from "@/lib/funnel/clinical-program-funnel";
 import { appendPublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
 import { grantProgramPanelEntitlementsAtPayment } from "@/lib/portal/grant-program-panel-at-payment";
 import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
@@ -1229,6 +1230,7 @@ export async function POST(req: NextRequest) {
         paymentMeta,
         booking.notes
       );
+      const isClinicalFunnel = isClinicalProgramMembershipFunnel(paymentMeta);
       let intakeId: string | null = booking.intakeId;
       if (
         (consultProgram.isWeightManagement && !isMembershipStyleBooking) ||
@@ -1245,7 +1247,7 @@ export async function POST(req: NextRequest) {
 
       // Membership / panel funnels enqueue onboarding triage at activation,
       // except the public WM membership funnel, which must land In Triage after booking.
-      if (!isMembershipStyleBooking || isWmMembershipFunnel) {
+      if (!isMembershipStyleBooking || isClinicalFunnel) {
         await createProgramPreTriageTask({
           userId: bookingUserId,
           bookingId: booking.id,

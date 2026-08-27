@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { scoreHairLoss, fetchBiomarkerCampaigns, type BiomarkerCampaignData } from "@/lib/biomarkerScoring";
-import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
-import {
-  navigateToProgramBiomarkersCheckout,
-  type ProgramBiomarkersCheckoutHandoff,
-} from "@/lib/funnel/program-biomarkers-checkout-handoff";
-import {
-  getBiomarkerSubscriptionPlan,
-  type BiomarkerSubscriptionTier,
-} from "@/lib/biomarkers/public-subscription-panels";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { resolveRequiredPanelTier } from "@/lib/biomarkers/program-panel-requirements";
 import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
+import { type BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscription-panels";
+import {
+  buildLoginRedirectUrl,
+  fetchExistingAccountFirstName,
+  submitPublicIntake,
+} from "@/lib/funnel/intake-response";
+import {
+  getClinicalProgramFunnelConfig,
+} from "@/lib/funnel/clinical-program-funnel";
+import { ProgramMembershipBackbone, type FunnelProfileFields } from "@/components/funnel/ProgramMembershipBackbone";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -33,11 +33,6 @@ import {
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
-import {
-  buildLoginRedirectUrl,
-  fetchExistingAccountFirstName,
-  submitPublicIntake,
-} from "@/lib/funnel/intake-response";
 
 // Types
 interface FormData {
@@ -229,58 +224,14 @@ export default function HairAssessmentPage() {
   const [showResumeVerification, setShowResumeVerification] = useState(false);
   const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
   const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
-  const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
+  const [showMembershipBackbone, setShowMembershipBackbone] = useState(false);
+  const [advanceMembershipToPay, setAdvanceMembershipToPay] = useState(false);
+  const latestProfileRef = useRef<FunnelProfileFields | null>(null);
 
-  // Fetch biomarker campaigns on mount
-  useEffect(() => {
-    fetchBiomarkerCampaigns('HAIR_LOSS').then(setCampaigns);
-  }, []);
-
-  // After postcode: analyse → BiomarkerSnapshot → biomarkers checkout (Architecture A)
   const postcodeStep = formData.gender === "female" ? 12 : 11;
   const analyseStep = postcodeStep + 1;
-  const snapshotStep = postcodeStep + 2;
-  const totalSteps = snapshotStep + 1;
+  const totalSteps = analyseStep + 1;
   const progress = ((step + 1) / totalSteps) * 100;
-
-  const resolvedPanelTier = formData.panelTier || "advanced";
-  const resolvedPanelPlan = getBiomarkerSubscriptionPlan(resolvedPanelTier);
-
-  const handleContinueToBiomarkersCheckout = async (options?: {
-    resumeVerificationToken?: string;
-  }) => {
-    const saved = await saveHairIntake(options);
-    if (!saved) return;
-
-    const panelTier = resolvedPanelTier;
-    const handoff: ProgramBiomarkersCheckoutHandoff = {
-      source: "hair_loss",
-      skipQuiz: true,
-      panelTier,
-      programLabel: "Hair Loss",
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      dateOfBirth: formData.dateOfBirth,
-      postcode: formData.postcode,
-      gender: formData.gender || undefined,
-      quizAnswers: {
-        ...formData,
-        panelTier,
-        billingPanelTier: publicTierToBillingTier(panelTier),
-        canonicalProgramKey: "HAIR_LOSS",
-      },
-    };
-    navigateToProgramBiomarkersCheckout(handoff);
-  };
-
-  const handleAnalyseComplete = useCallback(() => {
-    const panelTier = resolveRequiredPanelTier("HAIR_LOSS");
-    setFormData((prev) => ({ ...prev, panelTier }));
-    setStep(snapshotStep);
-    window.scrollTo(0, 0);
-  }, [snapshotStep]);
   const filteredMedicalConditions = useMemo(
     () =>
       medicalConditions.filter(
@@ -399,16 +350,19 @@ export default function HairAssessmentPage() {
 
   const saveHairIntake = async (options?: {
     resumeVerificationToken?: string;
+    profile?: FunnelProfileFields;
   }): Promise<boolean> => {
     setIsSubmitting(true);
     setSubmissionError(null);
     setShowExistingAccountPrompt(false);
     try {
+      const profile = options?.profile || latestProfileRef.current;
       const panelTier = formData.panelTier || resolveRequiredPanelTier("HAIR_LOSS");
       const result = await submitPublicIntake(
         {
           programType: "HAIR_LOSS",
           ...formData,
+          ...(profile ?? {}),
           panelTier,
           billingPanelTier: publicTierToBillingTier(panelTier),
           selectedPlan: "advanced_panel",
@@ -421,7 +375,7 @@ export default function HairAssessmentPage() {
         setUserId(result.userId);
         setShowResumeVerification(false);
         toast.success("Assessment saved", {
-          description: "Continue to secure checkout and book your doctor consultation.",
+          description: "Continue to complete your Sanative membership.",
         });
         return true;
       }
@@ -455,52 +409,37 @@ export default function HairAssessmentPage() {
     }
   };
 
+  const applyProfileToForm = (next: FunnelProfileFields) => {
+    latestProfileRef.current = next;
+    setFormData((prev): FormData => ({
+      ...prev,
+      firstName: next.firstName,
+      lastName: next.lastName,
+      email: next.email,
+      phone: next.phone,
+      dateOfBirth: next.dateOfBirth,
+      gender:
+        next.gender === "male" || next.gender === "female" ? next.gender : prev.gender,
+      streetAddress: next.streetAddress,
+      addressUnit: next.addressUnit,
+      suburb: next.suburb,
+      state: next.state,
+      postcode: next.postcode,
+    }));
+  };
+
+  const handleAnalyseComplete = useCallback(() => {
+    setFormData((prev) => ({
+      ...prev,
+      panelTier: prev.panelTier || resolveRequiredPanelTier("HAIR_LOSS"),
+    }));
+    setShowMembershipBackbone(true);
+    window.scrollTo(0, 0);
+  }, []);
+
   const renderStep = () => {
     if (step === analyseStep) {
       return <HairAnalyseStep onComplete={handleAnalyseComplete} />;
-    }
-
-    if (step === snapshotStep) {
-      const risks = scoreHairLoss(
-        formData as unknown as Record<string, unknown>,
-        campaigns
-      ).map((risk) => ({
-        ...risk,
-        crossSell: undefined,
-        crossSellPath: undefined,
-        crossSellPrice: undefined,
-      }));
-      const panelPlan = resolvedPanelPlan;
-      const panelPackage = resolvedPanelTier;
-
-      return (
-        <BiomarkerSnapshot
-          risks={risks}
-          primaryProgram="Hair Loss Program"
-          primaryPrice="$49 first month"
-          firstName={formData.firstName}
-          offerMode="advancedPanel"
-          marketingHeadline="Biomarker analysis defines the biological starting point for your treatment plan"
-          marketingSubcopy={`Get your ${panelPlan.name}, book your doctor consultation, and unlock a precise action plan based on your results.`}
-          advancedPanel={{
-            name: panelPlan.name,
-            priceAud: panelPlan.priceAud,
-            billingLabel: panelPlan.billingLabel,
-            markerCount: panelPlan.markerCount,
-            tagline: panelPlan.tagline,
-            highlights: panelPlan.highlights,
-            onSelect: () => {
-              void handleContinueToBiomarkersCheckout();
-            },
-          }}
-          onPrimary={() => {
-            void handleContinueToBiomarkersCheckout();
-          }}
-          onLabs={() => {
-            void handleContinueToBiomarkersCheckout();
-          }}
-        />
-      );
     }
 
     switch (step) {
@@ -1063,6 +1002,60 @@ export default function HairAssessmentPage() {
     </div>
   );
 
+  const accountModals = (
+    <>
+      <ExistingAccountPrompt
+        open={showExistingAccountPrompt}
+        firstName={existingUserFirstName}
+        loginHref={buildLoginRedirectUrl("/dashboard/mens-health/hair-loss")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+      />
+      <ProspectiveMemberResumeVerification
+        open={showResumeVerification}
+        email={formData.email}
+        firstName={resumeVerificationFirstName}
+        onVerified={async (sessionToken) => {
+          const saved = await saveHairIntake({ resumeVerificationToken: sessionToken });
+          if (!saved) return;
+          setShowMembershipBackbone(true);
+          setAdvanceMembershipToPay(true);
+        }}
+        onUseDifferentEmail={handleUseDifferentEmail}
+      />
+    </>
+  );
+
+  if (showMembershipBackbone) {
+    return (
+      <>
+        <ProgramMembershipBackbone
+          config={getClinicalProgramFunnelConfig("hair_loss")}
+          userId={userId}
+          returnPath="/hair-assessment"
+          advanceToPay={advanceMembershipToPay}
+          profile={{
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            dateOfBirth: formData.dateOfBirth,
+            gender: formData.gender,
+            streetAddress: formData.streetAddress,
+            addressUnit: formData.addressUnit,
+            suburb: formData.suburb,
+            state: formData.state,
+            postcode: formData.postcode,
+          }}
+          onProfileSave={async (next) => {
+            applyProfileToForm(next);
+            return saveHairIntake({ profile: next });
+          }}
+        />
+        {accountModals}
+      </>
+    );
+  }
+
   const isCheckoutLayout = false;
 
   return (
@@ -1101,8 +1094,7 @@ export default function HairAssessmentPage() {
 
       {/* Bottom navigation */}
       {step < totalSteps - 1 &&
-        step !== analyseStep &&
-        step !== snapshotStep && (
+        step !== analyseStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
           <div className="max-w-2xl mx-auto flex gap-3">
             {step > 0 && (
@@ -1178,22 +1170,7 @@ export default function HairAssessmentPage() {
         </div>
       )}
 
-      <ExistingAccountPrompt
-        open={showExistingAccountPrompt}
-        firstName={existingUserFirstName}
-        loginHref={buildLoginRedirectUrl("/dashboard/mens-health/hair-loss")}
-        onUseDifferentEmail={handleUseDifferentEmail}
-      />
-
-      <ProspectiveMemberResumeVerification
-        open={showResumeVerification}
-        email={formData.email}
-        firstName={resumeVerificationFirstName}
-        onVerified={async (sessionToken) => {
-          await handleContinueToBiomarkersCheckout({ resumeVerificationToken: sessionToken });
-        }}
-        onUseDifferentEmail={handleUseDifferentEmail}
-      />
+      {accountModals}
 
       <style jsx>{`
         @keyframes fadeIn {

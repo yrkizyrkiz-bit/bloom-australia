@@ -5,6 +5,7 @@ import {
   isWeightManagementMembershipFunnel,
   clinicalSubscriptionTierForProgram,
 } from "@/lib/funnel/program-pre-triage";
+import { isClinicalProgramMembershipFunnel } from "@/lib/funnel/clinical-program-funnel";
 
 describe("pre-triage program resolution", () => {
   it("detects the public WM membership funnel from payment metadata", () => {
@@ -19,6 +20,42 @@ describe("pre-triage program resolution", () => {
       isWeightManagementMembershipFunnel({
         purchaseType: "sanative_membership",
         type: "organ_care_membership",
+      })
+    ).toBe(false);
+  });
+
+  it("detects hair, men's, and women's public membership funnels", () => {
+    expect(
+      isClinicalProgramMembershipFunnel({
+        purchaseType: "sanative_membership",
+        intentProgram: "hair_loss",
+        source: "hair_assessment",
+      })
+    ).toBe(true);
+    expect(
+      isClinicalProgramMembershipFunnel({
+        purchaseType: "sanative_membership",
+        intentProgram: "mens_health_sexual",
+        source: "mens_health_assessment",
+      })
+    ).toBe(true);
+    expect(
+      isClinicalProgramMembershipFunnel({
+        purchaseType: "sanative_membership",
+        intentProgram: "womens_health_vitality",
+        source: "womens_health_assessment",
+      })
+    ).toBe(true);
+    expect(
+      isClinicalProgramMembershipFunnel({
+        purchaseType: "sanative_membership",
+        type: "organ_care_membership",
+      })
+    ).toBe(false);
+    expect(
+      isClinicalProgramMembershipFunnel({
+        source: "public_biomarkers",
+        sourceProgram: "hair_loss",
       })
     ).toBe(false);
   });

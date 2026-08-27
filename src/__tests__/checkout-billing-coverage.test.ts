@@ -92,6 +92,20 @@ describe("checkout billing coverage", () => {
     expect(purchase).toContain("keepSingleInTriageBooking");
   });
 
+  it("clinical program assessments use the membership backbone instead of biomarkers checkout", () => {
+    const hair = readSource("app/(public)/hair-assessment/page.tsx");
+    const mens = readSource("app/(public)/mens-health/assessment/page.tsx");
+    const womens = readSource("app/(public)/womens-health/assessment/page.tsx");
+    for (const source of [hair, mens, womens]) {
+      expect(source).toContain("ProgramMembershipBackbone");
+      expect(source).not.toContain("navigateToProgramBiomarkersCheckout");
+    }
+    const biomarkersCheckout = readSource("app/(public)/biomarkers/checkout/page.tsx");
+    const organCare = readSource("app/(public)/organ-care/page.tsx");
+    expect(biomarkersCheckout).not.toContain("ProgramMembershipBackbone");
+    expect(organCare).not.toContain("ProgramMembershipBackbone");
+  });
+
   it("public consult promote sets In Triage without creating PreTriageTask", () => {
     const source = readSource("lib/funnel/program-pre-triage.ts");
     expect(source).toContain('journeyStatus: "PRE_TRIAGE_PENDING"');

@@ -64,12 +64,14 @@ function CardPaymentForm({
   customerEmail,
   customerName,
   userId,
+  returnPath,
   onSuccess,
 }: {
   amountAud: number;
   customerEmail?: string;
   customerName?: string;
   userId?: string;
+  returnPath: string;
   onSuccess: (result: CheckoutPaymentSuccess) => void;
 }) {
   const stripe = useStripe();
@@ -101,7 +103,7 @@ function CardPaymentForm({
     const { error: submitError, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/weight-management/assessment`,
+        return_url: `${window.location.origin}${returnPath}`,
         ...stripePaymentMethodBillingDetails({
           name: customerName,
           email: customerEmail,
@@ -210,6 +212,11 @@ export function FunnelMembershipPaymentScreen({
   state,
   postcode,
   alreadyPaid,
+  intentProgram = "weight_management",
+  source = "weight_management_assessment",
+  returnPath = "/weight-management/assessment",
+  membershipCopy = MEMBERSHIP_COPY,
+  paymentNote = "Your first 30 days of doctor-led medical weight loss care are included. After that, continue for $360 every three months. Cancel anytime.",
   onContinueAfterPaid,
   onSuccess,
   onError,
@@ -227,6 +234,11 @@ export function FunnelMembershipPaymentScreen({
   state?: string;
   postcode?: string;
   alreadyPaid?: boolean;
+  intentProgram?: string;
+  source?: string;
+  returnPath?: string;
+  membershipCopy?: string;
+  paymentNote?: string;
   onContinueAfterPaid?: () => void;
   onSuccess: (result: CheckoutPaymentSuccess) => void;
   onError: (error: string) => void;
@@ -257,7 +269,8 @@ export function FunnelMembershipPaymentScreen({
             firstName,
             lastName,
             postcode,
-            intentProgram: "weight_management",
+            intentProgram,
+            source,
           }),
         });
         const data = await res.json();
@@ -307,7 +320,7 @@ export function FunnelMembershipPaymentScreen({
           state,
           postcode,
           gender,
-          intentProgram: "weight_management",
+          intentProgram,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -325,7 +338,7 @@ export function FunnelMembershipPaymentScreen({
     <div className="bg-white rounded-2xl border border-black/10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-5 sm:p-6 lg:p-7">
       <p className="text-sm font-semibold text-[#1c1c1c] mb-4">Order summary</p>
       <ImageMarquee />
-      <p className="mt-5 text-sm leading-relaxed text-black/70">{MEMBERSHIP_COPY}</p>
+      <p className="mt-5 text-sm leading-relaxed text-black/70">{membershipCopy}</p>
         <div className="mt-6 pt-5 border-t border-black/10">
         <h2 className="text-lg font-semibold text-[#1c1c1c]">Sanative Membership</h2>
         <div className="mt-3 flex items-baseline gap-1.5">
@@ -351,8 +364,7 @@ export function FunnelMembershipPaymentScreen({
       {summary}
       <div className="rounded-2xl border border-[#e6ebe3] bg-[#f4f7f2] px-4 py-3.5">
         <p className="text-sm leading-relaxed text-[#2c3628]">
-          Your first 30 days of doctor-led medical weight loss care are included. After that,
-          continue for $360 every three months. Cancel anytime.
+          {paymentNote}
         </p>
       </div>
     </div>
@@ -419,6 +431,7 @@ export function FunnelMembershipPaymentScreen({
               customerEmail={email}
               customerName={`${firstName} ${lastName}`.trim()}
               userId={userId}
+              returnPath={returnPath}
               onSuccess={handlePaid}
             />
           </Elements>

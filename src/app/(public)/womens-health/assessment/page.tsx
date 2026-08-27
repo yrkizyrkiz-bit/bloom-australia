@@ -1,22 +1,20 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense, useRef } from "react";
 import {
   resolveWomensHealthCanonicalKey,
 } from "@/lib/funnel/public-consult-programs";
 import { resolveRequiredPanelTier } from "@/lib/biomarkers/program-panel-requirements";
-import {
-  type BiomarkerSubscriptionTier,
-} from "@/lib/biomarkers/public-subscription-panels";
-import {
-  navigateToProgramBiomarkersCheckout,
-  type ProgramBiomarkersCheckoutHandoff,
-} from "@/lib/funnel/program-biomarkers-checkout-handoff";
+import { type BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscription-panels";
 import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
+import { getClinicalProgramFunnelConfig } from "@/lib/funnel/clinical-program-funnel";
+import {
+  ProgramMembershipBackbone,
+  type FunnelProfileFields,
+} from "@/components/funnel/ProgramMembershipBackbone";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
-import { WomensHealthInsightsJourney } from "@/components/quiz/WomensHealthInsightsJourney";
 import {
   buildLoginRedirectUrl,
   fetchExistingAccountFirstName,
@@ -127,6 +125,10 @@ interface FormData {
   goals: string[];
   postcode: string;
   address: string;
+  streetAddress: string;
+  addressUnit: string;
+  suburb: string;
+  state: string;
   consultationDate: string;
   consultationTime: string;
   selectedSlotId: string;
@@ -187,6 +189,7 @@ function WomensHealthAssessmentContent() {
     firstName: "", lastName: "", email: "", phone: "", dateOfBirth: "", category: preselectedCategory,
     primaryConcerns: [], symptomDuration: "", currentTreatments: [], medicalConditions: [],
     menstrualStatus: "", familyHistory: [], goals: [], postcode: "", address: "",
+    streetAddress: "", addressUnit: "", suburb: "", state: "",
     consultationDate: "", consultationTime: "", selectedSlotId: "",
     selectedDate: null, selectedTime: "",
     resolvedProgram: "",
@@ -201,6 +204,9 @@ function WomensHealthAssessmentContent() {
   const [showResumeVerification, setShowResumeVerification] = useState(false);
   const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
   const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
+  const [showMembershipBackbone, setShowMembershipBackbone] = useState(false);
+  const [advanceMembershipToPay, setAdvanceMembershipToPay] = useState(false);
+  const latestProfileRef = useRef<FunnelProfileFields | null>(null);
 
   const totalSteps = 15;
   const progress = ((step + 1) / totalSteps) * 100;
@@ -219,7 +225,8 @@ function WomensHealthAssessmentContent() {
       resolvedProgram: program ?? "",
       panelTier: tier,
     }));
-    setStep(14);
+    setShowMembershipBackbone(true);
+    window.scrollTo(0, 0);
   }, [formData.category]);
 
   const toggleArrayField = (field: keyof FormData, value: string) => {
@@ -356,15 +363,21 @@ function WomensHealthAssessmentContent() {
 
   const saveWomensIntake = async (options?: {
     resumeVerificationToken?: string;
+    profile?: FunnelProfileFields;
   }): Promise<boolean> => {
     setIsProcessing(true);
     setSubmissionError(null);
     setShowExistingAccountPrompt(false);
     try {
+      const profile = options?.profile || latestProfileRef.current;
+      const streetAddress = profile?.streetAddress || formData.streetAddress || formData.address;
       const result = await submitPublicIntake(
         {
           programType: "WOMENS_HEALTH",
           ...formData,
+          ...(profile ?? {}),
+          address: streetAddress,
+          streetAddress,
           selectedDate: formData.selectedDate?.toISOString(),
           resolvedProgram: formData.resolvedProgram || null,
           panelTier: formData.panelTier || null,
@@ -380,7 +393,7 @@ function WomensHealthAssessmentContent() {
         setUserId(result.userId);
         setShowResumeVerification(false);
         toast.success("Details saved", {
-          description: "Continue to your Advanced panel checkout.",
+          description: "Continue to complete your Sanative membership.",
         });
         return true;
       }
@@ -414,36 +427,22 @@ function WomensHealthAssessmentContent() {
     }
   };
 
-  const handleContinueToCheckout = async (options?: {
-    resumeVerificationToken?: string;
-  }) => {
-    const saved = await saveWomensIntake(options);
-    if (!saved) return;
-
-    const panelTier = formData.panelTier || "advanced";
-    const handoff: ProgramBiomarkersCheckoutHandoff = {
-      source: "womens_health",
-      skipQuiz: true,
-      panelTier,
-      programLabel: "Women's Health",
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      dateOfBirth: formData.dateOfBirth,
-      postcode: formData.postcode,
-      address: formData.address,
-      resolvedProgram: formData.resolvedProgram || null,
-      quizAnswers: {
-        ...formData,
-        selectedDate: formData.selectedDate?.toISOString?.() ?? formData.selectedDate,
-        panelTier,
-        billingPanelTier: publicTierToBillingTier(panelTier),
-        resolvedProgram: formData.resolvedProgram || null,
-        undiagnosed: !formData.resolvedProgram,
-      },
-    };
-    navigateToProgramBiomarkersCheckout(handoff);
+  const applyProfileToForm = (next: FunnelProfileFields) => {
+    latestProfileRef.current = next;
+    setFormData((prev) => ({
+      ...prev,
+      firstName: next.firstName,
+      lastName: next.lastName,
+      email: next.email,
+      phone: next.phone,
+      dateOfBirth: next.dateOfBirth,
+      streetAddress: next.streetAddress,
+      addressUnit: next.addressUnit,
+      suburb: next.suburb,
+      state: next.state,
+      postcode: next.postcode,
+      address: next.streetAddress,
+    }));
   };
 
   const renderSingleSelectGrid = (
@@ -699,57 +698,72 @@ function WomensHealthAssessmentContent() {
         />
       );
 
-      case 14: {
-        const categoryLabel = selectedCategoryInfo?.label || "women's health";
-        const isUnsure = !formData.resolvedProgram || formData.category === "unsure";
-        const firstName = formData.firstName?.trim().split(/\s+/)[0] || "";
-
-        return (
-          <div className="max-w-6xl mx-auto space-y-8">
-            <WomensHealthInsightsJourney
-              firstName={firstName}
-              categoryLabel={categoryLabel}
-              isUnsure={isUnsure}
-            />
-
-            <div className="mx-auto max-w-md space-y-3">
-              <button
-                type="button"
-                onClick={() => void handleContinueToCheckout()}
-                disabled={isProcessing}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#2D6A5F] px-6 py-4 text-base font-semibold text-white transition-colors hover:bg-[#24574E] disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    Continue to checkout
-                    <ArrowRight className="h-5 w-5" />
-                  </>
-                )}
-              </button>
-
-              {submissionError && (
-                <p className="text-center text-sm text-red-600">{submissionError}</p>
-              )}
-
-              {isUnsure && (
-                <p className="text-center text-xs text-[#7e9a72]">
-                  After your consult, your doctor will classify the right women&apos;s care path for you.
-                </p>
-              )}
-            </div>
-          </div>
-        );
-      }
-
       default:
         return null;
     }
   };
+
+  const accountModals = (
+    <>
+      <ExistingAccountPrompt
+        open={showExistingAccountPrompt}
+        firstName={existingUserFirstName}
+        loginHref={buildLoginRedirectUrl("/dashboard")}
+        onUseDifferentEmail={handleUseDifferentEmail}
+        accentClass="bg-[#c17a58]"
+        accentHoverClass="hover:bg-[#a86548]"
+      />
+      <ProspectiveMemberResumeVerification
+        open={showResumeVerification}
+        email={formData.email}
+        firstName={resumeVerificationFirstName}
+        onVerified={async (sessionToken) => {
+          const saved = await saveWomensIntake({ resumeVerificationToken: sessionToken });
+          if (!saved) return;
+          setShowMembershipBackbone(true);
+          setAdvanceMembershipToPay(true);
+        }}
+        onUseDifferentEmail={handleUseDifferentEmail}
+        accentClass="bg-[#c17a58] hover:bg-[#a86548]"
+      />
+    </>
+  );
+
+  if (showMembershipBackbone) {
+    const categoryQuery = formData.category || preselectedCategory;
+    return (
+      <>
+        <ProgramMembershipBackbone
+          config={getClinicalProgramFunnelConfig("womens_health", formData.resolvedProgram)}
+          userId={userId}
+          returnPath={
+            categoryQuery
+              ? `/womens-health/assessment?category=${encodeURIComponent(categoryQuery)}`
+              : "/womens-health/assessment"
+          }
+          advanceToPay={advanceMembershipToPay}
+          profile={{
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            dateOfBirth: formData.dateOfBirth,
+            gender: "female",
+            streetAddress: formData.streetAddress || formData.address,
+            addressUnit: formData.addressUnit,
+            suburb: formData.suburb,
+            state: formData.state,
+            postcode: formData.postcode,
+          }}
+          onProfileSave={async (next) => {
+            applyProfileToForm(next);
+            return saveWomensIntake({ profile: next });
+          }}
+        />
+        {accountModals}
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
@@ -782,25 +796,7 @@ function WomensHealthAssessmentContent() {
           </div>
         </div>
       )}
-      <ExistingAccountPrompt
-        open={showExistingAccountPrompt}
-        firstName={existingUserFirstName}
-        loginHref={buildLoginRedirectUrl("/dashboard")}
-        onUseDifferentEmail={handleUseDifferentEmail}
-        accentClass="bg-[#c17a58]"
-        accentHoverClass="hover:bg-[#a86548]"
-      />
-
-      <ProspectiveMemberResumeVerification
-        open={showResumeVerification}
-        email={formData.email}
-        firstName={resumeVerificationFirstName}
-        onVerified={async (sessionToken) => {
-          await handleContinueToCheckout({ resumeVerificationToken: sessionToken });
-        }}
-        onUseDifferentEmail={handleUseDifferentEmail}
-        accentClass="bg-[#c17a58] hover:bg-[#a86548]"
-      />
+      {accountModals}
     </div>
   );
 }

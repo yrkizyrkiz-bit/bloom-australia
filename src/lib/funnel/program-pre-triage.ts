@@ -86,6 +86,8 @@ export function resolvePreTriageProgramForBooking(ctx: {
   bookingNotes?: string | null;
   paymentMetadata?: Record<string, string> | null;
 }): PreTriageProgramInfo {
+  const intent = (ctx.paymentMetadata?.intentProgram || "").toLowerCase().replace(/-/g, "_");
+
   if (isWeightManagementMembershipFunnel(ctx.paymentMetadata, ctx.bookingNotes)) {
     return {
       slug: "weight_management",
@@ -97,7 +99,7 @@ export function resolvePreTriageProgramForBooking(ctx: {
 
   // Hair / women's Advanced funnels pay for biomarkers but the clinical program
   // is the condition, keep one In Triage booking, not a biomarkers pre-triage.
-  if (ctx.paymentMetadata?.sourceProgram === "hair_loss") {
+  if (ctx.paymentMetadata?.sourceProgram === "hair_loss" || intent === "hair_loss") {
     return {
       slug: "hair_loss",
       label: "Hair Loss",
@@ -107,13 +109,19 @@ export function resolvePreTriageProgramForBooking(ctx: {
     };
   }
 
-  if (ctx.paymentMetadata?.sourceProgram === "mens_health") {
+  if (
+    ctx.paymentMetadata?.sourceProgram === "mens_health" ||
+    intent === "mens_health" ||
+    intent === "mens_health_vitality" ||
+    intent === "mens_health_sexual"
+  ) {
     return {
       slug: "mens_health",
       label: "Men's Health",
       isWeightManagement: false,
       programKey:
-        ctx.paymentMetadata.programKey === "MENS_HEALTH_SEXUAL"
+        ctx.paymentMetadata?.programKey === "MENS_HEALTH_SEXUAL" ||
+        intent === "mens_health_sexual"
           ? "MENS_HEALTH_SEXUAL"
           : "MENS_HEALTH_VITALITY",
       panelTier: ctx.paymentMetadata?.panelTier,
@@ -124,14 +132,17 @@ export function resolvePreTriageProgramForBooking(ctx: {
   if (
     womensSource === "womens_health" ||
     womensSource === "womens_health_sexual" ||
-    womensSource === "womens_health_vitality"
+    womensSource === "womens_health_vitality" ||
+    intent === "womens_health" ||
+    intent === "womens_health_sexual" ||
+    intent === "womens_health_vitality"
   ) {
     return {
       slug: "womens_health",
       label: "Women's Health",
       isWeightManagement: false,
       programKey:
-        womensSource === "womens_health_sexual"
+        womensSource === "womens_health_sexual" || intent === "womens_health_sexual"
           ? "WOMENS_HEALTH_SEXUAL"
           : "WOMENS_HEALTH_VITALITY",
       panelTier: ctx.paymentMetadata?.panelTier,

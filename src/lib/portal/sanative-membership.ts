@@ -8,6 +8,7 @@ import {
 } from "@/lib/membership/entitlement-service";
 import { normalizeProgramKey } from "@/lib/membership/keys";
 import { createOnboardingPreTriageTask } from "@/lib/funnel/program-pre-triage";
+import { isClinicalProgramMembershipFunnel } from "@/lib/funnel/clinical-program-funnel";
 import {
   hasProcessedPortalPayment,
   recordPortalPaymentInvoice,
@@ -321,10 +322,12 @@ export async function activateSanativeMembership(
       console.error("[sanative_membership] invoice record failed:", err)
     );
 
-    const isWeightManagementFunnel =
-      (input.intentProgram || "").toLowerCase().replace(/-/g, "_") === "weight_management";
-    // WM public funnel books a doctor next and must land in In Triage, not Pre-Triage Queue.
-    if (!isWeightManagementFunnel) {
+    const isClinicalFunnel = isClinicalProgramMembershipFunnel({
+      purchaseType: "sanative_membership",
+      intentProgram: input.intentProgram || "",
+    });
+    // Clinical public funnels book a doctor next and must land in In Triage, not Pre-Triage Queue.
+    if (!isClinicalFunnel) {
       await createOnboardingPreTriageTask({
         userId: user.id,
         programLabel: pricing.productName,
