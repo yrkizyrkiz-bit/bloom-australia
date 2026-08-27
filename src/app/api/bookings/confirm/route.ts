@@ -28,7 +28,7 @@ import {
   resolveWomensHealthCanonicalKey,
   type PublicConsultProgram,
 } from "@/lib/funnel/public-consult-programs";
-import { createProgramPreTriageTask, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
+import { createProgramPreTriageTask, isWeightManagementMembershipFunnel, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
 import { appendPublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
 import { grantProgramPanelEntitlementsAtPayment } from "@/lib/portal/grant-program-panel-at-payment";
 import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
@@ -1224,8 +1224,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (bookingUserId) {
+      const paymentMeta = paymentVerification.paymentIntent.metadata ?? {};
+      const isWmMembershipFunnel = isWeightManagementMembershipFunnel(
+        paymentMeta,
+        booking.notes
+      );
       let intakeId: string | null = booking.intakeId;
-      if (consultProgram.isWeightManagement && !isMembershipStyleBooking) {
+      if (
+        (consultProgram.isWeightManagement && !isMembershipStyleBooking) ||
+        isWmMembershipFunnel
+      ) {
         intakeId = await syncWeightManagementIntakeAfterPayment(
           bookingUserId,
           booking.id,
@@ -1235,8 +1243,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Membership / panel funnels already enqueue onboarding triage at activation.
-      if (!isMembershipStyleBooking) {
+      // Membership / panel funnels enqueue onboarding triage at activation,
+      // except the public WM membership funnel, which must land In Triage after booking.
+      if (!isMembershipStyleBooking || isWmMembershipFunnel) {
         await createProgramPreTriageTask({
           userId: bookingUserId,
           bookingId: booking.id,
@@ -1246,7 +1255,7 @@ export async function POST(req: NextRequest) {
           program: resolvePreTriageProgramForBooking({
             subscriptionTier: user.subscriptionTier,
             bookingNotes: booking.notes,
-            paymentMetadata: paymentVerification.paymentIntent.metadata ?? {},
+            paymentMetadata: paymentMeta,
           }),
         });
       }

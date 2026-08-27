@@ -12,6 +12,7 @@ import { Check, Loader2, Lock, Shield } from "lucide-react";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
+import { STRIPE_CHECKOUT_WALLETS } from "@/lib/checkout/stripe-payment-methods";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -144,7 +145,7 @@ function CardPaymentForm({
       <PaymentElement
         options={{
           layout: "tabs",
-          wallets: { link: "never" },
+          wallets: STRIPE_CHECKOUT_WALLETS,
           fields: {
             billingDetails: {
               email: "never",
@@ -321,7 +322,7 @@ export function FunnelMembershipPaymentScreen({
   };
 
   const summary = (
-    <div className="bg-white rounded-2xl border border-black/10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-5 sm:p-6 lg:p-7 lg:sticky lg:top-8">
+    <div className="bg-white rounded-2xl border border-black/10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-5 sm:p-6 lg:p-7">
       <p className="text-sm font-semibold text-[#1c1c1c] mb-4">Order summary</p>
       <ImageMarquee />
       <p className="mt-5 text-sm leading-relaxed text-black/70">{MEMBERSHIP_COPY}</p>
@@ -340,6 +341,18 @@ export function FunnelMembershipPaymentScreen({
         </div>
         <p className="mt-2 text-xs text-black/40">
           Auto-renews yearly · cancel anytime
+        </p>
+      </div>
+    </div>
+  );
+
+  const summaryColumn = (
+    <div className="space-y-3 lg:sticky lg:top-8">
+      {summary}
+      <div className="rounded-2xl border border-[#e6ebe3] bg-[#f4f7f2] px-4 py-3.5">
+        <p className="text-sm leading-relaxed text-[#2c3628]">
+          Your first 30 days of doctor-led medical weight loss care are included. After that,
+          continue for $360 every three months. Cancel anytime.
         </p>
       </div>
     </div>
@@ -367,7 +380,7 @@ export function FunnelMembershipPaymentScreen({
             Book your doctor
           </button>
         </div>
-        <div className="order-1 lg:order-2">{summary}</div>
+        <div className="order-1 lg:order-2">{summaryColumn}</div>
       </div>
     );
   }
@@ -411,7 +424,7 @@ export function FunnelMembershipPaymentScreen({
           </Elements>
         ) : null}
       </div>
-      <div className="order-1 lg:order-2">{summary}</div>
+      <div className="order-1 lg:order-2">{summaryColumn}</div>
     </div>
   );
 }

@@ -43,10 +43,20 @@ describe("weight-management funnel checkout sequence", () => {
     expect(assessment).not.toContain("requireBookingHold={false}");
   });
 
+  it("does not enqueue public WM members into Pre-Triage Queue at membership payment", () => {
+    const membership = readSource("lib/portal/sanative-membership.ts");
+    expect(membership).toContain("isWeightManagementFunnel");
+    expect(membership).toContain("createOnboardingPreTriageTask");
+  });
+
   it("wires booking confirm into care-partner triage", () => {
     expect(bookingConfirm).toContain("createProgramPreTriageTask");
+    expect(bookingConfirm).toContain("isWeightManagementMembershipFunnel");
     expect(consultBooking).toContain("/api/bookings/hold");
     expect(consultBooking).toContain("/api/bookings/confirm");
     expect(consultBooking).toContain("WEIGHT_MANAGEMENT");
+    const preTriage = readSource("lib/funnel/program-pre-triage.ts");
+    expect(preTriage).toContain("clinicalSubscriptionTierForProgram");
+    expect(preTriage).toContain("subscriptionTier: clinicalTier");
   });
 });

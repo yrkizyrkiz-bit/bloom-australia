@@ -50,12 +50,51 @@ export function resolveBiomarkersPreTriageProgram(
   };
 }
 
+/** True when this paid consult came from the public weight-management membership funnel. */
+export function isWeightManagementMembershipFunnel(
+  paymentMetadata?: Record<string, string> | null,
+  bookingNotes?: string | null
+): boolean {
+  const intent = (paymentMetadata?.intentProgram || "").toLowerCase();
+  const source = (paymentMetadata?.source || "").toLowerCase();
+  if (intent === "weight_management" || source === "weight_management_assessment") {
+    return true;
+  }
+  const notes = (bookingNotes || "").toLowerCase();
+  return (
+    paymentMetadata?.purchaseType === "sanative_membership" &&
+    notes.includes("weight management")
+  );
+}
+
+/** Clinical `User.subscriptionTier` so the member appears in In Triage. */
+export function clinicalSubscriptionTierForProgram(
+  program: Pick<PreTriageProgramInfo, "slug" | "isWeightManagement">
+): string | null {
+  if (program.isWeightManagement || program.slug === "weight_management") {
+    return "weight_management";
+  }
+  if (program.slug === "hair_loss" || program.slug === "mens_health" || program.slug === "womens_health") {
+    return program.slug;
+  }
+  return null;
+}
+
 /** Resolve pre-triage program from booking context (biomarkers consults before legacy WM fallback). */
 export function resolvePreTriageProgramForBooking(ctx: {
   subscriptionTier?: string | null;
   bookingNotes?: string | null;
   paymentMetadata?: Record<string, string> | null;
 }): PreTriageProgramInfo {
+  if (isWeightManagementMembershipFunnel(ctx.paymentMetadata, ctx.bookingNotes)) {
+    return {
+      slug: "weight_management",
+      label: "Weight Management",
+      isWeightManagement: true,
+      programKey: "WEIGHT_MANAGEMENT",
+    };
+  }
+
   // Hair / women's Advanced funnels pay for biomarkers but the clinical program
   // is the condition, keep one In Triage booking, not a biomarkers pre-triage.
   if (ctx.paymentMetadata?.sourceProgram === "hair_loss") {
@@ -151,12 +190,14 @@ export async function createProgramPreTriageTask(
 
   const programGender = genderForPublicConsultSlug(input.program.slug);
   const alreadyInTriage = existingPatient?.journeyStatus === "PRE_TRIAGE_PENDING";
+  const clinicalTier = clinicalSubscriptionTierForProgram(input.program);
 
   await prisma.user.update({
     where: { id: input.userId },
     data: {
       journeyStatus: "PRE_TRIAGE_PENDING",
       memberStatus: "MEMBER",
+      ...(clinicalTier ? { subscriptionTier: clinicalTier } : {}),
       ...(programGender ? { gender: programGender } : {}),
       ...(assignedOwnerId ? { assignedCarePartnerId: assignedOwnerId } : {}),
     },
@@ -181,6 +222,126 @@ export async function createProgramPreTriageTask(
       })
       .catch(() => undefined);
   }
+
+  await completeOnboardingPreTriageTasksForPatient(input.userId);
+}
+
+/** Close public-subscription Pre-Triage Queue rows once the member is In Triage. */
+export async function completeOnboardingPreTriageTasksForPatient(userId: string): Promise<void> {
+  await prisma.preTriageTask.updateMany({
+    where: {
+      patientId: userId,
+      status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
+      notes: { contains: '"source":"public_subscription"' },
+    },
+    data: {
+      status: "COMPLETED",
+      completedAt: new Date(),
+    },
+  });
+}
+
+/** Move booked public WM funnel members from Pre-Triage Queue into In Triage. */
+export async function promoteBookedWeightManagementFunnelMembersToTriage(): Promise<number> {
+  const tasks = await prisma.preTriageTask.findMany({
+    where: {
+      status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
+      notes: { contains: "weight_management" },
+    },
+    select: { patientId: true, notes: true },
+  });
+
+  const seen = new Set<string>();
+  let promoted = 0;
+
+  for (const task of tasks) {
+    if (seen.has(task.patientId)) continue;
+    let meta: { source?: string; intentProgram?: string } = {};
+    try {
+      meta = JSON.parse(task.notes || "{}") as { source?: string; intentProgram?: string };
+    } catch {
+      continue;
+    }
+    if (meta.source !== "public_subscription") continue;
+    if ((meta.intentProgram || "").toLowerCase() !== "weight_management") continue;
+
+    const booking = await prisma.consultationBooking.findFirst({
+      where: {
+        userId: task.patientId,
+        status: { in: ["BOOKING_CONFIRMED", "SLOT_HELD"] },
+      },
+      select: { id: true, scheduledAt: true },
+    });
+    if (!booking) continue;
+
+    const user = await prisma.user.findUnique({
+      where: { id: task.patientId },
+      select: { firstName: true, lastName: true },
+    });
+
+    seen.add(task.patientId);
+    await createProgramPreTriageTask({
+      userId: task.patientId,
+      bookingId: booking.id,
+      patientName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Member",
+      scheduledAt: booking.scheduledAt,
+      program: {
+        slug: "weight_management",
+        label: "Weight Management",
+        isWeightManagement: true,
+        programKey: "WEIGHT_MANAGEMENT",
+      },
+    });
+    promoted += 1;
+  }
+
+  // Membership activation leaves subscriptionTier as "membership". In Triage only
+  // lists clinical program tiers, so booked WM funnel members can be pending but hidden.
+  const stranded = await prisma.user.findMany({
+    where: {
+      subscriptionTier: "membership",
+      journeyStatus: "PRE_TRIAGE_PENDING",
+      consultationBookings: {
+        some: {
+          status: "BOOKING_CONFIRMED",
+          notes: { contains: "Weight Management" },
+        },
+      },
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      consultationBookings: {
+        where: { status: "BOOKING_CONFIRMED" },
+        orderBy: { scheduledAt: "desc" },
+        take: 1,
+        select: { id: true, scheduledAt: true },
+      },
+    },
+  });
+
+  for (const member of stranded) {
+    if (seen.has(member.id)) continue;
+    const booking = member.consultationBookings[0];
+    if (!booking) continue;
+    seen.add(member.id);
+    await createProgramPreTriageTask({
+      userId: member.id,
+      bookingId: booking.id,
+      patientName: `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Member",
+      scheduledAt: booking.scheduledAt,
+      program: {
+        slug: "weight_management",
+        label: "Weight Management",
+        isWeightManagement: true,
+        programKey: "WEIGHT_MANAGEMENT",
+      },
+    });
+    promoted += 1;
+  }
+
+  return promoted;
 }
 
 /** Onboarding triage for subscription-only public flows (e.g. organ care). */

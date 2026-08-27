@@ -33,6 +33,7 @@ import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentC
 import { AustralianAddressLookup } from "@/components/checkout/AustralianAddressLookup";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
+import { STRIPE_CHECKOUT_WALLETS } from "@/lib/checkout/stripe-payment-methods";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -147,7 +148,7 @@ function PaymentForm({
       <PaymentElement
         options={{
           layout: "tabs",
-          wallets: { link: "never" },
+          wallets: STRIPE_CHECKOUT_WALLETS,
           fields: {
             billingDetails: {
               email: "never",

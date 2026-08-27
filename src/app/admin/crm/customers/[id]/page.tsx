@@ -100,6 +100,11 @@ interface AssessmentData {
   currentMedications: string[];
   motivations: string[];
   otherGoals: string[];
+  previousAttempts?: string[];
+  previousTreatment?: string;
+  exerciseFrequency?: string;
+  waistMeasurement?: string;
+  startTiming?: string;
   howHeard: string;
   consultationDate: string;
   consultationTime: string;

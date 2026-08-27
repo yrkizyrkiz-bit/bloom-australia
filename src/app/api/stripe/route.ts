@@ -103,9 +103,7 @@ export async function POST(req: NextRequest) {
         discount: discount ? String(discount) : "0",
         discountType: discountType || "",
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
+    payment_method_types: ["card"],
       // UAT9-GAP-009: Updated fallback text from "Consultation Fee" to "Health Program"
       description: discount > 0
         ? `${PROGRAM_NAMES[program] || "Health Program"} (New Member Discount: ${discount})`

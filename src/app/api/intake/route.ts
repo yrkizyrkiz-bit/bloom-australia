@@ -18,6 +18,7 @@ import {
 } from "@/lib/funnel/member-enrollment-phase";
 import { verifyResumeVerificationToken } from "@/lib/funnel/resume-verification-token";
 import { findProgramMemberByUserOrEmail } from "@/lib/portal/program-member-upsert";
+import { labelWaistMeasurement } from "@/lib/quiz-assessment";
 
 // ─── Program type definitions ─────────────────────────────────────────────────
 
@@ -947,6 +948,27 @@ function buildProgramSpecificRecords(programType: ProgramType, data: Record<stri
 
 // ─── Internal notes by program ────────────────────────────────────────────────
 
+const PREVIOUS_TREATMENT_LABELS: Record<string, string> = {
+  none: "No, this is my first time",
+  otc: "Over-the-counter or online products",
+  prescription: "Prescription medication or hormone therapy in the past",
+  current: "I'm currently on something",
+};
+
+const EXERCISE_FREQUENCY_LABELS: Record<string, string> = {
+  none: "I don't exercise",
+  "too-busy": "I'm too busy to exercise",
+  occasional: "A few times a month",
+  "1-2-week": "1–2 times a week",
+  "3-4-week": "3–4 times a week",
+  "most-days": "Most days",
+};
+
+function labelQuizOption(value: unknown, labels: Record<string, string>): string {
+  if (typeof value !== "string" || !value) return "";
+  return labels[value] || value;
+}
+
 async function saveNotesForProgram(userId: string, programType: ProgramType, data: Record<string, unknown>) {
   const noteGroups: Array<{ title: string; conditions: string[] }> = [];
 
@@ -959,6 +981,10 @@ async function saveNotesForProgram(userId: string, programType: ProgramType, dat
       { title: "Triage, Serious Conditions (FLAG)", conditions: ((data.seriousConditions as string[]) || []).filter((c: string) => c !== "None of these apply") },
       { title: "Triage, Current Medications",       conditions: (data.currentMedications as string[]) || [] },
       { title: "Patient Motivations",                conditions: (data.motivations as string[]) || [] },
+      { title: "Previous Weight Loss Attempts",      conditions: (data.previousAttempts as string[]) || [] },
+      { title: "Previous Treatment",                 conditions: data.previousTreatment ? [labelQuizOption(data.previousTreatment, PREVIOUS_TREATMENT_LABELS)] : [] },
+      { title: "Exercise Frequency",                 conditions: data.exerciseFrequency ? [labelQuizOption(data.exerciseFrequency, EXERCISE_FREQUENCY_LABELS)] : [] },
+      { title: "Waist Measurement",                  conditions: data.waistMeasurement ? [labelWaistMeasurement(data.waistMeasurement)] : [] },
     );
   }
 

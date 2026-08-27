@@ -49,7 +49,7 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
     currency: "aud",
     customer: customerId,
     setup_future_usage: "off_session",
-    automatic_payment_methods: { enabled: true },
+    payment_method_types: ["card"],
     metadata: {
       source: "portal_upsell",
       userId: user.id,

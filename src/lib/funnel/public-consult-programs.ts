@@ -122,6 +122,8 @@ export function resolvePublicConsultProgramFromPaymentMetadata(
   metadata: Record<string, string>
 ): PublicConsultProgram | null {
   const candidates = [
+    metadata.intentProgram,
+    metadata.source,
     metadata.program,
     metadata.type,
     metadata.selectedPlan,

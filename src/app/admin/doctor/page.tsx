@@ -164,6 +164,11 @@ interface PatientBrief {
     weightLossGoal: string;
     motivations: string[];
     previousAttempts: string[];
+    previousTreatment?: string;
+    exerciseFrequency?: string;
+    waistMeasurement?: string;
+    startTiming?: string;
+    otherGoals?: string[];
   };
   clinicalNotes: Array<{
     id: string;
@@ -1035,6 +1040,11 @@ export default function DoctorDashboardPage() {
                         <div className="space-y-3">
                           <div><p className="text-xs font-semibold text-slate-600 mb-1">Weight Loss Goal</p><p className="text-sm">{patientBrief.patientGoals.weightLossGoal || "Not specified"}</p></div>
                           {patientBrief.patientGoals.motivations.length > 0 && <div><p className="text-xs font-semibold text-slate-600 mb-1">Motivations</p><div className="flex flex-wrap gap-1">{patientBrief.patientGoals.motivations.map((m, i) => <Badge key={i} className="bg-green-50 text-green-700 text-xs">{m}</Badge>)}</div></div>}
+                          {patientBrief.patientGoals.previousAttempts.length > 0 && <div><p className="text-xs font-semibold text-slate-600 mb-1">Previous attempts</p><div className="flex flex-wrap gap-1">{patientBrief.patientGoals.previousAttempts.map((m, i) => <Badge key={i} variant="outline" className="text-xs">{m}</Badge>)}</div></div>}
+                          {patientBrief.patientGoals.previousTreatment && <div><p className="text-xs font-semibold text-slate-600 mb-1">Previous treatment</p><p className="text-sm">{patientBrief.patientGoals.previousTreatment}</p></div>}
+                          {patientBrief.patientGoals.exerciseFrequency && <div><p className="text-xs font-semibold text-slate-600 mb-1">Exercise</p><p className="text-sm">{patientBrief.patientGoals.exerciseFrequency}</p></div>}
+                          {patientBrief.patientGoals.waistMeasurement && <div><p className="text-xs font-semibold text-slate-600 mb-1">Waist</p><p className="text-sm">{patientBrief.patientGoals.waistMeasurement}</p></div>}
+                          {patientBrief.patientGoals.startTiming && <div><p className="text-xs font-semibold text-slate-600 mb-1">Preferred start</p><p className="text-sm">{patientBrief.patientGoals.startTiming}</p></div>}
                         </div>
                       </ScrollArea>
                     </CardContent>

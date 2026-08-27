@@ -215,7 +215,10 @@ export async function createIncompleteSubscription(params: {
         }
       : {}),
     payment_behavior: "default_incomplete",
-    payment_settings: { save_default_payment_method: "on_subscription" },
+    payment_settings: {
+      save_default_payment_method: "on_subscription",
+      payment_method_types: ["card"],
+    },
     expand: ["latest_invoice.confirmation_secret"],
     metadata: params.metadata,
     description: params.description,

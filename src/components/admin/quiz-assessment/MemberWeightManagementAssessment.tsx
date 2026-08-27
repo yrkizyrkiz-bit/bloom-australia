@@ -24,6 +24,11 @@ export type WeightManagementAssessmentData = {
   height: string;
   motivations: string[];
   otherGoals: string[];
+  previousAttempts?: string[];
+  previousTreatment?: string;
+  exerciseFrequency?: string;
+  waistMeasurement?: string;
+  startTiming?: string;
   howHeard: string;
   submittedAt: string;
   metabolicConditions: string[];
@@ -197,6 +202,44 @@ export function MemberWeightManagementAssessment({
                 {renderConditionBadges(assessment.otherGoals, "bg-amber-50 text-amber-700")}
               </div>
             )}
+          {assessment.previousAttempts && assessment.previousAttempts.length > 0 && (
+            <div>
+              <Label className="mb-2">Previous weight-loss attempts</Label>
+              {renderConditionBadges(assessment.previousAttempts, "bg-slate-100 text-slate-700")}
+            </div>
+          )}
+          {assessment.previousTreatment && (
+            <div className="pt-1">
+              <p className="text-sm text-muted-foreground">
+                Previous treatment:{" "}
+                <span className="font-medium text-foreground">{assessment.previousTreatment}</span>
+              </p>
+            </div>
+          )}
+          {assessment.exerciseFrequency && (
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Exercise:{" "}
+                <span className="font-medium text-foreground">{assessment.exerciseFrequency}</span>
+              </p>
+            </div>
+          )}
+          {assessment.waistMeasurement && (
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Waist:{" "}
+                <span className="font-medium text-foreground">{assessment.waistMeasurement}</span>
+              </p>
+            </div>
+          )}
+          {assessment.startTiming && (
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Preferred start:{" "}
+                <span className="font-medium text-foreground">{assessment.startTiming}</span>
+              </p>
+            </div>
+          )}
           {assessment.howHeard && (
             <div className="pt-2">
               <p className="text-sm text-muted-foreground">

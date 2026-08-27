@@ -21,6 +21,8 @@ type AustralianAddressLookupProps = {
   value: AustralianAddressValue;
   onChange: (next: AustralianAddressValue) => void;
   disabled?: boolean;
+  compact?: boolean;
+  errors?: Partial<Record<"addressLine1" | "suburb" | "state" | "postcode", string>>;
 };
 
 function newSessionToken(): string {
@@ -34,6 +36,8 @@ export function AustralianAddressLookup({
   value,
   onChange,
   disabled = false,
+  compact = false,
+  errors,
 }: AustralianAddressLookupProps) {
   const listId = useId();
   const [query, setQuery] = useState(value.addressLine1);
@@ -44,6 +48,7 @@ export function AustralianAddressLookup({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [source, setSource] = useState<"google" | "photon" | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [manualEntry, setManualEntry] = useState(false);
   const sessionTokenRef = useRef(newSessionToken());
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const abortRef = useRef<AbortController | null>(null);
@@ -192,33 +197,97 @@ export function AustralianAddressLookup({
   };
 
   const filled = Boolean(value.suburb && value.state && value.postcode);
+  const showDetails =
+    manualEntry ||
+    filled ||
+    Boolean(errors?.suburb || errors?.state || errors?.postcode);
+  const inputClass = (hasError?: boolean) =>
+    compact
+      ? `w-full border-2 rounded-xl px-3 py-2.5 text-sm outline-none transition-colors bg-white ${
+          hasError ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
+        }`
+      : `${fieldClass} ${hasError ? "!border-red-400" : ""}`;
+  const labelClass = compact
+    ? "block text-xs font-medium text-[#2c3628] mb-1"
+    : "block text-sm font-medium text-gray-700 mb-1";
+  const errorClass = compact ? "text-[11px] text-red-500 mt-0.5" : "text-xs text-red-500 mt-1";
+
+  const toggleManualEntry = () => {
+    setManualEntry((current) => {
+      const next = !current;
+      if (next) {
+        setOpen(false);
+        setSuggestions([]);
+        setLookupError(null);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        abortRef.current?.abort();
+        setLoading(false);
+      }
+      return next;
+    });
+  };
 
   return (
-    <div ref={rootRef} className="space-y-3">
+    <div ref={rootRef} className={compact ? "space-y-2" : "space-y-3"}>
       <div className="relative">
-        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${listId}-street`}>
-          Street address
-        </label>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <label className={`${labelClass} mb-0`} htmlFor={`${listId}-street`}>
+            Street address
+          </label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={manualEntry}
+            disabled={disabled}
+            onClick={toggleManualEntry}
+            className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+              manualEntry
+                ? "border-[#5c7a52] bg-[#5c7a52] text-white"
+                : compact
+                  ? "border-[#cdd8c6] bg-white text-[#5c7a52] hover:bg-[#f4f7f2]"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Enter manually
+          </button>
+        </div>
         <div className="relative">
-          <MapPin className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          {manualEntry ? null : (
+            <MapPin className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          )}
           <input
             id={`${listId}-street`}
             type="text"
-            autoComplete="off"
-            role="combobox"
-            aria-expanded={open}
-            aria-controls={listId}
-            aria-autocomplete="list"
-            aria-activedescendant={activeIndex >= 0 ? `${listId}-opt-${activeIndex}` : undefined}
+            autoComplete={manualEntry ? "street-address" : "off"}
+            role={manualEntry ? "textbox" : "combobox"}
+            aria-expanded={manualEntry ? undefined : open}
+            aria-controls={manualEntry ? undefined : listId}
+            aria-autocomplete={manualEntry ? undefined : "list"}
+            aria-activedescendant={
+              !manualEntry && activeIndex >= 0 ? `${listId}-opt-${activeIndex}` : undefined
+            }
             disabled={disabled || resolving}
-            placeholder="Start typing your Australian address"
+            placeholder={
+              manualEntry
+                ? "Street number and name"
+                : "Start typing your Australian address"
+            }
             value={query}
-            onChange={(e) => handleStreetChange(e.target.value)}
-            onFocus={() => {
-              if (suggestions.length > 0) setOpen(true);
+            onChange={(e) => {
+              if (manualEntry) {
+                setQuery(e.target.value);
+                onChange({ ...value, addressLine1: e.target.value });
+                return;
+              }
+              handleStreetChange(e.target.value);
             }}
-            onKeyDown={handleStreetKeyDown}
-            className={`${fieldClass} pl-10 pr-11`}
+            onFocus={() => {
+              if (!manualEntry && suggestions.length > 0) setOpen(true);
+            }}
+            onKeyDown={manualEntry ? undefined : handleStreetKeyDown}
+            className={`${inputClass(Boolean(errors?.addressLine1))} ${
+              manualEntry ? "pr-11" : "pl-10 pr-11"
+            }`}
           />
           <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1">
             {(loading || resolving) && (
@@ -247,11 +316,14 @@ export function AustralianAddressLookup({
             )}
           </div>
         </div>
-        <p className="mt-1.5 text-xs text-gray-500">
-          Pick a match to fill suburb, state and postcode.
+        <p className={`mt-1 text-xs ${compact ? "text-[#7e9a72]" : "text-gray-500"}`}>
+          {manualEntry
+            ? "Type your street, suburb, state and postcode."
+            : "Pick a match to fill suburb, state and postcode."}
         </p>
+        {errors?.addressLine1 ? <p className={errorClass}>{errors.addressLine1}</p> : null}
 
-        {open && suggestions.length > 0 && (
+        {!manualEntry && open && suggestions.length > 0 && (
           <ul
             id={listId}
             role="listbox"
@@ -291,8 +363,10 @@ export function AustralianAddressLookup({
         )}
       </div>
 
-      {lookupError ? <p className="text-xs text-amber-700">{lookupError}</p> : null}
+      {lookupError && !manualEntry ? <p className="text-xs text-amber-700">{lookupError}</p> : null}
 
+      {showDetails ? (
+      <>
       <div>
         <input
           type="text"
@@ -300,59 +374,119 @@ export function AustralianAddressLookup({
           disabled={disabled}
           value={value.addressLine2}
           onChange={(e) => onChange({ ...value, addressLine2: e.target.value })}
-          className={fieldClass}
+          className={inputClass()}
           placeholder="Unit / Apt (optional)"
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Suburb</label>
-          <input
-            type="text"
-            autoComplete="address-level2"
-            disabled={disabled}
-            value={value.suburb}
-            onChange={(e) => onChange({ ...value, suburb: e.target.value })}
-            className={fieldClass}
-            placeholder={filled ? undefined : "Filled from lookup"}
-          />
+      {compact ? (
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <label className={labelClass}>Suburb</label>
+            <input
+              type="text"
+              autoComplete="address-level2"
+              disabled={disabled}
+              value={value.suburb}
+              onChange={(e) => onChange({ ...value, suburb: e.target.value })}
+              className={inputClass(Boolean(errors?.suburb))}
+              placeholder={filled ? undefined : "Suburb"}
+            />
+            {errors?.suburb ? <p className={errorClass}>{errors.suburb}</p> : null}
+          </div>
+          <div className="w-[5.25rem] shrink-0">
+            <label className={labelClass}>Postcode</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="postal-code"
+              disabled={disabled}
+              placeholder="2000"
+              value={value.postcode}
+              onChange={(e) =>
+                onChange({ ...value, postcode: e.target.value.replace(/\D/g, "").slice(0, 4) })
+              }
+              className={inputClass(Boolean(errors?.postcode))}
+              maxLength={4}
+            />
+            {errors?.postcode ? <p className={errorClass}>{errors.postcode}</p> : null}
+          </div>
+          <div className="w-[5rem] shrink-0">
+            <label className={labelClass}>State</label>
+            <select
+              autoComplete="address-level1"
+              disabled={disabled}
+              value={value.state}
+              onChange={(e) => onChange({ ...value, state: e.target.value })}
+              className={`${inputClass(Boolean(errors?.state))} appearance-none`}
+            >
+              <option value="">State</option>
+              {AU_STATES.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+            {errors?.state ? <p className={errorClass}>{errors.state}</p> : null}
+          </div>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">State</label>
-          <select
-            autoComplete="address-level1"
-            disabled={disabled}
-            value={value.state}
-            onChange={(e) => onChange({ ...value, state: e.target.value })}
-            className={`${fieldClass} bg-white`}
-          >
-            <option value="">Select</option>
-            {AU_STATES.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Suburb</label>
+              <input
+                type="text"
+                autoComplete="address-level2"
+                disabled={disabled}
+                value={value.suburb}
+                onChange={(e) => onChange({ ...value, suburb: e.target.value })}
+                className={inputClass(Boolean(errors?.suburb))}
+                placeholder={filled ? undefined : "Filled from lookup"}
+              />
+              {errors?.suburb ? <p className={errorClass}>{errors.suburb}</p> : null}
+            </div>
+            <div>
+              <label className={labelClass}>State</label>
+              <select
+                autoComplete="address-level1"
+                disabled={disabled}
+                value={value.state}
+                onChange={(e) => onChange({ ...value, state: e.target.value })}
+                className={`${inputClass(Boolean(errors?.state))} bg-white`}
+              >
+                <option value="">Select</option>
+                {AU_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+              {errors?.state ? <p className={errorClass}>{errors.state}</p> : null}
+            </div>
+          </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Postcode</label>
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="postal-code"
-          disabled={disabled}
-          placeholder="2000"
-          value={value.postcode}
-          onChange={(e) =>
-            onChange({ ...value, postcode: e.target.value.replace(/\D/g, "").slice(0, 4) })
-          }
-          className={fieldClass}
-          maxLength={4}
-        />
-      </div>
+          <div>
+            <label className={labelClass}>Postcode</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="postal-code"
+              disabled={disabled}
+              placeholder="2000"
+              value={value.postcode}
+              onChange={(e) =>
+                onChange({ ...value, postcode: e.target.value.replace(/\D/g, "").slice(0, 4) })
+              }
+              className={inputClass(Boolean(errors?.postcode))}
+              maxLength={4}
+            />
+            {errors?.postcode ? <p className={errorClass}>{errors.postcode}</p> : null}
+          </div>
+        </>
+      )}
+      </>
+      ) : null}
     </div>
   );
 }

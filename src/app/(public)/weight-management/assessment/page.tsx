@@ -6,6 +6,7 @@ import { scoreWeightManagement, fetchBiomarkerCampaigns, getBiomarkerFlags, type
 import { BiomarkerSnapshot } from "@/components/quiz/BiomarkerSnapshot";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { FunnelMembershipPaymentScreen } from "@/components/checkout/FunnelMembershipPaymentScreen";
+import { AustralianAddressLookup } from "@/components/checkout/AustralianAddressLookup";
 import { MembershipConsultationBooking } from "@/components/membership/MembershipConsultationBooking";
 import { signIn } from "next-auth/react";
 import {
@@ -14,7 +15,6 @@ import {
   resolveAustralianTimezone,
 } from "@/lib/australia-timezone";
 import {
-  filterMetabolicConditionsForGender,
   filterOtherGoalsForGender,
   filterSeriousConditionsForGender,
   pruneGenderIncompatibleSelections,
@@ -83,6 +83,9 @@ interface FormData {
   postcode: string;
   howHeard: string;
   otherGoals: string[];
+  previousTreatment: string;
+  exerciseFrequency: string;
+  waistMeasurement: string;
   streetAddress: string;
   addressUnit: string;
   suburb: string;
@@ -310,6 +313,29 @@ const motivationsOptions = [
   { id: "event", label: "Upcoming event or milestone" },
 ];
 
+const previousTreatmentOptions = [
+  { id: "none", label: "No, this is my first time" },
+  { id: "otc", label: "Over-the-counter or online products" },
+  { id: "prescription", label: "Prescription medication or hormone therapy in the past" },
+  { id: "current", label: "I'm currently on something" },
+];
+
+const exerciseFrequencyOptions = [
+  { id: "none", label: "I don't exercise" },
+  { id: "too-busy", label: "I'm too busy to exercise" },
+  { id: "occasional", label: "A few times a month" },
+  { id: "1-2-week", label: "1–2 times a week" },
+  { id: "3-4-week", label: "3–4 times a week" },
+  { id: "most-days", label: "Most days" },
+];
+
+function isValidWaistMeasurement(value: string): boolean {
+  if (value === "unsure") return true;
+  if (!/^\d{2,3}$/.test(value)) return false;
+  const n = Number(value);
+  return n >= 40 && n <= 200;
+}
+
 const howHeardOptions = [
   "Search engine",
   "Instagram",
@@ -390,10 +416,10 @@ function hasAbsoluteContraindication(seriousConditions: string[]): boolean {
 // ─── End quiz engagement helpers ──────────────────────────────────────────────
 
 /** Steps using viewport-first shell (header fixed, options scroll, footer in flex column) */
-const VIEWPORT_QUIZ_STEPS = new Set([1, 2, 3, 4, 8, 9, 10, 11]);
+const VIEWPORT_QUIZ_STEPS = new Set([1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 14, 15]);
 
 /** BMI animation, email gate, graph reveal, and qualification, fill viewport without page scroll */
-const FULLSCREEN_IMMERSIVE_STEPS = new Set([5, 6, 7, 18]);
+const FULLSCREEN_IMMERSIVE_STEPS = new Set([5, 6, 7, 16, 18]);
 
 const QUIZ_PHASES: {
   id: number;
@@ -402,8 +428,8 @@ const QUIZ_PHASES: {
   steps: readonly number[];
 }[] = [
   { id: 1, label: "Your goal", icon: Target, steps: [1, 2, 3, 4, 5, 6, 7] },
-  { id: 2, label: "About you", icon: User, steps: [8, 9, 10, 11] },
-  { id: 3, label: "Get started", icon: Sparkles, steps: [18, 19, 20, 21, 22] },
+  { id: 2, label: "About you", icon: User, steps: [8, 9, 10, 11, 12, 13, 14, 15] },
+  { id: 3, label: "Get started", icon: Sparkles, steps: [16, 18, 19, 20, 21, 22] },
 ];
 
 function getQuizPhaseInfo(step: number) {
@@ -494,6 +520,67 @@ function QuizPhaseProgress({
 }
 
 const SHOW_QUIZ_PHASE_PROGRESS = (step: number) => step >= 1 && step <= 21;
+
+function WeightManagementAnalyseStep({ onComplete }: { onComplete: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const [currentMessage, setCurrentMessage] = useState(0);
+  const messages = [
+    "Analysing your health profile...",
+    "Matching your answers with doctor-led care...",
+    "Checking what's needed for your consult...",
+    "Preparing your next steps...",
+  ];
+
+  useEffect(() => {
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(onComplete, 400);
+          return 100;
+        }
+        return prev + 2;
+      });
+    }, 50);
+    const messageInterval = setInterval(() => {
+      setCurrentMessage((prev) => (prev + 1) % messages.length);
+    }, 700);
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(messageInterval);
+    };
+  }, [onComplete, messages.length]);
+
+  return (
+    <div className="flex flex-1 min-h-0 items-center justify-center px-4">
+      <div className="w-full space-y-8 py-12 text-center">
+        <div className="w-24 h-24 mx-auto mb-6 relative">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#5c7a52] to-[#34412f] animate-pulse" />
+          <div className="absolute inset-0 rounded-2xl flex items-center justify-center">
+            <Sparkles className="w-12 h-12 text-white animate-bounce" />
+          </div>
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Analysing your responses</h1>
+        <p className="text-[#5c7a52] max-w-md mx-auto">
+          Reviewing your answers so we can prepare your next steps.
+        </p>
+        <div className="max-w-sm mx-auto">
+          <div className="h-2 bg-[#e6ebe3] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#5c7a52] rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-sm text-[#7e9a72] mt-2">{progress}% complete</p>
+        </div>
+        <p className="text-sm text-[#5c7a52] font-medium animate-pulse flex items-center justify-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {messages[currentMessage]}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function parseDobParts(dob: string) {
   if (dob.length !== 10) return { day: "", month: "", year: "" };
@@ -676,12 +763,14 @@ function QuizStepShell({
   greeting,
   headerExtra,
   children,
+  preventScroll = false,
 }: {
   title: ReactNode;
   subtitle?: string;
   greeting?: ReactNode;
   headerExtra?: ReactNode;
   children: ReactNode;
+  preventScroll?: boolean;
 }) {
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full max-w-md mx-auto">
@@ -696,10 +785,16 @@ function QuizStepShell({
         {headerExtra}
       </div>
       <div
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-0.5"
-        style={{ WebkitOverflowScrolling: "touch" }}
+        className={
+          preventScroll
+            ? "flex-1 min-h-0 overflow-hidden flex flex-col"
+            : "flex-1 min-h-0 overflow-y-auto overscroll-contain pr-0.5"
+        }
+        style={preventScroll ? undefined : { WebkitOverflowScrolling: "touch" }}
       >
-        <div className="pb-2">{children}</div>
+        <div className={preventScroll ? "flex-1 min-h-0 flex flex-col" : "pb-2"}>
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -1444,20 +1539,6 @@ function AddressFormStep({
   );
 }
 
-// Address suggestion interface for autocomplete
-interface AddressSuggestion {
-  display_name: string;
-  address: {
-    house_number?: string;
-    road?: string;
-    suburb?: string;
-    city?: string;
-    town?: string;
-    state?: string;
-    postcode?: string;
-  };
-}
-
 // ─── ShippingInfoScreen Component ────────────────────────────────────────────
 const SHIPPING_FIELD_LABELS: Record<string, string> = {
   firstName: "First name",
@@ -1476,8 +1557,6 @@ const compactFieldClass = (hasError?: boolean) =>
   `w-full border-2 rounded-xl px-3 py-2.5 text-sm outline-none transition-colors bg-white ${
     hasError ? "border-red-400" : "border-[#e6ebe3] focus:border-[#5c7a52]"
   }`;
-
-const SHIPPING_ADDRESS_FIELD_KEYS = new Set(["address", "suburb", "state", "postcode"]);
 
 function formatShippingValidationSummary(errs: Record<string, string>): string {
   const labels = Object.keys(errs).map((key) => SHIPPING_FIELD_LABELS[key] ?? key);
@@ -1504,7 +1583,6 @@ function ShippingInfoScreen({
   const [localSuburb, setLocalSuburb] = useState(formData.suburb || '');
   const [localState, setLocalState] = useState(formData.state || '');
   const [localPostcode, setLocalPostcode] = useState(formData.postcode || '');
-  const [addressExpanded, setAddressExpanded] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -1513,10 +1591,7 @@ function ShippingInfoScreen({
   const emailRef = useRef<HTMLDivElement>(null);
   const lastNameRef = useRef<HTMLDivElement>(null);
   const phoneRef = useRef<HTMLDivElement>(null);
-  const postcodeRef = useRef<HTMLDivElement>(null);
   const addressRef = useRef<HTMLDivElement>(null);
-  const suburbRef = useRef<HTMLDivElement>(null);
-  const stateRef = useRef<HTMLDivElement>(null);
 
   const fieldRefs: Record<string, RefObject<HTMLDivElement | null>> = {
     firstName: firstNameRef,
@@ -1524,10 +1599,10 @@ function ShippingInfoScreen({
     email: emailRef,
     lastName: lastNameRef,
     phone: phoneRef,
-    postcode: postcodeRef,
+    postcode: addressRef,
     address: addressRef,
-    suburb: suburbRef,
-    state: stateRef,
+    suburb: addressRef,
+    state: addressRef,
   };
 
   const clearFieldError = (field: string) => {
@@ -1539,97 +1614,8 @@ function ShippingInfoScreen({
     });
     setSubmitError(null);
   };
-  const [addressQuery, setAddressQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const debounceRef = useRef<NodeJS.Timeout>();
 
-  // Fetch address suggestions from Nominatim (OpenStreetMap)
-  const fetchSuggestions = async (query: string) => {
-    if (query.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const locationHint = localPostcode.length === 4 ? `, ${localPostcode}` : "";
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?` +
-        new URLSearchParams({
-          q: `${query}${locationHint}, Australia`,
-          format: "json",
-          addressdetails: "1",
-          countrycodes: "au",
-          limit: "6",
-        }),
-        {
-          headers: {
-            "User-Agent": "SanativeHealth/1.0",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setSuggestions(data);
-        setShowSuggestions(data.length > 0);
-      }
-    } catch (error) {
-      console.error("Error fetching address suggestions:", error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  // Handle address input change with debounce
-  const handleAddressInput = (value: string) => {
-    setAddressQuery(value);
-
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = setTimeout(() => {
-      fetchSuggestions(value);
-    }, 350);
-  };
-
-  // Handle suggestion selection
-  const handleSelectSuggestion = (suggestion: AddressSuggestion) => {
-    const addr = suggestion.address;
-
-    // Build street address
-    const streetParts = [];
-    if (addr.house_number) streetParts.push(addr.house_number);
-    if (addr.road) streetParts.push(addr.road);
-    const streetAddress = streetParts.join(" ");
-
-    // Get suburb/city
-    const suburb = addr.suburb || addr.city || addr.town || "";
-
-    // Map state names to abbreviations
-    let state = addr.state || "";
-    const stateMap: Record<string, string> = {
-      "New South Wales": "NSW",
-      "Victoria": "VIC",
-      "Queensland": "QLD",
-      "Western Australia": "WA",
-      "South Australia": "SA",
-      "Tasmania": "TAS",
-      "Australian Capital Territory": "ACT",
-      "Northern Territory": "NT",
-    };
-    state = stateMap[state] || state;
-
-    setLocalAddress(streetAddress);
-    setLocalSuburb(suburb);
-    setLocalState(state);
-    setLocalPostcode(addr.postcode || '');
-    setAddressQuery(streetAddress);
-    setShowSuggestions(false);
-    setAddressExpanded(true);
+  const clearAddressErrors = () => {
     setFieldErrors((prev) => {
       const next = { ...prev };
       delete next.address;
@@ -1640,17 +1626,6 @@ function ShippingInfoScreen({
     });
     setSubmitError(null);
   };
-
-  // Close suggestions on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (addressRef.current && !addressRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const validateFields = (): Record<string, string> => {
     const errs: Record<string, string> = {};
@@ -1691,9 +1666,6 @@ function ShippingInfoScreen({
     const errs = validateFields();
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
-      if (Object.keys(errs).some((key) => SHIPPING_ADDRESS_FIELD_KEYS.has(key))) {
-        setAddressExpanded(true);
-      }
       setSubmitError(formatShippingValidationSummary(errs));
       requestAnimationFrame(() => scrollToFirstError(errs));
       return;
@@ -1789,8 +1761,8 @@ function ShippingInfoScreen({
           </div>
         </div>
 
-        <div className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-2 mb-3">
-          <div ref={lastNameRef}>
+        <div className="flex items-start gap-2 mb-3">
+          <div ref={lastNameRef} className="min-w-0 flex-1">
             <label className="block text-xs font-medium text-gray-700 mb-1">Last name</label>
             <input
               type="text"
@@ -1805,7 +1777,7 @@ function ShippingInfoScreen({
             />
             {fieldErrors.lastName && <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.lastName}</p>}
           </div>
-          <div ref={phoneRef}>
+          <div ref={phoneRef} className="w-[9.75rem] shrink-0">
             <label className="block text-xs font-medium text-gray-700 mb-1">Mobile number</label>
             <input
               type="tel"
@@ -1828,129 +1800,32 @@ function ShippingInfoScreen({
             <p className="text-sm font-semibold text-[#2c3628]">Delivery address</p>
           </div>
 
-          <div className="mb-2 relative" ref={addressRef}>
-            <label className="block text-xs font-medium text-[#2c3628] mb-1">Street address</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Start typing your street address..."
-                value={addressQuery || localAddress}
-                onChange={(e) => {
-                  handleAddressInput(e.target.value);
-                  setLocalAddress(e.target.value);
-                  clearFieldError("address");
-                  if (e.target.value.trim()) setAddressExpanded(true);
-                }}
-                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                autoComplete="off"
-                className={compactFieldClass(Boolean(fieldErrors.address))}
-              />
-              {isSearching && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="w-4 h-4 border-2 border-[#5c7a52]/30 border-t-[#5c7a52] rounded-full animate-spin" />
-                </div>
-              )}
-            </div>
-
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
-                {suggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(suggestion)}
-                    className="w-full px-3 py-2 text-left hover:bg-[#f4f7f2] transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-2"
-                  >
-                    <svg className="w-3.5 h-3.5 mt-0.5 text-[#5c7a52] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="text-xs text-gray-700 line-clamp-2">{suggestion.display_name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {fieldErrors.address && <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.address}</p>}
+          <div ref={addressRef}>
+            <AustralianAddressLookup
+              compact
+              value={{
+                addressLine1: localAddress,
+                addressLine2: localUnit,
+                suburb: localSuburb,
+                state: localState,
+                postcode: localPostcode,
+              }}
+              onChange={(next) => {
+                setLocalAddress(next.addressLine1);
+                setLocalUnit(next.addressLine2);
+                setLocalSuburb(next.suburb);
+                setLocalState(next.state);
+                setLocalPostcode(next.postcode);
+                clearAddressErrors();
+              }}
+              errors={{
+                addressLine1: fieldErrors.address,
+                suburb: fieldErrors.suburb,
+                state: fieldErrors.state,
+                postcode: fieldErrors.postcode,
+              }}
+            />
           </div>
-
-          {addressExpanded && (
-            <>
-              <input
-                type="text"
-                placeholder="Unit / Apt (optional)"
-                value={localUnit}
-                onChange={(e) => setLocalUnit(e.target.value)}
-                className={`${compactFieldClass()} mb-2`}
-              />
-              <div className="grid grid-cols-[1.3fr_0.7fr_0.9fr] gap-2">
-                <div ref={suburbRef}>
-                  <input
-                    type="text"
-                    placeholder="Suburb"
-                    value={localSuburb}
-                    onChange={(e) => {
-                      setLocalSuburb(e.target.value);
-                      clearFieldError("suburb");
-                    }}
-                    className={compactFieldClass(Boolean(fieldErrors.suburb))}
-                  />
-                  {fieldErrors.suburb && (
-                    <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.suburb}</p>
-                  )}
-                </div>
-                <div ref={postcodeRef}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Postcode"
-                    value={localPostcode}
-                    onChange={(e) => {
-                      const next = e.target.value.replace(/\D/g, "").slice(0, 4);
-                      setLocalPostcode(next);
-                      clearFieldError("postcode");
-                    }}
-                    maxLength={4}
-                    autoComplete="postal-code"
-                    className={compactFieldClass(Boolean(fieldErrors.postcode))}
-                  />
-                  {fieldErrors.postcode && (
-                    <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.postcode}</p>
-                  )}
-                </div>
-                <div ref={stateRef}>
-                  <select
-                    value={localState}
-                    onChange={(e) => {
-                      setLocalState(e.target.value);
-                      clearFieldError("state");
-                    }}
-                    className={`${compactFieldClass(Boolean(fieldErrors.state))} appearance-none`}
-                  >
-                    <option value="">State</option>
-                    {["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"].map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldErrors.state && (
-                    <p className="text-[11px] text-red-500 mt-0.5">{fieldErrors.state}</p>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          {!addressExpanded && (
-            <button
-              type="button"
-              onClick={() => setAddressExpanded(true)}
-              className="text-xs text-[#5c7a52] underline text-left px-1"
-            >
-              Enter address manually
-            </button>
-          )}
         </div>
       </div>
 
@@ -2267,6 +2142,9 @@ export default function WeightLossAssessmentPage() {
     postcode: "",
     howHeard: "",
     otherGoals: [],
+    previousTreatment: "",
+    exerciseFrequency: "",
+    waistMeasurement: "",
     streetAddress: "",
     addressUnit: "",
     suburb: "",
@@ -2363,9 +2241,9 @@ export default function WeightLossAssessmentPage() {
     }
   }, [step, formData.selectedPlan]);
 
-  // Clinical history questions now live in the portal after first login
+  // Remaining unused clinical screen (17) stays portal-only after first login
   useEffect(() => {
-    if (step >= 12 && step <= 17) {
+    if (step === 17) {
       setStep(18);
     }
   }, [step]);
@@ -2402,7 +2280,9 @@ export default function WeightLossAssessmentPage() {
   // 1=weightLossGoal, 2=firstName, 3=currentWeight, 4=height,
   // 5=circularProgress, 6=emailGate, 7=graphReveal,
   // 8=gender, 9=DOB, 10=motivations,
-  // 11=otherGoals (cross-sell), then skip to qualification.
+  // 11=previousAttempts, 12=previousTreatment, 13=exerciseFrequency,
+  // 14=waistMeasurement, 15=otherGoals (cross-sell), 16=analysing responses,
+  // then skip leftover clinical history to qualification.
   // Clinical history (metabolic/digestive/cardio/mental/serious/meds) is completed
   // in the portal after first login.
   // 18=qualification, 19=complete profile, 20=payment, 21=book doctor, 22=welcome + password
@@ -2476,11 +2356,6 @@ export default function WeightLossAssessmentPage() {
     { id: "none", label: "None of the above" },
   ];
 
-  const filteredMetabolicConditions = useMemo(
-    () => filterMetabolicConditionsForGender(metabolicConditions, formData.gender),
-    [formData.gender]
-  );
-
   const filteredSeriousConditions = useMemo(
     () => filterSeriousConditionsForGender(seriousConditions, formData.gender),
     [formData.gender]
@@ -2503,7 +2378,12 @@ export default function WeightLossAssessmentPage() {
       case 8: return formData.gender !== "";
       case 9: return formData.dateOfBirth.length === 10 && isValidAge;
       case 10: return formData.motivations.length > 0; // Motivations (moved earlier)
-      case 11: return (formData.otherGoals || []).length > 0; // Other goals cross-sell
+      case 11: return formData.previousAttempts.length > 0;
+      case 12: return formData.previousTreatment !== "";
+      case 13: return formData.exerciseFrequency !== "";
+      case 14: return isValidWaistMeasurement(formData.waistMeasurement);
+      case 15: return (formData.otherGoals || []).length > 0; // Other goals cross-sell
+      case 16: return true; // Analysing responses (auto-advances)
       case 18: return true; // Qualification (continue button)
       case 19: return true; // Complete profile (handled internally)
       case 20: return true; // Payment handles its own validation
@@ -2539,7 +2419,7 @@ export default function WeightLossAssessmentPage() {
       });
     }
     if (canProceed() && step < totalSteps) {
-      if (step === 11) {
+      if (step === 16) {
         animateToStep(18, "forward");
         return;
       }
@@ -2555,7 +2435,9 @@ export default function WeightLossAssessmentPage() {
       } else if (step === 6) {
         animateToStep(4, "backward");
       } else if (step === 18) {
-        animateToStep(11, "backward");
+        animateToStep(15, "backward");
+      } else if (step === 16) {
+        animateToStep(15, "backward");
       } else {
         animateToStep(step - 1, "backward");
       }
@@ -3610,9 +3492,18 @@ export default function WeightLossAssessmentPage() {
   };
 
   const renderStep = () => {
-    // Clinical history is collected in the portal after first login
-    if (step >= 12 && step <= 17) {
+    // Unused medications screen stays portal-only after first login
+    if (step === 17) {
       return null;
+    }
+
+    // Step 16: Analysing responses (matches hair / ED funnels)
+    if (step === 16) {
+      return (
+        <WeightManagementAnalyseStep
+          onComplete={() => animateToStep(18, "forward")}
+        />
+      );
     }
 
     // Step 5: Circular progress animation
@@ -3725,8 +3616,8 @@ export default function WeightLossAssessmentPage() {
       );
     }
 
-    // Step 11: Other health goals (cross-sell)
-    if (step === 11) {
+    // Step 15: Other health goals (cross-sell)
+    if (step === 15) {
       return renderOtherGoalsStep();
     }
 
@@ -3912,33 +3803,137 @@ export default function WeightLossAssessmentPage() {
       case 10:
         return renderMotivations();
 
-      // Step 12 - Metabolic conditions
+      // Step 11 - Previous weight-loss attempts (matches portal WM join quiz)
+      case 11:
+        return renderConditionsStep(
+          "Have you tried to lose weight before?",
+          "Select all that apply.",
+          previousAttemptsOptions,
+          "previousAttempts"
+        );
+
+      // Step 12 - Previous treatment (matches portal WM join quiz)
       case 12:
-        return renderConditionsStep(
-          "Do you have any metabolic conditions?",
-          "These help your doctor understand your metabolic health profile.",
-          filteredMetabolicConditions,
-          "metabolicConditions"
+        return (
+          <QuizStepShell
+            title="Have you tried treatment for this before?"
+            greeting={renderGreeting()}
+          >
+            <div className="space-y-2.5 pt-1">
+              {previousTreatmentOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => {
+                    updateFormData("previousTreatment", option.id);
+                    setTimeout(() => animateToStep(step + 1, "forward"), 300);
+                  }}
+                  className={`w-full py-3 px-6 rounded-xl border-2 text-center font-medium transition-all ${
+                    formData.previousTreatment === option.id
+                      ? "border-[#5c7a52] bg-[#5c7a52]/10 text-[#2c3628]"
+                      : "border-[#e6ebe3] bg-white text-[#2c3628] hover:border-[#cdd8c6]"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </QuizStepShell>
         );
 
-      // Step 13 - Digestive conditions
+      // Step 13 - Exercise frequency
       case 13:
-        return renderConditionsStep(
-          "Any digestive or gastrointestinal conditions?",
-          "These help your doctor assess your full health picture.",
-          digestiveConditions,
-          "digestiveConditions"
+        return (
+          <QuizStepShell
+            title="How often do you exercise?"
+            greeting={renderGreeting()}
+            preventScroll
+          >
+            <div className="space-y-2 pt-1">
+              {exerciseFrequencyOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => {
+                    updateFormData("exerciseFrequency", option.id);
+                    setTimeout(() => animateToStep(14, "forward"), 300);
+                  }}
+                  className={`w-full py-2.5 px-5 rounded-xl border-2 text-center font-medium transition-all ${
+                    formData.exerciseFrequency === option.id
+                      ? "border-[#5c7a52] bg-[#5c7a52]/10 text-[#2c3628]"
+                      : "border-[#e6ebe3] bg-white text-[#2c3628] hover:border-[#cdd8c6]"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </QuizStepShell>
         );
 
-      // Step 14 - Cardiovascular conditions
-      case 14:
-        return renderConditionsStep(
-          "Any heart or cardiovascular conditions?",
-          "Weight loss can significantly improve heart health.",
-          cardiovascularConditions,
-          "cardiovascularConditions"
-        );
+      // Step 14 - Waist measurement
+      case 14: {
+        const waistIsUnsure = formData.waistMeasurement === "unsure";
+        const waistNumber = waistIsUnsure ? "" : formData.waistMeasurement;
+        const waistImage =
+          formData.gender === "male"
+            ? "/images/weight-management/waist-measure-male.jpg"
+            : "/images/weight-management/waist-measure-female.jpg";
 
+        return (
+          <QuizStepShell
+            title="What's your waist measurement in cm?"
+            greeting={renderGreeting()}
+            preventScroll
+          >
+            <div className="flex flex-col flex-1 min-h-0 gap-2.5">
+              <img
+                src={waistImage}
+                alt="How to measure your waist with a tape around your midsection"
+                width={682}
+                height={1024}
+                className="mx-auto h-56 w-auto max-w-full rounded-2xl object-contain"
+              />
+              <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={waistNumber}
+                    onChange={(e) => {
+                      const next = e.target.value.replace(/\D/g, "").slice(0, 3);
+                      updateFormData("waistMeasurement", next);
+                    }}
+                    className="w-40 px-4 py-2.5 rounded-xl border-2 border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white text-center text-2xl font-medium"
+                    placeholder="90"
+                    autoFocus
+                    aria-label="Waist measurement in centimetres"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7e9a72] font-medium">
+                    cm
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateFormData("waistMeasurement", "unsure");
+                    setTimeout(() => animateToStep(15, "forward"), 300);
+                  }}
+                  className={`w-full py-2.5 px-5 rounded-xl border-2 text-center font-medium transition-all ${
+                    waistIsUnsure
+                      ? "border-[#5c7a52] bg-[#5c7a52]/10 text-[#2c3628]"
+                      : "border-[#e6ebe3] bg-white text-[#2c3628] hover:border-[#cdd8c6]"
+                  }`}
+                >
+                  I&apos;m not sure
+                </button>
+              </div>
+            </div>
+          </QuizStepShell>
+        );
+      }
+
+      // Unused in the public funnel (clinical history is completed in the portal).
       // Step 15 - Mental health conditions
       case 15:
         return renderConditionsStep(
@@ -4214,8 +4209,7 @@ export default function WeightLossAssessmentPage() {
   // Get button text based on step
   const getButtonText = () => {
     if (step === 7) return ""; // Loading screen has no button
-    // Email gate CTA at step 9
-    if (step === 9) return "Create my account →";
+    if (step === 16) return "";
     return "Continue →";
   };
 
@@ -4327,7 +4321,7 @@ export default function WeightLossAssessmentPage() {
       </main>
 
       {/* Bottom navigation - hide on screens with their own fixed buttons AND when intro offer is open */}
-      {step < totalSteps && ![5, 6, 7, 18, 19, 20, 21, 22].includes(step) && !showIntroOffer && (
+      {step < totalSteps && ![5, 6, 7, 16, 18, 19, 20, 21, 22].includes(step) && !showIntroOffer && (
         <div
           className={
             useViewportLayout

@@ -12,6 +12,7 @@ import { Loader2, Lock, CreditCard } from "lucide-react";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
+import { STRIPE_CHECKOUT_WALLETS } from "@/lib/checkout/stripe-payment-methods";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -106,7 +107,7 @@ function CheckoutForm({
       <PaymentElement
         options={{
           layout: "tabs",
-          wallets: { link: "never" },
+          wallets: STRIPE_CHECKOUT_WALLETS,
           fields: {
             billingDetails: {
               email: "never",

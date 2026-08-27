@@ -311,7 +311,7 @@ export async function activateSanativeMembership(
     console.error("[sanative_membership] entitlement sync failed:", err)
   );
 
-  if (!alreadyProcessed) {
+    if (!alreadyProcessed) {
     await recordPortalPaymentInvoice({
       userId: user.id,
       paymentIntentId: input.paymentIntentId,
@@ -321,15 +321,20 @@ export async function activateSanativeMembership(
       console.error("[sanative_membership] invoice record failed:", err)
     );
 
-    await createOnboardingPreTriageTask({
-      userId: user.id,
-      programLabel: pricing.productName,
-      programSlug: SANATIVE_MEMBERSHIP_PRODUCT_SLUG,
-      paymentIntentId: input.paymentIntentId,
-      context: input.intentProgram ? { intentProgram: input.intentProgram } : undefined,
-    }).catch((err) =>
-      console.error("[sanative_membership] triage enqueue failed:", err)
-    );
+    const isWeightManagementFunnel =
+      (input.intentProgram || "").toLowerCase().replace(/-/g, "_") === "weight_management";
+    // WM public funnel books a doctor next and must land in In Triage, not Pre-Triage Queue.
+    if (!isWeightManagementFunnel) {
+      await createOnboardingPreTriageTask({
+        userId: user.id,
+        programLabel: pricing.productName,
+        programSlug: SANATIVE_MEMBERSHIP_PRODUCT_SLUG,
+        paymentIntentId: input.paymentIntentId,
+        context: input.intentProgram ? { intentProgram: input.intentProgram } : undefined,
+      }).catch((err) =>
+        console.error("[sanative_membership] triage enqueue failed:", err)
+      );
+    }
   }
 
   return { userId: user.id, email: user.email, alreadyProcessed };

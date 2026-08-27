@@ -201,7 +201,7 @@ async function handleWeightManagementPayment(body: {
       intakeId: intakeId || '',
       journeyStatus: user.journeyStatus || 'CONSULTATION_BOOKING_STARTED',
     },
-    automatic_payment_methods: { enabled: true },
+    payment_method_types: ["card"],
     description: `Sanative ${planName} - First Month (${programLabel})`,
   });
 

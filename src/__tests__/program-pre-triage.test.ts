@@ -2,9 +2,41 @@ import { describe, it, expect } from "vitest";
 import {
   resolveBiomarkersPreTriageProgram,
   resolvePreTriageProgramForBooking,
+  isWeightManagementMembershipFunnel,
+  clinicalSubscriptionTierForProgram,
 } from "@/lib/funnel/program-pre-triage";
 
 describe("pre-triage program resolution", () => {
+  it("detects the public WM membership funnel from payment metadata", () => {
+    expect(
+      isWeightManagementMembershipFunnel({
+        purchaseType: "sanative_membership",
+        intentProgram: "weight_management",
+        source: "weight_management_assessment",
+      })
+    ).toBe(true);
+    expect(
+      isWeightManagementMembershipFunnel({
+        purchaseType: "sanative_membership",
+        type: "organ_care_membership",
+      })
+    ).toBe(false);
+  });
+
+  it("maps WM funnel programs onto the In Triage subscription tier", () => {
+    expect(
+      clinicalSubscriptionTierForProgram({
+        slug: "weight_management",
+        isWeightManagement: true,
+      })
+    ).toBe("weight_management");
+    expect(
+      clinicalSubscriptionTierForProgram({
+        slug: "biomarkers",
+        isWeightManagement: false,
+      })
+    ).toBeNull();
+  });
   it("labels biomarkers consult bookings from public panel tier metadata", () => {
     const program = resolvePreTriageProgramForBooking({
       subscriptionTier: "weight_management",
@@ -89,5 +121,22 @@ describe("pre-triage program resolution", () => {
     expect(program.label).toBe("Women's Health");
     expect(program.programKey).toBe("WOMENS_HEALTH_VITALITY");
     expect(program.isWeightManagement).toBe(false);
+  });
+
+  it("resolves public WM membership funnel bookings as Weight Management", () => {
+    const program = resolvePreTriageProgramForBooking({
+      subscriptionTier: "membership",
+      bookingNotes: "Weight Management Program - Doctor to be assigned during triage by care partner",
+      paymentMetadata: {
+        purchaseType: "sanative_membership",
+        intentProgram: "weight_management",
+        source: "weight_management_assessment",
+      },
+    });
+
+    expect(program.slug).toBe("weight_management");
+    expect(program.label).toBe("Weight Management");
+    expect(program.isWeightManagement).toBe(true);
+    expect(program.programKey).toBe("WEIGHT_MANAGEMENT");
   });
 });

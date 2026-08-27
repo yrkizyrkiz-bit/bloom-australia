@@ -14,6 +14,11 @@ export type QuizAssessment = {
   currentMedications: string[];
   motivations: string[];
   otherGoals: string[];
+  previousAttempts: string[];
+  previousTreatment: string;
+  exerciseFrequency: string;
+  waistMeasurement: string;
+  startTiming: string;
   howHeard: string;
   consultationDate: string;
   consultationTime: string;
@@ -91,6 +96,50 @@ export function resolveLegacyHairSurveyData(input: {
   return null;
 }
 
+const PREVIOUS_TREATMENT_LABELS: Record<string, string> = {
+  none: "No, this is my first time",
+  otc: "Over-the-counter or online products",
+  prescription: "Prescription medication or hormone therapy in the past",
+  current: "I'm currently on something",
+};
+
+const START_TIMING_LABELS: Record<string, string> = {
+  asap: "As soon as possible",
+  "this-week": "Within the next week",
+  exploring: "I'm exploring options for now",
+};
+
+const EXERCISE_FREQUENCY_LABELS: Record<string, string> = {
+  none: "I don't exercise",
+  "too-busy": "I'm too busy to exercise",
+  occasional: "A few times a month",
+  "1-2-week": "1–2 times a week",
+  "3-4-week": "3–4 times a week",
+  "most-days": "Most days",
+};
+
+export function labelPreviousTreatment(value: unknown): string {
+  if (typeof value !== "string" || !value) return "";
+  return PREVIOUS_TREATMENT_LABELS[value] || value;
+}
+
+export function labelStartTiming(value: unknown): string {
+  if (typeof value !== "string" || !value) return "";
+  return START_TIMING_LABELS[value] || value;
+}
+
+export function labelExerciseFrequency(value: unknown): string {
+  if (typeof value !== "string" || !value) return "";
+  return EXERCISE_FREQUENCY_LABELS[value] || value;
+}
+
+export function labelWaistMeasurement(value: unknown): string {
+  if (typeof value !== "string" || !value) return "";
+  if (value === "unsure") return "I'm not sure";
+  if (/^\d{2,3}$/.test(value)) return `${value} cm`;
+  return value;
+}
+
 export function buildAssessmentFromQuizData(
   quizData: Record<string, unknown>,
   user?: {
@@ -125,6 +174,11 @@ export function buildAssessmentFromQuizData(
     currentMedications: (quizData.currentMedications as string[]) || [],
     motivations: (quizData.motivations as string[]) || [],
     otherGoals: (quizData.otherGoals as string[]) || [],
+    previousAttempts: (quizData.previousAttempts as string[]) || [],
+    previousTreatment: labelPreviousTreatment(quizData.previousTreatment),
+    exerciseFrequency: labelExerciseFrequency(quizData.exerciseFrequency),
+    waistMeasurement: labelWaistMeasurement(quizData.waistMeasurement),
+    startTiming: labelStartTiming(quizData.startTiming),
     howHeard: (quizData.howHeard as string) || user?.leadSource || "",
     consultationDate: booking?.scheduledAt
       ? formatDate(new Date(booking.scheduledAt))
@@ -157,6 +211,23 @@ export function buildMedicalNotesFromQuiz(
     },
     { title: "Triage, Current Medications", items: (quizData.currentMedications as string[]) || [] },
     { title: "Patient Motivations", items: (quizData.motivations as string[]) || [] },
+    { title: "Previous Weight Loss Attempts", items: (quizData.previousAttempts as string[]) || [] },
+    {
+      title: "Previous Treatment",
+      items: quizData.previousTreatment ? [labelPreviousTreatment(quizData.previousTreatment)] : [],
+    },
+    {
+      title: "Exercise Frequency",
+      items: quizData.exerciseFrequency ? [labelExerciseFrequency(quizData.exerciseFrequency)] : [],
+    },
+    {
+      title: "Waist Measurement",
+      items: quizData.waistMeasurement ? [labelWaistMeasurement(quizData.waistMeasurement)] : [],
+    },
+    {
+      title: "Preferred Start Timing",
+      items: quizData.startTiming ? [labelStartTiming(quizData.startTiming)] : [],
+    },
   ];
 
   return groups

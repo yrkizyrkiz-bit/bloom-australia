@@ -45,9 +45,7 @@ export async function GET() {
         timestamp: new Date().toISOString(),
       },
       description: "Stripe Integration Test - Sanative Weight Management",
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      payment_method_types: ["card"],
     });
 
     // 3. Return success with test info

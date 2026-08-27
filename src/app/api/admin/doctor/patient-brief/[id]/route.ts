@@ -9,6 +9,7 @@ import {
   isSystemClinicalNote,
   syncConsultationScheduleNoteForBooking,
 } from "@/lib/booking-manage";
+import { labelPreviousTreatment, labelStartTiming, labelExerciseFrequency, labelWaistMeasurement } from "@/lib/quiz-assessment";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -387,6 +388,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         weightLossGoal,
         motivations,
         previousAttempts,
+        previousTreatment: labelPreviousTreatment(intakeData.previousTreatment),
+        exerciseFrequency: labelExerciseFrequency(intakeData.exerciseFrequency),
+        waistMeasurement: labelWaistMeasurement(intakeData.waistMeasurement),
+        startTiming: labelStartTiming(intakeData.startTiming),
         otherGoals: (intakeData.otherGoals as string[]) || [],
       },
 

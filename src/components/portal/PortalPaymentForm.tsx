@@ -11,6 +11,7 @@ import {
   paymentSourcePage,
 } from "@/lib/legal/ensure-pre-payment-consent";
 import { stripePromise } from "@/lib/stripe-client";
+import { STRIPE_CHECKOUT_WALLETS } from "@/lib/checkout/stripe-payment-methods";
 
 function friendlyPortalPaymentError(message: string): string {
   const lower = message.toLowerCase();
@@ -146,7 +147,12 @@ function CheckoutInner({
           <span className="text-sm font-medium text-[#2c3628]">Payment details</span>
         </div>
 
-        <PaymentElement options={{ layout: "tabs" }} />
+        <PaymentElement
+          options={{
+            layout: "tabs",
+            wallets: STRIPE_CHECKOUT_WALLETS,
+          }}
+        />
       </div>
 
       <PrePaymentConsentCheckbox
