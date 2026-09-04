@@ -62,6 +62,7 @@ import {
 } from "@/components/admin/pathology/usePathologyReferralForm";
 import { format, isToday, isTomorrow, isPast, formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import { MemberWeightPlanPanel } from "@/components/admin/MemberWeightPlanPanel";
 
 // Types
 interface Consultation {
@@ -951,7 +952,7 @@ export default function DoctorDashboardPage() {
                                 Activate program now
                               </Label>
                               <p className="text-xs text-slate-500">
-                                Dashboard access starts immediately. First dose is scheduled for week 2.
+                                Approve already activates the program. Use this only if they are still waiting. First dose stays week 2.
                               </p>
                             </div>
                           </div>
@@ -1019,6 +1020,22 @@ export default function DoctorDashboardPage() {
                   <Card><CardContent className="p-3 text-center"><Heart className="w-5 h-5 mx-auto mb-1 text-slate-400" /><p className="text-xl font-bold">{patientBrief.healthProfile.bloodPressure?.systolic || "—"}/{patientBrief.healthProfile.bloodPressure?.diastolic || "—"}</p><p className="text-xs text-slate-500">BP</p></CardContent></Card>
                   <Card><CardContent className="p-3 text-center"><Stethoscope className="w-5 h-5 mx-auto mb-1 text-slate-400" /><p className="text-xl font-bold">{patientBrief.metrics.targetWeight || "—"} kg</p><p className="text-xs text-slate-500">Target</p></CardContent></Card>
                 </div>
+
+                <MemberWeightPlanPanel
+                  compact
+                  userId={patientBrief.patient.id}
+                  prefill={{
+                    age: patientBrief.patient.age,
+                    gender: patientBrief.patient.gender,
+                    heightCm: patientBrief.metrics.height,
+                    weightKg: patientBrief.metrics.currentWeight,
+                    waistCm: patientBrief.patientGoals.waistMeasurement
+                      ? parseFloat(String(patientBrief.patientGoals.waistMeasurement))
+                      : null,
+                    targetWeight: patientBrief.metrics.targetWeight,
+                    weightLossGoal: patientBrief.patientGoals.weightLossGoal,
+                  }}
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>

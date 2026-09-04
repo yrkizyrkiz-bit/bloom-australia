@@ -6,7 +6,8 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import {
-  expectedFirstMonthCentsForConsultProgram,
+  expectedVerifiedPaymentCents,
+  isSanativeMembershipPaymentMetadata,
   normalizeWmSelectedPlan,
   paymentMetadataMatchesSelectedPlan,
 } from "@/lib/stripe/plan-pricing";
@@ -195,10 +196,12 @@ async function verifyPaymentIntentCore(
     metadata
   );
 
-  const expectedAmountCents = expectedFirstMonthCentsForConsultProgram(
-    params.consultProgram,
-    resolvedSelectedPlan
-  );
+  const isMembershipPayment = isSanativeMembershipPaymentMetadata(metadata);
+  const expectedAmountCents = expectedVerifiedPaymentCents({
+    metadata,
+    consultProgram: params.consultProgram,
+    selectedPlan: resolvedSelectedPlan,
+  });
 
   if (paymentIntent.amount !== expectedAmountCents) {
     return { error: "Invalid payment amount", status: 400 };
@@ -232,12 +235,12 @@ async function verifyPaymentIntentCore(
     }
   }
 
-  if (params.consultProgram.isWeightManagement) {
+  if (!isMembershipPayment && params.consultProgram.isWeightManagement) {
     const normalizedPlan = normalizeWmSelectedPlan(resolvedSelectedPlan);
     if (!paymentMetadataMatchesSelectedPlan(metadata, normalizedPlan)) {
       return { error: "Payment does not match selected plan", status: 400 };
     }
-  } else {
+  } else if (!isMembershipPayment) {
     const metaProgram = normalizeCheckoutProgramSlug(
       metadata.program || metadata.type || ""
     );

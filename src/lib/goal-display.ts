@@ -62,6 +62,17 @@ export function calculateGoalProgress(
   return Math.min(100, Math.max(0, Math.round((currentChange / totalChange) * 100)));
 }
 
+/** Lower target = loss goal; higher target = gain. At-target counts as reached. */
+export function hasReachedNumericTarget(
+  currentValue: number,
+  targetValue: number,
+  startValue: number
+): boolean {
+  if (![currentValue, targetValue, startValue].every(Number.isFinite)) return false;
+  if (targetValue <= startValue) return currentValue <= targetValue;
+  return currentValue >= targetValue;
+}
+
 export function isGoalImproving(
   startValue: number,
   targetValue: number,

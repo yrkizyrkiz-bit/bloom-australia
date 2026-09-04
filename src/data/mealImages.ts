@@ -44,29 +44,42 @@ export const defaultMealImages: Record<string, string> = {
   EVENING_SNACK: "/images/remote/unsplash/photo-1488477181946-6428a0291777.webp",
 };
 
-// Get meal image with fallback
-export function getMealImage(mealName: string, mealType?: string): string {
-  const normalizedName = mealName.toLowerCase().trim();
+const IMAGE_STOP_WORDS = new Set(["with", "and", "the", "for", "a", "an"]);
 
-  // Try exact match first
+function mealTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 2 && !IMAGE_STOP_WORDS.has(token));
+}
+
+function isMealImageMatch(mealName: string, key: string): boolean {
+  if (mealName === key) return true;
+  if (mealName.includes(key)) return true;
+  const nameTokens = mealTokens(mealName);
+  const keyTokens = mealTokens(key);
+  if (nameTokens.length < 2 || keyTokens.length < 2) return false;
+  const nameInKey = nameTokens.every((token) => keyTokens.includes(token));
+  const keyInName = keyTokens.every((token) => nameTokens.includes(token));
+  return nameInKey || keyInName;
+}
+
+/** Exact or strict phrase match only. Returns null when no photo is safe to show. */
+export function getMealImage(mealName: string, _mealType?: string): string | null {
+  const normalizedName = mealName.toLowerCase().trim();
+  if (!normalizedName) return null;
+
   if (mealImages[normalizedName]) {
     return mealImages[normalizedName];
   }
 
-  // Try partial match
   for (const [key, url] of Object.entries(mealImages)) {
-    if (normalizedName.includes(key) || key.includes(normalizedName)) {
+    if (isMealImageMatch(normalizedName, key)) {
       return url;
     }
   }
 
-  // Fall back to meal type default
-  if (mealType && defaultMealImages[mealType]) {
-    return defaultMealImages[mealType];
-  }
-
-  // Ultimate fallback - healthy bowl
-  return "/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp";
+  return null;
 }
 
 // Motivational messages for weight management

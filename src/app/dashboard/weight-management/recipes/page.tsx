@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ArrowLeft, Search, Clock, Users, Flame, Heart, ChefHat, Filter, Sparkles, X, Play, ListChecks, Calendar } from "lucide-react";
+import { ArrowLeft, Search, Clock, Users, Flame, Heart, ChefHat, Filter, Sparkles, X, ListChecks, Calendar } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { RECIPES, Recipe } from "@/data/recipes";
-import { RECIPE_DETAILS } from "@/data/recipeDetails";
+import { hydrateRecipe } from "@/lib/weight-management/recipe-catalog";
+import { useRecipeFavourites } from "@/hooks/useRecipeFavourites";
 
 const MEAL_TYPES = [
   { id: "all", label: "All", emoji: "🍽️" },
@@ -31,10 +32,11 @@ const DIETARY_FILTERS = [
 ];
 
 export default function RecipesPage() {
+  const { savedRecipes, toggleFavourite } = useRecipeFavourites();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMealType, setActiveMealType] = useState("all");
   const [activeDietary, setActiveDietary] = useState<string[]>([]);
-  const [savedRecipes, setSavedRecipes] = useState<Set<string>>(new Set());
+  const [showFavourites, setShowFavourites] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   const filteredRecipes = RECIPES.filter((recipe) => {
@@ -44,8 +46,9 @@ export default function RecipesPage() {
       recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDietary = activeDietary.length === 0 ||
       activeDietary.every(d => recipe.dietaryTags.includes(d));
+    const matchesFavourites = !showFavourites || savedRecipes.has(recipe.id);
 
-    return matchesMeal && matchesSearch && matchesDietary;
+    return matchesMeal && matchesSearch && matchesDietary && matchesFavourites;
   });
 
   const toggleDietary = (filter: string) => {
@@ -58,17 +61,9 @@ export default function RecipesPage() {
 
   const toggleSave = (recipeId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (savedRecipes.has(recipeId)) {
-      setSavedRecipes(prev => {
-        const next = new Set(prev);
-        next.delete(recipeId);
-        return next;
-      });
-      toast.success("Recipe removed from saved");
-    } else {
-      setSavedRecipes(prev => new Set(prev).add(recipeId));
-      toast.success("Recipe saved!");
-    }
+    const removing = savedRecipes.has(recipeId);
+    toggleFavourite(recipeId);
+    toast.success(removing ? "Recipe removed from saved" : "Recipe saved!");
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -84,7 +79,11 @@ export default function RecipesPage() {
     setSearchQuery("");
     setActiveMealType("all");
     setActiveDietary([]);
+    setShowFavourites(false);
   };
+
+  const hasActiveFilters =
+    activeDietary.length > 0 || searchQuery || activeMealType !== "all" || showFavourites;
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">
@@ -154,6 +153,14 @@ export default function RecipesPage() {
       {/* Dietary Filters */}
       <div className="flex gap-2 flex-wrap items-center">
         <Filter className="w-4 h-4 text-muted-foreground" />
+        <Badge
+          variant={showFavourites ? "default" : "outline"}
+          className={`cursor-pointer transition-all ${showFavourites ? "bg-rose-500 hover:bg-rose-600" : "hover:bg-muted"}`}
+          onClick={() => setShowFavourites((current) => !current)}
+        >
+          <Heart className={`w-3 h-3 mr-1 inline ${showFavourites || savedRecipes.size > 0 ? "fill-current" : ""}`} />
+          Favourites{savedRecipes.size > 0 ? ` (${savedRecipes.size})` : ""}
+        </Badge>
         {DIETARY_FILTERS.map((filter) => (
           <Badge
             key={filter.id}
@@ -164,7 +171,7 @@ export default function RecipesPage() {
             {filter.emoji} {filter.label}
           </Badge>
         ))}
-        {(activeDietary.length > 0 || searchQuery || activeMealType !== "all") && (
+        {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
             Clear all
           </Button>
@@ -181,8 +188,14 @@ export default function RecipesPage() {
         <Card className="text-center py-12">
           <CardContent>
             <ChefHat className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No recipes found</h3>
-            <p className="text-muted-foreground mb-4">Try adjusting your filters</p>
+            <h3 className="text-lg font-semibold mb-2">
+              {showFavourites && savedRecipes.size === 0 ? "No favourite recipes yet" : "No recipes found"}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {showFavourites && savedRecipes.size === 0
+                ? "Tap the heart on a recipe photo to add it to Favourites"
+                : "Try adjusting your filters"}
+            </p>
             <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
           </CardContent>
         </Card>
@@ -205,7 +218,7 @@ export default function RecipesPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-2 right-2 bg-white/90 hover:bg-white shadow-sm"
+                  className="absolute bottom-2 right-2 bg-white/90 hover:bg-white shadow-sm z-10"
                   onClick={(e) => toggleSave(recipe.id, e)}
                 >
                   <Heart className={`w-5 h-5 ${savedRecipes.has(recipe.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
@@ -257,7 +270,9 @@ export default function RecipesPage() {
       {/* Recipe Detail Modal */}
       <Dialog open={!!selectedRecipe} onOpenChange={() => setSelectedRecipe(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
-          {selectedRecipe && (
+          {selectedRecipe && (() => {
+            const detail = hydrateRecipe(selectedRecipe);
+            return (
             <>
               {/* Hero Image */}
               <div className="aspect-video relative">
@@ -270,12 +285,12 @@ export default function RecipesPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-4 right-4 bg-white/90 hover:bg-white"
+                  className="absolute bottom-4 right-4 bg-white/90 hover:bg-white z-10"
                   onClick={(e) => toggleSave(selectedRecipe.id, e)}
                 >
                   <Heart className={`w-5 h-5 ${savedRecipes.has(selectedRecipe.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
                 </Button>
-                <div className="absolute bottom-4 left-4 right-4">
+                <div className="absolute bottom-4 left-4 right-16">
                   <Badge className={`mb-2 ${getDifficultyColor(selectedRecipe.difficulty)}`}>
                     {selectedRecipe.difficulty}
                   </Badge>
@@ -341,33 +356,15 @@ export default function RecipesPage() {
                   </div>
                 </div>
 
-                {/* Video Tutorial */}
-                {RECIPE_DETAILS[selectedRecipe.id]?.videoUrl && (
-                  <div>
-                    <h3 className="font-semibold mb-3 flex items-center gap-2">
-                      <Play className="w-5 h-5 text-red-500" /> Video Tutorial
-                    </h3>
-                    <div className="aspect-video rounded-xl overflow-hidden bg-black">
-                      <iframe
-                        src={RECIPE_DETAILS[selectedRecipe.id]?.videoUrl}
-                        title={`How to make ${selectedRecipe.title}`}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="w-full h-full"
-                      />
-                    </div>
-                  </div>
-                )}
-
                 {/* Ingredients */}
-                {RECIPE_DETAILS[selectedRecipe.id]?.ingredients && (
+                {detail.ingredients.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
                       <ListChecks className="w-5 h-5 text-emerald-500" /> Ingredients
                     </h3>
                     <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4">
                       <ul className="space-y-2">
-                        {RECIPE_DETAILS[selectedRecipe.id]?.ingredients.map((ingredient, index) => (
+                        {detail.ingredients.map((ingredient, index) => (
                           <li key={index} className="flex items-start gap-2">
                             <span className="w-5 h-5 rounded-full bg-emerald-200 dark:bg-emerald-800 flex items-center justify-center text-xs font-medium shrink-0 mt-0.5">
                               {index + 1}
@@ -381,13 +378,13 @@ export default function RecipesPage() {
                 )}
 
                 {/* Instructions */}
-                {RECIPE_DETAILS[selectedRecipe.id]?.instructions && (
+                {detail.instructions.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
                       <ChefHat className="w-5 h-5 text-orange-500" /> Instructions
                     </h3>
                     <div className="space-y-3">
-                      {RECIPE_DETAILS[selectedRecipe.id]?.instructions.map((step, index) => (
+                      {detail.instructions.map((step, index) => (
                         <div key={index} className="flex gap-3">
                           <span className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-sm font-bold text-orange-600 shrink-0">
                             {index + 1}
@@ -400,11 +397,11 @@ export default function RecipesPage() {
                 )}
 
                 {/* Tips */}
-                {RECIPE_DETAILS[selectedRecipe.id]?.tips && (
+                {detail.tips && detail.tips.length > 0 && (
                   <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-4">
                     <h4 className="font-semibold mb-2 text-amber-800 dark:text-amber-200">💡 Pro Tips</h4>
                     <ul className="space-y-1 text-sm text-amber-700 dark:text-amber-300">
-                      {RECIPE_DETAILS[selectedRecipe.id]?.tips?.map((tip, index) => (
+                      {detail.tips.map((tip, index) => (
                         <li key={index}>• {tip}</li>
                       ))}
                     </ul>
@@ -424,7 +421,8 @@ export default function RecipesPage() {
                 </div>
               </div>
             </>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

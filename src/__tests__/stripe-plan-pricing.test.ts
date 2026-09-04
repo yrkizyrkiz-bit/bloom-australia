@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   expectedFirstMonthCentsForConsultProgram,
+  expectedVerifiedPaymentCents,
   isAllowedCheckoutPlanId,
   isPrecisionPlanId,
+  isSanativeMembershipPaymentMetadata,
   paymentMetadataMatchesSelectedPlan,
   resolveFirstMonthCheckoutCharge,
+  SANATIVE_MEMBERSHIP_CENTS,
   WM_CORE_FIRST_MONTH_CENTS,
   WM_PRECISION_FIRST_MONTH_CENTS,
 } from "@/lib/stripe/plan-pricing";
@@ -65,6 +68,33 @@ describe("stripe plan-pricing", () => {
         null
       )
     ).toBe(4900);
+  });
+
+  it("accepts the $365 membership charge for current public-funnel payments", () => {
+    expect(isSanativeMembershipPaymentMetadata({ purchaseType: "sanative_membership" })).toBe(
+      true
+    );
+    expect(
+      expectedVerifiedPaymentCents({
+        metadata: { purchaseType: "sanative_membership" },
+        consultProgram: { isWeightManagement: true, firstMonthAud: 249 },
+        selectedPlan: "CORE",
+      })
+    ).toBe(SANATIVE_MEMBERSHIP_CENTS);
+    expect(
+      expectedVerifiedPaymentCents({
+        metadata: { purchaseType: "sanative_membership" },
+        consultProgram: { isWeightManagement: false, firstMonthAud: 49 },
+        selectedPlan: null,
+      })
+    ).toBe(36500);
+    expect(
+      expectedVerifiedPaymentCents({
+        metadata: {},
+        consultProgram: { isWeightManagement: true, firstMonthAud: 249 },
+        selectedPlan: "CORE",
+      })
+    ).toBe(WM_CORE_FIRST_MONTH_CENTS);
   });
 
   it("identifies precision plan ids", () => {

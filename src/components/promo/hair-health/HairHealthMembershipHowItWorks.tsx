@@ -125,7 +125,7 @@ export function HairHealthMembershipHowItWorks() {
                     </p>
                   </div>
                   <Link
-                    href="/membership/checkout?intent=hair_loss"
+                    href="/hair-assessment"
                     className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-[#4f6038] px-5 py-2.5 text-sm sm:text-base font-semibold text-white transition-colors hover:bg-[#3c4a27] shrink-0"
                   >
                     Join Sanative

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { calculateBmi } from "@/lib/bmi";
 import { Scale, Ruler, ArrowRight } from "lucide-react";
 
 export function BMICalculator() {
@@ -36,9 +37,7 @@ export function BMICalculator() {
     const weightNum = Number.parseFloat(weight);
 
     if (heightNum > 0 && weightNum > 0) {
-      const heightInMeters = heightNum / 100;
-      const bmi = weightNum / (heightInMeters * heightInMeters);
-      setBmiValue(Math.round(bmi * 10) / 10);
+      setBmiValue(calculateBmi(weightNum, heightNum));
     } else {
       setBmiValue(null);
     }
@@ -158,7 +157,7 @@ export function BMICalculator() {
                       className="text-3xl font-serif"
                       style={{ color: bmiCategory?.color }}
                     >
-                      {bmiValue}
+                      {bmiValue.toFixed(1)}
                     </span>
                     <span className="text-sm text-[#7e9a72]">kg/m²</span>
                   </div>

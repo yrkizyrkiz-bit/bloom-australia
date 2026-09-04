@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { verify } from "jsonwebtoken";
 import { SYDNEY_TZ, toSydneyISO } from "@/lib/sydney-time";
 import { journeyStatusAfterSlotHold } from "@/lib/funnel/booking-hold-journey";
+import { roundBmi } from "@/lib/bmi";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
 
@@ -252,7 +253,7 @@ export async function POST(req: NextRequest) {
         doctorName: null,
         appointmentType: "PHONE_CONSULT",
         patientPhone,
-        patientBmi,
+        patientBmi: roundBmi(patientBmi),
         riskFlags: flags,
         notes: `${notesLabel} - Doctor to be assigned during triage by care partner`,
       },

@@ -67,7 +67,13 @@ export function PortalQuizSubmissionCard({
           </p>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div
+          className={
+            submission.programKey === "BIOLOGICAL_CLOCK" || submission.programKey === "ORGAN_CARE"
+              ? "grid gap-3 sm:grid-cols-2"
+              : "grid gap-3"
+          }
+        >
           {rows.map((row) => (
             <div key={row.questionId} className="rounded-lg border bg-muted/20 p-3">
               <p className="text-xs text-muted-foreground">{row.question}</p>

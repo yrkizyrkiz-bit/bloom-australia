@@ -1,18 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  ArrowLeft, Plus, Calendar, ChevronLeft, ChevronRight,
-  X, Flame, Clock, ShoppingCart, Trash2, Copy, Sparkles
+  ArrowLeft, Plus, Calendar, CalendarDays, ChevronLeft, ChevronRight,
+  X, Flame, Clock, ShoppingCart, Trash2, Sparkles
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { RECIPES, Recipe } from "@/data/recipes";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  addDays,
+  localDateKey,
+  mealPlanWeekStats,
+  programWeekProgress,
+  startOfWeekSunday,
+  weekDatesFromSunday,
+} from "@/lib/weight-management/meal-plan-week";
 
 interface MealPlanItem {
   id: string;
@@ -34,96 +43,141 @@ const MEAL_SLOTS = [
 
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-function getWeekDates(startDate: Date): Date[] {
-  const dates: Date[] = [];
-  const start = new Date(startDate);
-  start.setDate(start.getDate() - start.getDay()); // Start from Sunday
-
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(start);
-    date.setDate(start.getDate() + i);
-    dates.push(date);
-  }
-  return dates;
-}
-
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+function persistMealPlan(
+  weekStart: string,
+  plan: Record<string, DayPlan>,
+  options?: { allowEmpty?: boolean }
+) {
+  if (!options?.allowEmpty && Object.keys(plan).length === 0) return;
+  fetch("/api/weight-management/meal-plan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ weekStart, planData: plan }),
+  }).catch(() => {});
 }
 
 export default function MealPlanPage() {
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
-  const [weekDates, setWeekDates] = useState<Date[]>([]);
+  const { user, isLoading: authLoading } = useAuth();
+  const [weekSunday, setWeekSunday] = useState(() => startOfWeekSunday());
+  const weekDates = weekDatesFromSunday(weekSunday);
+  const weekStartIso = localDateKey(weekDates[0] ?? weekSunday);
   const [mealPlan, setMealPlan] = useState<Record<string, DayPlan>>({});
+  const [hydrated, setHydrated] = useState(false);
+  const [planUserId, setPlanUserId] = useState<string | null>(null);
   const [showRecipeDialog, setShowRecipeDialog] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; mealType: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMealType, setFilterMealType] = useState<string>("all");
+  const [programSpan, setProgramSpan] = useState<{ start: Date; end: Date } | null>(null);
+  const mealPlanRef = useRef(mealPlan);
+  mealPlanRef.current = mealPlan;
 
   useEffect(() => {
-    setWeekDates(getWeekDates(currentWeekStart));
-  }, [currentWeekStart]);
+    try {
+      localStorage.removeItem("mealPlan");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
-  const weekStartIso = weekDates[0] ? formatDate(weekDates[0]) : null;
-
-  // Load: server first, then localStorage fallback
   useEffect(() => {
-    if (!weekStartIso) return;
+    if (authLoading || !user?.id) return;
     let cancelled = false;
+    setHydrated(false);
+    setPlanUserId(null);
+    setMealPlan({});
 
     (async () => {
       try {
         const res = await fetch(
-          `/api/weight-management/meal-plan?weekStart=${weekStartIso}`
+          `/api/weight-management/meal-plan?weekStart=${weekStartIso}`,
+          { cache: "no-store" }
         );
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled && data.planData && Object.keys(data.planData).length > 0) {
-            setMealPlan(data.planData);
-            return;
-          }
-        }
+        if (!res.ok) throw new Error("load failed");
+        const data = await res.json();
+        if (cancelled) return;
+        const plan =
+          data.planData && typeof data.planData === "object" && !Array.isArray(data.planData)
+            ? (data.planData as Record<string, DayPlan>)
+            : {};
+        setMealPlan(plan);
       } catch {
-        /* use local */
-      }
-      const saved = localStorage.getItem("mealPlan");
-      if (!cancelled && saved) {
-        setMealPlan(JSON.parse(saved));
+        if (!cancelled) setMealPlan({});
+      } finally {
+        if (!cancelled) {
+          setPlanUserId(user.id);
+          setHydrated(true);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [weekStartIso]);
+  }, [user?.id, weekStartIso, authLoading]);
 
-  // Save: localStorage + debounced server sync
   useEffect(() => {
-    if (Object.keys(mealPlan).length === 0) return;
-    localStorage.setItem("mealPlan", JSON.stringify(mealPlan));
+    if (authLoading || !user?.id) return;
+    let cancelled = false;
 
-    if (!weekStartIso) return;
-    const t = setTimeout(() => {
-      fetch("/api/weight-management/meal-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          weekStart: weekStartIso,
-          planData: mealPlan,
-        }),
-      }).catch(() => {});
-    }, 800);
+    (async () => {
+      try {
+        const [todayRes, goalsRes] = await Promise.all([
+          fetch("/api/program/today", { cache: "no-store" }),
+          fetch("/api/weight-management/goals", { cache: "no-store" }),
+        ]);
+        const today = todayRes.ok ? await todayRes.json() : null;
+        const goals = goalsRes.ok ? await goalsRes.json() : null;
+        if (cancelled) return;
+
+        const startedAt = today?.program?.startedAt
+          ? new Date(today.program.startedAt)
+          : goals?.activeGoal?.startDate
+            ? new Date(goals.activeGoal.startDate)
+            : new Date();
+        const targetDate = goals?.activeGoal?.targetDate
+          ? new Date(goals.activeGoal.targetDate)
+          : addDays(startedAt, 12 * 7 - 1);
+        setProgramSpan({ start: startedAt, end: targetDate });
+      } catch {
+        if (!cancelled) {
+          const start = new Date();
+          setProgramSpan({ start, end: addDays(start, 12 * 7 - 1) });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, authLoading]);
+
+  useEffect(() => {
+    if (!hydrated || planUserId !== user?.id || !weekStartIso) return;
+    const t = setTimeout(() => persistMealPlan(weekStartIso, mealPlan), 800);
     return () => clearTimeout(t);
-  }, [mealPlan, weekStartIso]);
+  }, [mealPlan, weekStartIso, hydrated, user?.id, planUserId]);
+
+  const flushCurrentWeek = () => {
+    if (hydrated && planUserId === user?.id && weekStartIso) {
+      persistMealPlan(weekStartIso, mealPlanRef.current);
+    }
+  };
 
   const navigateWeek = (direction: number) => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + (direction * 7));
-    setCurrentWeekStart(newDate);
+    flushCurrentWeek();
+    setHydrated(false);
+    setPlanUserId(null);
+    setMealPlan({});
+    setWeekSunday((prev) => addDays(startOfWeekSunday(prev), direction * 7));
   };
 
   const goToToday = () => {
-    setCurrentWeekStart(new Date());
+    flushCurrentWeek();
+    setHydrated(false);
+    setPlanUserId(null);
+    setMealPlan({});
+    setWeekSunday(startOfWeekSunday());
   };
 
   const openRecipeSelector = (date: string, mealType: string) => {
@@ -174,9 +228,10 @@ export default function MealPlanPage() {
   const clearWeek = () => {
     const newPlan = { ...mealPlan };
     weekDates.forEach(date => {
-      delete newPlan[formatDate(date)];
+      delete newPlan[localDateKey(date)];
     });
     setMealPlan(newPlan);
+    persistMealPlan(weekStartIso, newPlan, { allowEmpty: true });
     toast.success("Week cleared");
   };
 
@@ -202,22 +257,10 @@ export default function MealPlanPage() {
     return dayPlan?.meals.find(m => m.mealType === mealType);
   };
 
-  const getWeekTotals = () => {
-    let calories = 0;
-    let protein = 0;
-    let mealCount = 0;
-
-    weekDates.forEach(date => {
-      const dayPlan = mealPlan[formatDate(date)];
-      dayPlan?.meals.forEach(meal => {
-        calories += meal.recipe.calories;
-        protein += meal.recipe.protein;
-        mealCount++;
-      });
-    });
-
-    return { calories, protein, mealCount };
-  };
+  const stats = mealPlanWeekStats(weekDates, mealPlan);
+  const programWeek = programSpan
+    ? programWeekProgress(weekSunday, programSpan.start, programSpan.end)
+    : { weekNumber: 1, totalWeeks: 12 };
 
   const filteredRecipes = RECIPES.filter(recipe => {
     const matchesSearch = !searchQuery ||
@@ -230,8 +273,7 @@ export default function MealPlanPage() {
     return matchesSearch && matchesType;
   });
 
-  const totals = getWeekTotals();
-  const isToday = (date: Date) => formatDate(date) === formatDate(new Date());
+  const isToday = (date: Date) => localDateKey(date) === localDateKey(new Date());
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">
@@ -256,7 +298,8 @@ export default function MealPlanPage() {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <Button variant="outline" size="icon" onClick={() => navigateWeek(-1)}>
+            <Button variant="outline" size="icon" aria-label="Previous week" onClick={() => navigateWeek(-1)}>
+              <span className="sr-only">Previous week</span>
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <div className="text-center">
@@ -267,7 +310,8 @@ export default function MealPlanPage() {
                 Go to today
               </Button>
             </div>
-            <Button variant="outline" size="icon" onClick={() => navigateWeek(1)}>
+            <Button variant="outline" size="icon" aria-label="Next week" onClick={() => navigateWeek(1)}>
+              <span className="sr-only">Next week</span>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -279,22 +323,24 @@ export default function MealPlanPage() {
         <Card>
           <CardContent className="p-4 text-center">
             <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
-            <p className="text-xl font-bold">{totals.calories.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">Total Calories</p>
+            <p className="text-xl font-bold">{stats.avgCalories.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Avg calories per day</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <span className="text-blue-600 font-bold text-lg">P</span>
-            <p className="text-xl font-bold">{totals.protein}g</p>
-            <p className="text-xs text-muted-foreground">Total Protein</p>
+            <Calendar className="w-5 h-5 mx-auto mb-1 text-blue-600" />
+            <p className="text-xl font-bold">Week {programWeek.weekNumber}</p>
+            <p className="text-xs text-muted-foreground">
+              of your {programWeek.totalWeeks} week program
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Calendar className="w-5 h-5 mx-auto mb-1 text-emerald-500" />
-            <p className="text-xl font-bold">{totals.mealCount}</p>
-            <p className="text-xs text-muted-foreground">Meals Planned</p>
+            <CalendarDays className="w-5 h-5 mx-auto mb-1 text-emerald-500" />
+            <p className="text-xl font-bold">{stats.daysPlanned}</p>
+            <p className="text-xs text-muted-foreground">Days planned</p>
           </CardContent>
         </Card>
       </div>
@@ -310,7 +356,7 @@ export default function MealPlanPage() {
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
         {weekDates.map((date, index) => (
           <Card
-            key={formatDate(date)}
+            key={localDateKey(date)}
             className={`${isToday(date) ? 'ring-2 ring-emerald-500' : ''}`}
           >
             <CardHeader className="p-3 pb-2">
@@ -325,7 +371,7 @@ export default function MealPlanPage() {
             </CardHeader>
             <CardContent className="p-3 pt-0 space-y-2">
               {MEAL_SLOTS.map(slot => {
-                const meal = getMealForSlot(formatDate(date), slot.id);
+                const meal = getMealForSlot(localDateKey(date), slot.id);
                 return (
                   <div key={slot.id} className="relative">
                     {meal ? (
@@ -345,7 +391,7 @@ export default function MealPlanPage() {
                           variant="ghost"
                           size="icon"
                           className="absolute -top-1 -right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm"
-                          onClick={() => removeMeal(formatDate(date), meal.id)}
+                          onClick={() => removeMeal(localDateKey(date), meal.id)}
                         >
                           <X className="w-3 h-3" />
                         </Button>
@@ -354,7 +400,7 @@ export default function MealPlanPage() {
                       <Button
                         variant="ghost"
                         className="w-full h-12 border-2 border-dashed border-muted-foreground/20 hover:border-emerald-300 hover:bg-emerald-50/50"
-                        onClick={() => openRecipeSelector(formatDate(date), slot.id)}
+                        onClick={() => openRecipeSelector(localDateKey(date), slot.id)}
                       >
                         <Plus className="w-4 h-4 mr-1" />
                         <span className="text-xs">{slot.icon} {slot.label}</span>

@@ -11,6 +11,7 @@ import {
   isBiomarkersPanelBookingNotes,
   verifyBiomarkersPanelBookingPayment,
 } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
+import { tryActivateAfterDoctorApproval } from "@/lib/program/activate-member-program";
 
 async function auditDoctorDecision(
   request: NextRequest,
@@ -418,13 +419,18 @@ export async function POST(request: NextRequest) {
         });
 
         if ("error" in paymentVerification) {
-          return NextResponse.json(
-            { error: paymentVerification.error },
-            { status: paymentVerification.status }
-          );
-        }
-
-        if (paymentVerification.normalizedPlan) {
+          const membershipFallback = await verifyOrganCareMembershipBookingPayment({
+            paymentIntentId: consultation.paymentIntentId,
+            userId,
+            bookingHoldId: consultationId,
+          });
+          if (!membershipFallback.ok) {
+            return NextResponse.json(
+              { error: paymentVerification.error },
+              { status: paymentVerification.status }
+            );
+          }
+        } else if (paymentVerification.normalizedPlan) {
           verifiedWmPlan = paymentVerification.normalizedPlan;
         }
       }
@@ -532,13 +538,10 @@ export async function POST(request: NextRequest) {
           console.error("[Prescription] Failed to link prescription to intake:", intakeLinkError);
         }
 
-        // Update user status - DO NOT activate instantly
-        // Patient stays at APPROVED status until script workflow progresses
         await prisma.user.update({
           where: { id: userId },
           data: {
             approvalStatus: "APPROVED",
-            // Doctor approved, but onboarding/welcome call starts first.
             journeyStatus: "ONBOARDING_PENDING",
           },
         });
@@ -763,6 +766,8 @@ Welcome call / onboarding walkthrough:
 
         await auditDoctorDecision(request, auth, userId, decision);
 
+        const activation = await tryActivateAfterDoctorApproval(userId, session.user.id);
+
         return NextResponse.json({
           success: true,
           decision: "APPROVED",
@@ -772,8 +777,13 @@ Welcome call / onboarding walkthrough:
           subscriptionCreated: subscriptionResult.success,
           subscriptionId: subscriptionResult.subscriptionId,
           monthlyAmount: PLAN_AMOUNTS[selectedPlan],
-          message: "Patient approved. Script created in DRAFT status. Monthly subscription " +
-            (subscriptionResult.success ? "created successfully." : "requires manual setup."),
+          programActivated: activation.activated || activation.alreadyActive,
+          message: activation.activated || activation.alreadyActive
+            ? "Patient approved and program activated. Script is in DRAFT. First dose is week 2. Monthly subscription " +
+              (subscriptionResult.success ? "created successfully." : "requires manual setup.")
+            : "Patient approved. Script created in DRAFT status. Monthly subscription " +
+              (subscriptionResult.success ? "created successfully." : "requires manual setup.") +
+              (activation.error ? ` Program was not activated: ${activation.error}` : ""),
         });
       }
 
@@ -945,6 +955,8 @@ Tasks:
 
         await auditDoctorDecision(request, auth, userId, decision);
 
+        const activation = await tryActivateAfterDoctorApproval(userId, session.user.id);
+
         return NextResponse.json({
           success: true,
           decision: "APPROVED_NO_TREATMENT",
@@ -952,8 +964,13 @@ Tasks:
           subscriptionCreated: subscriptionResult.success,
           subscriptionId: subscriptionResult.subscriptionId,
           monthlyAmount: PLAN_AMOUNTS[selectedPlan],
-          message: "Patient approved for lifestyle program. " +
-            (subscriptionResult.success ? "Monthly subscription created." : "Subscription requires manual setup."),
+          programActivated: activation.activated || activation.alreadyActive,
+          message: activation.activated || activation.alreadyActive
+            ? "Patient approved for lifestyle program and program activated. " +
+              (subscriptionResult.success ? "Monthly subscription created." : "Subscription requires manual setup.")
+            : "Patient approved for lifestyle program. " +
+              (subscriptionResult.success ? "Monthly subscription created." : "Subscription requires manual setup.") +
+              (activation.error ? ` Program was not activated: ${activation.error}` : ""),
         });
       }
 

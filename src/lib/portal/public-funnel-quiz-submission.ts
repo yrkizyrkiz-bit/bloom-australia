@@ -2,31 +2,14 @@ import { prisma } from "@/lib/prisma";
 import { resolveProgramMemberProgramKey } from "@/lib/membership/entitlement-service";
 import type { ProgramKey } from "@/lib/membership/keys";
 import { savePortalQuizSubmission } from "@/lib/portal-quiz-submissions";
-
-const STRIP_FROM_ANSWERS = new Set([
-  "email",
-  "confirmEmail",
-  "phone",
-  "firstName",
-  "lastName",
-  "cardNumber",
-  "cardExpiry",
-  "cardCvc",
-  "cardName",
-  "cardNameOnCard",
-  "selectedSlotId",
-  "discountCode",
-  "agreedToTerms",
-  "confirmedAccurate",
-  "howHeard",
-]);
+import { STRIP_FROM_PUBLIC_FUNNEL_ANSWERS } from "@/lib/portal/public-funnel-answer-fields";
 
 export function sanitizePublicFunnelIntakeAnswers(
   intake: Record<string, unknown>
 ): Record<string, unknown> {
   const answers: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(intake)) {
-    if (STRIP_FROM_ANSWERS.has(key)) continue;
+    if (STRIP_FROM_PUBLIC_FUNNEL_ANSWERS.has(key)) continue;
     if (value == null || value === "") continue;
     answers[key] = value;
   }

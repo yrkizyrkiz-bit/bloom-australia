@@ -1,16 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDayUTC } from "./dose-schedule";
+import { summariseMedicationForInsight } from "./dose-insight";
 
 export async function buildProgramContext(userId: string, memberProgramId: string) {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const [program, weights, meals, exercises, checkIns, doses, sideEffects] =
+  const [program, weights, meals, exercises, checkIns, treatment, sideEffects] =
     await Promise.all([
       prisma.memberProgram.findUnique({
         where: { id: memberProgramId },
         include: {
-          prescription: { select: { medicationName: true, dosage: true } },
-          user: { select: { firstName: true, gender: true } },
+          prescription: { select: { medicationName: true, dosage: true, frequency: true, startDate: true } },
+          user: { select: { firstName: true, gender: true, journeyStatus: true } },
         },
       }),
       prisma.weightLog.findMany({
@@ -28,12 +28,10 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
         orderBy: { checkedInAt: "desc" },
         take: 1,
       }),
-      prisma.medicationDose.findMany({
-        where: {
-          treatment: { userId },
-          scheduledAt: { gte: weekAgo },
-        },
-        orderBy: { scheduledAt: "asc" },
+      prisma.treatment.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        include: { doses: { orderBy: { scheduledAt: "asc" } } },
       }),
       prisma.sideEffectReport.findMany({
         where: { userId, createdAt: { gte: weekAgo } },
@@ -57,22 +55,36 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
   const weightChange =
     weights.length >= 2 ? weights[weights.length - 1].weight - weights[0].weight : null;
 
-  const dosesTaken = doses.filter((d) => d.takenAt).length;
-  const dosesScheduled = doses.length;
+  const medication = summariseMedicationForInsight({
+    medicationName: treatment?.medicationName || program?.prescription?.medicationName,
+    dosage: treatment?.dosage || program?.prescription?.dosage,
+    frequency: treatment?.frequency || program?.prescription?.frequency,
+    startDate: treatment?.startDate || program?.prescription?.startDate,
+    doses: treatment?.doses || [],
+  });
 
   return {
     memberName: program?.user.firstName || "Member",
+    journeyStatus: program?.user.journeyStatus || "LEAD",
+    programActive: Boolean(program?.isActive),
+    programStarted: Boolean(
+      program?.startedAt && program.startedAt.getTime() <= Date.now()
+    ),
     planTier: program?.planTier || "CORE",
     phase: program?.phase || "INDUCTION",
-    medication: program?.prescription?.medicationName,
+    medication: medication.name,
+    medicationNote: medication.coachNote,
+    doseFrequency: medication.frequency,
+    doseStatus: medication.status,
+    firstDoseDate: medication.firstDoseDate,
+    nextDoseDate: medication.nextDoseDate,
+    doseAdherencePct: medication.adherencePct,
     weightLogs: weights.length,
     weightChangeKg: weightChange != null ? Math.round(weightChange * 10) / 10 : null,
     mealLogs: meals.length,
     exerciseSessions: exercises.length,
     exerciseMinutes: exercises.reduce((s, e) => s + e.durationMinutes, 0),
     lastCheckInFeeling: checkIns[0]?.overallFeeling,
-    doseAdherencePct:
-      dosesScheduled > 0 ? Math.round((dosesTaken / dosesScheduled) * 100) : null,
     sideEffectReports: sideEffects.length,
     taskAdherencePct:
       tasksTotal > 0 ? Math.round((tasksDone / tasksTotal) * 100) : null,

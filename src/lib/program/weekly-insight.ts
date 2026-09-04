@@ -10,7 +10,134 @@ export type WeeklyInsightPayload = {
   bullets: string[];
   focusArea: string;
   encouragement: string;
+  preActivation?: boolean;
 };
+
+export function isProgramReadyForWeeklyInsight(input: {
+  journeyStatus?: string | null;
+  programActive?: boolean | null;
+  startedAt?: Date | string | null;
+  now?: Date;
+}): boolean {
+  if (input.programActive === false) return false;
+  if (input.journeyStatus !== "ACTIVE") return false;
+  if (!input.startedAt) return false;
+  const started =
+    input.startedAt instanceof Date ? input.startedAt : new Date(input.startedAt);
+  if (Number.isNaN(started.getTime())) return false;
+  return started.getTime() <= (input.now ?? new Date()).getTime();
+}
+
+export function buildPreActivationInsight(memberName?: string | null): WeeklyInsightPayload {
+  const name = memberName?.trim();
+  const who = name ? `${name}, your` : "Your";
+  return {
+    summary: `${who} program has not started yet. Weekly insights begin after your care team activates the program.`,
+    bullets: [
+      "There is no weekly progress to review until the program is activated.",
+      "Dose adherence is not measured until your first scheduled dose after activation.",
+      "You can still log meals, movement, and weight so there is a clear baseline when the program begins.",
+    ],
+    focusArea: "Wait for program activation",
+    encouragement: "You are all set for a proper start once your program is activated.",
+    preActivation: true,
+  };
+}
+
+type InsightContext = {
+  memberName: string;
+  medicationNote?: string;
+  doseStatus?: string;
+  weightLogs: number;
+  weightChangeKg: number | null;
+  mealLogs: number;
+  exerciseSessions: number;
+  exerciseMinutes: number;
+  sideEffectReports: number;
+};
+
+export function buildWeeklyInsightPrompts(input: InsightContext & {
+  programWeek: number;
+  phase: string;
+  biomarkerNote?: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const systemPrompt = `You write a short weekly note for a real person on Sanative Health, an Australian weight-management program.
+
+Sound like a warm, switched-on care partner — human, specific, and easy to read. Write the way you would text someone you actually like.
+
+Output ONLY valid JSON:
+{
+  "summary": "2 sentences max",
+  "bullets": ["3 short lines"],
+  "focusArea": "one gentle priority",
+  "encouragement": "one genuine sentence"
+}
+
+Voice:
+- Australian English. Use their first name once if it feels natural.
+- Friendly and motivating. No corporate coach voice, no dashboard speak.
+- Do not say adherence, compliance, logged, task completion, programme engagement, barriers, or solid foundation.
+- Do not sound like a bot listing metrics.
+
+Medication rules:
+- Trust the medication note. Use the stated frequency and dates only.
+- Never treat medication as daily unless the note says it is daily.
+- If a dose is not due yet, do not say they missed it, skipped it, or have low medication follow-through.
+- Never suggest a dose change.`;
+
+  const userPrompt = `Week ${input.programWeek + 1} note for ${input.memberName} (${input.phase.toLowerCase()}).
+
+Medication: ${input.medicationNote || "No medication schedule on file."}
+Dose status: ${input.doseStatus || "unknown"}
+
+This week they have ${input.weightLogs} weigh-in${input.weightLogs === 1 ? "" : "s"}${
+    input.weightChangeKg != null ? ` (change ${input.weightChangeKg} kg)` : ""
+  }, ${input.mealLogs} meal${input.mealLogs === 1 ? "" : "s"}, and ${input.exerciseSessions} movement session${
+    input.exerciseSessions === 1 ? "" : "s"
+  } (${input.exerciseMinutes} min).
+Side effects mentioned: ${input.sideEffectReports}.
+${input.biomarkerNote || ""}
+
+Write about how the week actually felt from this, not a scorecard.`;
+
+  return { systemPrompt, userPrompt };
+}
+
+export function buildFriendlyFallbackInsight(
+  memberName: string,
+  programWeek: number,
+  ctx: InsightContext
+): WeeklyInsightPayload {
+  const name = memberName.trim() || "there";
+  const doseLine =
+    ctx.doseStatus === "not_due_yet"
+      ? ctx.medicationNote || "Your next dose is still ahead — nothing to take today."
+      : ctx.doseStatus === "overdue"
+        ? "When you have a moment, pop into Treatment and mark your scheduled dose."
+        : "Your dose schedule is on track.";
+
+  return {
+    summary: `Hey ${name}, you're in week ${programWeek + 1}. ${
+      ctx.mealLogs > 0 || ctx.exerciseSessions > 0
+        ? "You've already put some good days on the board."
+        : "This week is a fresh start — no pressure, just a couple of small wins."
+    }`,
+    bullets: [
+      ctx.weightChangeKg != null && ctx.weightChangeKg < 0
+        ? `Nice one — you're ${Math.abs(ctx.weightChangeKg)} kg down from your recent weigh-ins.`
+        : "A weigh-in at the same time of day makes the trend much easier to trust.",
+      ctx.mealLogs > 0
+        ? `Those ${ctx.mealLogs} meals you added help us see what actually works for you.`
+        : "If you can, add a meal or two when it is easy — even a rough note is useful.",
+      doseLine,
+    ],
+    focusArea:
+      ctx.doseStatus === "not_due_yet"
+        ? "Settle into meals and movement before your first dose"
+        : "Keep the week simple and kind",
+    encouragement: "You're doing this at a human pace, and that is exactly right.",
+  };
+}
 
 export async function generateWeeklyInsight(
   userId: string,
@@ -27,9 +154,55 @@ export async function generateWeeklyInsight(
   const ctx = await buildProgramContext(userId, memberProgramId);
   const hash = contextHash(ctx);
 
+  const program = await prisma.memberProgram.findUnique({
+    where: { id: memberProgramId },
+    include: {
+      user: { select: { firstName: true, journeyStatus: true } },
+    },
+  });
+
+  if (
+    !isProgramReadyForWeeklyInsight({
+      journeyStatus: program?.user.journeyStatus || ctx.journeyStatus,
+      programActive: program?.isActive ?? ctx.programActive,
+      startedAt: program?.startedAt ?? null,
+    })
+  ) {
+    const fallback = buildPreActivationInsight(program?.user.firstName || ctx.memberName);
+    await prisma.programWeekSummary.upsert({
+      where: {
+        memberProgramId_programWeek: { memberProgramId, programWeek },
+      },
+      create: {
+        memberProgramId,
+        programWeek,
+        summary: fallback.summary,
+        focusArea: fallback.focusArea,
+        insights: { ...fallback, contextHash: hash },
+      },
+      update: {
+        summary: fallback.summary,
+        focusArea: fallback.focusArea,
+        insights: { ...fallback, contextHash: hash },
+        generatedAt: new Date(),
+      },
+    });
+    await prisma.automationLog.create({
+      data: {
+        userId,
+        automationType: "weekly_program_insight",
+        triggerEvent: force ? "manual" : "cron",
+        channel: "pre_activation",
+        status: "completed",
+        metadata: { programWeek, planTier: ctx.planTier, skippedClaude: true },
+      },
+    });
+    return fallback;
+  }
+
   if (existing && !force) {
     const stored = existing.insights as WeeklyInsightPayload & { contextHash?: string };
-    if (stored.contextHash === hash && existing.summary) {
+    if (stored.contextHash === hash && existing.summary && !stored.preActivation) {
       return {
         summary: existing.summary,
         bullets: stored.bullets || [],
@@ -38,10 +211,6 @@ export async function generateWeeklyInsight(
       };
     }
   }
-
-  const program = await prisma.memberProgram.findUnique({
-    where: { id: memberProgramId },
-  });
 
   let biomarkerNote = "";
   if (program?.planTier === "PRECISION") {
@@ -52,34 +221,20 @@ export async function generateWeeklyInsight(
     }
   }
 
-  const systemPrompt = `You are a warm, concise health program coach for Sanative Health (Australian telehealth, weight management).
-
-Output ONLY valid JSON with this shape:
-{
-  "summary": "2 sentences max",
-  "bullets": ["3 short insight bullets"],
-  "focusArea": "one priority for next week",
-  "encouragement": "one uplifting sentence"
-}
-
-Rules:
-- Australian English
-- No medical diagnosis or dose changes
-- Reference the member's actual data when provided
-- If adherence is low, be supportive not judgmental
-- Precision members may have biomarker context, mention lifestyle focus only, not treatment changes`;
-
-  const userPrompt = `Week ${programWeek + 1} program review for ${ctx.memberName}.
-Plan: ${ctx.planTier}
-Phase: ${ctx.phase}
-Medication: ${ctx.medication || "weight management program"}
-Weight logs this week: ${ctx.weightLogs}${ctx.weightChangeKg != null ? ` (change ${ctx.weightChangeKg} kg)` : ""}
-Meals logged: ${ctx.mealLogs}
-Exercise: ${ctx.exerciseSessions} sessions, ${ctx.exerciseMinutes} min
-Dose adherence: ${ctx.doseAdherencePct ?? "n/a"}%
-Task completion: ${ctx.taskAdherencePct ?? "n/a"}%
-Side effect reports: ${ctx.sideEffectReports}
-${biomarkerNote}`;
+  const { systemPrompt, userPrompt } = buildWeeklyInsightPrompts({
+    memberName: ctx.memberName,
+    programWeek,
+    phase: ctx.phase,
+    medicationNote: ctx.medicationNote,
+    doseStatus: ctx.doseStatus,
+    weightLogs: ctx.weightLogs,
+    weightChangeKg: ctx.weightChangeKg,
+    mealLogs: ctx.mealLogs,
+    exerciseSessions: ctx.exerciseSessions,
+    exerciseMinutes: ctx.exerciseMinutes,
+    sideEffectReports: ctx.sideEffectReports,
+    biomarkerNote,
+  });
 
   try {
     const response = await anthropic.messages.create({
@@ -129,20 +284,7 @@ ${biomarkerNote}`;
   } catch (error) {
     console.error("[weekly-insight]", error);
 
-    const fallback: WeeklyInsightPayload = {
-      summary: `You're in week ${programWeek + 1} of your program. Keep logging weight and completing your daily tasks.`,
-      bullets: [
-        ctx.weightChangeKg != null && ctx.weightChangeKg < 0
-          ? `Weight trend: ${Math.abs(ctx.weightChangeKg)} kg down this week.`
-          : "Log your weight at the same time each day for the clearest trend.",
-        ctx.mealLogs > 0
-          ? `${ctx.mealLogs} meals logged, great awareness.`
-          : "Try logging at least two meals a day this week.",
-        "Message your care partner if side effects are bothering you.",
-      ],
-      focusArea: "Consistent daily logging",
-      encouragement: "Small steps each day add up, you're building lasting habits.",
-    };
+    const fallback = buildFriendlyFallbackInsight(ctx.memberName, programWeek, ctx);
 
     await prisma.programWeekSummary.upsert({
       where: {

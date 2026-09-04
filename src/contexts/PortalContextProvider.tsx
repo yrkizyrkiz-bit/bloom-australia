@@ -54,9 +54,10 @@ function clearCache() {
 }
 
 export function PortalContextProvider({ children }: { children: ReactNode }) {
-  const cached = useRef(readCache());
-  const [data, setData] = useState<PortalContextPayload | null>(cached.current);
-  const [isLoading, setIsLoading] = useState(!cached.current);
+  // Always start null so SSR and the first client paint match. Reading
+  // sessionStorage here would insert extra dashboard nav items and shift Radix IDs.
+  const [data, setData] = useState<PortalContextPayload | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const inflight = useRef<Promise<void> | null>(null);
 
@@ -89,7 +90,14 @@ export function PortalContextProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void fetchPortal(Boolean(cached.current));
+    const cached = readCache();
+    if (cached) {
+      setData(cached);
+      setIsLoading(false);
+      void fetchPortal(true);
+      return;
+    }
+    void fetchPortal(false);
   }, [fetchPortal]);
 
   const value = useMemo(

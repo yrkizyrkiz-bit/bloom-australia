@@ -22,6 +22,7 @@ import {
   isProspectiveEnrollment,
 } from "@/lib/funnel/member-enrollment-phase";
 import { syncMemberQuizArtifacts } from "@/lib/portal/persist-prior-program-quiz";
+import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
 
 export async function GET(req: NextRequest) {
   try {
@@ -192,6 +193,41 @@ export async function GET(req: NextRequest) {
         submittedAt: user.createdAt?.toISOString() || "",
       };
     }
+
+    const quizNoteCleanup: Array<{ title: { startsWith: string } } | { title: { in: string[] } }> = [
+      { title: { startsWith: "Hair Loss," } },
+      { title: { startsWith: "Men's Health," } },
+      { title: { startsWith: "Men's Sexual Health," } },
+      { title: { startsWith: "Women's Health," } },
+    ];
+    if (weightManagementQuizData) {
+      quizNoteCleanup.push(
+        { title: { startsWith: "Triage," } },
+        {
+          title: {
+            in: [
+              "Patient Motivations",
+              "Previous Weight Loss Attempts",
+              "Previous Treatment",
+              "Exercise Frequency",
+              "Waist Measurement",
+              "Preferred Start Timing",
+            ],
+          },
+        }
+      );
+    }
+    await prisma.internalNote
+      .deleteMany({
+        where: {
+          userId,
+          createdBy: "system",
+          OR: quizNoteCleanup,
+        },
+      })
+      .catch((err) =>
+        console.warn("[customer-assessment] program quiz note cleanup failed:", err)
+      );
 
     // Fetch orders/payments from invoices
     const orders: Array<{
@@ -417,7 +453,7 @@ export async function GET(req: NextRequest) {
         user.createdAt?.toISOString(),
       program: programMember?.program || user.subscriptionTier,
       // Additional data for customer detail page
-      notes: user.internalNotes || [],
+      notes: (user.internalNotes || []).filter((note) => !isProgramQuizIntakeNote(note)),
       biomarkers: biomarkersForResponse,
       weightLogs,
       healthScores,

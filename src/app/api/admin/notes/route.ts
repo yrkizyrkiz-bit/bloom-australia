@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
 
 // GET - Fetch notes for a user
 export async function GET(req: NextRequest) {
@@ -23,7 +24,9 @@ export async function GET(req: NextRequest) {
       orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
     });
 
-    return NextResponse.json({ notes });
+    return NextResponse.json({
+      notes: notes.filter((note) => !isProgramQuizIntakeNote(note)),
+    });
   } catch (error) {
     console.error("Error fetching notes:", error);
     return NextResponse.json({ error: "Failed to fetch notes" }, { status: 500 });

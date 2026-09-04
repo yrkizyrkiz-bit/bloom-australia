@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ArrowRight, Scale, Ruler } from "lucide-react";
+import { calculateBmi } from "@/lib/bmi";
 
 const eligibilityCriteria = [
   "BMI exceeding range",
@@ -42,9 +43,7 @@ export function EligibilitySection() {
     const weightNum = parseFloat(weight);
 
     if (heightNum > 0 && weightNum > 0) {
-      const heightInMeters = heightNum / 100;
-      const bmi = weightNum / (heightInMeters * heightInMeters);
-      setBmiValue(Math.round(bmi * 10) / 10);
+      setBmiValue(calculateBmi(weightNum, heightNum));
     } else {
       setBmiValue(null);
     }
@@ -184,7 +183,7 @@ export function EligibilitySection() {
                           className="text-3xl font-medium tracking-tight"
                           style={{ color: bmiCategory?.color }}
                         >
-                          {bmiValue}
+                          {bmiValue.toFixed(1)}
                         </span>
                         <span className="text-sm text-[rgba(0,0,0,0.5)]">
                           kg/m²

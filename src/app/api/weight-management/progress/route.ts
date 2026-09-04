@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { overlayGoalWithActivePlan } from "@/lib/weight-management/apply-weight-plan";
 
 // GET - Fetch comprehensive progress data
 export async function GET(request: NextRequest) {
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     startDate.setDate(startDate.getDate() - days);
 
     // Fetch all data in parallel
-    const [weightLogs, exerciseLogs, mealLogs, checkIns, activeGoal] = await Promise.all([
+    const [weightLogs, exerciseLogs, mealLogs, checkIns, activeGoal, activePlan] = await Promise.all([
       prisma.weightLog.findMany({
         where: { userId, measuredAt: { gte: startDate } },
         orderBy: { measuredAt: "asc" },
@@ -43,6 +44,16 @@ export async function GET(request: NextRequest) {
       }),
       prisma.weightGoal.findFirst({
         where: { userId, status: "IN_PROGRESS" },
+      }),
+      prisma.weightManagementPlan.findFirst({
+        where: { userId, status: "ACTIVE" },
+        orderBy: { version: "desc" },
+        select: {
+          startWeight: true,
+          targetWeight: true,
+          targetDate: true,
+          weeklyTargetLoss: true,
+        },
       }),
     ]);
 
@@ -93,18 +104,24 @@ export async function GET(request: NextRequest) {
       stress: c.stressLevel,
     })).reverse();
 
-    // Goal progress
+    const goal = activeGoal ? overlayGoalWithActivePlan(activeGoal, activePlan) : null;
     let goalProgress = null;
-    if (activeGoal && currentWeight) {
-      const totalToLose = activeGoal.startWeight - activeGoal.targetWeight;
-      const actualLost = activeGoal.startWeight - currentWeight;
+    if (goal) {
+      const latest = currentWeight ?? goal.startWeight;
+      const totalToLose = goal.startWeight - goal.targetWeight;
+      const actualLost = goal.startWeight - latest;
       goalProgress = {
-        ...activeGoal,
-        currentWeight,
+        ...goal,
+        currentWeight: latest,
+        startDate: new Date(goal.startDate).toISOString(),
+        targetDate: new Date(goal.targetDate).toISOString(),
         totalToLose: Math.round(totalToLose * 10) / 10,
         actualLost: Math.round(actualLost * 10) / 10,
-        percentComplete: Math.min(100, Math.max(0, Math.round((actualLost / totalToLose) * 100))),
-        remainingToLose: Math.round(Math.max(0, currentWeight - activeGoal.targetWeight) * 10) / 10,
+        percentComplete:
+          totalToLose > 0
+            ? Math.min(100, Math.max(0, Math.round((actualLost / totalToLose) * 100)))
+            : 0,
+        remainingToLose: Math.round(Math.max(0, latest - goal.targetWeight) * 10) / 10,
       };
     }
 

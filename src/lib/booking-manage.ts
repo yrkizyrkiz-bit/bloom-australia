@@ -344,10 +344,35 @@ export async function rescheduleConsultationBooking(
       },
     });
 
-    if (booking.intakeId) {
-      await tx.weightManagementIntake.updateMany({
-        where: { bookingId },
-        data: { scheduledAt: newScheduledAt, bookingStatus: "CONFIRMED" },
+    const intakeWhere = [
+      { bookingId },
+      ...(booking.intakeId ? [{ id: booking.intakeId }] : []),
+    ];
+    const intakeResult = await tx.weightManagementIntake.updateMany({
+      where: { OR: intakeWhere },
+      data: { scheduledAt: newScheduledAt, bookingStatus: "CONFIRMED" },
+    });
+    if (intakeResult.count === 0 && booking.userId) {
+      const latestIntake = await tx.weightManagementIntake.findFirst({
+        where: { userId: booking.userId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      if (latestIntake) {
+        await tx.weightManagementIntake.update({
+          where: { id: latestIntake.id },
+          data: { scheduledAt: newScheduledAt, bookingStatus: "CONFIRMED" },
+        });
+      }
+    }
+
+    if (booking.userId) {
+      await tx.appointment.updateMany({
+        where: {
+          userId: booking.userId,
+          status: { in: ["SCHEDULED", "CONFIRMED"] },
+        },
+        data: { scheduledAt: newScheduledAt, status: "CONFIRMED" },
       });
     }
 

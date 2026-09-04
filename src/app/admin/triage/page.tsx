@@ -35,6 +35,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { formatBmi } from "@/lib/bmi";
+import {
+  enrolledProgramBadgeClass,
+  type EnrolledProgram,
+} from "@/lib/triage/enrolled-programs";
 
 interface MedicalCondition {
   id: string;
@@ -43,6 +48,11 @@ interface MedicalCondition {
   isPinned: boolean;
   createdAt: string;
   isSevere: boolean;
+}
+
+interface ClinicalRisk {
+  level: "HIGH" | "MODERATE" | "LOW";
+  reasons: string[];
 }
 
 interface Patient {
@@ -70,6 +80,7 @@ interface Patient {
     familyHistoryCVD: boolean;
   } | null;
   medicalConditions: MedicalCondition[];
+  clinicalRisk: ClinicalRisk;
   hasContraindications: boolean;
   consultationDate: string | null;
   consultationStatus: string | null;
@@ -89,6 +100,7 @@ interface Patient {
     motivations: string[];
     otherGoals: string[];
   } | null;
+  enrolledPrograms?: EnrolledProgram[];
   intakePayment?: {
     status: string;
     amountAud: number | null;
@@ -124,6 +136,7 @@ interface Stats {
 const BRIEF_TEMPLATE = `## Patient Overview
 - **Name:** [PATIENT_NAME]
 - **Age/Gender:** [AGE] years, [GENDER]
+- **Programs:** [PROGRAMS]
 - **BMI:** [BMI]
 - **Current Weight:** [WEIGHT] kg
 - **Target Weight:** [TARGET_WEIGHT] kg
@@ -142,6 +155,7 @@ const BRIEF_TEMPLATE = `## Patient Overview
 ## Triage Assessment
 - **Triage Score:** [TRIAGE_SCORE]/100
 - **Risk Level:** [RISK_LEVEL]
+- **Risk reasons:** [RISK_REASONS]
 
 ## Care Partner Notes
 [NOTES]
@@ -149,6 +163,45 @@ const BRIEF_TEMPLATE = `## Patient Overview
 ## Recommendation
 [RECOMMENDATION]
 `;
+
+function EnrolledProgramBadges({
+  programs,
+  empty = "None recorded",
+}: {
+  programs?: EnrolledProgram[];
+  empty?: string;
+}) {
+  if (!programs?.length) {
+    if (!empty) return null;
+    return <span className="text-muted-foreground text-sm">{empty}</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {programs.map((program) => (
+        <Badge
+          key={program.key}
+          variant="outline"
+          className={`text-xs font-medium ${enrolledProgramBadgeClass(program.key)}`}
+        >
+          {program.label}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function clinicalRiskColor(level?: ClinicalRisk["level"]) {
+  if (level === "HIGH") return "bg-red-100 text-red-700";
+  if (level === "MODERATE") return "bg-amber-100 text-amber-700";
+  return "bg-green-100 text-green-700";
+}
+
+function clinicalRiskLabel(level?: ClinicalRisk["level"]) {
+  if (level === "HIGH") return "High risk";
+  if (level === "MODERATE") return "Needs review";
+  return "Routine";
+}
 
 export default function TriageQueuePage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -306,14 +359,25 @@ export default function TriageQueuePage() {
     const weightGoal = patient.weightGoals[0];
     const targetWeight = weightGoal?.targetWeight || "Not set";
 
-    const riskLevel = patient.triageScore && patient.triageScore >= 70 ? "HIGH" :
-                      patient.triageScore && patient.triageScore >= 40 ? "MODERATE" : "LOW";
+    const riskLevel = patient.clinicalRisk?.level || "LOW";
+    const riskReasons =
+      patient.clinicalRisk?.reasons?.length
+        ? patient.clinicalRisk.reasons.map((reason) => `- ${reason}`).join("\n")
+        : "- No high-risk flags on this intake";
+
+    const bmiText = formatBmi(patient.bmi);
 
     return BRIEF_TEMPLATE
       .replace("[PATIENT_NAME]", `${patient.firstName} ${patient.lastName}`)
       .replace("[AGE]", patient.age?.toString() || "Unknown")
       .replace("[GENDER]", patient.gender || "Not specified")
-      .replace("[BMI]", patient.bmi?.toString() || "Not calculated")
+      .replace(
+        "[PROGRAMS]",
+        patient.enrolledPrograms?.length
+          ? patient.enrolledPrograms.map((program) => program.label).join(", ")
+          : "Not recorded"
+      )
+      .replace("[BMI]", bmiText === "N/A" ? "Not calculated" : bmiText)
       .replace("[WEIGHT]", patient.currentWeight?.toString() || "Not recorded")
       .replace("[TARGET_WEIGHT]", targetWeight.toString())
       .replace("[MEDICAL_CONDITIONS]", medicalConditionsText)
@@ -325,6 +389,7 @@ export default function TriageQueuePage() {
       .replace("[FAMILY_CVD]", patient.healthProfile?.familyHistoryCVD ? "Yes" : "No")
       .replace("[TRIAGE_SCORE]", (patient.triageScore || calculateTriageScore(patient)).toString())
       .replace("[RISK_LEVEL]", riskLevel)
+      .replace("[RISK_REASONS]", riskReasons)
       .replace("[NOTES]", "")
       .replace("[RECOMMENDATION]", "");
   };
@@ -466,11 +531,12 @@ export default function TriageQueuePage() {
     }
   };
 
+  const getClinicalRiskColor = clinicalRiskColor;
+  const getClinicalRiskLabel = clinicalRiskLabel;
+
   const getTriageScoreColor = (score: number | null) => {
     if (!score) return "bg-gray-100 text-gray-600";
-    if (score >= 70) return "bg-red-100 text-red-700";
-    if (score >= 40) return "bg-amber-100 text-amber-700";
-    return "bg-green-100 text-green-700";
+    return "bg-slate-100 text-slate-700";
   };
 
   const getStatusBadge = (status: string) => {
@@ -766,9 +832,14 @@ export default function TriageQueuePage() {
       <Dialog open={showTriageDialog} onOpenChange={setShowTriageDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
               <FileText className="w-5 h-5" />
               Triage: {selectedPatient?.firstName} {selectedPatient?.lastName}
+              {selectedPatient?.enrolledPrograms && selectedPatient.enrolledPrograms.length > 0 && (
+                <span className="ml-1">
+                  <EnrolledProgramBadges programs={selectedPatient.enrolledPrograms} />
+                </span>
+              )}
             </DialogTitle>
             <DialogDescription>
               Review patient data and prepare brief for doctor approval
@@ -796,24 +867,44 @@ export default function TriageQueuePage() {
                         </div>
                         <div>
                           <span className="text-muted-foreground">BMI:</span>
-                          <span className="ml-2 font-medium">{selectedPatient.bmi || "N/A"}</span>
+                          <span className="ml-2 font-medium">{formatBmi(selectedPatient.bmi)}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Weight:</span>
                           <span className="ml-2 font-medium">{selectedPatient.currentWeight || "N/A"} kg</span>
                         </div>
                       </div>
+                      <div className="mt-4">
+                        <span className="text-sm text-muted-foreground">Enrolled programs</span>
+                        <div className="mt-1.5">
+                          <EnrolledProgramBadges programs={selectedPatient.enrolledPrograms} />
+                        </div>
+                      </div>
 
-                      {/* Contraindications Alert */}
-                      {selectedPatient.hasContraindications && (
-                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <div className="flex items-center gap-2 text-red-700">
+                      {/* Clinical risk */}
+                      {selectedPatient.clinicalRisk?.reasons?.length > 0 ? (
+                        <div className={`mt-4 p-3 rounded-lg border ${
+                          selectedPatient.clinicalRisk.level === "HIGH"
+                            ? "bg-red-50 border-red-200"
+                            : "bg-amber-50 border-amber-200"
+                        }`}>
+                          <div className={`flex items-center gap-2 ${
+                            selectedPatient.clinicalRisk.level === "HIGH" ? "text-red-700" : "text-amber-800"
+                          }`}>
                             <AlertTriangle className="w-5 h-5" />
-                            <span className="font-semibold">Potential Contraindications Detected</span>
+                            <span className="font-semibold">
+                              {getClinicalRiskLabel(selectedPatient.clinicalRisk.level)}
+                            </span>
                           </div>
-                          <p className="text-sm text-red-600 mt-1">
-                            This patient has flagged conditions that may contraindicate GLP-1 treatment. Review carefully.
-                          </p>
+                          <ul className="text-sm mt-2 space-y-1 list-disc pl-5">
+                            {selectedPatient.clinicalRisk.reasons.map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                          Routine intake — no high-risk flags on the quiz.
                         </div>
                       )}
                     </CardContent>
@@ -922,8 +1013,8 @@ export default function TriageQueuePage() {
                           onChange={(e) => setTriageScore(Number(e.target.value))}
                           className="w-24"
                         />
-                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${getTriageScoreColor(triageScore)}`}>
-                          {triageScore >= 70 ? "High Risk" : triageScore >= 40 ? "Moderate Risk" : "Low Risk"}
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${getClinicalRiskColor(selectedPatient?.clinicalRisk?.level)}`}>
+                          {getClinicalRiskLabel(selectedPatient?.clinicalRisk?.level)}
                         </div>
                       </div>
                     </div>
@@ -1288,7 +1379,7 @@ function PatientList({
   onAssignCarePartner,
   onDeclinedAction,
   getStatusBadge,
-  getTriageScoreColor,
+  getTriageScoreColor: _getTriageScoreColor,
   showAssignment,
   viewOnly,
   prePayment,
@@ -1327,6 +1418,7 @@ function PatientList({
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{patient.firstName} {patient.lastName}</span>
                     {getStatusBadge(patient.journeyStatus)}
+                    <EnrolledProgramBadges programs={patient.enrolledPrograms} empty="" />
                     {patient.hasContraindications && (
                       <Badge variant="destructive" className="text-xs">
                         <AlertTriangle className="w-3 h-3 mr-1" />
@@ -1354,7 +1446,7 @@ function PatientList({
                 <div className="text-right text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">BMI:</span>
-                    <span className="font-medium">{patient.bmi || "N/A"}</span>
+                    <span className="font-medium">{formatBmi(patient.bmi)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Age:</span>
@@ -1362,13 +1454,20 @@ function PatientList({
                   </div>
                 </div>
 
-                {/* Triage Score */}
-                {patient.triageScore !== null && (
-                  <div className={`px-3 py-2 rounded-lg text-center ${getTriageScoreColor(patient.triageScore)}`}>
-                    <div className="text-xs">Triage</div>
-                    <div className="text-lg font-bold">{patient.triageScore}</div>
-                  </div>
-                )}
+                {/* Clinical risk */}
+                <div className={`px-3 py-2 rounded-lg text-center min-w-[7.5rem] ${clinicalRiskColor(patient.clinicalRisk?.level)}`}>
+                  <div className="text-xs font-medium">{clinicalRiskLabel(patient.clinicalRisk?.level)}</div>
+                  {patient.clinicalRisk?.reasons?.[0] ? (
+                    <div className="text-[10px] leading-tight mt-1 max-w-[9rem] line-clamp-2">
+                      {patient.clinicalRisk.reasons[0]}
+                      {patient.clinicalRisk.reasons.length > 1
+                        ? ` +${patient.clinicalRisk.reasons.length - 1}`
+                        : ""}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] mt-0.5 opacity-80">No flags</div>
+                  )}
+                </div>
 
                 {/* Medical conditions count */}
                 {patient.medicalConditions.length > 0 && (

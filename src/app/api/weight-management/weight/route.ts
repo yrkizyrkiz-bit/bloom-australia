@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { upsertDailyWeightLog } from "@/lib/weight-management/upsert-daily-weight-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,33 +91,48 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { weight, waistCircumference, measuredAt, source, notes, userId } = body;
 
-    if (!weight || weight <= 0) {
-      return NextResponse.json({ error: "Valid weight is required" }, { status: 400 });
+    const weightValue = typeof weight === "number" ? weight : Number(weight);
+    const waistValue =
+      typeof waistCircumference === "number"
+        ? waistCircumference
+        : waistCircumference != null && waistCircumference !== ""
+          ? Number(waistCircumference)
+          : undefined;
+
+    const hasWeight = Number.isFinite(weightValue) && weightValue > 0;
+    const hasWaist = typeof waistValue === "number" && Number.isFinite(waistValue);
+
+    if (!hasWeight && !hasWaist) {
+      return NextResponse.json({ error: "Valid weight or waist is required" }, { status: 400 });
     }
 
     const targetUserId = session.user.role?.toUpperCase() === "ADMIN" && userId ? userId : session.user.id;
 
-    const weightLog = await prisma.weightLog.create({
-      data: {
-        userId: targetUserId,
-        weight,
-        waistCircumference: waistCircumference || null,
-        measuredAt: measuredAt ? new Date(measuredAt) : new Date(),
-        source: source || "MANUAL",
-        notes: notes || null,
-      },
+    const result = await upsertDailyWeightLog({
+      userId: targetUserId,
+      ...(hasWeight ? { weight: weightValue } : {}),
+      ...(hasWaist ? { waistCircumference: waistValue } : {}),
+      measuredAt: measuredAt ? new Date(measuredAt) : undefined,
+      source: source === "BLUETOOTH_SCALE" || source === "SMART_SCALE" ? source : "MANUAL",
+      ...(typeof notes === "string" ? { notes } : {}),
     });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    const weightLog = result.log;
 
     const activeGoal = await prisma.weightGoal.findFirst({
       where: { userId: targetUserId, status: "IN_PROGRESS" },
     });
 
-    if (activeGoal) {
+    if (activeGoal && hasWeight) {
       await prisma.weightGoal.update({
         where: { id: activeGoal.id },
         data: {
-          currentWeight: weight,
-          ...(weight <= activeGoal.targetWeight && { status: "ACHIEVED", completedAt: new Date() }),
+          currentWeight: weightValue,
+          ...(weightValue <= activeGoal.targetWeight && { status: "ACHIEVED", completedAt: new Date() }),
         },
       });
     }
@@ -128,7 +144,7 @@ export async function POST(request: NextRequest) {
       /* program optional */
     }
 
-    return NextResponse.json(weightLog, { status: 201 });
+    return NextResponse.json(weightLog, { status: result.created ? 201 : 200 });
   } catch (error) {
     console.error("Error logging weight:", error);
     return NextResponse.json({ error: "Failed to log weight" }, { status: 500 });

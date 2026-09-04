@@ -42,6 +42,7 @@ import {
   formatMemberStatus,
   type PortalMemberStatus,
 } from "@/lib/member-status";
+import { calculateBmi } from "@/lib/bmi";
 import { RescheduleBookingDialog } from "@/components/admin/RescheduleBookingDialog";
 import { CancelBookingDialog } from "@/components/admin/CancelBookingDialog";
 import { BookingChangeHistory } from "@/components/admin/BookingChangeHistory";
@@ -49,6 +50,7 @@ import {
   MemberQuizAssessmentTabs,
   type PortalQuizSubmissionView,
 } from "@/components/admin/MemberProgramQuizTabs";
+import { resolveDisplayedGender } from "@/lib/funnel/program-gender";
 import {
   getBiomarkerStatusBadgeClass,
   getBiomarkerStatusDotClass,
@@ -64,6 +66,9 @@ import {
   type BiomarkerResultInput,
 } from "@/lib/healthTestScoring";
 import { isProspectiveEnrollment as checkProspectiveEnrollment } from "@/lib/funnel/member-enrollment-phase";
+import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
+import { MemberWeightPlanPanel } from "@/components/admin/MemberWeightPlanPanel";
+import { ageFromDateOfBirth } from "@/lib/weight-management/calorie-calculator";
 
 interface CustomerData {
   id: string;
@@ -220,7 +225,7 @@ function getRecommendedPanels(assessment: AssessmentData | null): typeof BIOMARK
   // Calculate BMI if available
   const height = parseFloat(assessment.height) || 0;
   const weight = parseFloat(assessment.currentWeight) || 0;
-  const bmi = height > 0 ? weight / Math.pow(height / 100, 2) : 0;
+  const bmi = calculateBmi(weight, height) ?? 0;
 
   const recommendations: typeof BIOMARKER_PANELS = [];
 
@@ -496,7 +501,18 @@ export default function CustomerDetailPage() {
     });
   }, [labDateKeys]);
 
-  const memberGender = (customer?.gender === "FEMALE" ? "female" : "male") as "male" | "female";
+  const quizRecordedGender = useMemo(() => {
+    const hairQuiz = portalQuizAllSubmissions.find((submission) => submission.programKey === "HAIR_LOSS");
+    const answers = hairQuiz?.answers as Record<string, unknown> | undefined;
+    return typeof answers?.gender === "string" ? answers.gender : null;
+  }, [portalQuizAllSubmissions]);
+
+  const displayedGender = resolveDisplayedGender({
+    stored: customer?.gender,
+    quizGender: quizRecordedGender,
+  });
+  const memberGender: "male" | "female" =
+    displayedGender === "FEMALE" ? "female" : "male";
 
   /** Latest value per biomarker, same rule as member dashboard (most recent testedAt). */
   const latestBiomarkerResults = useMemo((): BiomarkerResultInput[] => {
@@ -595,7 +611,9 @@ export default function CustomerDetailPage() {
     );
   }
 
-  const notes = (assessmentData?.notes as Array<Record<string, unknown>>) || [];
+  const notes = ((assessmentData?.notes as Array<Record<string, unknown>>) || []).filter(
+    (note) => !isProgramQuizIntakeNote(note)
+  );
   const weightLogs = (assessmentData?.weightLogs as Array<Record<string, unknown>>) || [];
   const invoices = (assessmentData?.invoices as Array<Record<string, unknown>>) || [];
   const bookings = (assessmentData?.bookings as Array<Record<string, unknown>>) || [];
@@ -722,6 +740,8 @@ export default function CustomerDetailPage() {
   // Calculate BMI if available
   const height = parseFloat(assessment?.height || "0");
   const weight = parseFloat(assessment?.currentWeight || "0");
+  const calculatedBmi = calculateBmi(weight, height);
+  const bmi = calculatedBmi == null ? null : calculatedBmi.toFixed(1);
   const quizAssessmentProgramCount = (() => {
     const keys = new Set<string>();
     if (assessment) keys.add("WEIGHT_MANAGEMENT");
@@ -731,7 +751,6 @@ export default function CustomerDetailPage() {
     }
     return keys.size;
   })();
-  const bmi = height > 0 ? (weight / Math.pow(height / 100, 2)).toFixed(1) : null;
 
   return (
     <div className="space-y-6">
@@ -843,7 +862,7 @@ export default function CustomerDetailPage() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <p className="font-medium">{customer.gender}</p>
+                    <p className="font-medium">{displayedGender}</p>
                   )}
                 </div>
                 <div className="col-span-2">
@@ -867,7 +886,7 @@ export default function CustomerDetailPage() {
 
           {/* Tabs */}
           <Tabs defaultValue="quiz-assessment">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
               <TabsTrigger value="quiz-assessment">
                 Quiz Assessment
                 {quizAssessmentProgramCount > 0 && (
@@ -876,6 +895,7 @@ export default function CustomerDetailPage() {
                   </span>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="plans">Plans</TabsTrigger>
               <TabsTrigger value="subscription">Subscription</TabsTrigger>
               <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -884,10 +904,39 @@ export default function CustomerDetailPage() {
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
             </TabsList>
 
+            <TabsContent value="plans" className="mt-4">
+              <Tabs defaultValue="weight-management">
+                <TabsList>
+                  <TabsTrigger value="weight-management">Weight Management</TabsTrigger>
+                </TabsList>
+                <TabsContent value="weight-management" className="mt-4">
+                  <MemberWeightPlanPanel
+                    userId={customer.id}
+                    onScheduleSaved={fetchAssessmentData}
+                    prefill={{
+                      age: ageFromDateOfBirth(customer.dateOfBirth || assessment?.dateOfBirth),
+                      gender: displayedGender || customer.gender || assessment?.gender,
+                      heightCm: assessment?.height ? parseFloat(String(assessment.height)) : null,
+                      weightKg: assessment?.currentWeight
+                        ? parseFloat(String(assessment.currentWeight))
+                        : null,
+                      waistCm: assessment?.waistMeasurement
+                        ? parseFloat(String(assessment.waistMeasurement))
+                        : null,
+                      targetWeight: assessment?.targetWeight
+                        ? parseFloat(String(assessment.targetWeight))
+                        : null,
+                      weightLossGoal: assessment?.weightLossGoal || null,
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
+            </TabsContent>
+
             <TabsContent value="quiz-assessment" className="mt-4">
               <MemberQuizAssessmentTabs
                 submissions={portalQuizAllSubmissions}
-                memberGender={customer?.gender}
+                memberGender={memberGender}
                 assessment={assessment}
                 bmi={bmi}
                 rawSurveyData={rawSurveyData}
@@ -1054,8 +1103,11 @@ export default function CustomerDetailPage() {
                           <span className="font-medium text-sm">{note.title as string}</span>
                           <Badge variant="outline" className="text-xs">{note.category as string}</Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">{note.content as string}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{new Date(note.createdAt as string).toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{note.content as string}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {(note.authorName as string | undefined) ? `${note.authorName as string} · ` : ""}
+                          {new Date(note.createdAt as string).toLocaleString("en-AU")}
+                        </p>
                       </div>
                     )) : <p className="text-center text-muted-foreground py-8">No notes</p>}
                   </ScrollArea>

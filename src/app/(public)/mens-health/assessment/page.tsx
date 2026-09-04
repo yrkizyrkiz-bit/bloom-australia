@@ -20,6 +20,8 @@ import {
   ProgramMembershipBackbone,
   type FunnelProfileFields,
 } from "@/components/funnel/ProgramMembershipBackbone";
+import { FunnelStepProgress } from "@/components/funnel/FunnelStepProgress";
+import { WomensHealthInsightsJourney } from "@/components/quiz/WomensHealthInsightsJourney";
 import type { ProgramKey } from "@/lib/membership/keys";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
@@ -45,9 +47,6 @@ import {
   Package,
   AlertCircle,
   Tag,
-  User,
-  FileText,
-  Wallet,
   Sparkles,
   Loader2,
 } from "lucide-react";
@@ -312,6 +311,18 @@ function AssessmentContent() {
     [sexualQuizSteps.length]
   );
 
+  // Contact details are collected later in ProgramMembershipBackbone.
+  // Keep the unused contact index, but bounce if we ever land on it.
+  useEffect(() => {
+    if (isSexualFlow && step === sexualBounds.contact) {
+      setStep(sexualBounds.consent);
+      return;
+    }
+    if (!isSexualFlow && step === 16) {
+      setStep(17);
+    }
+  }, [isSexualFlow, step, sexualBounds.contact, sexualBounds.consent]);
+
   const analyseStep = isSexualFlow ? sexualBounds.analyse : 18;
   const totalSteps = analyseStep + 1;
   const progress = Math.min(((step + 1) / totalSteps) * 100, 100);
@@ -326,7 +337,6 @@ function AssessmentContent() {
     }
     if (step <= 3) return 1; // Personal Info
     if (step <= 15) return 2; // Health Assessment
-    if (step === 16) return 2; // Contact details (still part of assessment)
     if (step === 17 || step === analyseStep) return 3;
     return 4;
   };
@@ -388,7 +398,7 @@ function AssessmentContent() {
             return isSexualHealthQuizStepComplete(step, quizAnswers);
           }
           if (step === sexualBounds.contact) {
-            return formData.phone.length >= 10 && formData.postcode.length >= 4;
+            return true;
           }
           if (step === sexualBounds.consent) {
             return formData.confirmedAccurate;
@@ -417,7 +427,7 @@ function AssessmentContent() {
       case 13: return formData.previousTreatment !== "";
       case 14: return formData.treatmentGoal !== "";
       case 15: return formData.otherConcerns.length > 0;
-      case 16: return formData.phone.length >= 10 && formData.postcode.length >= 4;
+      case 16: return true;
       case 17: return formData.confirmedAccurate;
       case analyseStep:
         return true;
@@ -430,6 +440,18 @@ function AssessmentContent() {
 
     if (isSexualFlow && step === sexualBounds.consent) {
       setStep(sexualBounds.analyse);
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    if (isSexualFlow && step + 1 === sexualBounds.contact) {
+      setStep(sexualBounds.consent);
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    if (!isSexualFlow && step === 15) {
+      setStep(17);
       window.scrollTo(0, 0);
       return;
     }
@@ -460,7 +482,7 @@ function AssessmentContent() {
         if (nextIndex < steps.length) {
           setStep(bounds.quizStart + nextIndex);
         } else {
-          setStep(bounds.contact);
+          setStep(bounds.consent);
         }
         window.scrollTo(0, 0);
       }, 300);
@@ -470,6 +492,16 @@ function AssessmentContent() {
 
   const prevStep = () => {
     if (step > 0) {
+      if (isSexualFlow && step === sexualBounds.consent) {
+        setStep(sexualBounds.contact - 1);
+        window.scrollTo(0, 0);
+        return;
+      }
+      if (!isSexualFlow && step === 17) {
+        setStep(15);
+        window.scrollTo(0, 0);
+        return;
+      }
       setStep(step - 1);
       window.scrollTo(0, 0);
     }
@@ -594,60 +626,6 @@ function AssessmentContent() {
     startMembershipBackbone();
   };
 
-  // Progress Step Indicator Component
-  const ProgressStepIndicator = () => {
-    const phases = [
-      { id: 1, label: "Your Details", icon: User },
-      { id: 2, label: "Health Assessment", icon: FileText },
-      { id: 3, label: "Review", icon: Check },
-      { id: 4, label: "Submit & Pay", icon: Wallet },
-    ];
-
-    return (
-      <div className="w-full py-4 px-2">
-        <div className="flex items-center justify-between max-w-lg mx-auto">
-          {phases.map((phase, index) => {
-            const isActive = currentPhase === phase.id;
-            const isCompleted = currentPhase > phase.id;
-            const Icon = phase.icon;
-
-            return (
-              <div key={phase.id} className="flex items-center flex-1 last:flex-initial">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                      isCompleted
-                        ? "bg-[#5c7a52] text-white"
-                        : isActive
-                        ? "bg-[#5c7a52] text-white ring-4 ring-[#5c7a52]/20"
-                        : "bg-[#e6ebe3] text-[#7e9a72]"
-                    }`}
-                  >
-                    {isCompleted ? <Check className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
-                  </div>
-                  <span
-                    className={`mt-2 text-xs font-medium text-center hidden sm:block ${
-                      isActive || isCompleted ? "text-[#2c3628]" : "text-[#7e9a72]"
-                    }`}
-                  >
-                    {phase.label}
-                  </span>
-                </div>
-                {index < phases.length - 1 && (
-                  <div
-                    className={`flex-1 h-1 mx-2 rounded-full transition-all duration-300 ${
-                      isCompleted ? "bg-[#5c7a52]" : "bg-[#e6ebe3]"
-                    }`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
   const renderSexualHealthQuizQuestion = (question: QuizStep) => (
     <div className="space-y-6">
       <div className="text-center">
@@ -687,57 +665,11 @@ function AssessmentContent() {
     switch (step) {
       case 0:
         return (
-          <div className="space-y-6">
-            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628] text-center">
-              Your path to doctor-led sexual health care
-            </h1>
-            <p className="text-center text-[#5c7a52]">
-              Complete a confidential assessment, then book your doctor consultation (the same clinical pathway as in your Sanative portal).
-            </p>
-            <div className="space-y-4 mt-8">
-              {[
-                {
-                  num: 1,
-                  title: "Clinical assessment",
-                  description: "Answer the same confidential questions our doctors use to understand your sexual health concerns.",
-                  icon: Heart,
-                },
-                {
-                  num: 2,
-                  title: "Doctor consultation",
-                  description: "Book a telehealth appointment with an AHPRA-registered Australian doctor.",
-                  icon: Stethoscope,
-                },
-                {
-                  num: 3,
-                  title: "Personalised care planning",
-                  description: "Your doctor reviews your history and discusses what is clinically appropriate for you in private.",
-                  icon: MessageCircle,
-                },
-                {
-                  num: 4,
-                  title: "Ongoing support",
-                  description: "Care team messaging and follow-up in your portal if a program is suitable.",
-                  icon: Shield,
-                },
-              ].map((item) => (
-                <div key={item.num} className="bg-white rounded-2xl p-5 border border-[#e6ebe3] flex gap-4">
-                  <div className="w-10 h-10 rounded-full bg-[#5c7a52]/10 text-[#5c7a52] flex items-center justify-center flex-shrink-0">
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-xs font-medium text-[#5c7a52] bg-[#e6ebe3] px-2 py-0.5 rounded-full">Step {item.num}</span>
-                    <h3 className="font-semibold text-[#2c3628] mt-1">{item.title}</h3>
-                    <p className="text-sm text-[#5c7a52] mt-1">{item.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="bg-[#e6ebe3] rounded-2xl p-4 flex items-start gap-3">
-              <Shield className="w-5 h-5 text-[#5c7a52] flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-[#5c7a52]">100% confidential. Your information is encrypted and protected by Australian privacy laws.</p>
-            </div>
-          </div>
+          <WomensHealthInsightsJourney
+            firstName={formData.firstName}
+            categoryLabel="sexual health"
+            className="py-5 sm:py-6 lg:py-7"
+          />
         );
 
       case 4:
@@ -750,27 +682,6 @@ function AssessmentContent() {
             <p className="text-[#5c7a52] max-w-md mx-auto">
               These match the in-portal sexual health assessment so your doctor receives consistent clinical information.
             </p>
-          </div>
-        );
-
-      case sexualBounds.contact:
-        return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Contact details</h1>
-              <p className="mt-3 text-[#5c7a52]">We&apos;ll use these to arrange your consultation and follow-up.</p>
-            </div>
-            <div className="space-y-4 mt-8">
-              <div>
-                <label className="block text-sm font-medium text-[#2c3628] mb-2">Mobile number</label>
-                <input type="tel" value={formData.phone} onChange={(e) => updateFormData("phone", e.target.value.replace(/[^0-9+]/g, ""))} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="04XX XXX XXX" />
-                <p className="text-xs text-[#7e9a72] mt-2">We&apos;ll SMS you when your doctor has reviewed your assessment.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#2c3628] mb-2">Postcode</label>
-                <input type="text" value={formData.postcode} onChange={(e) => updateFormData("postcode", e.target.value.replace(/\D/g, "").slice(0, 4))} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="e.g. 2000" maxLength={4} />
-              </div>
-            </div>
           </div>
         );
 
@@ -801,16 +712,8 @@ function AssessmentContent() {
                   <p className="text-[#2c3628] font-medium">{formData.dateOfBirth}</p>
                 </div>
                 <div>
-                  <label className="block text-xs text-[#7e9a72] mb-1">Mobile number</label>
-                  <p className="text-[#2c3628] font-medium">{formData.phone}</p>
-                </div>
-                <div>
                   <label className="block text-xs text-[#7e9a72] mb-1">Email</label>
                   <p className="text-[#2c3628] font-medium">{formData.email}</p>
-                </div>
-                <div>
-                  <label className="block text-xs text-[#7e9a72] mb-1">Postcode</label>
-                  <p className="text-[#2c3628] font-medium">{formData.postcode}</p>
                 </div>
               </div>
             </div>
@@ -1247,27 +1150,6 @@ function AssessmentContent() {
           </div>
         );
 
-      case 16:
-        return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">Contact details</h1>
-              <p className="mt-3 text-[#5c7a52]">We'll use these to arrange your consultation and follow-up.</p>
-            </div>
-            <div className="space-y-4 mt-8">
-              <div>
-                <label className="block text-sm font-medium text-[#2c3628] mb-2">Mobile number</label>
-                <input type="tel" value={formData.phone} onChange={(e) => updateFormData("phone", e.target.value.replace(/[^0-9+]/g, ""))} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="04XX XXX XXX" />
-                <p className="text-xs text-[#7e9a72] mt-2">We'll SMS you when your doctor has reviewed your assessment.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#2c3628] mb-2">Postcode</label>
-                <input type="text" value={formData.postcode} onChange={(e) => updateFormData("postcode", e.target.value.replace(/\D/g, "").slice(0, 4))} className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white" placeholder="e.g. 2000" maxLength={4} />
-              </div>
-            </div>
-          </div>
-        );
-
       case 17:
         return (
           <div className="space-y-6">
@@ -1296,16 +1178,8 @@ function AssessmentContent() {
                   <p className="text-[#2c3628] font-medium">{formData.dateOfBirth}</p>
                 </div>
                 <div>
-                  <label className="block text-xs text-[#7e9a72] mb-1">Mobile number</label>
-                  <p className="text-[#2c3628] font-medium">{formData.phone}</p>
-                </div>
-                <div>
                   <label className="block text-xs text-[#7e9a72] mb-1">Email</label>
                   <p className="text-[#2c3628] font-medium">{formData.email}</p>
-                </div>
-                <div>
-                  <label className="block text-xs text-[#7e9a72] mb-1">Postcode</label>
-                  <p className="text-[#2c3628] font-medium">{formData.postcode}</p>
                 </div>
               </div>
             </div>
@@ -1392,35 +1266,55 @@ function AssessmentContent() {
     );
   }
 
+  const showInsightsIntro = isSexualFlow && step === 0;
+  const lockToViewport = step === 0 && !showInsightsIntro;
+  const contentMaxWidth = showInsightsIntro ? "max-w-6xl" : "max-w-2xl";
+
   return (
-    <div className="min-h-screen bg-[#fdfbf7]">
+    <div className={lockToViewport ? "h-dvh overflow-hidden bg-[#fdfbf7] flex flex-col" : "min-h-screen bg-[#fdfbf7]"}>
       {/* Progress bar - thin line at top */}
       <div className="fixed top-0 left-0 right-0 h-1 bg-[#e6ebe3] z-50">
         <div className="h-full bg-[#5c7a52] transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#e6ebe3]">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <header className={`${lockToViewport ? "shrink-0" : "sticky top-0"} bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#e6ebe3]`}>
+        <div className={`${contentMaxWidth} mx-auto px-4 sm:px-6 flex items-center justify-between ${lockToViewport ? "py-3" : "py-4"}`}>
           <Link href="/mens-health" className="text-2xl font-serif text-[#34412f]">Sanative</Link>
           <button type="button" onClick={() => setShowFAQ(true)} className="flex items-center gap-1.5 text-sm text-[#5c7a52] hover:text-[#34412f] transition-colors">
             <Info className="w-4 h-4" /><span>Help</span>
           </button>
         </div>
-        {/* Step Progress Indicator - shown after intro step */}
-        {step > 0 && step < totalSteps - 1 && <ProgressStepIndicator />}
+        {step > 0 && step < totalSteps - 1 && (
+          <FunnelStepProgress currentPhase={currentPhase} />
+        )}
       </header>
 
       {/* Main content */}
-      <main className="max-w-2xl px-4 mx-auto py-8 pb-32">
+      <main className={
+        showInsightsIntro
+          ? "max-w-6xl w-full px-4 mx-auto py-4 pb-32"
+          : lockToViewport
+            ? "flex-1 min-h-0 overflow-hidden max-w-2xl w-full px-4 mx-auto pt-6 pb-4 flex flex-col justify-start"
+            : "max-w-2xl px-4 mx-auto py-8 pb-32"
+      }>
         <div className="animate-fadeIn">{renderStep()}</div>
+        {lockToViewport && (
+          <div className="mt-6">
+            <button type="button" onClick={nextStep} disabled={!canProceed()} className="w-full py-4 bg-[#5c7a52] text-white font-medium rounded-xl hover:bg-[#4a6343] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              Let&apos;s begin
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
       </main>
 
       {/* Bottom navigation */}
-      {step < totalSteps - 1 &&
+      {!lockToViewport &&
+        step < totalSteps - 1 &&
         step !== analyseStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
-          <div className="max-w-2xl mx-auto flex gap-3">
+          <div className={`${contentMaxWidth} mx-auto flex gap-3`}>
             {step > 0 && (
               <button type="button" onClick={prevStep} className="px-5 py-4 rounded-xl border border-[#cdd8c6] text-[#5c7a52] font-medium hover:bg-[#f4f7f2] transition-colors flex items-center gap-2">
                 <ArrowLeft className="w-5 h-5" />

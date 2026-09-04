@@ -48,7 +48,7 @@ function getQuizSteps(
 ) {
   const sexualHealthSteps = getSexualHealthQuizSteps(programKey, answers);
   if (sexualHealthSteps) return sexualHealthSteps;
-  const funnelSteps = getPublicFunnelQuizSteps(programKey, gender);
+  const funnelSteps = getPublicFunnelQuizSteps(programKey, gender, answers);
   if (funnelSteps) return funnelSteps;
   return GENERIC_PROGRAM_QUIZ;
 }

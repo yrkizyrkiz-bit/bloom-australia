@@ -25,6 +25,11 @@ import { MembershipConsultationBooking } from "@/components/membership/Membershi
 import { ConsentNotice } from "@/components/legal/ConsentNotice";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import type { ClinicalProgramFunnelConfig } from "@/lib/funnel/clinical-program-funnel";
+import {
+  FunnelStepProgress,
+  backboneProgressPhase,
+  funnelProgressAccentForProgram,
+} from "@/components/funnel/FunnelStepProgress";
 
 export type FunnelProfileFields = {
   firstName: string;
@@ -113,12 +118,17 @@ export function ProgramMembershipBackbone({
     >
       {phase !== "welcome" && (
         <header className="flex-shrink-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#e6ebe3]">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-3 pb-3 flex items-center justify-between">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-3 pb-0 flex items-center justify-between">
             <Link href="/" className="font-serif text-xl text-[#34412f]">
               Sanative
             </Link>
             <span className="text-xs font-medium text-[#5c7a52]">{config.label}</span>
           </div>
+          <FunnelStepProgress
+            currentPhase={backboneProgressPhase(phase)}
+            compact
+            accent={funnelProgressAccentForProgram(config.id)}
+          />
         </header>
       )}
 
@@ -250,13 +260,27 @@ function QualificationStep({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-[#f8faf8] to-white px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 sm:px-6">
       <div className="mx-auto flex h-full w-full max-w-md min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="relative mb-2 min-h-[6.5rem] max-h-[240px] flex-1 overflow-hidden rounded-2xl shadow-sm">
+        <div
+          className={
+            config.qualificationImagePortrait
+              ? "relative mx-auto mb-2 w-full max-w-[220px] min-h-[9rem] max-h-[280px] flex-1 overflow-hidden rounded-2xl shadow-sm"
+              : "relative mb-2 min-h-[9rem] max-h-[280px] flex-1 overflow-hidden rounded-2xl shadow-sm"
+          }
+        >
           <Image
             src={config.qualificationImage}
             alt={config.qualificationImageAlt}
             fill
-            sizes="(max-width: 448px) 100vw, 448px"
-            className="object-cover object-center"
+            sizes={
+              config.qualificationImagePortrait
+                ? "220px"
+                : "(max-width: 448px) 100vw, 448px"
+            }
+            className={
+              config.qualificationImagePortrait
+                ? "object-contain object-top"
+                : "object-cover object-center"
+            }
             priority
           />
         </div>

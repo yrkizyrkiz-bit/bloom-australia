@@ -33,6 +33,7 @@ export function Header({
       label: "Women's Health",
       href: "/womens-health",
       dropdown: [
+        { label: "Start Assessment", href: "/womens-health/assessment?category=menopause" },
         { label: "Health Check", href: "/labs" },
         { label: "Weight Loss", href: "/weight-management" },
         { label: "Menopause", href: "/womens-health" },
@@ -44,9 +45,10 @@ export function Header({
       label: "Men's Health",
       href: "/mens-health",
       dropdown: [
+        { label: "Start Assessment", href: "/mens-health/assessment" },
         { label: "Health Check", href: "/labs" },
         { label: "Weight Loss", href: "/weight-management?gender=men" },
-        { label: "Erectile Dysfunction", href: "/mens-health/erectile-dysfunction" },
+        { label: "Erectile Dysfunction", href: "/mens-health#sexual-health" },
         { label: "Hair Loss", href: "/hair-health?gender=men" },
         { label: "BMI Calculator", href: "/weight-management?gender=men#bmi" },
       ],

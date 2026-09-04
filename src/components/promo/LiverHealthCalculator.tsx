@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { calculateBmi } from "@/lib/bmi";
 import {
   ArrowRight,
   ArrowLeft,
@@ -115,9 +116,8 @@ const questions: Question[] = [
   },
 ];
 
-function calculateBMI(weightKg: number, heightCm: number): number {
-  const heightM = heightCm / 100;
-  return weightKg / (heightM * heightM);
+function calculateBMI(weightKg: number, heightCm: number): number | null {
+  return calculateBmi(weightKg, heightCm);
 }
 
 function getBMIScore(bmi: number): number {

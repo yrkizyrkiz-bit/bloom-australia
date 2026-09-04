@@ -65,14 +65,17 @@ export async function GET() {
           where: {
             userId,
             notes: { contains: "Hair Loss" },
+            completedAt: null,
+            status: { in: ["BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "SLOT_HELD"] },
           },
-          orderBy: { scheduledAt: "desc" },
+          orderBy: { scheduledAt: "asc" },
           select: {
             id: true,
             status: true,
             scheduledAt: true,
             doctorName: true,
             appointmentType: true,
+            completedAt: true,
           },
         }),
         prisma.prescription.findMany({
@@ -171,6 +174,7 @@ export async function GET() {
             scheduledAt: booking.scheduledAt.toISOString(),
             doctorName: booking.doctorName,
             appointmentType: booking.appointmentType,
+            completedAt: booking.completedAt?.toISOString() || null,
           }
         : null,
       progress: {

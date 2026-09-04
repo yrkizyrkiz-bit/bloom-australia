@@ -2,15 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Scale, Plus, TrendingDown, TrendingUp, Calendar, Loader2, Sparkles, Heart } from "lucide-react";
+import { Scale, TrendingDown, TrendingUp, Calendar, Loader2, Sparkles, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { ProgressChart } from "./ProgressChart";
 import { SuccessAnimation } from "./SuccessAnimation";
+import WeightScale from "./WeightScale";
+import WaistTapeMeasure, { type WaistUnit } from "./WaistTapeMeasure";
 import { getRandomMotivation } from "@/data/mealImages";
+
+const CM_PER_IN = 2.54;
+
+function toCm(value: number, unit: WaistUnit) {
+  const cm = unit === "in" ? value * CM_PER_IN : value;
+  return Math.round(cm * 10) / 10;
+}
 
 interface WeightLog {
   id: string;
@@ -37,18 +43,29 @@ interface WeightData {
 export function WeightTracker() {
   const [data, setData] = useState<WeightData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  const [weight, setWeight] = useState("");
-  const [waist, setWaist] = useState("");
-  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [weight, setWeight] = useState<number | null>(null);
+  const [waist, setWaist] = useState<number | null>(90);
+  const [waistUnit, setWaistUnit] = useState<WaistUnit>("cm");
 
   useEffect(() => {
     fetchWeightData();
   }, []);
+
+  useEffect(() => {
+    if (weight != null || data?.currentWeight == null) return;
+    setWeight(data.currentWeight);
+  }, [data?.currentWeight]);
+
+  useEffect(() => {
+    const latestWaist = data?.weightLogs
+      ? [...data.weightLogs].reverse().find((log) => log.waistCircumference != null)?.waistCircumference
+      : undefined;
+    if (latestWaist != null) setWaist(latestWaist);
+  }, [data?.weightLogs]);
 
   const fetchWeightData = async () => {
     try {
@@ -64,43 +81,60 @@ export function WeightTracker() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!weight) {
-      toast.error("Please enter your weight");
-      return;
-    }
-
+  const persistMeasurement = async (payload: {
+    weight?: number;
+    waistCircumference?: number | null;
+  }) => {
     setSubmitting(true);
     try {
       const res = await fetch("/api/weight-management/weight", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          weight: parseFloat(weight),
-          waistCircumference: waist ? parseFloat(waist) : null,
-          notes: notes || null,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        // Show celebratory animation
+        const saved = await res.json();
         setSuccessMessage(getRandomMotivation("weightTracking"));
         setShowSuccess(true);
-
-        setWeight("");
-        setWaist("");
-        setNotes("");
-        setShowForm(false);
+        if (typeof saved.weight === "number") setWeight(saved.weight);
+        if (typeof saved.waistCircumference === "number") {
+          setWaist(saved.waistCircumference);
+          setWaistUnit("cm");
+        }
         fetchWeightData();
       } else {
-        throw new Error("Failed to log weight");
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Failed to log weight");
       }
     } catch (error) {
-      toast.error("Failed to log weight");
+      toast.error(error instanceof Error ? error.message : "Failed to log measurement");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const persistWeight = async (value: number) => {
+    const weightKg = Math.round(value * 10) / 10;
+    if (!weightKg || weightKg <= 0) {
+      toast.error("Please enter your weight");
+      return;
+    }
+    await persistMeasurement({ weight: weightKg });
+  };
+
+  const persistWaist = async (value: number, unit: WaistUnit) => {
+    await persistMeasurement({ waistCircumference: toCm(value, unit) });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const value = weight ?? data?.currentWeight ?? null;
+    if (value == null) {
+      toast.error("Please enter your weight");
+      return;
+    }
+    await persistWeight(value);
   };
 
   if (loading) {
@@ -188,72 +222,48 @@ export function WeightTracker() {
       </div>
 
       {/* Chart */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Your Journey</CardTitle>
-            <Button
-              onClick={() => setShowForm(!showForm)}
-              size="sm"
-              className={showForm ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-emerald-600 hover:bg-emerald-700"}
-            >
-              <Plus className="w-4 h-4 mr-1" /> Log Weight
-            </Button>
-          </div>
+      <Card className="border-0 bg-transparent shadow-none sm:border sm:border-[#cdd8c6] sm:bg-[#f8f4ec] sm:shadow">
+        <CardHeader className="px-0 pb-2 sm:px-6">
+          <CardTitle className="font-serif text-lg text-[#2c3628]">Your Journey</CardTitle>
         </CardHeader>
-        <CardContent>
-          {showForm && (
-            <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gradient-to-br from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 rounded-xl border border-emerald-100 dark:border-emerald-900 space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Scale className="w-5 h-5 text-emerald-600" />
-                <span className="font-medium text-emerald-800 dark:text-emerald-200">How are you doing today?</span>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Weight (kg) *</Label>
-                  <Input
-                    id="weight"
-                    type="number"
-                    step="0.1"
-                    placeholder="75.5"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    required
-                    className="text-lg"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="waist">Waist (cm)</Label>
-                  <Input
-                    id="waist"
-                    type="number"
-                    step="0.1"
-                    placeholder="85"
-                    value={waist}
-                    onChange={(e) => setWaist(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">How are you feeling?</Label>
-                <Input
-                  id="notes"
-                  placeholder="e.g., Feeling energized today!"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
-                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Save Entry
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          )}
+        <CardContent className="px-0 sm:px-6">
+          <form
+            id="journey-log-form"
+            onSubmit={handleSubmit}
+            className="mb-6 grid grid-cols-1 items-stretch gap-4 md:grid-cols-2"
+          >
+            <div className="flex h-full justify-center max-md:-mx-4 max-md:w-[calc(100%+2rem)] md:rounded-2xl md:bg-gradient-to-br md:from-[#e6ebe3] md:to-[#cdd8c6] md:p-4">
+              <WeightScale
+                className="journey-embedded-scale"
+                value={weight}
+                onChange={(next) => setWeight(next)}
+                onSave={persistWeight}
+                loading={submitting}
+                disabled={submitting}
+                title="Weight"
+                helperText="Tap the display to enter your weight."
+              />
+            </div>
+            <div className="flex h-full justify-center max-md:-mx-4 max-md:w-[calc(100%+2rem)] md:rounded-2xl md:bg-gradient-to-br md:from-[#e6ebe3] md:to-[#cdd8c6] md:p-4">
+              <WaistTapeMeasure
+                className="journey-embedded-tape"
+                value={waist}
+                onChange={(next, unit) => {
+                  setWaist(next);
+                  setWaistUnit(unit);
+                }}
+                onSave={persistWaist}
+                unit={waistUnit}
+                loading={submitting}
+                disabled={submitting}
+                title="Waist measurement"
+                badge="Optional"
+                helperText="Drag or slide the tape to log your waist measurement."
+                buttonLabel="Save waist"
+                soundEnabled
+              />
+            </div>
+          </form>
 
           <ProgressChart data={data?.weeklyData || []} />
         </CardContent>

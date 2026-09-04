@@ -1,259 +1,171 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, X, Heart, Clock, Flame, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import {
+  Search, X, Heart, Clock, Flame, ChevronLeft, Loader2, Users, ListChecks, ChefHat,
+} from "lucide-react";
+import {
+  RECIPE_CATALOG,
+  RECIPE_TO_DIARY_MEAL_TYPE,
+  type CatalogRecipe,
+  type RecipeCategory,
+} from "@/lib/weight-management/recipe-catalog";
+import { useRecipeFavourites } from "@/hooks/useRecipeFavourites";
 
-interface MealGalleryItem {
-  id: string;
-  name: string;
-  image: string;
-  category: string;
-  calories: number;
-  prepTime: string;
-  tags: string[];
+const GALLERY_MEAL_TYPES: { value: string; label: string }[] = [
+  { value: "BREAKFAST", label: "Breakfast" },
+  { value: "MORNING_SNACK", label: "Morning snack" },
+  { value: "LUNCH", label: "Lunch" },
+  { value: "AFTERNOON_SNACK", label: "Afternoon snack" },
+  { value: "DINNER", label: "Dinner" },
+  { value: "EVENING_SNACK", label: "Evening snack" },
+];
+
+const CATEGORIES: Array<"All" | RecipeCategory> = [
+  "All",
+  "Breakfast",
+  "Lunch",
+  "Dinner",
+  "Snacks",
+  "Desserts",
+];
+
+function getDifficultyColor(difficulty: string) {
+  switch (difficulty) {
+    case "EASY": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
+    case "MEDIUM": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
+    case "HARD": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
+    default: return "bg-gray-100 text-gray-700";
+  }
 }
 
-// Curated meal gallery with beautiful images
-const MEAL_GALLERY: MealGalleryItem[] = [
-  // Breakfast
-  {
-    id: "1",
-    name: "Greek Yogurt Parfait",
-    image: "/images/remote/unsplash/photo-1488477181946-6428a0291777.webp",
-    category: "Breakfast",
-    calories: 280,
-    prepTime: "5 min",
-    tags: ["high-protein", "quick"]
-  },
-  {
-    id: "2",
-    name: "Avocado Toast with Eggs",
-    image: "/images/remote/unsplash/photo-1525351484163-7529414344d8.webp",
-    category: "Breakfast",
-    calories: 420,
-    prepTime: "10 min",
-    tags: ["healthy-fats", "filling"]
-  },
-  {
-    id: "3",
-    name: "Overnight Oats",
-    image: "/images/remote/unsplash/photo-1517673132405-a56a62b18caf.webp",
-    category: "Breakfast",
-    calories: 350,
-    prepTime: "5 min",
-    tags: ["meal-prep", "fiber"]
-  },
-  {
-    id: "4",
-    name: "Smoothie Bowl",
-    image: "/images/remote/unsplash/photo-1590301157890-4810ed352733.webp",
-    category: "Breakfast",
-    calories: 320,
-    prepTime: "10 min",
-    tags: ["antioxidants", "refreshing"]
-  },
-  // Lunch
-  {
-    id: "5",
-    name: "Buddha Bowl",
-    image: "/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp",
-    category: "Lunch",
-    calories: 520,
-    prepTime: "20 min",
-    tags: ["balanced", "colorful"]
-  },
-  {
-    id: "6",
-    name: "Grilled Chicken Salad",
-    image: "/images/remote/unsplash/photo-1546069901-ba9599a7e63c.webp",
-    category: "Lunch",
-    calories: 450,
-    prepTime: "15 min",
-    tags: ["high-protein", "low-carb"]
-  },
-  {
-    id: "7",
-    name: "Mediterranean Wrap",
-    image: "/images/remote/unsplash/photo-1626700051175-6818013e1d4f.webp",
-    category: "Lunch",
-    calories: 480,
-    prepTime: "10 min",
-    tags: ["portable", "fresh"]
-  },
-  {
-    id: "8",
-    name: "Quinoa Power Bowl",
-    image: "/images/remote/unsplash/photo-1490645935967-10de6ba17061.webp",
-    category: "Lunch",
-    calories: 490,
-    prepTime: "25 min",
-    tags: ["complete-protein", "filling"]
-  },
-  // Dinner
-  {
-    id: "9",
-    name: "Grilled Salmon",
-    image: "/images/remote/unsplash/photo-1467003909585-2f8a72700288.webp",
-    category: "Dinner",
-    calories: 480,
-    prepTime: "25 min",
-    tags: ["omega-3", "heart-healthy"]
-  },
-  {
-    id: "10",
-    name: "Stir-Fry Vegetables",
-    image: "/images/remote/unsplash/photo-1603133872878-684f208fb84b.webp",
-    category: "Dinner",
-    calories: 380,
-    prepTime: "20 min",
-    tags: ["quick", "vegetarian"]
-  },
-  {
-    id: "11",
-    name: "Grilled Steak",
-    image: "/images/remote/unsplash/photo-1558030006-450675393462.webp",
-    category: "Dinner",
-    calories: 550,
-    prepTime: "30 min",
-    tags: ["high-protein", "iron"]
-  },
-  {
-    id: "12",
-    name: "Herb Roasted Chicken",
-    image: "/images/remote/unsplash/photo-1598515214211-89d3c73ae83b.webp",
-    category: "Dinner",
-    calories: 420,
-    prepTime: "45 min",
-    tags: ["comfort-food", "family"]
-  },
-  // Snacks
-  {
-    id: "13",
-    name: "Fresh Fruit Plate",
-    image: "/images/remote/unsplash/photo-1619566636858-adf3ef46400b.webp",
-    category: "Snacks",
-    calories: 150,
-    prepTime: "5 min",
-    tags: ["vitamins", "refreshing"]
-  },
-  {
-    id: "14",
-    name: "Hummus & Veggies",
-    image: "/images/remote/unsplash/photo-1623428187969-5da2dcea5ebf.webp",
-    category: "Snacks",
-    calories: 180,
-    prepTime: "5 min",
-    tags: ["fiber", "protein"]
-  },
-  {
-    id: "15",
-    name: "Protein Smoothie",
-    image: "/images/remote/unsplash/photo-1502741224143-90386d7f8c82.webp",
-    category: "Snacks",
-    calories: 250,
-    prepTime: "5 min",
-    tags: ["post-workout", "energizing"]
-  },
-  {
-    id: "16",
-    name: "Mixed Nuts",
-    image: "/images/remote/unsplash/photo-1606050627529-2f3c8c6b0b94.webp",
-    category: "Snacks",
-    calories: 200,
-    prepTime: "0 min",
-    tags: ["healthy-fats", "portable"]
-  },
-];
+export type GalleryMealSelection = {
+  name: string;
+  calories: number;
+  category?: string;
+  mealType: string;
+};
 
 interface MealGalleryProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectMeal?: (meal: MealGalleryItem) => void;
+  onSelectMeal?: (meal: GalleryMealSelection) => void | Promise<boolean | void>;
 }
 
 export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryProps) {
+  const { savedRecipes, toggleFavourite, loadFavourites, userId } = useRecipeFavourites();
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
-  const [selectedMeal, setSelectedMeal] = useState<MealGalleryItem | null>(null);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
+  const [showFavourites, setShowFavourites] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<CatalogRecipe | null>(null);
+  const [galleryMealType, setGalleryMealType] = useState("LUNCH");
+  const [saving, setSaving] = useState(false);
 
-  const categories = ["All", "Breakfast", "Lunch", "Dinner", "Snacks"];
+  useEffect(() => {
+    if (open && userId) loadFavourites(userId);
+  }, [open, userId, loadFavourites]);
 
-  const filteredMeals = MEAL_GALLERY.filter(meal => {
-    const matchesSearch = meal.name.toLowerCase().includes(search.toLowerCase()) ||
-      meal.tags.some(tag => tag.toLowerCase().includes(search.toLowerCase()));
+  const query = search.toLowerCase().trim();
+  const filteredMeals = RECIPE_CATALOG.filter((meal) => {
+    const matchesSearch =
+      !query ||
+      meal.title.toLowerCase().includes(query) ||
+      meal.description.toLowerCase().includes(query) ||
+      meal.dietaryTags.some((tag) => tag.toLowerCase().includes(query));
     const matchesCategory = category === "All" || meal.category === category;
-    return matchesSearch && matchesCategory;
+    const matchesFavourites = !showFavourites || savedRecipes.has(meal.id);
+    return matchesSearch && matchesCategory && matchesFavourites;
   });
 
-  const toggleFavorite = (id: string) => {
-    const newFavorites = new Set(favorites);
-    if (newFavorites.has(id)) {
-      newFavorites.delete(id);
-    } else {
-      newFavorites.add(id);
-    }
-    setFavorites(newFavorites);
+  const openMeal = (meal: CatalogRecipe) => {
+    setSelectedMeal(meal);
+    setGalleryMealType(RECIPE_TO_DIARY_MEAL_TYPE[meal.mealType]);
   };
 
-  const handleSelectMeal = (meal: MealGalleryItem) => {
-    onSelectMeal?.(meal);
-    onOpenChange(false);
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      setSelectedMeal(null);
+      setSaving(false);
+      setShowFavourites(false);
+    }
+    onOpenChange(next);
+  };
+
+  const handleSaveMeal = async (meal: CatalogRecipe) => {
+    setSaving(true);
+    try {
+      const result = await onSelectMeal?.({
+        name: meal.title,
+        calories: meal.calories,
+        category: meal.category,
+        mealType: galleryMealType,
+      });
+      if (result === false) return;
+      setSelectedMeal(null);
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
         <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Sparkles className="w-5 h-5 text-amber-500" />
-            Meal Inspiration Gallery
-          </DialogTitle>
+          <DialogTitle className="text-xl">Browse meals</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Browse delicious, healthy meals for ideas and inspiration
+            {RECIPE_CATALOG.length} recipes from our collection. Choose a meal and a type, then save it to your diary.
           </p>
         </DialogHeader>
 
         <div className="p-6 pt-4 space-y-4">
-          {/* Search and filters */}
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-40 shrink-0 sm:w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search meals or tags..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
+                className="h-9 pl-9 pr-8 text-sm"
               />
               {search && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 h-7 w-7"
                   onClick={() => setSearch("")}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </Button>
               )}
             </div>
-            <Tabs value={category} onValueChange={setCategory}>
-              <TabsList>
-                {categories.map(cat => (
+            <Tabs value={category} onValueChange={(value) => setCategory(value as (typeof CATEGORIES)[number])}>
+              <TabsList className="flex-wrap h-auto">
+                {CATEGORIES.map((cat) => (
                   <TabsTrigger key={cat} value={cat} className="text-xs md:text-sm">
                     {cat}
                   </TabsTrigger>
                 ))}
               </TabsList>
             </Tabs>
+            <Badge
+              variant={showFavourites ? "default" : "outline"}
+              className={`cursor-pointer transition-all ${showFavourites ? "bg-rose-500 hover:bg-rose-600" : "hover:bg-muted"}`}
+              onClick={() => setShowFavourites((current) => !current)}
+            >
+              <Heart className={`w-3 h-3 mr-1 inline ${showFavourites || savedRecipes.size > 0 ? "fill-current" : ""}`} />
+              Favourites{savedRecipes.size > 0 ? ` (${savedRecipes.size})` : ""}
+            </Badge>
           </div>
 
-          {/* Gallery grid */}
           <div className="overflow-y-auto max-h-[50vh] pr-2">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <AnimatePresence mode="popLayout">
@@ -264,38 +176,31 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ delay: index * 0.03 }}
+                    transition={{ delay: Math.min(index, 12) * 0.02 }}
                     className="group relative rounded-xl overflow-hidden bg-muted cursor-pointer"
-                    onClick={() => setSelectedMeal(meal)}
+                    onClick={() => openMeal(meal)}
                   >
-                    {/* Image */}
                     <div className="aspect-[4/3] overflow-hidden">
                       <img
-                        src={meal.image}
-                        alt={meal.name}
+                        src={meal.imageUrl}
+                        alt={meal.title}
                         className="w-full h-full object-cover transition-transform group-hover:scale-110"
                       />
                     </div>
-
-                    {/* Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
-
-                    {/* Favorite button */}
                     <button
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/40 transition-colors"
+                      className="absolute bottom-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white transition-colors z-10"
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleFavorite(meal.id);
+                        toggleFavourite(meal.id);
                       }}
                     >
                       <Heart
-                        className={`w-4 h-4 ${favorites.has(meal.id) ? "fill-rose-500 text-rose-500" : "text-white"}`}
+                        className={`w-4 h-4 ${savedRecipes.has(meal.id) ? "fill-rose-500 text-rose-500" : "text-gray-600"}`}
                       />
                     </button>
-
-                    {/* Content */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                      <p className="font-medium text-sm line-clamp-1">{meal.name}</p>
+                    <div className="absolute bottom-0 left-0 right-10 p-3 text-white">
+                      <p className="font-medium text-sm line-clamp-1">{meal.title}</p>
                       <div className="flex items-center gap-2 mt-1 text-xs text-white/80">
                         <span className="flex items-center gap-1">
                           <Flame className="w-3 h-3" />
@@ -303,7 +208,7 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {meal.prepTime}
+                          {meal.prepTime + meal.cookTime} min
                         </span>
                       </div>
                     </div>
@@ -314,8 +219,24 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
 
             {filteredMeals.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                <p>No meals found matching your search.</p>
-                <Button variant="link" onClick={() => { setSearch(""); setCategory("All"); }}>
+                <p>
+                  {showFavourites && savedRecipes.size === 0
+                    ? "No favourite meals yet"
+                    : "No meals found matching your search."}
+                </p>
+                <p className="mt-1 text-sm">
+                  {showFavourites && savedRecipes.size === 0
+                    ? "Tap the heart on a meal photo to add it to Favourites."
+                    : null}
+                </p>
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setSearch("");
+                    setCategory("All");
+                    setShowFavourites(false);
+                  }}
+                >
                   Clear filters
                 </Button>
               </div>
@@ -323,7 +244,6 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
           </div>
         </div>
 
-        {/* Meal detail modal */}
         <AnimatePresence>
           {selectedMeal && (
             <motion.div
@@ -333,75 +253,164 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
               exit={{ opacity: 0, x: 100 }}
               transition={{ type: "spring", damping: 25 }}
             >
-              {/* Back button */}
               <div className="p-4 border-b">
                 <Button variant="ghost" size="sm" onClick={() => setSelectedMeal(null)}>
                   <ChevronLeft className="w-4 h-4 mr-1" /> Back to gallery
                 </Button>
               </div>
 
-              {/* Meal detail content */}
               <div className="flex-1 overflow-y-auto p-6">
-                <div className="max-w-2xl mx-auto">
-                  {/* Hero image */}
-                  <div className="aspect-video rounded-2xl overflow-hidden mb-6">
+                <div className="max-w-2xl mx-auto space-y-6">
+                  <div className="space-y-1.5">
+                    <Label>Meal type</Label>
+                    <Select value={galleryMealType} onValueChange={setGalleryMealType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GALLERY_MEAL_TYPES.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="aspect-video relative rounded-2xl overflow-hidden">
                     <img
-                      src={selectedMeal.image}
-                      alt={selectedMeal.name}
+                      src={selectedMeal.imageUrl}
+                      alt={selectedMeal.title}
                       className="w-full h-full object-cover"
                     />
-                  </div>
-
-                  {/* Title and badges */}
-                  <div className="mb-4">
-                    <div className="flex items-start justify-between">
-                      <h2 className="text-2xl font-bold">{selectedMeal.name}</h2>
-                      <button
-                        className="p-2 rounded-full hover:bg-muted"
-                        onClick={() => toggleFavorite(selectedMeal.id)}
-                      >
-                        <Heart
-                          className={`w-6 h-6 ${favorites.has(selectedMeal.id) ? "fill-rose-500 text-rose-500" : "text-muted-foreground"}`}
-                        />
-                      </button>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                    <button
+                      className="absolute bottom-4 right-4 p-2 rounded-full bg-white/90 hover:bg-white z-10"
+                      onClick={() => toggleFavourite(selectedMeal.id)}
+                    >
+                      <Heart
+                        className={`w-5 h-5 ${savedRecipes.has(selectedMeal.id) ? "fill-rose-500 text-rose-500" : "text-gray-600"}`}
+                      />
+                    </button>
+                    <div className="absolute bottom-4 left-4 right-16">
+                      <Badge className={`mb-2 ${getDifficultyColor(selectedMeal.difficulty)}`}>
+                        {selectedMeal.difficulty}
+                      </Badge>
+                      <h2 className="text-2xl font-bold text-white">{selectedMeal.title}</h2>
                     </div>
-                    <Badge variant="secondary" className="mt-2">{selectedMeal.category}</Badge>
                   </div>
 
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-xl">
-                      <Flame className="w-8 h-8 text-orange-500" />
+                  <p className="text-muted-foreground">{selectedMeal.description}</p>
+
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-xl">
+                      <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
+                      <p className="font-bold">{selectedMeal.calories}</p>
+                      <p className="text-xs text-muted-foreground">calories</p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl">
+                      <span className="text-blue-600 font-bold text-lg">P</span>
+                      <p className="font-bold">{selectedMeal.protein}g</p>
+                      <p className="text-xs text-muted-foreground">protein</p>
+                    </div>
+                    <div className="text-center p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
+                      <span className="text-amber-600 font-bold text-lg">C</span>
+                      <p className="font-bold">{selectedMeal.carbs}g</p>
+                      <p className="text-xs text-muted-foreground">carbs</p>
+                    </div>
+                    <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded-xl">
+                      <span className="text-purple-600 font-bold text-lg">F</span>
+                      <p className="font-bold">{selectedMeal.fat}g</p>
+                      <p className="text-xs text-muted-foreground">fat</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-6">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-muted-foreground" />
                       <div>
-                        <p className="text-2xl font-bold">{selectedMeal.calories}</p>
-                        <p className="text-sm text-muted-foreground">calories</p>
+                        <p className="font-medium">{selectedMeal.prepTime + selectedMeal.cookTime} min</p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedMeal.prepTime}m prep + {selectedMeal.cookTime}m cook
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-xl">
-                      <Clock className="w-8 h-8 text-blue-500" />
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-muted-foreground" />
                       <div>
-                        <p className="text-2xl font-bold">{selectedMeal.prepTime}</p>
-                        <p className="text-sm text-muted-foreground">prep time</p>
+                        <p className="font-medium">{selectedMeal.servings} servings</p>
+                        <p className="text-xs text-muted-foreground">per recipe</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Tags */}
-                  <div className="mb-6">
-                    <p className="text-sm font-medium mb-2">Tags</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedMeal.tags.map(tag => (
-                        <Badge key={tag} variant="outline">{tag}</Badge>
-                      ))}
+                  {selectedMeal.dietaryTags.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Dietary Info</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedMeal.dietaryTags.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="capitalize">{tag}</Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Action button */}
+                  {selectedMeal.ingredients.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <ListChecks className="w-5 h-5 text-emerald-500" /> Ingredients
+                      </h3>
+                      <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4">
+                        <ul className="space-y-2">
+                          {selectedMeal.ingredients.map((ingredient, index) => (
+                            <li key={`${ingredient}-${index}`} className="flex items-start gap-2">
+                              <span className="w-5 h-5 rounded-full bg-emerald-200 dark:bg-emerald-800 flex items-center justify-center text-xs font-medium shrink-0 mt-0.5">
+                                {index + 1}
+                              </span>
+                              <span>{ingredient}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedMeal.instructions.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <ChefHat className="w-5 h-5 text-orange-500" /> Instructions
+                      </h3>
+                      <div className="space-y-3">
+                        {selectedMeal.instructions.map((step, index) => (
+                          <div key={`${step}-${index}`} className="flex gap-3">
+                            <span className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-sm font-bold text-orange-600 shrink-0">
+                              {index + 1}
+                            </span>
+                            <p className="text-sm leading-relaxed pt-1">{step}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedMeal.tips && selectedMeal.tips.length > 0 && (
+                    <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-4">
+                      <h4 className="font-semibold mb-2 text-amber-800 dark:text-amber-200">Pro Tips</h4>
+                      <ul className="space-y-1 text-sm text-amber-700 dark:text-amber-300">
+                        {selectedMeal.tips.map((tip, index) => (
+                          <li key={`${tip}-${index}`}>• {tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <Button
-                    className="w-full bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => handleSelectMeal(selectedMeal)}
+                    className="w-full bg-orange-500 hover:bg-orange-600"
+                    disabled={saving}
+                    onClick={() => handleSaveMeal(selectedMeal)}
                   >
-                    Log this meal
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save meal
                   </Button>
                 </div>
               </div>
@@ -413,25 +422,15 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
   );
 }
 
-// Compact gallery preview for embedding in other pages
 export function MealGalleryPreview({
   onViewAll
 }: {
   onViewAll: () => void;
 }) {
-  const featuredMeals = MEAL_GALLERY.slice(0, 4);
+  const featuredMeals = RECIPE_CATALOG.slice(0, 4);
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          Meal inspiration
-        </h3>
-        <Button variant="ghost" size="sm" onClick={onViewAll}>
-          View all <ChevronRight className="w-4 h-4 ml-1" />
-        </Button>
-      </div>
       <div className="grid grid-cols-4 gap-2">
         {featuredMeals.map((meal) => (
           <div
@@ -440,13 +439,16 @@ export function MealGalleryPreview({
             onClick={onViewAll}
           >
             <img
-              src={meal.image}
-              alt={meal.name}
+              src={meal.imageUrl}
+              alt={meal.title}
               className="w-full h-full object-cover"
             />
           </div>
         ))}
       </div>
+      <Button type="button" variant="outline" className="w-full" onClick={onViewAll}>
+        Select a preset meal
+      </Button>
     </div>
   );
 }

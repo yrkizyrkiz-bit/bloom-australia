@@ -13,21 +13,25 @@ import {
   getClinicalProgramFunnelConfig,
 } from "@/lib/funnel/clinical-program-funnel";
 import { ProgramMembershipBackbone, type FunnelProfileFields } from "@/components/funnel/ProgramMembershipBackbone";
+import { FunnelStepProgress } from "@/components/funnel/FunnelStepProgress";
+import { WomensHealthInsightsJourney } from "@/components/quiz/WomensHealthInsightsJourney";
+import {
+  HAIR_FEMALE_STAGES,
+  HAIR_MALE_STAGES,
+  HAIR_MEDICAL_CONDITIONS,
+  HAIR_OTHER_CONCERNS,
+  hairOptionsForSex,
+} from "@/lib/programs/quizzes/hair-assessment-options";
 import Link from "next/link";
 import {
   ArrowRight,
   ArrowLeft,
   Check,
   ChevronDown,
-  Shield,
-  MessageCircle,
-  Clock,
   X,
   Info,
   Sparkles,
   Leaf,
-  Stethoscope,
-  Package,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -120,61 +124,12 @@ function HairAnalyseStep({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-type GenderFilter = "all" | "male" | "female";
-
-type GenderedOption = {
-  label: string;
-  gender?: GenderFilter;
-};
-
-// Hair stages for men (Norwood scale)
-const maleHairStages = [
-  { id: "not-sure", label: "I'm not sure yet", description: "That's okay, we'll help figure it out" },
-  { id: "stage-1", label: "Early signs", description: "Hairline starting to shift slightly" },
-  { id: "stage-2", label: "Noticeable recession", description: "Temples becoming more visible" },
-  { id: "stage-3", label: "Moderate recession", description: "Clear M-shaped hairline forming" },
-  { id: "stage-4", label: "Crown thinning", description: "Top of head showing through" },
-  { id: "stage-5", label: "Advanced thinning", description: "Front and crown areas connecting" },
-  { id: "stage-6", label: "Extensive loss", description: "Hair mainly on sides and back" },
-];
-
-// Hair stages for women (Ludwig scale)
-const femaleHairStages = [
-  { id: "not-sure", label: "I'm not sure yet", description: "We'll help you identify it" },
-  { id: "type-1", label: "Early thinning", description: "Part line slightly wider than before" },
-  { id: "type-2", label: "Noticeable thinning", description: "Scalp visible through hair" },
-  { id: "type-3", label: "Significant thinning", description: "Widespread visibility on crown" },
-];
-
 const timelineOptions = [
   "Just in the last few months",
   "Gradually over the past year",
   "Sudden patches appearing",
   "Rapid loss recently",
   "Slowly over many years",
-];
-
-const medicalConditions: GenderedOption[] = [
-  { label: "Blood pressure concerns" },
-  { label: "Dizziness or lightheadedness" },
-  { label: "Heart rhythm issues" },
-  { label: "Thyroid condition" },
-  { label: "PCOS", gender: "female" },
-  { label: "Heavy or irregular periods", gender: "female" },
-  { label: "Menopause or perimenopause symptoms", gender: "female" },
-  { label: "Prostate concerns or PSA monitoring", gender: "male" },
-  { label: "Taking testosterone or anabolic steroids", gender: "male" },
-  { label: "Autoimmune condition" },
-  { label: "None of these apply to me" },
-];
-
-const otherConcernsOptions = [
-  { id: "weight", label: "Weight management", gender: "all" },
-  { id: "hormones", label: "Hormone optimisation", gender: "all" },
-  { id: "womens-hormones", label: "Periods, PCOS or menopause support", gender: "female" },
-  { id: "mens-health", label: "Men's sexual health", gender: "male" },
-  { id: "sleep", label: "Sleep quality", gender: "all" },
-  { id: "none", label: "Just hair health for now", gender: "all" },
 ];
 
 const howHeardOptions = [
@@ -227,23 +182,26 @@ export default function HairAssessmentPage() {
   const [showMembershipBackbone, setShowMembershipBackbone] = useState(false);
   const [advanceMembershipToPay, setAdvanceMembershipToPay] = useState(false);
   const latestProfileRef = useRef<FunnelProfileFields | null>(null);
+  const [hasPreselectedGender, setHasPreselectedGender] = useState(false);
 
-  const postcodeStep = formData.gender === "female" ? 12 : 11;
-  const analyseStep = postcodeStep + 1;
+  useEffect(() => {
+    const genderParam = new URLSearchParams(window.location.search).get("gender");
+    if (genderParam !== "male" && genderParam !== "female") return;
+    setHasPreselectedGender(true);
+    setFormData((prev) => (prev.gender ? prev : { ...prev, gender: genderParam }));
+  }, []);
+
+  const lastClinicalStep = formData.gender === "female" ? 11 : 10;
+  const analyseStep = lastClinicalStep + 1;
   const totalSteps = analyseStep + 1;
   const progress = ((step + 1) / totalSteps) * 100;
+  const currentPhase = step <= 4 ? 1 : step < analyseStep ? 2 : 3;
   const filteredMedicalConditions = useMemo(
-    () =>
-      medicalConditions.filter(
-        (option) => !option.gender || option.gender === "all" || option.gender === formData.gender
-      ),
+    () => hairOptionsForSex(HAIR_MEDICAL_CONDITIONS, formData.gender),
     [formData.gender]
   );
   const filteredOtherConcernsOptions = useMemo(
-    () =>
-      otherConcernsOptions.filter(
-        (option) => option.gender === "all" || option.gender === formData.gender
-      ),
+    () => hairOptionsForSex(HAIR_OTHER_CONCERNS, formData.gender),
     [formData.gender]
   );
 
@@ -316,23 +274,25 @@ export default function HairAssessmentPage() {
         if (formData.gender === "female") return formData.pregnancyStatus !== "";
         return formData.otherConcerns.length > 0;
       case 11:
-        if (formData.gender === "female") return formData.otherConcerns.length > 0;
-        return formData.postcode.length >= 4;
-      case 12: return formData.postcode.length >= 4;
+        return formData.gender === "female" && formData.otherConcerns.length > 0;
       default: return true;
     }
   };
 
   const nextStep = async () => {
     if (canProceed() && step < totalSteps - 1) {
-      setStep(step + 1);
+      let next = step + 1;
+      if (hasPreselectedGender && step === 4) next = 6;
+      setStep(next);
       window.scrollTo(0, 0);
     }
   };
 
   const prevStep = () => {
     if (step > 0) {
-      setStep(step - 1);
+      let prev = step - 1;
+      if (hasPreselectedGender && step === 6) prev = 4;
+      setStep(prev);
       window.scrollTo(0, 0);
     }
   };
@@ -446,54 +406,11 @@ export default function HairAssessmentPage() {
       // Step 0: Your journey
       case 0:
         return (
-          <div className="space-y-6">
-            <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628] text-center">
-              Your path to healthier hair
-            </h1>
-            <p className="text-center text-[#5c7a52]">Here's what to expect</p>
-
-            <div className="space-y-4 mt-8">
-              {[
-                {
-                  num: 1,
-                  title: "Quick health check",
-                  description: "A few questions about your health and hair goals, takes under 5 minutes.",
-                  icon: Leaf,
-                },
-                {
-                  num: 2,
-                  title: "Book your consultation",
-                  description: "Secure your spot with one of our practitioners. Full refund if treatment isn't right for you.",
-                  icon: Stethoscope,
-                },
-                {
-                  num: 3,
-                  title: "Speak with your practitioner",
-                  description: "A personalised call to understand your situation and create your treatment plan.",
-                  icon: MessageCircle,
-                },
-                {
-                  num: 4,
-                  title: "Care plan if appropriate",
-                  description: "Where clinically appropriate, items may be dispensed by an Australian-registered pharmacy.",
-                  icon: Package,
-                },
-              ].map((item) => (
-                <div key={item.num} className="bg-white rounded-2xl p-5 border border-[#e6ebe3] flex gap-4">
-                  <div className="w-10 h-10 rounded-full bg-[#5c7a52]/10 text-[#5c7a52] flex items-center justify-center flex-shrink-0">
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-[#5c7a52] bg-[#e6ebe3] px-2 py-0.5 rounded-full">Step {item.num}</span>
-                    </div>
-                    <h3 className="font-semibold text-[#2c3628] mt-1">{item.title}</h3>
-                    <p className="text-sm text-[#5c7a52] mt-1">{item.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <WomensHealthInsightsJourney
+            firstName={formData.firstName}
+            categoryLabel="hair health"
+            className="py-5 sm:py-6 lg:py-7"
+          />
         );
 
       // Step 1: Name
@@ -735,26 +652,29 @@ export default function HairAssessmentPage() {
 
       // Step 6: Hair stage
       case 6:
-        const stages = formData.gender === "female" ? femaleHairStages : maleHairStages;
+        const stages = formData.gender === "female" ? HAIR_FEMALE_STAGES : HAIR_MALE_STAGES;
         return (
           <div className="space-y-6">
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
                 How would you describe your hair right now?
               </h1>
+              <p className="mt-3 text-[#5c7a52]">
+                {formData.gender === "female" ? "Based on the Ludwig scale" : "Based on the Norwood scale"}
+              </p>
             </div>
 
             <div className="space-y-3 mt-8 max-h-[55vh] overflow-y-auto pr-2">
               {stages.map((stage) => (
                 <button
-                  key={stage.id}
+                  key={stage.id || stage.label}
                   type="button"
                   onClick={() => {
-                    updateFormData("hairStage", stage.id);
+                    updateFormData("hairStage", stage.id || stage.label);
                     setTimeout(nextStep, 300);
                   }}
                   className={`w-full py-4 px-5 rounded-xl border-2 text-left transition-all ${
-                    formData.hairStage === stage.id
+                    formData.hairStage === (stage.id || stage.label)
                       ? "border-[#5c7a52] bg-[#5c7a52]/10"
                       : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"
                   }`}
@@ -923,16 +843,12 @@ export default function HairAssessmentPage() {
         }
         return renderOtherConcerns();
 
-      // Step 11: Other concerns (women) or Postcode (men)
+      // Step 11: Other concerns (women)
       case 11:
         if (formData.gender === "female") {
           return renderOtherConcerns();
         }
-        return renderPostcode();
-
-      // Step 12: Postcode (women only)
-      case 12:
-        return renderPostcode();
+        return null;
 
       default:
         return null;
@@ -953,7 +869,7 @@ export default function HairAssessmentPage() {
       <div className="space-y-3 mt-8">
         {filteredOtherConcernsOptions.map((option) => (
           <button
-            key={option.id}
+            key={option.id || option.label}
             type="button"
             onClick={() => toggleArrayField("otherConcerns", option.label)}
             className={`w-full py-4 px-5 rounded-xl border-2 text-left flex items-center gap-3 transition-all ${
@@ -974,30 +890,6 @@ export default function HairAssessmentPage() {
             <span className="text-[#2c3628]">{option.label}</span>
           </button>
         ))}
-      </div>
-    </div>
-  );
-
-  const renderPostcode = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628]">
-          Almost there! Your postcode?
-        </h1>
-        <p className="mt-3 text-[#5c7a52]">
-          Just checking we can deliver to your area.
-        </p>
-      </div>
-
-      <div className="mt-8">
-        <input
-          type="text"
-          value={formData.postcode}
-          onChange={(e) => updateFormData("postcode", e.target.value.replace(/\D/g, "").slice(0, 4))}
-          className="w-full px-4 py-4 rounded-xl border border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all text-center text-lg bg-white"
-          placeholder="e.g. 2000"
-          maxLength={4}
-        />
       </div>
     </div>
   );
@@ -1056,7 +948,7 @@ export default function HairAssessmentPage() {
     );
   }
 
-  const isCheckoutLayout = false;
+  const showInsightsIntro = step === 0;
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
@@ -1070,7 +962,7 @@ export default function HairAssessmentPage() {
 
       {/* Header */}
       <header className="sticky top-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#e6ebe3]">
-        <div className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 py-4 flex items-center justify-between`}>
+        <div className={`${showInsightsIntro ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${step > 0 && step < analyseStep ? "pt-4 pb-0" : "py-4"} flex items-center justify-between`}>
           <Link href="/" className="text-2xl font-serif text-[#34412f]">
             Sanative
           </Link>
@@ -1083,10 +975,11 @@ export default function HairAssessmentPage() {
             <span>Help</span>
           </button>
         </div>
+        {step > 0 && step < analyseStep && <FunnelStepProgress currentPhase={currentPhase} />}
       </header>
 
       {/* Main content */}
-      <main className={`${isCheckoutLayout ? "max-w-6xl xl:max-w-7xl px-4 sm:px-6" : "max-w-2xl px-4"} mx-auto py-8 pb-32`}>
+      <main className={`${showInsightsIntro ? "max-w-6xl py-4" : "max-w-2xl py-8"} px-4 mx-auto pb-32`}>
         <div className="animate-fadeIn">
           {renderStep()}
         </div>
@@ -1096,7 +989,7 @@ export default function HairAssessmentPage() {
       {step < totalSteps - 1 &&
         step !== analyseStep && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4">
-          <div className="max-w-2xl mx-auto flex gap-3">
+          <div className={`${showInsightsIntro ? "max-w-6xl" : "max-w-2xl"} mx-auto flex gap-3`}>
             {step > 0 && (
               <button
                 type="button"

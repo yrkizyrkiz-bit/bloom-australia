@@ -178,7 +178,7 @@ export function ErectileDysfunctionContent({
         {isEmbed && (
         <section
           id="sexual-health"
-          className="relative py-20 lg:py-28 overflow-hidden"
+          className="relative py-20 lg:py-28 overflow-hidden scroll-mt-24"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-[#f4f7f2] via-[#fdfbf7] to-[#e6ebe3]" />
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

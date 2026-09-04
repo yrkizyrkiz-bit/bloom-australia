@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Sun,
@@ -11,15 +11,18 @@ import {
   Package,
   Calendar,
   ListChecks,
+  ChevronDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { ProgramKey } from "@/lib/membership/keys";
 import { getProgramJourneyConfig } from "@/lib/program-journey/config";
 import {
   getConsultationCountdown,
   getTimelineProgress,
 } from "@/lib/program-journey/timeline";
+import { isAwaitingDoctorConsultation } from "@/lib/program-journey/upcoming-consultation";
 import { programSlugFromProgramKey } from "@/lib/billing/program-slugs";
 import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
@@ -34,6 +37,7 @@ export type ProgramJourneyViewModel = {
     date: string;
     time: string;
     doctorName: string | null;
+    completedAt?: string | null;
   };
 };
 
@@ -42,6 +46,8 @@ type ProgramJourneyShellProps = {
   firstName?: string | null;
   greeting: string;
   journey: ProgramJourneyViewModel;
+  /** Shown in the same panel as the appointment countdown (e.g. clinical assessment). */
+  consultationExtra?: ReactNode;
   children?: ReactNode;
 };
 
@@ -59,6 +65,7 @@ export function ProgramJourneyShell({
   firstName,
   greeting,
   journey,
+  consultationExtra,
   children,
 }: ProgramJourneyShellProps) {
   const config = getProgramJourneyConfig(programKey);
@@ -66,6 +73,14 @@ export function ProgramJourneyShell({
   const { currentStep, steps } = getTimelineProgress(journey.journeyStatus, {
     includeMonitoringSteps: journey.hasTestsTracking !== false,
   });
+  const atProgramActive = currentStep >= steps.length - 1;
+  const [journeyOpen, setJourneyOpen] = useState(!atProgramActive);
+  const awaitingCall = isAwaitingDoctorConsultation(journey.journeyStatus);
+  const countdown =
+    awaitingCall && !journey.consultation?.completedAt && journey.consultation?.date
+      ? getConsultationCountdown(journey.consultation.date)
+      : null;
+  const showConsultationPanel = Boolean(countdown || consultationExtra);
 
   return (
     <ProgramSubscriptionGate programSlug={programSlugFromProgramKey(programKey)}>
@@ -106,7 +121,7 @@ export function ProgramJourneyShell({
               <h3 className={`text-lg font-semibold ${theme.completeText}`}>
                 {journey.stageDescription}
               </h3>
-              {journey.consultation && journey.stage === "consultation" && (
+              {journey.consultation && awaitingCall && countdown && (
                 <p className={`mt-1 text-sm ${theme.completeText} opacity-80`}>
                   {journey.consultation.doctorName || "Your doctor"} will call you on{" "}
                   <strong>{new Date(journey.consultation.date).toLocaleDateString()}</strong> at{" "}
@@ -118,30 +133,35 @@ export function ProgramJourneyShell({
         </CardContent>
       </Card>
 
-      {journey.consultation?.date &&
-        getConsultationCountdown(journey.consultation.date) && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="border-amber-200 bg-amber-50/80">
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100">
-                  <Clock className="h-7 w-7 text-amber-700" />
+      {showConsultationPanel && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-amber-200 bg-amber-50/80">
+            <CardContent className="space-y-5 p-5">
+              {countdown && (
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100">
+                    <Clock className="h-7 w-7 text-amber-700" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+                      Consultation in
+                    </p>
+                    <p className="text-2xl font-semibold text-amber-950">{countdown}</p>
+                    <p className="mt-1 text-sm text-amber-800/90">
+                      {journey.consultation?.doctorName || "Your doctor"} will call you, keep
+                      your phone nearby.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
-                    Consultation in
-                  </p>
-                  <p className="text-2xl font-semibold text-amber-950">
-                    {getConsultationCountdown(journey.consultation.date)}
-                  </p>
-                  <p className="mt-1 text-sm text-amber-800/90">
-                    {journey.consultation.doctorName || "Your doctor"} will call you, keep your
-                    phone nearby.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+              )}
+              {countdown && consultationExtra ? (
+                <div className="border-t border-amber-200/80" />
+              ) : null}
+              {consultationExtra}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
@@ -169,70 +189,91 @@ export function ProgramJourneyShell({
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className={`flex items-center gap-2 text-lg ${theme.iconColor}`}>
-            <Calendar className="h-5 w-5" />
-            Your Journey
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {steps.map((step, index) => {
-              const isComplete = index < currentStep;
-              const isCurrent = index === currentStep;
-              return (
-                <motion.div
-                  key={step.key}
-                  layout
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.04 }}
-                  className="flex items-start gap-4"
-                >
-                  <div className="flex flex-col items-center">
+        <Collapsible open={atProgramActive ? journeyOpen : true} onOpenChange={setJourneyOpen}>
+          <CardHeader className="pb-2">
+            {atProgramActive ? (
+              <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 text-left">
+                <CardTitle className={`flex items-center gap-2 text-lg ${theme.iconColor}`}>
+                  <Calendar className="h-5 w-5" />
+                  Your Journey
+                </CardTitle>
+                <span className="flex items-center gap-2">
+                  <Badge className="bg-emerald-600">Program active</Badge>
+                  <ChevronDown
+                    className={`h-5 w-5 text-muted-foreground transition-transform ${
+                      journeyOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </span>
+              </CollapsibleTrigger>
+            ) : (
+              <CardTitle className={`flex items-center gap-2 text-lg ${theme.iconColor}`}>
+                <Calendar className="h-5 w-5" />
+                Your Journey
+              </CardTitle>
+            )}
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="space-y-4">
+                {steps.map((step, index) => {
+                  const isComplete = index < currentStep;
+                  const isCurrent = index === currentStep;
+                  return (
                     <motion.div
-                      animate={isCurrent ? { scale: [1, 1.06, 1] } : {}}
-                      transition={{ repeat: isCurrent ? Infinity : 0, duration: 2 }}
-                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                        isComplete
-                          ? theme.completeBackground
-                          : isCurrent
-                            ? `bg-emerald-600 text-white ring-4 ${theme.currentRing}`
-                            : "bg-gray-100 text-gray-400"
-                      }`}
+                      key={step.key}
+                      layout
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.04 }}
+                      className="flex items-start gap-4"
                     >
-                      {isComplete ? (
-                        <CheckCircle2 className="h-5 w-5" />
-                      ) : (
-                        <step.icon className="h-5 w-5" />
-                      )}
+                      <div className="flex flex-col items-center">
+                        <motion.div
+                          animate={isCurrent ? { scale: [1, 1.06, 1] } : {}}
+                          transition={{ repeat: isCurrent ? Infinity : 0, duration: 2 }}
+                          className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                            isComplete
+                              ? theme.completeBackground
+                              : isCurrent
+                                ? `bg-emerald-600 text-white ring-4 ${theme.currentRing}`
+                                : "bg-gray-100 text-gray-400"
+                          }`}
+                        >
+                          {isComplete ? (
+                            <CheckCircle2 className="h-5 w-5" />
+                          ) : (
+                            <step.icon className="h-5 w-5" />
+                          )}
+                        </motion.div>
+                        {index < steps.length - 1 && (
+                          <div
+                            className={`mt-2 h-8 w-0.5 ${isComplete ? "bg-emerald-300" : "bg-gray-200"}`}
+                          />
+                        )}
+                      </div>
+                      <div className="flex-1 pb-4">
+                        <p
+                          className={`font-medium ${
+                            isComplete || isCurrent ? "text-foreground" : "text-muted-foreground"
+                          }`}
+                        >
+                          {step.label}
+                        </p>
+                        {(isComplete || isCurrent) && (
+                          <p className="mt-0.5 text-sm text-muted-foreground">{step.description}</p>
+                        )}
+                        {isCurrent && (
+                          <Badge className="mt-2 animate-pulse bg-emerald-600">Current step</Badge>
+                        )}
+                      </div>
                     </motion.div>
-                    {index < steps.length - 1 && (
-                      <div
-                        className={`mt-2 h-8 w-0.5 ${isComplete ? "bg-emerald-300" : "bg-gray-200"}`}
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-4">
-                    <p
-                      className={`font-medium ${
-                        isComplete || isCurrent ? "text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      {step.label}
-                    </p>
-                    {(isComplete || isCurrent) && (
-                      <p className="mt-0.5 text-sm text-muted-foreground">{step.description}</p>
-                    )}
-                    {isCurrent && (
-                      <Badge className="mt-2 animate-pulse bg-emerald-600">Current step</Badge>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </CardContent>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {children}

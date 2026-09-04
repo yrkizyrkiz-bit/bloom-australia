@@ -8,12 +8,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeft, ShoppingCart, Plus, Trash2, Share2,
-  Download, RefreshCw, Check, Calendar, Sparkles
+  RefreshCw, Check, Calendar
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { RECIPES, Recipe } from "@/data/recipes";
+import { type Recipe } from "@/data/recipes";
 import { RECIPE_DETAILS } from "@/data/recipeDetails";
+import { useAuth } from "@/contexts/AuthContext";
+import { localDateKey, startOfWeekSunday } from "@/lib/weight-management/meal-plan-week";
 
 interface ShoppingItem {
   id: string;
@@ -68,27 +70,72 @@ function parseIngredient(ingredient: string): { name: string; quantity?: string 
 }
 
 export default function ShoppingListPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [itemsHydrated, setItemsHydrated] = useState(false);
+  const [listUserId, setListUserId] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState("");
   const [mealPlan, setMealPlan] = useState<Record<string, DayPlan>>({});
 
-  // Load meal plan from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("mealPlan");
-    if (saved) {
-      setMealPlan(JSON.parse(saved));
-    }
-
-    const savedItems = localStorage.getItem("shoppingList");
-    if (savedItems) {
-      setItems(JSON.parse(savedItems));
+    try {
+      localStorage.removeItem("mealPlan");
+    } catch {
+      /* ignore */
     }
   }, []);
 
-  // Save shopping list to localStorage
   useEffect(() => {
-    localStorage.setItem("shoppingList", JSON.stringify(items));
-  }, [items]);
+    if (authLoading || !user?.id) return;
+    let cancelled = false;
+    setItemsHydrated(false);
+    setListUserId(null);
+    setMealPlan({});
+    setItems([]);
+
+    const savedItems = localStorage.getItem(`wm-shopping-list:${user.id}`);
+    if (savedItems) {
+      try {
+        const parsed = JSON.parse(savedItems);
+        if (Array.isArray(parsed) && !cancelled) setItems(parsed);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!cancelled) {
+      setListUserId(user.id);
+      setItemsHydrated(true);
+    }
+
+    const weekStart = localDateKey(startOfWeekSunday());
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/weight-management/meal-plan?weekStart=${weekStart}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const plan =
+          data.planData && typeof data.planData === "object" && !Array.isArray(data.planData)
+            ? (data.planData as Record<string, DayPlan>)
+            : {};
+        setMealPlan(plan);
+      } catch {
+        if (!cancelled) setMealPlan({});
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, authLoading]);
+
+  useEffect(() => {
+    if (!itemsHydrated || listUserId !== user?.id) return;
+    localStorage.setItem(`wm-shopping-list:${user.id}`, JSON.stringify(items));
+  }, [items, itemsHydrated, user?.id, listUserId]);
 
   const generateFromMealPlan = () => {
     const newItems: ShoppingItem[] = [];

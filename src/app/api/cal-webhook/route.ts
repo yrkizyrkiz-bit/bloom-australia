@@ -168,6 +168,7 @@ export async function POST(req: NextRequest) {
 
     if (triggerEvent === "BOOKING_RESCHEDULED") {
       const attendeeEmail = booking?.attendees?.[0]?.email?.toLowerCase();
+      const newScheduledAt = new Date(booking.startTime);
 
       // Update the existing appointment
       const result = await prisma.appointment.updateMany({
@@ -175,22 +176,48 @@ export async function POST(req: NextRequest) {
           notes: { contains: booking.uid },
         },
         data: {
-          scheduledAt: new Date(booking.startTime),
+          scheduledAt: newScheduledAt,
           videoLink: booking.meetingUrl || undefined,
           status: "CONFIRMED",
         }
       });
 
-      if (result.count > 0 && attendeeEmail) {
-        const user = await prisma.user.findFirst({ where: { email: attendeeEmail } });
-        if (user) {
-          // Create a note about the reschedule
+      const user = attendeeEmail
+        ? await prisma.user.findFirst({ where: { email: attendeeEmail } })
+        : null;
+
+      if (user) {
+        const openConsultation = await prisma.consultationBooking.findFirst({
+          where: {
+            userId: user.id,
+            completedAt: null,
+            status: { in: ["BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "SLOT_HELD"] },
+          },
+          orderBy: { scheduledAt: "asc" },
+          select: { id: true },
+        });
+        if (openConsultation) {
+          await prisma.consultationBooking.update({
+            where: { id: openConsultation.id },
+            data: {
+              scheduledAt: newScheduledAt,
+              status: "BOOKING_CONFIRMED",
+            },
+          });
+        }
+
+        await prisma.weightManagementIntake.updateMany({
+          where: { userId: user.id, scheduledAt: { not: null } },
+          data: { scheduledAt: newScheduledAt, bookingStatus: "CONFIRMED" },
+        });
+
+        if (result.count > 0) {
           await prisma.internalNote.create({
             data: {
               userId: user.id,
               category: "GENERAL",
               title: "Appointment Rescheduled",
-              content: `Consultation rescheduled to ${new Date(booking.startTime).toLocaleDateString("en-AU")}`,
+              content: `Consultation rescheduled to ${newScheduledAt.toLocaleDateString("en-AU")}`,
               createdBy: "system",
             }
           }).catch(console.error);

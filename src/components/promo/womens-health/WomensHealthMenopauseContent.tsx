@@ -114,7 +114,7 @@ export function WomensHealthMenopauseContent() {
 
                 <div className="mt-6">
                   <Link
-                    href="/membership/checkout"
+                    href="/womens-health/assessment?category=menopause"
                     className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 bg-[#c17a58] hover:bg-[#a86548] text-white rounded-full font-medium transition-all"
                   >
                     Join Sanative and start your assessment
@@ -263,6 +263,7 @@ export function WomensHealthMenopauseContent() {
 
         <OrganCareMembershipSection
           accent="blush"
+          checkoutHref="/womens-health/assessment?category=menopause"
           heading={
             <>
               Become a member and{" "}

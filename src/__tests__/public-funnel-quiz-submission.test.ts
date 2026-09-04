@@ -61,4 +61,27 @@ describe("public-funnel quiz submission", () => {
     expect(result).toEqual({ id: "quiz-new" });
     expect(create).toHaveBeenCalledOnce();
   });
+
+  it("strips address and account fields from stored public funnel quiz answers", async () => {
+    const { sanitizePublicFunnelIntakeAnswers } = await import(
+      "@/lib/portal/public-funnel-quiz-submission"
+    );
+
+    const answers = sanitizePublicFunnelIntakeAnswers({
+      gender: "female",
+      hairStage: "type-2",
+      streetAddress: "1 Test Street",
+      suburb: "Sydney",
+      state: "NSW",
+      postcode: "2000",
+      email: "polly@example.com",
+      firstName: "Polly",
+      programType: "HAIR_LOSS",
+    });
+
+    expect(answers).toEqual({
+      gender: "female",
+      hairStage: "type-2",
+    });
+  });
 });

@@ -19,7 +19,7 @@ import { resolveMemberBackPath } from "@/lib/portal/member-home";
 
 const weightNavItems = [
   { href: "/dashboard/weight-management", label: "Home", icon: Home, exact: true },
-  { href: "/dashboard/weight-management/learn", label: "Learn", icon: Lightbulb },
+  { href: "/dashboard/weight-management/learn", label: "Learn", icon: Lightbulb, hidden: true },
   {
     href: "/dashboard/weight-management/progress",
     label: "Progress",
@@ -72,7 +72,7 @@ function WeightManagementLayoutInner({
         <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-lg border-t border-gray-200 safe-area-bottom shadow-lg">
           <LayoutGroup id="mobile-nav">
             <div className="flex items-center justify-around h-16 px-1">
-              {weightNavItems.map((item) => {
+              {weightNavItems.filter((item) => !item.hidden).map((item) => {
                 const active = isActive(item.href, item.exact);
                 const locked = isNavLocked(item.requiresProgress);
 
@@ -129,7 +129,7 @@ function WeightManagementLayoutInner({
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">
                 Weight Management
               </p>
-              {weightNavItems.map((item) => {
+              {weightNavItems.filter((item) => !item.hidden).map((item) => {
                 const active = isActive(item.href, item.exact);
                 const locked = isNavLocked(item.requiresProgress);
 

@@ -79,7 +79,7 @@ export function HairHealthHero({ gender, onGenderChange }: HairHealthHeroProps) 
               <li>Delivered to your door</li>
             </ul>
             <Link
-              href="/membership/checkout?intent=hair_loss"
+              href={gender === "men" ? "/hair-assessment?gender=male" : "/hair-assessment?gender=female"}
               className={styles.cta}
             >
               Start your assessment

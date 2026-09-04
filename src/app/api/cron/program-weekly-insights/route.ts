@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const programs = await prisma.memberProgram.findMany({
-      where: { isActive: true },
+      where: { isActive: true, user: { journeyStatus: "ACTIVE" } },
     });
 
     const weekMs = 7 * 24 * 60 * 60 * 1000;

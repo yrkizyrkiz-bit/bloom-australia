@@ -67,6 +67,9 @@ function HairHealthPageContent() {
 
   useEffect(() => () => clearAnimTimer(), []);
 
+  const hairFunnelHref =
+    gender === "men" ? "/hair-assessment?gender=male" : "/hair-assessment?gender=female";
+
   const hairLossCausesMen: HairLossCause[] = [
     {
       id: "hereditary",
@@ -338,7 +341,7 @@ function HairHealthPageContent() {
                     {activeHairCause.details}
                   </p>
                   <Link
-                    href="/hair-assessment"
+                    href={hairFunnelHref}
                     className="inline-flex items-center gap-2 text-[#5c7a52] font-medium hover:text-[#34412f] transition-colors group"
                   >
                     Start your assessment
@@ -494,7 +497,7 @@ function HairHealthPageContent() {
                       <span className="text-[#a8bb9e] block sm:inline sm:ml-1">Our biomarker test finds out in 48 hours.</span>
                     </p>
                     <Link
-                      href="/hair-assessment"
+                      href={hairFunnelHref}
                       className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-white text-[#34412f] text-xs sm:text-sm font-medium rounded-full hover:bg-[#f4f7f2] transition-colors whitespace-nowrap flex-shrink-0"
                     >
                       Take the test
@@ -524,7 +527,7 @@ function HairHealthPageContent() {
               Your Sanative doctor reviews your assessment and, where clinically useful, arranges biomarker testing to help understand what may be contributing to your hair loss. Suitable care options, if any, are discussed privately in consultation.
             </p>
             <Link
-              href="/hair-assessment"
+              href={hairFunnelHref}
               className="btn-white inline-flex items-center gap-2 text-lg px-8 py-4"
             >
               Start your assessment

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Plus, Dumbbell, Flame, Clock, Trash2, Loader2, Footprints } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { equivalentExerciseMinutes } from "@/lib/weight-management/score-ring-week";
 
 interface ExerciseLog {
   id: string;
@@ -54,6 +55,50 @@ const INTENSITY_LABELS: Record<string, string> = {
   MAXIMUM: "Maximum",
 };
 
+const INTENSITY_HINTS: Record<string, string> = {
+  LIGHT: "counts as half",
+  MODERATE: "counts as logged",
+  VIGOROUS: "counts double",
+  MAXIMUM: "counts as 2½×",
+};
+
+function ringMinutesFor(durationMinutes: number, intensity: string) {
+  return Math.round(equivalentExerciseMinutes(durationMinutes, intensity) * 10) / 10;
+}
+
+function todayInputValue() {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function loggedAtFromDateInput(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  const now = new Date();
+  const sameDay =
+    year === now.getFullYear() && month === now.getMonth() + 1 && day === now.getDate();
+  if (sameDay) return now.toISOString();
+  return new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+}
+
+function formatActivityDate(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const time = date.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
+  if (sameDay(date, today)) return `Today · ${time}`;
+  if (sameDay(date, yesterday)) return `Yesterday · ${time}`;
+  return date.toLocaleDateString("en-AU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export default function ExercisePage() {
   const [data, setData] = useState<ExerciseData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +109,7 @@ export default function ExercisePage() {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("");
   const [intensity, setIntensity] = useState("MODERATE");
+  const [loggedDate, setLoggedDate] = useState(todayInputValue);
 
   useEffect(() => {
     fetchExercise();
@@ -100,15 +146,26 @@ export default function ExercisePage() {
           name,
           durationMinutes: parseInt(duration),
           intensity,
+          loggedAt: loggedAtFromDateInput(loggedDate),
         }),
       });
 
-      if (res.ok) {
-        toast.success("Exercise logged!");
-        resetForm();
-        fetchExercise();
+      if (!res.ok) {
+        const result = await res.json().catch(() => null);
+        toast.error(result?.error || "Failed to log exercise");
+        return;
       }
-    } catch (error) {
+
+      const clock = parseInt(duration, 10);
+      const towardRing = ringMinutesFor(clock, intensity);
+      toast.success(
+        towardRing === clock
+          ? `Logged ${clock} min toward your exercise ring`
+          : `Logged ${clock} min ${INTENSITY_LABELS[intensity]?.toLowerCase()} · ${towardRing} min toward your exercise ring`
+      );
+      resetForm();
+      fetchExercise();
+    } catch {
       toast.error("Failed to log exercise");
     } finally {
       setSubmitting(false);
@@ -130,8 +187,15 @@ export default function ExercisePage() {
   const resetForm = () => {
     setName("");
     setDuration("");
+    setLoggedDate(todayInputValue());
     setShowForm(false);
   };
+
+  const clockMinutes = duration ? parseInt(duration, 10) : 0;
+  const towardRing =
+    Number.isFinite(clockMinutes) && clockMinutes > 0
+      ? ringMinutesFor(clockMinutes, intensity)
+      : 0;
 
   if (loading) {
     return (
@@ -149,7 +213,9 @@ export default function ExercisePage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">Exercise Log</h1>
-          <p className="text-muted-foreground">Track your workouts and activities</p>
+          <p className="text-muted-foreground">
+            Track workouts. The exercise ring uses intensity, not clock time alone.
+          </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
           <Plus className="w-4 h-4 mr-2" /> Add Exercise
@@ -193,6 +259,10 @@ export default function ExercisePage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Log Exercise</CardTitle>
+            <p className="text-sm font-normal text-muted-foreground pt-1">
+              Your daily ring target is moderate minutes. Light counts as half, vigorous double,
+              maximum 2½×.
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -219,17 +289,38 @@ export default function ExercisePage() {
                   <Input type="number" placeholder="30" value={duration} onChange={(e) => setDuration(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Intensity</Label>
-                  <Select value={intensity} onValueChange={setIntensity}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(INTENSITY_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Date *</Label>
+                  <Input type="date" value={loggedDate} onChange={(e) => setLoggedDate(e.target.value)} required />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Intensity</Label>
+                <Select value={intensity} onValueChange={setIntensity}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(INTENSITY_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {label} — {INTENSITY_HINTS[key]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {towardRing > 0 && (
+                <div className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-900">
+                  <p className="font-medium">
+                    {clockMinutes} min {INTENSITY_LABELS[intensity]?.toLowerCase()} → {towardRing} min
+                    toward your exercise ring
+                  </p>
+                  <p className="text-xs text-teal-800/80 mt-0.5">
+                    {towardRing === clockMinutes
+                      ? "Moderate effort counts minute for minute."
+                      : towardRing > clockMinutes
+                        ? "Higher intensity counts more than the clock."
+                        : "Lighter effort counts less than the clock."}
+                  </p>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button type="submit" disabled={submitting}>
                   {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save
@@ -260,7 +351,13 @@ export default function ExercisePage() {
                     <div>
                       <p className="font-medium">{log.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {ACTIVITY_LABELS[log.activityType]} • {log.durationMinutes} min
+                        {formatActivityDate(log.loggedAt)}
+                        {" · "}
+                        {ACTIVITY_LABELS[log.activityType]} • {log.durationMinutes} min{" "}
+                        {INTENSITY_LABELS[log.intensity]?.toLowerCase()}
+                        {ringMinutesFor(log.durationMinutes, log.intensity) !== log.durationMinutes
+                          ? ` → ${ringMinutesFor(log.durationMinutes, log.intensity)} toward ring`
+                          : ""}
                       </p>
                     </div>
                   </div>

@@ -5,7 +5,7 @@
 
 import {
   buildConsultationSummary,
-  SEXUAL_HEALTH_QUIZ_TAIL,
+  SEXUAL_HEALTH_PREVIOUS_TREATMENT,
   type QuizStep,
 } from "@/lib/programs/quizzes/sexual-health-quiz-shared";
 
@@ -154,13 +154,13 @@ export function getMensSexualHealthQuizSteps(focus?: SexualHealthFocus | string)
 
   switch (focus) {
     case "ed":
-      steps.push(...ED_STEPS, ...SEXUAL_HEALTH_QUIZ_TAIL);
+      steps.push(...ED_STEPS, SEXUAL_HEALTH_PREVIOUS_TREATMENT);
       break;
     case "pe":
-      steps.push(...PE_STEPS, ...SEXUAL_HEALTH_QUIZ_TAIL);
+      steps.push(...PE_STEPS, SEXUAL_HEALTH_PREVIOUS_TREATMENT);
       break;
     case "both":
-      steps.push(...BOTH_STEPS, ...SEXUAL_HEALTH_QUIZ_TAIL);
+      steps.push(...BOTH_STEPS, SEXUAL_HEALTH_PREVIOUS_TREATMENT);
       break;
   }
   return steps;

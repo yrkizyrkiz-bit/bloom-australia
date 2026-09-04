@@ -30,7 +30,7 @@ export function WomensHealthCTA() {
         {/* CTA Buttons */}
         <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/womens-health/assessment"
+            href="/womens-health/assessment?category=menopause"
             className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white hover:bg-[#fdf8f6] text-[#c17a58] rounded-full font-medium transition-all shadow-xl"
           >
             <Calendar className="w-5 h-5" />

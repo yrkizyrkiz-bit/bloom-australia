@@ -10,6 +10,8 @@ import {
   syncConsultationScheduleNoteForBooking,
 } from "@/lib/booking-manage";
 import { labelPreviousTreatment, labelStartTiming, labelExerciseFrequency, labelWaistMeasurement } from "@/lib/quiz-assessment";
+import { calculateBmi, roundBmi } from "@/lib/bmi";
+import { resolveQuizTargetWeightKg } from "@/lib/weight-management/quiz-goal-defaults";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -226,14 +228,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         )
       : null;
 
-    // Calculate BMI
     const currentWeight = user.weightLogs[0]?.weight;
     const height = (programMember?.intakeData as Record<string, unknown>)?.height;
-    let bmi: number | null = activeBooking?.patientBmi ?? null;
-    if (!bmi && currentWeight && height) {
-      const heightM = Number(height) / 100;
-      bmi = Math.round((currentWeight / (heightM * heightM)) * 10) / 10;
-    }
+    const bmi =
+      roundBmi(activeBooking?.patientBmi) ?? calculateBmi(currentWeight, height);
 
     // Extract intake data for structured display
     const intakeData = (programMember?.intakeData || {}) as Record<string, unknown>;
@@ -322,7 +320,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       metrics: {
         currentWeight,
         startWeight: user.weightGoals[0]?.startWeight || currentWeight,
-        targetWeight: user.weightGoals[0]?.targetWeight || null,
+        targetWeight:
+          resolveQuizTargetWeightKg({
+            storedTargetWeight: intakeData.targetWeight,
+            currentWeight: currentWeight ?? intakeData.currentWeight,
+            weightLossGoal: typeof intakeData.weightLossGoal === "string" ? intakeData.weightLossGoal : null,
+          }) ??
+          user.weightGoals[0]?.targetWeight ??
+          null,
         height: height ? Number(height) : null,
         bmi,
         bmiCategory: bmi

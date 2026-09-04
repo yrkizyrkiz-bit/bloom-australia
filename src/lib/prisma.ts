@@ -24,6 +24,7 @@ const REQUIRED_PRISMA_MODELS = [
   "billingPrice",
   "memberSubscription",
   "entitlement",
+  "weightManagementPlan",
 ] as const;
 
 function hasCurrentPrismaSchema(client: PrismaClient): boolean {

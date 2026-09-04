@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Target, Trophy, Calendar, TrendingDown, Loader2, CheckCircle2, Pause, X } from "lucide-react";
+import { ArrowLeft, Plus, Target, Trophy, Calendar, TrendingDown, Loader2, CheckCircle2, Pause, Play, X } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -98,17 +98,28 @@ export default function GoalsPage() {
   };
 
   const updateGoalStatus = async (id: string, status: string) => {
+    const current = data?.activeGoal;
+    if (status === "ACHIEVED" && current && current.currentWeight > current.targetWeight) {
+      toast.error(
+        `Current weight is ${current.currentWeight} kg. Reach ${current.targetWeight} kg before completing this goal.`
+      );
+      return;
+    }
+
     try {
       const res = await fetch("/api/weight-management/goals", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
       });
-      if (res.ok) {
-        toast.success("Goal updated");
-        fetchGoals();
+      if (!res.ok) {
+        const result = await res.json().catch(() => null);
+        toast.error(result?.error || "Failed to update goal");
+        return;
       }
-    } catch (error) {
+      toast.success("Goal updated");
+      fetchGoals();
+    } catch {
       toast.error("Failed to update goal");
     }
   };
@@ -155,13 +166,30 @@ export default function GoalsPage() {
                 <Target className="w-5 h-5 text-primary" />
                 <CardTitle>Active Goal</CardTitle>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => updateGoalStatus(activeGoal.id, "PAUSED")}>
-                  <Pause className="w-4 h-4 mr-1" /> Pause
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => updateGoalStatus(activeGoal.id, "ACHIEVED")}>
-                  <CheckCircle2 className="w-4 h-4 mr-1" /> Complete
-                </Button>
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => updateGoalStatus(activeGoal.id, "PAUSED")}>
+                    <Pause className="w-4 h-4 mr-1" /> Pause
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={activeGoal.currentWeight > activeGoal.targetWeight}
+                    title={
+                      activeGoal.currentWeight > activeGoal.targetWeight
+                        ? `Current ${activeGoal.currentWeight} kg is still above ${activeGoal.targetWeight} kg`
+                        : "Mark this goal complete"
+                    }
+                    onClick={() => updateGoalStatus(activeGoal.id, "ACHIEVED")}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Complete
+                  </Button>
+                </div>
+                {activeGoal.currentWeight > activeGoal.targetWeight ? (
+                  <p className="text-xs text-muted-foreground">
+                    Reach {activeGoal.targetWeight} kg to complete
+                  </p>
+                ) : null}
               </div>
             </div>
           </CardHeader>
@@ -208,8 +236,11 @@ export default function GoalsPage() {
                   <TrendingDown className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{activeGoal.requiredWeeklyLoss} kg/week</span>
                 </div>
-                <Badge variant={activeGoal.isOnTrack ? "default" : "destructive"} className="text-xs">
-                  {activeGoal.isOnTrack ? "On Track" : "Behind Schedule"}
+                <Badge
+                  variant={activeGoal.isOnTrack ? "default" : "secondary"}
+                  className={`text-xs ${activeGoal.isOnTrack ? "" : "bg-amber-50 text-amber-800 border-amber-200"}`}
+                >
+                  {activeGoal.isOnTrack ? "On Track" : "Let's catch up this week"}
                 </Badge>
               </div>
             </div>
@@ -276,10 +307,21 @@ export default function GoalsPage() {
                       {new Date(goal.startDate).toLocaleDateString()} - {new Date(goal.targetDate).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant={goal.status === "ACHIEVED" ? "default" : "secondary"}>
-                    {goal.status === "ACHIEVED" && <Trophy className="w-3 h-3 mr-1" />}
-                    {goal.status.replace("_", " ")}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={goal.status === "ACHIEVED" ? "default" : "secondary"}>
+                      {goal.status === "ACHIEVED" && <Trophy className="w-3 h-3 mr-1" />}
+                      {goal.status.replace("_", " ")}
+                    </Badge>
+                    {goal.status === "PAUSED" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateGoalStatus(goal.id, "IN_PROGRESS")}
+                      >
+                        <Play className="w-4 h-4 mr-1" /> Resume
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>

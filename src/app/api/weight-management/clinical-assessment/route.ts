@@ -43,42 +43,30 @@ async function loadIntakeQuizData(userId: string) {
 
 async function persistClinicalNotes(
   userId: string,
-  answers: WeightManagementClinicalAnswers
+  _answers: WeightManagementClinicalAnswers
 ) {
-  const noteGroups = [
-    { title: "Triage, Metabolic Conditions", conditions: answers.metabolicConditions },
-    { title: "Triage, Digestive Conditions", conditions: answers.digestiveConditions },
-    { title: "Triage, Cardiovascular Conditions", conditions: answers.cardiovascularConditions },
-    { title: "Triage, Mental Health Conditions", conditions: answers.mentalHealthConditions },
-    {
-      title: "Triage, Serious Conditions (FLAG)",
-      conditions: answers.seriousConditions.filter((item) => item !== "None of these apply"),
-    },
-    { title: "Triage, Current Medications", conditions: answers.currentMedications },
-  ];
-
   await prisma.internalNote.deleteMany({
     where: {
       userId,
       createdBy: "system",
       category: "MEDICAL",
-      title: { in: noteGroups.map((group) => group.title) },
+      OR: [
+        { title: { startsWith: "Triage," } },
+        {
+          title: {
+            in: [
+              "Patient Motivations",
+              "Previous Weight Loss Attempts",
+              "Previous Treatment",
+              "Exercise Frequency",
+              "Waist Measurement",
+              "Preferred Start Timing",
+            ],
+          },
+        },
+      ],
     },
   });
-
-  for (const group of noteGroups) {
-    const content = group.conditions.filter(Boolean).join(", ");
-    if (!content) continue;
-    await prisma.internalNote.create({
-      data: {
-        userId,
-        category: "MEDICAL",
-        title: group.title,
-        content,
-        createdBy: "system",
-      },
-    });
-  }
 }
 
 export async function GET() {

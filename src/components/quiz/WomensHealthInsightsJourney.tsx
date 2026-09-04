@@ -12,6 +12,7 @@ import {
   Pill,
   Sparkles,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const PAGE_BG = "#F7FBF9";
 const CARD_BG = "#E8F4F0";
@@ -25,8 +26,8 @@ const FLOAT_SHADOW = "0 14px 40px rgba(28, 60, 52, 0.1)";
 const JOURNEY_STEPS = [
   {
     number: "1",
-    title: "Order your Advanced biomarker panel",
-    detail: "Continue to checkout to secure your Advanced panel and begin.",
+    title: "Quick health check",
+    detail: "A short assessment is all it takes to get your membership and begin.",
     visual: "panel" as const,
   },
   {
@@ -46,7 +47,7 @@ const JOURNEY_STEPS = [
   {
     number: "4",
     title: "Unlock your Health action plan",
-    detail: "With a doctor-developed program based on your results. Plans start from $19 per month.",
+    detail: "With a doctor-developed program based on your results.",
     visual: "plan" as const,
   },
 ] as const;
@@ -173,8 +174,8 @@ function PanelVisual() {
               <Beaker className="h-6 w-6 text-[#2D5F54]" strokeWidth={2} />
             </div>
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-[15px] font-semibold text-[#1C1C1C]">Advanced Panel</p>
-              <p className="text-[12px] text-[#5A6561]">Hormones, thyroid & metabolic</p>
+              <p className="text-[15px] font-semibold text-[#1C1C1C]">Essential Panel</p>
+              <p className="text-[12px] text-[#5A6561]">Heart, liver, kidney, thyroid & metabolic</p>
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-[#EEF4F1] pt-3">
@@ -209,16 +210,21 @@ type WomensHealthInsightsJourneyProps = {
   firstName?: string;
   categoryLabel?: string;
   isUnsure?: boolean;
+  className?: string;
 };
 
 export function WomensHealthInsightsJourney({
   firstName,
   categoryLabel,
   isUnsure,
+  className,
 }: WomensHealthInsightsJourneyProps) {
   return (
     <div
-      className="rounded-[2rem] px-4 py-8 sm:px-8 sm:py-10 lg:px-10"
+      className={cn(
+        "rounded-[2rem] px-4 py-8 sm:px-8 sm:py-10 lg:px-10",
+        className
+      )}
       style={{ backgroundColor: PAGE_BG }}
     >
       <div className="mx-auto mb-10 max-w-4xl space-y-4 text-center">
@@ -243,11 +249,11 @@ export function WomensHealthInsightsJourney({
         </p>
       </div>
 
-      <div className="-mx-2 flex gap-5 overflow-x-auto px-2 pb-3 snap-x snap-mandatory scrollbar-hide lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0 xl:grid-cols-4 xl:gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 lg:gap-4">
         {JOURNEY_STEPS.map((step) => (
           <article
             key={step.number}
-            className="flex w-[17.75rem] flex-shrink-0 snap-center flex-col overflow-hidden rounded-[1.75rem] sm:w-[16.5rem] lg:w-auto lg:min-h-[26rem] xl:min-h-[27rem]"
+            className="flex w-full flex-col overflow-hidden rounded-[1.75rem] lg:min-h-[27rem]"
             style={{ backgroundColor: CARD_BG }}
           >
             <div className="px-5 pb-4 pt-7 text-center sm:px-6 sm:pt-8">

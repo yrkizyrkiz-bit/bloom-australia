@@ -9,9 +9,18 @@ import { type BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscrip
 import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
 import { getClinicalProgramFunnelConfig } from "@/lib/funnel/clinical-program-funnel";
 import {
+  digitsOnly,
+  isQuizDobDayComplete,
+  isQuizDobMonthComplete,
+  splitQuizDob,
+  validateQuizDob,
+} from "@/lib/funnel/quiz-dob";
+import {
   ProgramMembershipBackbone,
   type FunnelProfileFields,
 } from "@/components/funnel/ProgramMembershipBackbone";
+import { FunnelStepProgress } from "@/components/funnel/FunnelStepProgress";
+import { WomensHealthInsightsJourney } from "@/components/quiz/WomensHealthInsightsJourney";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
@@ -22,7 +31,7 @@ import {
 } from "@/lib/funnel/intake-response";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, ArrowLeft, Check, X, Info, Heart, HeartPulse, Stethoscope, MessageCircle, Package, AlertTriangle, Loader2, Shield, Flame, Pill, Baby, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, X, Info, Heart, HeartPulse, AlertTriangle, Loader2, Shield, Flame, Pill, Baby, Sparkles } from "lucide-react";
 
 
 // Processing Step Component with animation
@@ -210,6 +219,7 @@ function WomensHealthAssessmentContent() {
 
   const totalSteps = 15;
   const progress = ((step + 1) / totalSteps) * 100;
+  const currentPhase = step <= 3 ? 1 : step <= 12 ? 2 : 3;
   const selectedCategoryInfo = healthCategories.find(c => c.id === formData.category);
 
   const updateFormData = (
@@ -291,26 +301,15 @@ function WomensHealthAssessmentContent() {
     </div>
   );
 
-  const getAge = (dob: string): number => {
-    if (dob.length < 10) return 0;
-    const [day, month, year] = dob.split("/").map(Number);
-    if (!day || !month || !year || year < 1900) return 0;
-    const birthDate = new Date(year, month - 1, day);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    if (today.getMonth() < birthDate.getMonth() || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())) age--;
-    return age;
-  };
-
-  const age = getAge(formData.dateOfBirth);
-  const isValidAge = age >= 18;
+  const dob = validateQuizDob(formData.dateOfBirth);
+  const dobParts = splitQuizDob(formData.dateOfBirth);
 
   const canProceed = () => {
     switch (step) {
       case 0: return true;
       case 1: return formData.firstName.trim() && formData.lastName.trim();
       case 2: return formData.email.includes("@") && formData.email.includes(".");
-      case 3: return formData.dateOfBirth.length === 10 && isValidAge;
+      case 3: return dob.isValid;
       case 4: return true;
       case 5: return formData.category !== "";
       case 6: return formData.primaryConcerns.length > 0;
@@ -472,61 +471,12 @@ function WomensHealthAssessmentContent() {
   const renderStep = () => {
     switch (step) {
       case 0: return (
-        <div className="space-y-4">
-          <div className="text-center">
-            {selectedCategoryInfo ? (
-              <>
-                <div
-                  className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-3"
-                  style={{ background: `linear-gradient(135deg, ${selectedCategoryInfo.color}, ${selectedCategoryInfo.color}dd)` }}
-                >
-                  <selectedCategoryInfo.icon className="w-7 h-7 text-white" />
-                </div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#fef4f0] border border-[#f8e1e1] mb-3">
-                  <span className="text-xs font-medium text-[#c17a58]">{selectedCategoryInfo.label}</span>
-                </div>
-              </>
-            ) : (
-              <div className="w-14 h-14 mx-auto bg-gradient-to-br from-[#c17a58] to-[#a86548] rounded-2xl flex items-center justify-center mb-3">
-                <Heart className="w-7 h-7 text-white" />
-              </div>
-            )}
-            <h1 className="text-3xl sm:text-4xl font-semibold text-[#1C1C1C] leading-tight tracking-tight">
-              {selectedCategoryInfo
-                ? `Your ${selectedCategoryInfo.label.toLowerCase()} assessment`
-                : "Your women's health journey starts here"}
-            </h1>
-            <p className="mt-3 text-base text-[#5c7a52] max-w-md mx-auto">
-              A few quick questions, about 5 minutes.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 mt-4">
-            {[
-              { num: 1, title: "Health assessment", desc: "~5 minutes", icon: Heart },
-              { num: 2, title: "Doctor consult", desc: "AHPRA doctor", icon: Stethoscope },
-              { num: 3, title: "Care plan", desc: "Personalised", icon: MessageCircle },
-              { num: 4, title: "Ongoing support", desc: "Check-ins", icon: Package },
-            ].map((item) => (
-              <div
-                key={item.num}
-                className="bg-white rounded-xl p-3.5 border border-[#f8e1e1] flex flex-col gap-2"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-[#f8e1e1] text-[#c17a58] flex items-center justify-center">
-                    <item.icon className="w-4 h-4" />
-                  </div>
-                  <span className="text-[10px] font-medium text-[#c17a58] bg-[#fef4f0] px-1.5 py-0.5 rounded-full">
-                    Step {item.num}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[#2c3628] leading-snug">{item.title}</h3>
-                  <p className="text-xs text-[#5c7a52] mt-0.5">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <WomensHealthInsightsJourney
+          firstName={formData.firstName}
+          categoryLabel={selectedCategoryInfo?.label}
+          isUnsure={!formData.category || formData.category === "unsure"}
+          className="py-5 sm:py-6 lg:py-7"
+        />
       );
 
       case 1: return (
@@ -556,18 +506,84 @@ function WomensHealthAssessmentContent() {
         </div>
       );
 
-      case 3: return (
+      case 3: {
+        const dobFieldClass = (hasError: boolean) =>
+          `w-full px-3 py-4 rounded-2xl border text-center text-lg bg-white outline-none ${
+            hasError
+              ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100"
+              : "border-[#e5e5e5] focus:border-[#c17a58]"
+          }`;
+        return (
         <div>
           {questionTitle("What is your date of birth?", "Important for personalising your care.")}
           <div className="flex gap-3 justify-center">
-            <div className="w-20"><label className="block text-xs text-[#7e9a72] mb-1 text-center">Day</label><input type="text" inputMode="numeric" maxLength={2} value={formData.dateOfBirth.split("/")[0] || ""} onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 2); const p = formData.dateOfBirth.split("/"); updateFormData("dateOfBirth", `${v}/${p[1]||""}/${p[2]||""}`); if (v.length === 2) document.getElementById("dob-m")?.focus(); }} className="w-full px-3 py-4 rounded-2xl border border-[#e5e5e5] focus:border-[#c17a58] text-center text-lg bg-white outline-none" placeholder="DD" /></div>
-            <div className="w-20"><label className="block text-xs text-[#7e9a72] mb-1 text-center">Month</label><input id="dob-m" type="text" inputMode="numeric" maxLength={2} value={formData.dateOfBirth.split("/")[1] || ""} onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 2); const p = formData.dateOfBirth.split("/"); updateFormData("dateOfBirth", `${p[0]||""}/${v}/${p[2]||""}`); if (v.length === 2) document.getElementById("dob-y")?.focus(); }} className="w-full px-3 py-4 rounded-2xl border border-[#e5e5e5] focus:border-[#c17a58] text-center text-lg bg-white outline-none" placeholder="MM" /></div>
-            <div className="w-28"><label className="block text-xs text-[#7e9a72] mb-1 text-center">Year</label><input id="dob-y" type="text" inputMode="numeric" maxLength={4} value={formData.dateOfBirth.split("/")[2] || ""} onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); const p = formData.dateOfBirth.split("/"); updateFormData("dateOfBirth", `${p[0]||""}/${p[1]||""}/${v}`); }} className="w-full px-3 py-4 rounded-2xl border border-[#e5e5e5] focus:border-[#c17a58] text-center text-lg bg-white outline-none" placeholder="YYYY" /></div>
+            <div className="w-20">
+              <label className="block text-xs text-[#7e9a72] mb-1 text-center">Day</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={2}
+                value={dobParts.day}
+                onChange={(e) => {
+                  const v = digitsOnly(e.target.value, 2);
+                  updateFormData("dateOfBirth", `${v}/${dobParts.month}/${dobParts.year}`);
+                  if (isQuizDobDayComplete(v)) document.getElementById("dob-m")?.focus();
+                }}
+                className={dobFieldClass(Boolean(dob.errors.day))}
+                placeholder="DD"
+                aria-invalid={Boolean(dob.errors.day)}
+              />
+            </div>
+            <div className="w-20">
+              <label className="block text-xs text-[#7e9a72] mb-1 text-center">Month</label>
+              <input
+                id="dob-m"
+                type="text"
+                inputMode="numeric"
+                maxLength={2}
+                value={dobParts.month}
+                onChange={(e) => {
+                  const v = digitsOnly(e.target.value, 2);
+                  updateFormData("dateOfBirth", `${dobParts.day}/${v}/${dobParts.year}`);
+                  if (isQuizDobMonthComplete(v)) document.getElementById("dob-y")?.focus();
+                }}
+                className={dobFieldClass(Boolean(dob.errors.month))}
+                placeholder="MM"
+                aria-invalid={Boolean(dob.errors.month)}
+              />
+            </div>
+            <div className="w-28">
+              <label className="block text-xs text-[#7e9a72] mb-1 text-center">Year</label>
+              <input
+                id="dob-y"
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={dobParts.year}
+                onChange={(e) => {
+                  const v = digitsOnly(e.target.value, 4);
+                  updateFormData("dateOfBirth", `${dobParts.day}/${dobParts.month}/${v}`);
+                }}
+                className={dobFieldClass(Boolean(dob.errors.year))}
+                placeholder="YYYY"
+                aria-invalid={Boolean(dob.errors.year)}
+              />
+            </div>
           </div>
-          {formData.dateOfBirth.length === 10 && !isValidAge && <p className="mt-3 text-sm text-red-600 text-center">You must be 18 or older.</p>}
-          {formData.dateOfBirth.length === 10 && isValidAge && <p className="mt-3 text-sm text-[#5c7a52] text-center">Great, you&apos;re {age} years old.</p>}
+          {(dob.errors.day || dob.errors.month || dob.errors.year || dob.errors.form) && (
+            <div className="mt-3 space-y-1 text-center text-sm text-red-600">
+              {dob.errors.day && <p>{dob.errors.day}</p>}
+              {dob.errors.month && <p>{dob.errors.month}</p>}
+              {dob.errors.year && <p>{dob.errors.year}</p>}
+              {dob.errors.form && <p>{dob.errors.form}</p>}
+            </div>
+          )}
+          {dob.isValid && (
+            <p className="mt-3 text-sm text-[#5c7a52] text-center">Great, you&apos;re {dob.age} years old.</p>
+          )}
         </div>
-      );
+        );
+      }
 
       case 4: return (
         <div className="text-center space-y-5">
@@ -769,15 +785,18 @@ function WomensHealthAssessmentContent() {
     <div className="min-h-screen bg-[#fdfbf7]">
       <div className="fixed top-0 left-0 right-0 h-1 bg-[#f8e1e1] z-50"><div className="h-full bg-[#c17a58] transition-all duration-500" style={{ width: `${progress}%` }} /></div>
       <header className="sticky top-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-40 border-b border-[#f8e1e1]">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div className={`${step === 0 ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${step > 0 && step < 13 ? "pt-3 pb-0" : "py-3"} flex items-center justify-between`}>
           <Link href="/" className="text-2xl font-serif text-[#34412f]">Sanative</Link>
           <button type="button" onClick={() => setShowFAQ(true)} className="flex items-center gap-1.5 text-sm text-[#c17a58]"><Info className="w-4 h-4" />Help</button>
         </div>
+        {step > 0 && step < 13 && (
+          <FunnelStepProgress currentPhase={currentPhase} accent="terracotta" />
+        )}
       </header>
-      <main className={`px-4 mx-auto py-8 pb-32 ${step === 14 ? "max-w-6xl" : "max-w-2xl"}`}>{renderStep()}</main>
+      <main className={`px-4 mx-auto ${step === 0 ? "max-w-6xl py-4 pb-32" : step === 14 ? "max-w-6xl py-8 pb-32" : "max-w-2xl py-8 pb-32"}`}>{renderStep()}</main>
       {step < 13 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#f8e1e1] p-4">
-          <div className="max-w-2xl mx-auto flex gap-3">
+          <div className={`${step === 0 ? "max-w-6xl" : "max-w-2xl"} mx-auto flex gap-3`}>
             {step > 0 && <button type="button" onClick={prevStep} className="px-5 py-4 rounded-2xl border border-[#e5e5e5] text-[#c17a58]"><ArrowLeft className="w-5 h-5" /></button>}
             <button type="button" onClick={nextStep} disabled={!canProceed()} className="flex-1 py-4 bg-[#c17a58] text-white font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2 text-base">{step === 0 ? "Begin" : step === 4 ? "Continue" : "Next"}<ArrowRight className="w-5 h-5" /></button>
           </div>

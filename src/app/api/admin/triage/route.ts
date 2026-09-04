@@ -12,6 +12,11 @@ import {
   buildAssessmentFromQuizData,
   buildMedicalNotesFromQuiz,
 } from "@/lib/quiz-assessment";
+import { resolveDisplayedGender } from "@/lib/funnel/program-gender";
+import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
+import { resolveClinicalRisk } from "@/lib/triage/clinical-risk";
+import { collectEnrolledPrograms } from "@/lib/triage/enrolled-programs";
+import { resolveBmi } from "@/lib/bmi";
 
 const SERIOUS_CONTRAINDICATIONS = [
   "eating_disorder",
@@ -81,6 +86,7 @@ export async function GET(request: NextRequest) {
         phone: true,
         dateOfBirth: true,
         gender: true,
+        subscriptionTier: true,
         triageScore: true,
         journeyStatus: true,
         approvalStatus: true,
@@ -192,7 +198,7 @@ export async function GET(request: NextRequest) {
           }),
           prisma.programMember.findMany({
             where: { userId: { in: patientIds } },
-            select: { userId: true, program: true, intakeData: true },
+            select: { userId: true, program: true, membershipStatus: true, intakeData: true },
           }),
         ])
       : [[], []];
@@ -204,44 +210,51 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const programMemberByUser = new Map<string, (typeof programMembers)[0]>();
+    const programMembersByUser = new Map<string, Array<(typeof programMembers)[number]>>();
     for (const pm of programMembers) {
       if (!pm.userId) continue;
-      if (!programMemberByUser.has(pm.userId)) {
-        programMemberByUser.set(pm.userId, pm);
-      }
+      const list = programMembersByUser.get(pm.userId) ?? [];
+      list.push(pm);
+      programMembersByUser.set(pm.userId, list);
     }
 
     // Transform patient data with computed fields
     const patientsWithMetrics = patients.map((patient) => {
       const intake = intakeByUser.get(patient.id);
-      const programMember = programMemberByUser.get(patient.id);
-      const quizData =
-        (intake?.quizData as Record<string, unknown> | null) ||
-        (programMember?.intakeData as Record<string, unknown> | null) ||
-        null;
+      const patientProgramMembers = programMembersByUser.get(patient.id) ?? [];
+      const programMember = patientProgramMembers[0];
+      const quizData = {
+        ...((intake?.quizData as Record<string, unknown>) || {}),
+        ...((programMember?.intakeData as Record<string, unknown>) || {}),
+      };
+      const quizDataOrNull = Object.keys(quizData).length > 0 ? quizData : null;
 
       const weight = patient.weightLogs[0]?.weight || patient.weightGoals[0]?.startWeight;
-      const heightFromQuiz = quizData?.height ? Number(quizData.height) : null;
-      const height = heightFromQuiz || 170;
+      const heightFromQuiz = quizData.height ? Number(quizData.height) : null;
+      const height =
+        heightFromQuiz && Number.isFinite(heightFromQuiz) && heightFromQuiz > 0
+          ? heightFromQuiz
+          : null;
 
-      // Calculate BMI
-      let bmi: number | null =
-        typeof quizData?.bmi === "number" ? quizData.bmi : null;
-      if (!bmi && weight && height) {
-        bmi = Math.round((weight / Math.pow(height / 100, 2)) * 10) / 10;
-      }
+      const bmi = resolveBmi({
+        storedBmi: quizData.bmi,
+        weightKg: weight,
+        heightCm: height,
+      });
 
+      const staffMedicalNotes = patient.internalNotes.filter(
+        (note) => !isProgramQuizIntakeNote(note)
+      );
       const noteSources =
-        patient.internalNotes.length > 0
-          ? patient.internalNotes.map((note) => ({
+        staffMedicalNotes.length > 0
+          ? staffMedicalNotes.map((note) => ({
               id: note.id,
               title: note.title,
               content: note.content,
               isPinned: note.isPinned,
               createdAt: note.createdAt,
             }))
-          : quizData
+          : quizDataOrNull
             ? buildMedicalNotesFromQuiz(quizData).map((note, index) => ({
                 id: `quiz-${patient.id}-${index}`,
                 title: note.title,
@@ -260,7 +273,11 @@ export async function GET(request: NextRequest) {
         ),
       }));
 
-      const hasContraindications = medicalConditions.some((c) => c.isSevere);
+      const clinicalRisk = resolveClinicalRisk({
+        quizData: quizDataOrNull,
+        medicalConditions,
+      });
+      const hasContraindications = clinicalRisk.level === "HIGH";
 
       // Calculate age
       let age: number | null = null;
@@ -274,21 +291,30 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const assessment = quizData
+      const assessment = quizDataOrNull
         ? buildAssessmentFromQuizData(quizData, patient, patient.consultationBookings[0])
         : null;
 
       return {
         ...patient,
+        gender: resolveDisplayedGender({
+          stored: patient.gender,
+          quizGender: quizData.gender,
+        }),
         age,
         bmi,
         currentWeight: weight || null,
         medicalConditions,
+        clinicalRisk,
         hasContraindications,
         consultationDate: patient.consultationBookings[0]?.scheduledAt || null,
         consultationStatus: patient.consultationBookings[0]?.status || null,
         assignedDoctorId: patient.appointments[0]?.doctorId || null,
         assessment,
+        enrolledPrograms: collectEnrolledPrograms(
+          patientProgramMembers,
+          patient.subscriptionTier
+        ),
         intakePayment: intake
           ? {
               status: intake.paymentStatus,
@@ -317,11 +343,18 @@ export async function GET(request: NextRequest) {
     const stats = {
       pendingTriage: allClinicalPatients.filter((p) => p.journeyStatus === "PRE_TRIAGE_PENDING").length,
       awaitingApproval: allClinicalPatients.filter((p) => p.journeyStatus === "AWAITING_DOCTOR_DECISION" || p.journeyStatus === "PRE_TRIAGE_COMPLETE").length,
-      highRisk: patientsWithMetrics.filter((p) => (p.triageScore || 0) >= 70).length,
+      highRisk: patientsWithMetrics.filter((p) => p.clinicalRisk.level === "HIGH").length,
       withContraindications: patientsWithMetrics.filter((p) => p.hasContraindications).length,
       pendingTests: allClinicalPatients.filter((p) => p.journeyStatus === "APPROVED_PENDING_TESTS").length,
       declined: allClinicalPatients.filter((p) => p.journeyStatus === "DECLINED").length,
     };
+
+    const riskOrder: Record<string, number> = { HIGH: 0, MODERATE: 1, LOW: 2 };
+    patientsWithMetrics.sort((a, b) => {
+      const riskDiff = (riskOrder[a.clinicalRisk.level] ?? 3) - (riskOrder[b.clinicalRisk.level] ?? 3);
+      if (riskDiff !== 0) return riskDiff;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
 
     return NextResponse.json({
       patients: patientsWithMetrics,
@@ -491,6 +524,28 @@ export async function PATCH(request: NextRequest) {
         const carePartnerName = `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "Care Partner";
         const triageCompletedAt = new Date();
 
+        const [completeIntake, completeProgramMember] = await Promise.all([
+          prisma.weightManagementIntake.findFirst({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            select: { quizData: true },
+          }),
+          prisma.programMember.findFirst({
+            where: { userId },
+            select: { intakeData: true },
+          }),
+        ]);
+        const completeQuizData = {
+          ...((completeIntake?.quizData as Record<string, unknown>) || {}),
+          ...((completeProgramMember?.intakeData as Record<string, unknown>) || {}),
+        };
+        const completeClinicalRisk = resolveClinicalRisk({
+          quizData: Object.keys(completeQuizData).length > 0 ? completeQuizData : null,
+        });
+        const clinicalRiskLabel = completeClinicalRisk.reasons.length
+          ? `${completeClinicalRisk.level} (${completeClinicalRisk.reasons.join("; ")})`
+          : completeClinicalRisk.level;
+
         // Update user status
         await prisma.user.update({
           where: { id: userId },
@@ -566,7 +621,7 @@ export async function PATCH(request: NextRequest) {
 **Completed By:** ${carePartnerName}
 **Completed At:** ${triageCompletedAt.toLocaleString('en-AU', { dateStyle: 'full', timeStyle: 'short' })}
 **Triage Score:** ${triageScore || 'Not calculated'}/100
-**Risk Level:** ${triageScore && triageScore >= 70 ? 'HIGH' : triageScore && triageScore >= 40 ? 'MODERATE' : 'LOW'}
+**Risk Level:** ${clinicalRiskLabel}
 
 **Assigned Doctor:** Dr. ${doctor?.firstName} ${doctor?.lastName}
 **Status:** Awaiting Doctor Approval
@@ -591,6 +646,7 @@ ${notes ? `**Care Partner Notes:**\n${notes}` : ''}
                 <li><strong>Patient:</strong> ${user.firstName} ${user.lastName}</li>
                 <li><strong>Email:</strong> ${user.email}</li>
                 <li><strong>Triage Score:</strong> ${triageScore || "Not calculated"}</li>
+                <li><strong>Clinical risk:</strong> ${clinicalRiskLabel}</li>
               </ul>
               <div style="margin: 24px 0;">
                 <a href="${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/admin/weight-management/approvals"

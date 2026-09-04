@@ -13,26 +13,30 @@ export type QuizStep = {
   options: QuizOption[];
 };
 
+export const SEXUAL_HEALTH_PREVIOUS_TREATMENT: QuizStep = {
+  id: "previousTreatment",
+  prompt: "Have you tried treatment for this before?",
+  options: [
+    { id: "none", label: "No, this is my first time" },
+    { id: "otc", label: "Over-the-counter or online products" },
+    { id: "prescription", label: "Prescription medication or hormone therapy in the past" },
+    { id: "current", label: "I'm currently on something" },
+  ],
+};
+
+export const SEXUAL_HEALTH_START_TIMING: QuizStep = {
+  id: "startTiming",
+  prompt: "How soon would you like to speak with a doctor?",
+  options: [
+    { id: "asap", label: "As soon as possible" },
+    { id: "this-week", label: "Within the next week" },
+    { id: "exploring", label: "I'm exploring options for now" },
+  ],
+};
+
 export const SEXUAL_HEALTH_QUIZ_TAIL: QuizStep[] = [
-  {
-    id: "previousTreatment",
-    prompt: "Have you tried treatment for this before?",
-    options: [
-      { id: "none", label: "No, this is my first time" },
-      { id: "otc", label: "Over-the-counter or online products" },
-      { id: "prescription", label: "Prescription medication or hormone therapy in the past" },
-      { id: "current", label: "I'm currently on something" },
-    ],
-  },
-  {
-    id: "startTiming",
-    prompt: "How soon would you like to speak with a doctor?",
-    options: [
-      { id: "asap", label: "As soon as possible" },
-      { id: "this-week", label: "Within the next week" },
-      { id: "exploring", label: "I'm exploring options for now" },
-    ],
-  },
+  SEXUAL_HEALTH_PREVIOUS_TREATMENT,
+  SEXUAL_HEALTH_START_TIMING,
 ];
 
 export function buildConsultationSummary(focusArea: string): string {

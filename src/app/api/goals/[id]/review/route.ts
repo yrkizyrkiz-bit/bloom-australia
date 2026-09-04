@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { appendReviewNote } from "@/lib/goal-review";
+import { hasReachedNumericTarget } from "@/lib/goal-display";
 
 // POST /api/goals/[id]/review, mark achieved or schedule next review
 export async function POST(
@@ -55,6 +56,15 @@ export async function POST(
     const syncedCurrentValue = latestResult?.value ?? existing.currentValue;
 
     if (action === "achieve") {
+      if (!hasReachedNumericTarget(syncedCurrentValue, existing.targetValue, existing.startValue)) {
+        return NextResponse.json(
+          {
+            error: `Goal is not complete yet. Current is ${syncedCurrentValue}; target is ${existing.targetValue}.`,
+          },
+          { status: 400 }
+        );
+      }
+
       const goal = await prisma.healthGoal.update({
         where: { id },
         data: {

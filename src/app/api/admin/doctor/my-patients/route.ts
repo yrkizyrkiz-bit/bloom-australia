@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { calculateBmi } from "@/lib/bmi";
 
 // GET /api/admin/doctor/my-patients - Get patients assigned to this doctor
 export async function GET(request: NextRequest) {
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
       const height = 170; // Default - should be stored in profile
       let bmi: number | null = null;
       if (currentWeight && height) {
-        bmi = Math.round((currentWeight / Math.pow(height / 100, 2)) * 10) / 10;
+        bmi = calculateBmi(currentWeight, height);
       }
 
       return {

@@ -7,9 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, Minus, Check, Apple, Loader2, X } from "lucide-react";
 import { FoodItem, FoodCategory, FOOD_CATEGORIES, calculateNutrition } from "@/data/foodDatabase";
+
+const SEARCH_MEAL_TYPES: { value: string; label: string }[] = [
+  { value: "BREAKFAST", label: "Breakfast" },
+  { value: "MORNING_SNACK", label: "Morning snack" },
+  { value: "LUNCH", label: "Lunch" },
+  { value: "AFTERNOON_SNACK", label: "Afternoon snack" },
+  { value: "DINNER", label: "Dinner" },
+  { value: "EVENING_SNACK", label: "Evening snack" },
+];
 
 interface FoodSearchDialogProps {
   onSelectFood: (food: FoodItem, portion: number, nutrition: {
@@ -18,7 +28,7 @@ interface FoodSearchDialogProps {
     carbs: number;
     fat: number;
     fiber: number;
-  }) => void;
+  }, mealType: string) => void;
   trigger?: React.ReactNode;
 }
 
@@ -30,6 +40,7 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
   const [loading, setLoading] = useState(false);
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [portion, setPortion] = useState(1);
+  const [mealType, setMealType] = useState("LUNCH");
 
   const searchFoods = useCallback(async () => {
     setLoading(true);
@@ -67,7 +78,7 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
     if (!selectedFood) return;
 
     const nutrition = calculateNutrition(selectedFood, portion);
-    onSelectFood(selectedFood, portion, nutrition);
+    onSelectFood(selectedFood, portion, nutrition, mealType);
 
     // Reset state
     setSelectedFood(null);
@@ -99,6 +110,22 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
             Search Food Database
           </DialogTitle>
         </DialogHeader>
+
+        <div className="space-y-1.5">
+          <Label>Meal type</Label>
+          <Select value={mealType} onValueChange={setMealType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SEARCH_MEAL_TYPES.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {!selectedFood ? (
           <>

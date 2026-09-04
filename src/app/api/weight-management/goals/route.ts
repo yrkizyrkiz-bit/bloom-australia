@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { hasReachedNumericTarget } from "@/lib/goal-display";
+import { overlayGoalWithActivePlan } from "@/lib/weight-management/apply-weight-plan";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,17 +20,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const goals = await prisma.weightGoal.findMany({
-      where: { userId, ...(includeCompleted ? {} : { status: "IN_PROGRESS" }) },
-      orderBy: { createdAt: "desc" },
-    });
+    const [goals, latestWeight, activePlan] = await Promise.all([
+      prisma.weightGoal.findMany({
+        where: { userId, ...(includeCompleted ? {} : { status: "IN_PROGRESS" }) },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.weightLog.findFirst({
+        where: { userId },
+        orderBy: { measuredAt: "desc" },
+      }),
+      prisma.weightManagementPlan.findFirst({
+        where: { userId, status: "ACTIVE" },
+        orderBy: { version: "desc" },
+      }),
+    ]);
 
-    const latestWeight = await prisma.weightLog.findFirst({
-      where: { userId },
-      orderBy: { measuredAt: "desc" },
-    });
-
-    const goalsWithProgress = goals.map((goal) => {
+    const goalsWithProgress = goals.map((raw) => {
+      const goal = overlayGoalWithActivePlan(raw, activePlan);
       const currentWeight = latestWeight?.weight || goal.currentWeight;
       const totalToLose = goal.startWeight - goal.targetWeight;
       const actualLost = goal.startWeight - currentWeight;
@@ -145,7 +153,32 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const updateData: Record<string, unknown> = {};
+    const latestWeight = await prisma.weightLog.findFirst({
+      where: { userId: goal.userId },
+      orderBy: { measuredAt: "desc" },
+    });
+    const currentWeight = latestWeight?.weight ?? goal.currentWeight;
+    const nextTarget = targetWeight ?? goal.targetWeight;
+
+    if (status === "ACHIEVED") {
+      if (!hasReachedNumericTarget(currentWeight, nextTarget, goal.startWeight)) {
+        return NextResponse.json(
+          {
+            error: `Goal is not complete yet. Current weight is ${currentWeight} kg; target is ${nextTarget} kg.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (status === "IN_PROGRESS") {
+      await prisma.weightGoal.updateMany({
+        where: { userId: goal.userId, status: "IN_PROGRESS", id: { not: id } },
+        data: { status: "PAUSED" },
+      });
+    }
+
+    const updateData: Record<string, unknown> = { currentWeight };
     if (status) updateData.status = status;
     if (targetWeight) updateData.targetWeight = targetWeight;
     if (targetDate) updateData.targetDate = new Date(targetDate);

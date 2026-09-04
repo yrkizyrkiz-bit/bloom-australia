@@ -1,6 +1,8 @@
 // Reads EXISTING quiz formData fields and calculates biomarker risk scores.
 // Supports dynamic campaign data from admin portal or falls back to hardcoded metadata.
 
+import { calculateBmi } from "@/lib/bmi"
+
 export type BiomarkerRisk = {
   key: string
   name: string
@@ -68,8 +70,8 @@ export function scoreWeightManagement(data: Record<string, unknown>, campaigns?:
   if (digestive.some((c: string) => c.toLowerCase().includes('fatty'))) scores.altAst += 60
   const weight = Number.parseFloat((data.currentWeight as string) || '0')
   const heightCm = Number.parseFloat((data.height as string) || '0')
-  if (weight > 0 && heightCm > 0) {
-    const bmi = weight / Math.pow(heightCm / 100, 2)
+  const bmi = calculateBmi(weight, heightCm)
+  if (bmi != null) {
     if (bmi >= 35) { scores.homaIR += 25; scores.altAst += 25 }
     else if (bmi >= 30) { scores.homaIR += 15; scores.altAst += 15 }
   }

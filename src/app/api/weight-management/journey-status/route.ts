@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { loadPortalConsultation } from "@/lib/program-journey/load-portal-consultation";
 
 // GAP-027: Journey status descriptions for patient portal
 // UAT8-GAP-006: Updated to reflect "Approved with testing" model
@@ -119,17 +120,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const latestBooking = await prisma.consultationBooking.findFirst({
-      where: {
-        userId: session.user.id,
-        status: "BOOKING_CONFIRMED",
-      },
-      orderBy: { scheduledAt: "desc" },
-      select: {
-        scheduledAt: true,
-        doctorName: true,
-      },
-    });
+    const consultation = await loadPortalConsultation(session.user.id, user.journeyStatus);
 
     // Fetch WeightManagementIntake for comprehensive status
     const intake = await prisma.weightManagementIntake.findFirst({
@@ -241,22 +232,7 @@ export async function GET() {
       isActive: journeyStatus === "ACTIVE",
       subscriptionStatus: user.subscriptionStatus,
 
-      consultation: (() => {
-        const scheduled =
-          latestBooking?.scheduledAt || intake?.scheduledAt || null;
-        if (!scheduled) return null;
-        const d = new Date(scheduled);
-        return {
-          date: d.toISOString(),
-          time: d.toLocaleTimeString("en-AU", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          }),
-          status: "BOOKING_CONFIRMED",
-          doctorName: latestBooking?.doctorName || null,
-        };
-      })(),
+      consultation,
 
       // Intake data (for comprehensive status)
       intake: intake ? {

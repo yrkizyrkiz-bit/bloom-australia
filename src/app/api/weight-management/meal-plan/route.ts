@@ -4,13 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isWeightManagementUser } from "@/lib/wm/is-wm-user";
 import { completeProgramTaskForToday } from "@/lib/program/complete-task";
+import { parseWeekStartParam } from "@/lib/weight-management/meal-plan-week";
 
-function weekStartSunday(d: Date): Date {
-  const x = new Date(d);
-  x.setUTCHours(0, 0, 0, 0);
-  x.setUTCDate(x.getUTCDate() - x.getUTCDay());
-  return x;
-}
+const noStore = { "Cache-Control": "no-store" };
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,10 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const weekParam = searchParams.get("weekStart");
-    const weekStart = weekStartSunday(
-      weekParam ? new Date(weekParam) : new Date()
-    );
+    const weekStart = parseWeekStartParam(searchParams.get("weekStart"));
 
     const row = await prisma.wmMealPlanWeek.findUnique({
       where: {
@@ -38,11 +31,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      weekStart: weekStart.toISOString(),
-      planData: row?.planData ?? null,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        weekStart: weekStart.toISOString(),
+        planData: row?.planData ?? null,
+      },
+      { headers: noStore }
+    );
   } catch (error) {
     console.error("[meal-plan GET]", error);
     return NextResponse.json({ error: "Failed to load meal plan" }, { status: 500 });
@@ -61,12 +57,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { weekStart: weekStartRaw, planData } = await request.json();
-    if (!planData) {
+    if (planData === undefined || planData === null || typeof planData !== "object") {
       return NextResponse.json({ error: "planData required" }, { status: 400 });
     }
 
-    const weekStart = weekStartSunday(
-      weekStartRaw ? new Date(weekStartRaw) : new Date()
+    const weekStart = parseWeekStartParam(
+      typeof weekStartRaw === "string" ? weekStartRaw : null
     );
 
     const row = await prisma.wmMealPlanWeek.upsert({

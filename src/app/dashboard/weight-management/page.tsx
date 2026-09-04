@@ -9,15 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Scale, Target, TrendingDown, TrendingUp, Flame,
-  Apple, Dumbbell, ChevronRight, Play,
-  Settings, ChefHat, MessageCircle, Bookmark,
-  Heart, Sparkles, Sun, Award, Lightbulb, Quote, Leaf, Brain, Footprints, Droplets, CalendarDays, Pill,
+  Apple, Dumbbell, ChevronRight,
+  ChefHat, Heart, Sparkles, Sun, Award, Lightbulb, Quote, Leaf, Brain, Footprints, Droplets, CalendarDays, Pill,
   Clock, CheckCircle2, AlertCircle, Beaker, User,
 } from "lucide-react";
 import Link from "next/link";
-import { ProgressChart } from "@/components/weight-management/ProgressChart";
 import { OnboardingFlow } from "@/components/weight-management/OnboardingFlow";
 import { ClinicalAssessmentPrompt } from "@/components/weight-management/ClinicalAssessmentPrompt";
+import { GoalRings } from "@/components/weight-management/GoalRings";
+import { JourneyProjectionChart } from "@/components/weight-management/JourneyProjectionChart";
+import {
+  averageDailyWeightLossKg,
+  formatAverageDailyLoss,
+} from "@/lib/weight-management/journey-projection";
+import type { RingWeekScore } from "@/lib/weight-management/score-ring-week";
 import { ProgramTodayCard } from "@/components/program/ProgramTodayCard";
 import { ProgramBiomarkerStrip } from "@/components/program/ProgramBiomarkerStrip";
 import {
@@ -25,6 +30,7 @@ import {
   getProgramJourneyGreeting,
 } from "@/components/dashboard/ProgramJourneyShell";
 import { getRandomMotivation, getDailyTip, getDailyQuote } from "@/data/mealImages";
+import { cn } from "@/lib/utils";
 
 // GAP-009: Journey status interface
 // UAT8-GAP-006: Updated to include tests tracking (non-blocking)
@@ -48,6 +54,7 @@ interface JourneyStatusData {
     time: string;
     status: string;
     doctorName: string | null;
+    completedAt?: string | null;
   };
 }
 
@@ -62,7 +69,10 @@ interface ProgressData {
     consistencyScore: number;
   };
   goalProgress: {
+    startWeight: number;
     targetWeight: number;
+    startDate: string;
+    targetDate: string;
     percentComplete: number;
     remainingToLose: number;
     actualLost: number;
@@ -112,6 +122,7 @@ export default function WeightManagementPage() {
   const [motivation, setMotivation] = useState("");
   const [dailyTip, setDailyTip] = useState<{ title: string; content: string; icon: string; category: string } | null>(null);
   const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string } | null>(null);
+  const [ringWeek, setRingWeek] = useState<RingWeekScore | null>(null);
 
   const fetchProgress = useCallback(async () => {
     try {
@@ -127,6 +138,20 @@ export default function WeightManagementPage() {
     }
   }, []);
 
+  const fetchRings = useCallback(async () => {
+    try {
+      const ringsRes = await fetch("/api/weight-management/rings", { cache: "no-store" });
+      if (ringsRes.ok) {
+        const rings = await ringsRes.json();
+        if (rings.ringWeek) {
+          setRingWeek(rings.ringWeek);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching rings:", error);
+    }
+  }, []);
+
   useEffect(() => {
     setMotivation(getRandomMotivation("greeting"));
     setDailyTip(getDailyTip());
@@ -134,26 +159,29 @@ export default function WeightManagementPage() {
 
     const init = async () => {
       try {
-        const res = await fetch("/api/weight-management/home");
-        if (!res.ok) {
-          setLoading(false);
-          return;
+        const homeRes = await fetch("/api/weight-management/home");
+
+        if (homeRes.ok) {
+          const data = await homeRes.json();
+          setJourneyStatus(data.journeyStatus);
+          if (data.showOnboarding) {
+            setShowOnboarding(true);
+          }
+          if (data.clinicalAssessment?.status) {
+            setClinicalStatus(data.clinicalAssessment.status);
+          }
+          if (data.checkInStatus) {
+            setCheckInStatus(data.checkInStatus);
+          }
+          if (data.progress) {
+            setProgress(data.progress);
+          }
+          if (data.ringWeek) {
+            setRingWeek(data.ringWeek);
+          }
         }
 
-        const data = await res.json();
-        setJourneyStatus(data.journeyStatus);
-        if (data.showOnboarding) {
-          setShowOnboarding(true);
-        }
-        if (data.clinicalAssessment?.status) {
-          setClinicalStatus(data.clinicalAssessment.status);
-        }
-        if (data.checkInStatus) {
-          setCheckInStatus(data.checkInStatus);
-        }
-        if (data.progress) {
-          setProgress(data.progress);
-        }
+        await fetchRings();
       } catch (error) {
         console.error("Error initializing:", error);
       } finally {
@@ -162,7 +190,21 @@ export default function WeightManagementPage() {
     };
 
     void init();
-  }, []);
+  }, [fetchRings]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void fetchRings();
+      }
+    };
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [fetchRings]);
 
   const deferClinicalAssessment = async () => {
     setDeferringClinical(true);
@@ -178,98 +220,108 @@ export default function WeightManagementPage() {
     }
   };
 
-  const clinicalPrompt =
-    clinicalStatus === "needed" || clinicalStatus === "deferred" ? (
+  const clinicalPrompt = (embedded = false) =>
+    !journeyStatus?.isApproved &&
+    (clinicalStatus === "needed" || clinicalStatus === "deferred") ? (
       <ClinicalAssessmentPrompt
         variant={clinicalStatus}
         firstVisit={isPostCheckout && clinicalStatus === "needed"}
         onCompleteLater={clinicalStatus === "needed" ? deferClinicalAssessment : undefined}
         deferring={deferringClinical}
+        embedded={embedded}
       />
     ) : null;
 
-  // Quick Action Cards - friendly descriptions
   const quickActions = [
     {
       label: "Track",
       description: "Log your weight",
       icon: Scale,
       href: "/dashboard/weight-management/track",
-      color: "bg-emerald-600",
+      gradient: "from-[#4a6243] to-[#3d4f38]",
+      tone: "dark" as const,
+      iconCircle: "bg-[#cdd8c6]/20",
+      iconColor: "text-white",
     },
     {
       label: "Eat",
       description: "Log a meal",
       icon: Apple,
       href: "/dashboard/weight-management/meals",
-      color: "bg-orange-500",
+      gradient: "from-[#f0e8d8] to-[#e5d7bf]",
+      tone: "light" as const,
+      iconCircle: "bg-[#c17a58]/20",
+      iconColor: "text-[#c17a58]",
     },
     {
       label: "Move",
       description: "Log activity",
       icon: Dumbbell,
       href: "/dashboard/weight-management/exercise",
-      color: "bg-blue-500",
+      gradient: "from-[#e6ebe3] to-[#cdd8c6]",
+      tone: "light" as const,
+      iconCircle: "bg-[#7e9a72]/25",
+      iconColor: "text-[#5c7a52]",
     },
     {
       label: "Reflect",
       description: "Weekly check-in",
       icon: Heart,
       href: "/dashboard/weight-management/check-in",
-      color: "bg-rose-500",
+      gradient: "from-[#cdd8c6] to-[#a8bb9e]",
+      tone: "light" as const,
+      iconCircle: "bg-[#7e9a72]/30",
+      iconColor: "text-[#4a6243]",
     },
     {
       label: "Medication",
       description: "Manage treatment",
       icon: Pill,
       href: "/dashboard/weight-management/treatment",
-      color: "bg-violet-500",
+      gradient: "from-[#34412f] to-[#2c3628]",
+      tone: "dark" as const,
+      iconCircle: "bg-[#cdd8c6]/20",
+      iconColor: "text-white/80",
     },
   ];
 
-  // Feature Cards with images for visual appeal
   const featureCards = [
     {
       label: "Meal Plan",
       description: "Plan your week",
       icon: CalendarDays,
       href: "/dashboard/weight-management/meal-plan",
-      gradient: "from-emerald-500 to-teal-600",
-      image: "/images/remote/unsplash/photo-1546069901-ba9599a7e63c.webp"
+      gradient: "from-[#4a6243] to-[#3d4f38]",
+      tone: "dark" as const,
+      image: "/images/remote/unsplash/photo-1546069901-ba9599a7e63c.webp",
     },
     {
       label: "Recipes",
       description: "45+ healthy meals",
       icon: ChefHat,
       href: "/dashboard/weight-management/recipes",
-      gradient: "from-orange-500 to-red-500",
-      image: "/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp"
+      gradient: "from-[#f0e8d8] to-[#e5d7bf]",
+      tone: "light" as const,
+      image: "/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp",
     },
     {
       label: "Progress",
       description: "View your journey",
       icon: TrendingDown,
       href: "/dashboard/weight-management/progress",
-      gradient: "from-blue-500 to-indigo-600",
-      image: "/images/remote/unsplash/photo-1571019614242-c5c5dee9f50b.webp"
+      gradient: "from-[#e6ebe3] to-[#cdd8c6]",
+      tone: "light" as const,
+      image: "/images/remote/unsplash/photo-1571019614242-c5c5dee9f50b.webp",
     },
     {
       label: "Goals",
       description: "Set targets",
       icon: Target,
       href: "/dashboard/weight-management/goals",
-      gradient: "from-rose-500 to-pink-600",
-      image: "/images/remote/unsplash/photo-1518611012118-696072aa579a.webp"
+      gradient: "from-[#cdd8c6] to-[#a8bb9e]",
+      tone: "light" as const,
+      image: "/images/remote/unsplash/photo-1518611012118-696072aa579a.webp",
     },
-  ];
-
-  // More Features
-  const features = [
-    { label: "Care team", icon: MessageCircle, href: "/dashboard/weight-management/support", color: "text-pink-500" },
-    { label: "Learn", icon: Play, href: "/dashboard/weight-management/learn", color: "text-violet-500" },
-    { label: "Treatment", icon: Heart, href: "/dashboard/weight-management/treatment", color: "text-rose-500" },
-    { label: "Saved", icon: Bookmark, href: "/dashboard/weight-management/saved", color: "text-amber-500" },
-    { label: "Settings", icon: Settings, href: "/dashboard/weight-management/settings", color: "text-slate-600" },
   ];
 
   if (loading && !journeyStatus) {
@@ -291,7 +343,7 @@ export default function WeightManagementPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-[#4a6243] border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground">Preparing your journey...</p>
         </div>
       </div>
@@ -317,28 +369,30 @@ export default function WeightManagementPage() {
                 date: journeyStatus.consultation.date,
                 time: journeyStatus.consultation.time,
                 doctorName: journeyStatus.consultation.doctorName,
+                completedAt: journeyStatus.consultation.completedAt,
               }
             : undefined,
         }}
+        consultationExtra={clinicalPrompt(true)}
       >
-        {clinicalPrompt}
+        {ringWeek ? <GoalRings week={ringWeek} /> : null}
         {journeyStatus.hasTestsTracking && journeyStatus.testsTrackingInfo && (
-          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+          <Card className="border-[#cdd8c6] bg-gradient-to-br from-[#f8f4ec] to-[#e6ebe3]">
             <CardContent className="p-5">
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50">
-                  <Beaker className="h-6 w-6 text-blue-600" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#cdd8c6]/50">
+                  <Beaker className="h-6 w-6 text-[#4a6243]" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                    <h4 className="font-semibold text-[#2c3628]">
                       Health monitoring in progress
                     </h4>
-                    <Badge variant="outline" className="border-blue-300 text-xs text-blue-700">
+                    <Badge variant="outline" className="border-[#cdd8c6] text-xs text-[#4a6243]">
                       Approved with testing
                     </Badge>
                   </div>
-                  <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                  <p className="mt-1 text-sm text-[#5c7a52]">
                     {journeyStatus.testsTrackingInfo.message}. Your program is active, these
                     tests help your doctor monitor your health markers.
                   </p>
@@ -348,31 +402,31 @@ export default function WeightManagementPage() {
           </Card>
         )}
 
-        <Card>
+        <Card className="border-[#cdd8c6] bg-[#f8f4ec]">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ChefHat className="h-5 w-5 text-emerald-600" />
+            <CardTitle className="flex items-center gap-2 text-base text-[#2c3628]">
+              <ChefHat className="h-5 w-5 text-[#4a6243]" />
               Start Planning Your Meals
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="mb-4 text-sm text-muted-foreground">
+            <p className="mb-4 text-sm text-[#5c7a52]">
               Get a head start on your health journey by planning nutritious meals.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <Link href="/dashboard/weight-management/meal-plan">
-                <Card className="h-full cursor-pointer overflow-hidden border-emerald-200 transition-all hover:shadow-lg">
+                <Card className="h-full cursor-pointer overflow-hidden border-[#cdd8c6] bg-[#f8f4ec] transition-all hover:shadow-lg">
                   <CardContent className="p-3">
                     <p className="text-sm font-semibold">Weekly Meal Plan</p>
-                    <p className="text-xs text-muted-foreground">Plan your week & shopping list</p>
+                    <p className="text-xs text-[#5c7a52]">Plan your week & shopping list</p>
                   </CardContent>
                 </Card>
               </Link>
               <Link href="/dashboard/weight-management/recipes">
-                <Card className="h-full cursor-pointer overflow-hidden border-orange-200 transition-all hover:shadow-lg">
+                <Card className="h-full cursor-pointer overflow-hidden border-[#e5d7bf] bg-[#f0e8d8] transition-all hover:shadow-lg">
                   <CardContent className="p-3">
                     <p className="text-sm font-semibold">Recipes</p>
-                    <p className="text-xs text-muted-foreground">45+ healthy meals</p>
+                    <p className="text-xs text-[#5c7a52]">45+ healthy meals</p>
                   </CardContent>
                 </Card>
               </Link>
@@ -381,22 +435,22 @@ export default function WeightManagementPage() {
         </Card>
 
         <Link href="/dashboard/weight-management/treatment">
-          <Card className="cursor-pointer transition-shadow hover:shadow-md">
+          <Card className="cursor-pointer border-[#cdd8c6] bg-[#f8f4ec] transition-shadow hover:shadow-md">
             <CardContent className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100">
-                  <Pill className="h-5 w-5 text-violet-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#cdd8c6]/40">
+                  <Pill className="h-5 w-5 text-[#4a6243]" />
                 </div>
                 <div>
-                  <p className="font-medium">Treatment</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-serif text-[#2c3628]">Treatment</p>
+                  <p className="text-xs text-[#5c7a52]">
                     {journeyStatus.hasPrescription
                       ? "View treatment status"
                       : "View treatment plan"}
                   </p>
                 </div>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              <ChevronRight className="h-5 w-5 text-[#4a6243]" />
             </CardContent>
           </Card>
         </Link>
@@ -413,34 +467,34 @@ export default function WeightManagementPage() {
 
   return (
     <div className="space-y-6 pb-8">
-      {clinicalPrompt}
+      {clinicalPrompt()}
       {/* Personalized Header - Warm & Friendly */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-600 p-6 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4a6243] via-[#3d4f38] to-[#34412f] p-6 text-white">
         <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/3" />
 
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-1">
-            <Sun className="w-4 h-4 text-emerald-300" />
-            <p className="text-emerald-200 text-sm">{getGreeting()}</p>
+            <Sun className="w-4 h-4 text-[#cdd8c6]" />
+            <p className="text-[#cdd8c6] text-sm">{getGreeting()}</p>
           </div>
           <h1 className="text-2xl md:text-3xl font-serif font-semibold mb-2">
             {user?.firstName}
           </h1>
-          <p className="text-emerald-100 text-sm">{motivation}</p>
+          <p className="text-[#a8bb9e] text-sm">{motivation}</p>
 
           {/* Progress Summary */}
           {progress?.summary.currentWeight && (
             <div className="flex items-center gap-6 mt-4">
               <div>
-                <p className="text-emerald-200 text-xs uppercase tracking-wider">Current</p>
+                <p className="text-[#cdd8c6] text-xs uppercase tracking-wider">Current</p>
                 <p className="text-2xl font-bold">{progress.summary.currentWeight} kg</p>
               </div>
               {progress.summary.weightChange !== 0 && (
                 <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
                   progress.summary.weightChange <= 0
-                    ? "bg-green-400/20 text-green-200"
-                    : "bg-amber-400/20 text-amber-200"
+                    ? "bg-[#cdd8c6]/20 text-[#cdd8c6]"
+                    : "bg-[#c17a58]/25 text-[#f0e8d8]"
                 }`}>
                   {progress.summary.weightChange <= 0
                     ? <TrendingDown className="w-4 h-4" />
@@ -454,25 +508,30 @@ export default function WeightManagementPage() {
         </div>
       </div>
 
-      {/* Program orchestrator, today's tasks & side effects */}
-      <ProgramTodayCard />
+      {ringWeek ? <GoalRings week={ringWeek} /> : null}
 
       {/* Goal Progress Card - Encouraging */}
       {progress?.goalProgress && (
-        <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20">
+        <Card className="border-[#cdd8c6] bg-gradient-to-br from-[#f8f4ec] to-[#e6ebe3]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-600" />
-                <span className="font-semibold">You&apos;re making progress!</span>
+                <Sparkles className="w-5 h-5 text-[#4a6243]" />
+                <span className="font-semibold text-[#2c3628]">You&apos;re making progress!</span>
               </div>
-              <Badge className="bg-emerald-600">{progress.goalProgress.percentComplete}%</Badge>
+              <span className="text-xs font-medium text-[#4a6243]">
+                {formatAverageDailyLoss(
+                  averageDailyWeightLossKg(
+                    progress.goalProgress.actualLost,
+                    progress.goalProgress.startDate
+                  )
+                )}
+              </span>
             </div>
-            <Progress value={progress.goalProgress.percentComplete} className="h-2 mb-2" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{progress.goalProgress.actualLost} kg down - amazing!</span>
-              <span>Just {progress.goalProgress.remainingToLose} kg to go</span>
-            </div>
+            <Progress value={progress.goalProgress.percentComplete} className="mb-2 h-2 bg-[#cdd8c6] [&>div]:bg-[#4a6243]" />
+            <p className="text-xs text-[#5c7a52]">
+              {progress.goalProgress.actualLost} kg down - amazing!
+            </p>
           </CardContent>
         </Card>
       )}
@@ -481,86 +540,105 @@ export default function WeightManagementPage() {
       <div className="grid grid-cols-2 gap-3">
         {/* Log Weight - Primary Action */}
         <Link href="/dashboard/weight-management/track" className="col-span-2">
-          <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-2 border-emerald-200 hover:border-emerald-400">
-            <CardContent className="p-0">
-              <div className="flex items-center">
-                <div className="flex-1 p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Scale className="w-5 h-5 text-emerald-600" />
-                    <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Today</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Log your weight</h3>
-                  <p className="text-sm text-muted-foreground">Track your progress</p>
+          <div className="group relative flex overflow-hidden rounded-2xl bg-gradient-to-br from-[#4a6243] to-[#3d4f38] transition-transform duration-300 md:hover:scale-[1.01]">
+            <div className="pointer-events-none absolute top-4 right-8 h-20 w-20 rounded-full bg-white/10 blur-xl" />
+            <div className="relative z-10 flex flex-1 items-center">
+              <div className="flex-1 p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <Scale className="h-5 w-5 text-[#cdd8c6]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#cdd8c6]">Today</span>
                 </div>
-                <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <Scale className="w-10 h-10 text-white" />
+                <h3 className="font-serif text-lg text-white">Log your weight</h3>
+                <p className="text-sm text-[#a8bb9e]">Track your progress</p>
+              </div>
+              <div className="flex h-24 w-24 items-center justify-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#cdd8c6]/20">
+                  <Scale className="h-7 w-7 text-white/70" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </Link>
 
-        {/* Quick Actions */}
-        {quickActions.slice(1).map((action) => (
-          <Link key={action.label} href={action.href}>
-            <Card className="overflow-hidden hover:shadow-md transition-all cursor-pointer group h-full">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform`}>
-                  <action.icon className="w-6 h-6 text-white" />
+        {quickActions.slice(1).map((action) => {
+          const dark = action.tone === "dark";
+          return (
+            <Link key={action.label} href={action.href}>
+              <div
+                className={cn(
+                  "group relative h-full overflow-hidden rounded-2xl bg-gradient-to-br p-4 transition-transform duration-300 md:hover:scale-[1.02]",
+                  action.gradient
+                )}
+              >
+                {dark ? (
+                  <div className="pointer-events-none absolute top-2 right-2 h-10 w-10 rounded-full bg-white/10 blur-md" />
+                ) : null}
+                <div className="relative z-10 flex items-center gap-3">
+                  <div className={cn("flex h-12 w-12 items-center justify-center rounded-full", action.iconCircle)}>
+                    <action.icon className={cn("h-6 w-6", action.iconColor)} />
+                  </div>
+                  <div>
+                    <p className={cn("font-serif text-sm", dark ? "text-white" : "text-[#2c3628]")}>{action.label}</p>
+                    <p className={cn("text-xs", dark ? "text-[#a8bb9e]" : "text-[#5c7a52]")}>{action.description}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-sm">{action.label}</p>
-                  <p className="text-xs text-muted-foreground">{action.description}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+              </div>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Feature Cards with Images */}
       <div>
-        <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-amber-500" />
+        <h2 className="mb-3 flex items-center gap-2 font-serif text-lg text-[#2c3628]">
+          <Sparkles className="h-5 w-5 text-[#c17a58]" />
           Explore
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          {featureCards.map((card) => (
-            <Link key={card.label} href={card.href}>
-              <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full">
-                <div className="relative h-24 overflow-hidden">
-                  <img
-                    src={card.image}
-                    alt={card.label}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${card.gradient} opacity-70`} />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <card.icon className="w-8 h-8 text-white drop-shadow-lg" />
+          {featureCards.map((card) => {
+            const dark = card.tone === "dark";
+            return (
+              <Link key={card.label} href={card.href}>
+                <div className="group h-full overflow-hidden rounded-2xl border border-[#cdd8c6] bg-[#f8f4ec] transition-transform duration-300 md:hover:scale-[1.02]">
+                  <div className="relative h-24 overflow-hidden">
+                    <img
+                      src={card.image}
+                      alt={card.label}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+                    <div className={cn("absolute inset-0 bg-gradient-to-t opacity-40", card.gradient)} />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className={cn(
+                        "flex h-12 w-12 items-center justify-center rounded-full",
+                        dark ? "bg-[#2c3628]/40" : "bg-white/50"
+                      )}>
+                        <card.icon className={cn("h-6 w-6", dark ? "text-white" : "text-[#2c3628]")} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <p className="font-serif text-sm text-[#2c3628]">{card.label}</p>
+                    <p className="text-xs text-[#5c7a52]">{card.description}</p>
                   </div>
                 </div>
-                <CardContent className="p-3">
-                  <p className="font-semibold text-sm">{card.label}</p>
-                  <p className="text-xs text-muted-foreground">{card.description}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
       {/* Daily Tip - Compact */}
       {dailyTip && (
-        <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200">
+        <Card className="border-[#e5d7bf] bg-gradient-to-br from-[#f8f4ec] to-[#f0e8d8]">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
-                <Lightbulb className="w-5 h-5 text-amber-600" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#c17a58]/20">
+                <Lightbulb className="h-5 w-5 text-[#c17a58]" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider mb-1">Daily Tip</p>
-                <p className="font-medium text-sm text-amber-900 dark:text-amber-100">{dailyTip.title}</p>
-                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 line-clamp-2">{dailyTip.content}</p>
+              <div className="min-w-0 flex-1">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[#c17a58]">Daily Tip</p>
+                <p className="font-serif text-sm text-[#2c3628]">{dailyTip.title}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-[#5c7a52]">{dailyTip.content}</p>
               </div>
             </div>
           </CardContent>
@@ -570,148 +648,95 @@ export default function WeightManagementPage() {
       {/* Weekly Check-in Reminder - Warm */}
       {checkInStatus?.checkInNeeded && (
         <Link href="/dashboard/weight-management/check-in">
-          <Card className="bg-gradient-to-r from-violet-500 to-purple-600 text-white border-0 hover:shadow-lg transition-shadow cursor-pointer">
-            <CardContent className="p-4 flex items-center justify-between">
+          <div className="cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br from-[#4a6243] to-[#3d4f38] text-white transition-transform duration-300 md:hover:scale-[1.01]">
+            <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Heart className="w-6 h-6" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#cdd8c6]/20">
+                  <Heart className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">How was your week?</h3>
-                  <p className="text-sm text-white/80">Take a moment to reflect</p>
+                  <h3 className="font-serif font-semibold">How was your week?</h3>
+                  <p className="text-sm text-[#a8bb9e]">Take a moment to reflect</p>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5" />
-            </CardContent>
-          </Card>
+              <ChevronRight className="h-5 w-5 text-[#cdd8c6]" />
+            </div>
+          </div>
         </Link>
       )}
 
       {/* Streak Display - Celebratory */}
       {checkInStatus && checkInStatus.streaks.current > 0 && !checkInStatus.checkInNeeded && (
-        <Card className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
-          <CardContent className="p-4 flex items-center justify-between">
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0e8d8] to-[#e5d7bf]">
+          <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <Flame className="w-6 h-6" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#c17a58]/20">
+                <Flame className="h-6 w-6 text-[#c17a58]" />
               </div>
               <div>
-                <h3 className="font-semibold">{checkInStatus.streaks.current} week streak!</h3>
-                <p className="text-sm text-white/80">You&apos;re on a roll - keep it up!</p>
+                <h3 className="font-serif font-semibold text-[#2c3628]">{checkInStatus.streaks.current} week streak!</h3>
+                <p className="text-sm text-[#5c7a52]">You&apos;re on a roll - keep it up!</p>
               </div>
             </div>
-            <Award className="w-8 h-8 text-white/60" />
-          </CardContent>
-        </Card>
+            <Award className="h-8 w-8 text-[#c17a58]/50" />
+          </div>
+        </div>
       )}
 
       {/* Progress Chart Preview */}
-      <Card>
+      <Card className="border-[#cdd8c6] bg-[#f8f4ec]">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingDown className="w-5 h-5 text-emerald-600" />
+            <CardTitle className="flex items-center gap-2 text-lg text-[#2c3628]">
+              <TrendingDown className="h-5 w-5 text-[#4a6243]" />
               Your Journey
             </CardTitle>
             <Link href="/dashboard/weight-management/progress">
-              <Button variant="ghost" size="sm" className="text-emerald-600">
+              <Button variant="ghost" size="sm" className="text-[#4a6243]">
                 See more <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </div>
         </CardHeader>
-        <CardContent>
-          <ProgressChart data={progress?.weightProgress.weeklyAverages || []} />
+        <CardContent className="px-3 pb-4 sm:px-5">
+          {progress?.goalProgress ? (
+            <JourneyProjectionChart
+              startWeight={progress.goalProgress.startWeight}
+              targetWeight={progress.goalProgress.targetWeight}
+              startDate={progress.goalProgress.startDate}
+              targetDate={progress.goalProgress.targetDate}
+              currentWeight={progress.summary.currentWeight}
+              weeklyAverages={progress.weightProgress.weeklyAverages || []}
+            />
+          ) : (
+            <div className="flex h-40 flex-col items-center justify-center text-[#7e9a72]">
+              <Scale className="mb-2 h-8 w-8 opacity-40" />
+              <p className="text-sm">Your program goal will sketch here once a target weight is set.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <ProgramTodayCard ringWeek={ringWeek} />
 
       {/* Activity Summary - Encouraging */}
       <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Dumbbell className="w-5 h-5 mx-auto mb-1 text-blue-600" />
-            <p className="text-lg font-bold">{progress?.summary.exerciseDays || 0}</p>
-            <p className="text-[10px] text-muted-foreground">Active Days</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Flame className="w-5 h-5 mx-auto mb-1 text-orange-600" />
-            <p className="text-lg font-bold">{progress?.summary.totalCaloriesBurned?.toLocaleString() || 0}</p>
-            <p className="text-[10px] text-muted-foreground">Calories Burned</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Award className="w-5 h-5 mx-auto mb-1 text-violet-600" />
-            <p className="text-lg font-bold">{progress?.summary.consistencyScore || 0}%</p>
-            <p className="text-[10px] text-muted-foreground">Consistency</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl bg-gradient-to-br from-[#e6ebe3] to-[#cdd8c6] p-4 text-center">
+          <Dumbbell className="mx-auto mb-1 h-5 w-5 text-[#4a6243]" />
+          <p className="font-serif text-lg text-[#2c3628]">{progress?.summary.exerciseDays || 0}</p>
+          <p className="text-[10px] text-[#5c7a52]">Active days this week</p>
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-[#f0e8d8] to-[#e5d7bf] p-4 text-center">
+          <Flame className="mx-auto mb-1 h-5 w-5 text-[#c17a58]" />
+          <p className="font-serif text-lg text-[#2c3628]">{progress?.summary.totalCaloriesBurned?.toLocaleString() || 0}</p>
+          <p className="text-[10px] text-[#5c7a52]">Exercise calories this week</p>
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] p-4 text-center">
+          <Award className="mx-auto mb-1 h-5 w-5 text-[#4a6243]" />
+          <p className="font-serif text-lg text-[#2c3628]">{progress?.summary.consistencyScore || 0}%</p>
+          <p className="text-[10px] text-[#5c7a52]">Consistency this week</p>
+        </div>
       </div>
-
-      {/* Recommended for You - Friendly */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Play className="w-5 h-5 text-violet-600" />
-            Made for you
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Link href="/dashboard/weight-management/learn">
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 hover:shadow-sm transition-all cursor-pointer">
-              <div className="w-16 h-12 bg-emerald-600 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
-                <img
-                  src="/images/remote/unsplash/photo-1490645935967-10de6ba17061.webp"
-                  alt="Healthy eating"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">Nourishing your body</p>
-                <p className="text-xs text-muted-foreground">Simple tips for mindful eating</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-            </div>
-          </Link>
-          <Link href="/dashboard/weight-management/recipes">
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 hover:shadow-sm transition-all cursor-pointer">
-              <div className="w-16 h-12 rounded-lg overflow-hidden shrink-0">
-                <img
-                  src="/images/remote/unsplash/photo-1512621776951-a57141f2eefd.webp"
-                  alt="Fresh salad"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">Try something new</p>
-                <p className="text-xs text-muted-foreground">Delicious healthy recipes</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-            </div>
-          </Link>
-        </CardContent>
-      </Card>
-
-      {/* More Features */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Explore</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-5 gap-2">
-            {features.map((feature) => (
-              <Link key={feature.label} href={feature.href}>
-                <div className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                  <feature.icon className={`w-5 h-5 ${feature.color}`} />
-                  <span className="text-[10px] text-muted-foreground">{feature.label}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Onboarding Flow */}
       <OnboardingFlow

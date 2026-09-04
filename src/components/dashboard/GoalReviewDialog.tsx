@@ -22,7 +22,7 @@ import {
   formatReviewDate,
 } from "@/lib/goal-review";
 import { formatLatestResultDate } from "@/lib/goal-latest-values";
-import { goalStatusLabel, reviewDueHint } from "@/lib/goal-display";
+import { goalStatusLabel, hasReachedNumericTarget, reviewDueHint } from "@/lib/goal-display";
 
 export interface GoalReviewTarget {
   id: string;
@@ -78,8 +78,15 @@ export function GoalReviewDialog({
   const unit =
     goal.biomarker?.unit || biomarkerDef?.ranges[gender].unit || "";
   const currentValue = goal.effectiveCurrentValue ?? goal.currentValue;
+  const reachedTarget = hasReachedNumericTarget(currentValue, goal.targetValue, goal.startValue);
 
   const submitReview = async (action: "achieve" | "continue") => {
+    if (action === "achieve" && !reachedTarget) {
+      toast.error(
+        `Goal is not complete yet. Current is ${currentValue}; target is ${goal.targetValue}.`
+      );
+      return;
+    }
     if (action === "continue" && !nextReviewDate) {
       toast.error("Please choose the next review date");
       return;
@@ -215,9 +222,14 @@ export function GoalReviewDialog({
         </div>
 
         <DialogFooter className="flex-col sm:flex-col gap-2">
+          {!reachedTarget ? (
+            <p className="text-xs text-center text-muted-foreground">
+              Current {currentValue} is still short of the {goal.targetValue} target.
+            </p>
+          ) : null}
           <Button
             className="w-full bg-green-600 hover:bg-green-700"
-            disabled={isSaving}
+            disabled={isSaving || !reachedTarget}
             onClick={() => submitReview("achieve")}
           >
             {isSaving ? (

@@ -18,6 +18,7 @@ import {
   type ProgramJourneyViewModel,
 } from "@/components/dashboard/ProgramJourneyShell";
 import { getJourneyStageMeta } from "@/lib/program-journey/stages";
+import { isAwaitingDoctorConsultation } from "@/lib/program-journey/upcoming-consultation";
 
 type HairPortalData = {
   user: {
@@ -39,6 +40,7 @@ type HairPortalData = {
     scheduledAt: string;
     doctorName: string | null;
     appointmentType: string;
+    completedAt: string | null;
   } | null;
   progress: {
     currentDay: number;
@@ -128,13 +130,18 @@ export default function HairLossPage() {
   const journeyStatus = data?.user.journeyStatus || "CONSULTATION_PAID";
   const stageMeta = getJourneyStageMeta(journeyStatus);
 
+  const showCountdown =
+    Boolean(data?.booking) &&
+    !data?.booking?.completedAt &&
+    isAwaitingDoctorConsultation(journeyStatus);
+
   const journeyView: ProgramJourneyViewModel = {
     journeyStatus,
     stageDescription: data?.status.label || stageMeta.stageDescription,
     stage: stageMeta.stage,
     isApproved: data?.status.isApproved || stageMeta.isApproved,
     hasPrescription: (data?.prescriptions.length ?? 0) > 0,
-    consultation: data?.booking
+    consultation: showCountdown && data?.booking
       ? {
           date: data.booking.scheduledAt,
           time: new Date(data.booking.scheduledAt).toLocaleTimeString("en-AU", {
@@ -142,6 +149,7 @@ export default function HairLossPage() {
             minute: "2-digit",
           }),
           doctorName: data.booking.doctorName,
+          completedAt: data.booking.completedAt,
         }
       : undefined,
   };

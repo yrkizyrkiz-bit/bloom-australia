@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Pill, Calendar, Clock, CheckCircle2, Loader2, User, Building2, Package, Truck, AlertCircle, FileText, RefreshCw } from "lucide-react";
+import { ArrowLeft, Pill, Calendar, Clock, CheckCircle2, Loader2, User, Building2, Package, Truck, AlertCircle, FileText, RefreshCw, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Link from "next/link";
 import { ProgramDoseSection } from "@/components/program/ProgramDoseSection";
 import { ProgramSideEffectHistory } from "@/components/program/ProgramSideEffectHistory";
@@ -90,6 +91,7 @@ export default function TreatmentPage() {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [journeyStatus, setJourneyStatus] = useState<JourneyStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [progressOpen, setProgressOpen] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -176,15 +178,39 @@ export default function TreatmentPage() {
       {/* GAP-027: Treatment preparation timeline (after approval) */}
       {isApproved && (
         <Card>
+          <Collapsible
+            open={currentStepIndex >= TIMELINE_STEPS.length - 1 ? progressOpen : true}
+            onOpenChange={setProgressOpen}
+          >
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Package className="w-5 h-5 text-emerald-600" />
-              Treatment Progress
-            </CardTitle>
-            <CardDescription>
-              Track your treatment preparation and delivery
-            </CardDescription>
+            {currentStepIndex >= TIMELINE_STEPS.length - 1 ? (
+              <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 text-left">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Package className="w-5 h-5 text-emerald-600" />
+                    Treatment Progress
+                  </CardTitle>
+                  <CardDescription className="mt-1">Program active</CardDescription>
+                </div>
+                <ChevronDown
+                  className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${
+                    progressOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </CollapsibleTrigger>
+            ) : (
+              <>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Package className="w-5 h-5 text-emerald-600" />
+                  Treatment Progress
+                </CardTitle>
+                <CardDescription>
+                  Track your treatment preparation and delivery
+                </CardDescription>
+              </>
+            )}
           </CardHeader>
+          <CollapsibleContent>
           <CardContent>
             <div className="relative">
               {/* Timeline line */}
@@ -228,6 +254,8 @@ export default function TreatmentPage() {
               </div>
             </div>
           </CardContent>
+          </CollapsibleContent>
+          </Collapsible>
         </Card>
       )}
 

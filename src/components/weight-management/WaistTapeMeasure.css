@@ -1,0 +1,414 @@
+.sanative-waist {
+  --sanative-deep: #0e3d2f;
+  --sanative-forest: #145c4b;
+  --sanative-mint-glass: #d7f3e4;
+  --sanative-soft-mint: #eafbef;
+  --sanative-pale-green: #c9f28b;
+  --sanative-text: #18342d;
+  --sanative-muted: #657b74;
+  --sanative-shadow: rgba(37, 75, 65, 0.12);
+  --sanative-danger: #c83f44;
+  width: min(100%, 560px);
+  margin-inline: auto;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  color: var(--sanative-text);
+  box-sizing: border-box;
+}
+
+.sanative-waist *,
+.sanative-waist *::before,
+.sanative-waist *::after {
+  box-sizing: border-box;
+}
+
+.sanative-waist__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.sanative-waist__header h3 {
+  margin: 0;
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.sanative-waist__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sanative-waist__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(20, 92, 75, 0.08);
+  color: var(--sanative-forest);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sanative-waist__header p {
+  margin: 6px 0 0;
+  color: var(--sanative-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.sanative-waist__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(100%, 440px);
+  aspect-ratio: 1 / 0.88;
+  margin-inline: auto;
+  padding: 18px 16px 16px;
+  border-radius: clamp(28px, 7vw, 48px);
+  background:
+    linear-gradient(150deg, rgba(255,255,255,.95), rgba(226,244,238,.74)),
+    radial-gradient(circle at 70% 20%, rgba(255,255,255,.95), transparent 42%);
+  border: 1px solid rgba(28, 113, 92, 0.22);
+  box-shadow:
+    0 24px 60px var(--sanative-shadow),
+    inset 0 0 0 1px rgba(255,255,255,.72);
+}
+
+.sanative-waist__card-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,.58) 0 26%, transparent 26% 63%, rgba(255,255,255,.24) 63% 74%, transparent 74%),
+    linear-gradient(180deg, rgba(255,255,255,.25), rgba(169,218,205,.14));
+}
+
+.sanative-waist__display {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  margin: 2px auto 0;
+  flex: 0 0 auto;
+}
+
+.sanative-waist__display .value {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 3.4vw, 2.6rem);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  color: var(--sanative-text);
+}
+
+.sanative-waist__display .unit {
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--sanative-forest);
+  margin-bottom: 0.28rem;
+  font-weight: 650;
+}
+
+.sanative-waist__ruler-wrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: 18px;
+}
+
+.sanative-waist__nudges {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.sanative-waist__nudge {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(28, 113, 92, 0.22);
+  background: rgba(20, 92, 75, 0.08);
+  color: var(--sanative-forest);
+  font-size: 1.35rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sanative-waist__nudge:hover:not(:disabled) {
+  background: rgba(20, 92, 75, 0.14);
+}
+
+.sanative-waist__nudge:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sanative-waist__viewport {
+  position: relative;
+  width: 100%;
+  height: 136px;
+  overflow: hidden;
+  padding-inline: 18px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(242, 251, 245, 0.98), rgba(220, 243, 227, 0.96));
+  border: 1px solid rgba(28, 113, 92, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 8px 18px rgba(37, 75, 65, 0.08);
+  cursor: grab;
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+
+.sanative-waist__viewport::before,
+.sanative-waist__viewport::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.sanative-waist__viewport::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(242, 251, 245, 0.98), transparent);
+}
+
+.sanative-waist__viewport::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(220, 243, 227, 0.96), transparent);
+}
+
+.sanative-waist__viewport:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 8px 18px rgba(37, 75, 65, 0.08),
+    0 0 0 3px rgba(20, 92, 75, 0.23);
+}
+
+.sanative-waist__viewport.is-disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sanative-waist__viewport.has-error {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 8px 18px rgba(37, 75, 65, 0.08),
+    0 0 0 2px rgba(200, 63, 68, 0.3);
+}
+
+.sanative-waist__viewport:active {
+  cursor: grabbing;
+}
+
+.sanative-waist__center-marker {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+}
+
+.sanative-waist__center-marker .pin {
+  width: 18px;
+  height: 18px;
+  border-radius: 18px 18px 18px 2px;
+  background: linear-gradient(180deg, #d8f3ac, #c4ef82);
+  transform: translateY(10px) rotate(45deg);
+  box-shadow: 0 3px 10px rgba(14,61,47,0.18);
+}
+
+.sanative-waist__center-marker .line {
+  width: 2px;
+  height: 68px;
+  margin-top: 7px;
+  background: rgba(18, 51, 41, 0.85);
+}
+
+.sanative-waist__track {
+  position: absolute;
+  left: 18px;
+  bottom: 38px;
+  height: 64px;
+  will-change: transform;
+}
+
+.sanative-waist__track .tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  background: rgba(18, 51, 41, 0.58);
+}
+
+.sanative-waist__track .tick small {
+  position: absolute;
+  top: auto;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1;
+  color: var(--sanative-text);
+  white-space: nowrap;
+}
+
+.tick--major {
+  height: 46px;
+  background: rgba(18, 51, 41, 0.9) !important;
+}
+
+.tick--minor {
+  height: 20px;
+  opacity: 0.85;
+}
+
+.sanative-waist__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.sanative-waist__save {
+  min-width: 132px;
+  min-height: 46px;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #145c4b;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(20, 92, 75, 0.18);
+}
+
+.sanative-waist__save:hover:not(:disabled) {
+  background: #0f493b;
+}
+
+.sanative-waist__save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sanative-waist__status {
+  margin-right: auto;
+  min-height: 20px;
+  color: var(--sanative-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.sanative-waist__status .success {
+  color: var(--sanative-forest);
+  font-weight: 600;
+}
+
+.sanative-waist__status .error {
+  color: var(--sanative-danger);
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .sanative-waist,
+  .sanative-waist.journey-embedded-tape {
+    width: min(88vw, 360px);
+    margin-inline: auto;
+  }
+
+  .sanative-waist__card,
+  .sanative-waist.journey-embedded-tape .sanative-waist__card {
+    width: 100%;
+    padding: 14px 12px 14px;
+    border-radius: clamp(26px, 10vw, 40px);
+  }
+
+  .sanative-waist__header {
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .sanative-waist__header p {
+    max-width: 32ch;
+  }
+
+  .sanative-waist__viewport {
+    height: 124px;
+    border-radius: 16px;
+  }
+
+  .sanative-waist__center-marker .line {
+    height: 58px;
+  }
+
+  .sanative-waist__track {
+    bottom: 34px;
+    height: 56px;
+  }
+
+  .sanative-waist__track .tick small {
+    bottom: -24px;
+    font-size: 0.78rem;
+  }
+
+  .tick--major {
+    height: 40px;
+  }
+
+  .tick--minor {
+    height: 16px;
+  }
+
+  .sanative-waist__nudge {
+    width: 40px;
+    height: 40px;
+  }
+
+  .sanative-waist__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sanative-waist__save {
+    width: 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .sanative-waist__header {
+    align-items: flex-start;
+  }
+
+  .sanative-waist__display .value {
+    font-size: clamp(1.85rem, 10vw, 2.4rem);
+  }
+
+  .sanative-waist__viewport {
+    height: 118px;
+  }
+}

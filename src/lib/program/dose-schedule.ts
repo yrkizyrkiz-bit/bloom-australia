@@ -39,9 +39,10 @@ export function formatNextDoseDateShort(scheduledAt: Date | string): string {
 /** Parse prescription frequency into dose interval days. */
 export function parseDoseIntervalDays(frequency: string): number {
   const f = frequency.toLowerCase();
+  if (f.includes("fortnight") || f.includes("2 week") || f.includes("two week")) return 14;
   if (f.includes("week") || f.includes("weekly")) return 7;
-  if (f.includes("fortnight") || f.includes("2 week")) return 14;
   if (f.includes("month")) return 28;
+  if (f.includes("other day") || f.includes("every other")) return 2;
   if (f.includes("daily") || f.includes("day") || f.includes("once a day")) return 1;
   return 7;
 }
@@ -54,7 +55,7 @@ export function generateDoseDates(
   const dates: Date[] = [];
   for (let i = 0; i < count; i++) {
     const d = new Date(startDate);
-    d.setDate(d.getDate() + i * intervalDays);
+    d.setUTCDate(d.getUTCDate() + i * intervalDays);
     dates.push(d);
   }
   return dates;

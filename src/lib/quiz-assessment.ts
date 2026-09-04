@@ -1,3 +1,5 @@
+import { roundBmi } from "@/lib/bmi";
+
 export type QuizAssessment = {
   weightLossGoal: string;
   currentWeight: string;
@@ -191,7 +193,7 @@ export function buildAssessmentFromQuizData(
       user?.createdAt?.toISOString() ||
       "",
     selectedPlan: (quizData.selectedPlan as string) || "",
-    bmi: typeof quizData.bmi === "number" ? quizData.bmi : null,
+    bmi: roundBmi(quizData.bmi),
   };
 }
 

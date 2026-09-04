@@ -2,7 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { startOfDayUTC } from "./dose-schedule";
 import { ensureMemberProgram } from "./start-program";
 import { evaluateBiomarkerFlags } from "./biomarker-rules";
-import type { WeeklyInsightPayload } from "./weekly-insight";
+import {
+  buildPreActivationInsight,
+  isProgramReadyForWeeklyInsight,
+  type WeeklyInsightPayload,
+} from "./weekly-insight";
 
 const TASK_LINKS: Record<string, string> = {
   WEIGH_IN: "/dashboard/weight-management/track",
@@ -37,6 +41,7 @@ export async function getMemberProgramState(userId: string) {
           scriptStatus: true,
         },
       },
+      user: { select: { firstName: true, journeyStatus: true } },
     },
   });
 
@@ -64,6 +69,7 @@ export async function getMemberProgramState(userId: string) {
               scriptStatus: true,
             },
           },
+          user: { select: { firstName: true, journeyStatus: true } },
         },
       });
     }
@@ -137,14 +143,21 @@ export async function getMemberProgramState(userId: string) {
       },
     },
   });
-  const weeklyInsight: WeeklyInsightPayload | null = insightRow
-    ? {
-        summary: insightRow.summary || "",
-        bullets: (insightRow.insights as WeeklyInsightPayload)?.bullets || [],
-        focusArea: insightRow.focusArea || "",
-        encouragement: (insightRow.insights as WeeklyInsightPayload)?.encouragement || "",
-      }
-    : null;
+  const programReady = isProgramReadyForWeeklyInsight({
+    journeyStatus: program.user.journeyStatus,
+    programActive: program.isActive,
+    startedAt: program.startedAt,
+  });
+  const weeklyInsight: WeeklyInsightPayload | null = !programReady
+    ? buildPreActivationInsight(program.user.firstName)
+    : insightRow
+      ? {
+          summary: insightRow.summary || "",
+          bullets: (insightRow.insights as WeeklyInsightPayload)?.bullets || [],
+          focusArea: insightRow.focusArea || "",
+          encouragement: (insightRow.insights as WeeklyInsightPayload)?.encouragement || "",
+        }
+      : null;
 
   return {
     program: {

@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   getSexualHealthPublicStepBounds,
   isSexualHealthConcern,
@@ -25,5 +27,16 @@ describe("mens sexual health public flow", () => {
     expect(bounds.analyse).toBe(14);
     expect(bounds.checkout).toBe(15);
     expect(bounds.thankYou).toBe(16);
+  });
+
+  it("does not render a Contact details step on the public assessment page", () => {
+    const page = readFileSync(
+      join(process.cwd(), "src/app/(public)/mens-health/assessment/page.tsx"),
+      "utf8"
+    );
+    expect(page).not.toContain(">Contact details<");
+    expect(page).not.toContain("Mobile number");
+    expect(page).toContain("setStep(sexualBounds.consent)");
+    expect(page).toContain("setStep(17)");
   });
 });

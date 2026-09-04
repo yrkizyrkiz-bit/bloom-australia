@@ -35,7 +35,7 @@ export function WeightLossMembershipHero({
               Get doctor-guided biomarker testing, personalised health insights
               and your first 30 days of Weight Management Care included.
             </p>
-            <Link href="/membership/checkout?intent=weight_management" className={styles.cta}>
+            <Link href="/weight-management/assessment" className={styles.cta}>
               Start losing weight
             </Link>
           </div>

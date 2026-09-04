@@ -23,12 +23,14 @@ type OrganCareMembershipSectionProps = {
   accent?: keyof typeof ACCENT;
   programName?: string;
   heading?: ReactNode;
+  checkoutHref?: string;
 };
 
 export function OrganCareMembershipSection({
   accent = "sage",
   programName = "Organ Care",
   heading,
+  checkoutHref,
 }: OrganCareMembershipSectionProps) {
   const tones = ACCENT[accent];
 
@@ -45,7 +47,10 @@ export function OrganCareMembershipSection({
             )}
           </h2>
         </div>
-        <MembershipPricingCard imageMarquee={ORGAN_CARE_MARQUEE} />
+        <MembershipPricingCard
+          imageMarquee={ORGAN_CARE_MARQUEE}
+          checkoutHref={checkoutHref}
+        />
       </div>
     </section>
   );

@@ -6,6 +6,7 @@ import { getOrganCareQuizQuestions } from "@/lib/programs/quizzes/organ-care-int
 import { getPublicFunnelQuizSteps } from "@/lib/programs/quizzes/public-funnel-quizzes";
 import { getSexualHealthQuizSteps, isSexualHealthProgram } from "@/lib/programs/quizzes/sexual-health-quiz";
 import { GENERIC_PROGRAM_QUIZ } from "@/lib/programs/quizzes/generic-program-quiz";
+import { STRIP_FROM_PUBLIC_FUNNEL_ANSWERS } from "@/lib/portal/public-funnel-answer-fields";
 
 export const PORTAL_QUIZ_TAB_ORDER = [
   "ORGAN_CARE",
@@ -23,6 +24,7 @@ export type PortalQuizTabKey = (typeof PORTAL_QUIZ_TAB_ORDER)[number];
 export function portalQuizTabLabel(programKey: string): string {
   if (programKey === "ORGAN_CARE") return "Organ & Metabolic Care";
   if (programKey === "BIOLOGICAL_CLOCK") return "Biomarkers Intake Quiz";
+  if (programKey === "HAIR_LOSS") return "Hair health";
   if (programKey in PROGRAM_LABELS) {
     return PROGRAM_LABELS[programKey as ProgramKey];
   }
@@ -30,6 +32,72 @@ export function portalQuizTabLabel(programKey: string): string {
     return SCOPE_LABELS[programKey as ScopeKey];
   }
   return programKey.replace(/_/g, " ");
+}
+
+/** System notes created from public program quizzes — they belong on the program tab, not Notes. */
+export const HAIR_QUIZ_INTAKE_NOTE_TITLES = [
+  "Hair Loss, Stage",
+  "Hair Loss, Timeline",
+  "Hair Loss, Family History",
+  "Hair Loss, Medical Conditions",
+  "Hair Loss, Pregnancy Status (FLAG)",
+] as const;
+
+export const WM_QUIZ_INTAKE_NOTE_TITLES = [
+  "Patient Motivations",
+  "Previous Weight Loss Attempts",
+  "Previous Treatment",
+  "Exercise Frequency",
+  "Waist Measurement",
+  "Preferred Start Timing",
+] as const;
+
+const PROGRAM_QUIZ_NOTE_PREFIXES = [
+  "Hair Loss,",
+  "Men's Health,",
+  "Men's Sexual Health,",
+  "Women's Health,",
+  "Triage,",
+] as const;
+
+export function isProgramQuizIntakeNote(note: {
+  title?: string | null;
+  createdBy?: string | null;
+}): boolean {
+  const title = (note.title || "").trim();
+  if (!title) return false;
+  if (note.createdBy && note.createdBy !== "system") return false;
+  if (PROGRAM_QUIZ_NOTE_PREFIXES.some((prefix) => title.startsWith(prefix))) return true;
+  return (WM_QUIZ_INTAKE_NOTE_TITLES as readonly string[]).includes(title);
+}
+
+/** @deprecated Use isProgramQuizIntakeNote */
+export function isHairQuizIntakeNote(note: {
+  title?: string | null;
+  createdBy?: string | null;
+}): boolean {
+  return isProgramQuizIntakeNote(note);
+}
+
+function quizGenderFromAnswers(answers?: Record<string, unknown>): string | null {
+  const raw = answers?.gender;
+  return typeof raw === "string" && raw.trim() ? raw : null;
+}
+
+function answerValues(raw: unknown): string[] {
+  if (raw == null || raw === "") return [];
+  if (Array.isArray(raw)) return raw.map((item) => String(item).trim()).filter(Boolean);
+  return parseBiomarkersAnswer(String(raw));
+}
+
+function matchQuizOption(
+  step: { options: Array<{ id: string; label: string }> },
+  value: string
+) {
+  const needle = value.trim().toLowerCase();
+  return step.options.find(
+    (option) => option.id.toLowerCase() === needle || option.label.toLowerCase() === needle
+  );
 }
 
 function resolveQuizSteps(programKey: string, gender?: string | null, answers?: Record<string, unknown>) {
@@ -54,12 +122,56 @@ function resolveQuizSteps(programKey: string, gender?: string | null, answers?: 
     );
   }
   const pk = programKey as ProgramKey;
-  if (isSexualHealthProgram(pk)) {
-    return getSexualHealthQuizSteps(pk, {}) ?? [];
+  if (pk === "WOMENS_HEALTH_SEXUAL" && hasPublicWomensAssessmentAnswers(answers)) {
+    return getPublicFunnelQuizSteps("WOMENS_HEALTH_VITALITY", gender, answers) ?? [];
   }
-  const funnel = getPublicFunnelQuizSteps(pk, gender);
+  if (isSexualHealthProgram(pk)) {
+    return getSexualHealthQuizSteps(pk, sexualHealthAnswerRecord(answers)) ?? [];
+  }
+  const funnel = getPublicFunnelQuizSteps(pk, gender, answers);
   if (funnel) return funnel;
   return GENERIC_PROGRAM_QUIZ;
+}
+
+function hasPublicWomensAssessmentAnswers(answers?: Record<string, unknown>): boolean {
+  if (!answers) return false;
+  return Boolean(
+    (typeof answers.category === "string" && answers.category) ||
+      (Array.isArray(answers.primaryConcerns) && answers.primaryConcerns.length > 0) ||
+      (Array.isArray(answers.goals) && answers.goals.length > 0) ||
+      (Array.isArray(answers.currentTreatments) && answers.currentTreatments.length > 0)
+  );
+}
+
+function resolveSexualHealthFocus(answers?: Record<string, unknown>): string {
+  if (typeof answers?.treatmentFocus === "string" && answers.treatmentFocus.trim()) {
+    return answers.treatmentFocus;
+  }
+  const concern = typeof answers?.concern === "string" ? answers.concern.toLowerCase() : "";
+  if (concern === "erectile-dysfunction") return "ed";
+  if (concern === "premature-ejaculation") return "pe";
+  return "";
+}
+
+function sexualHealthAnswerRecord(answers?: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!answers) return out;
+  for (const [key, value] of Object.entries(answers)) {
+    if (typeof value === "string" && value.trim()) out[key] = value;
+  }
+  const focus = resolveSexualHealthFocus(answers);
+  if (focus) out.treatmentFocus = focus;
+  return out;
+}
+
+function hasDedicatedProgramQuiz(
+  programKey: string,
+  gender?: string | null,
+  answers?: Record<string, unknown>
+): boolean {
+  const pk = programKey as ProgramKey;
+  if (isSexualHealthProgram(pk)) return true;
+  return Boolean(getPublicFunnelQuizSteps(pk, gender, answers));
 }
 
 export type PortalQuizDisplayRow = {
@@ -74,45 +186,41 @@ export function formatPortalQuizAnswers(
   answers: Record<string, unknown>,
   gender?: string | null
 ): PortalQuizDisplayRow[] {
-  const steps = resolveQuizSteps(programKey, gender, answers);
+  const resolvedGender = quizGenderFromAnswers(answers) || gender;
+  const steps = resolveQuizSteps(programKey, resolvedGender, answers);
   const rows: PortalQuizDisplayRow[] = [];
+  const seen = new Set<string>();
 
   for (const step of steps) {
     const raw = answers[step.id];
-    if (raw == null || raw === "") continue;
+    const values = answerValues(raw);
+    if (values.length === 0) continue;
+    seen.add(step.id);
 
-    if ("allowMultiple" in step && step.allowMultiple) {
-      const labels = parseBiomarkersAnswer(String(raw)).map(
-        (id) => step.options.find((o) => o.id === id)?.label ?? id
-      );
-      rows.push({
-        questionId: step.id,
-        question: step.prompt,
-        answerId: String(raw),
-        answerLabel: labels.join("; "),
-      });
-      continue;
-    }
-
-    const answerId = String(raw);
-    const option = step.options.find((o) => o.id === answerId);
+    const labels = values.map((value) => matchQuizOption(step, value)?.label ?? value);
     rows.push({
       questionId: step.id,
       question: step.prompt,
-      answerId,
-      answerLabel: option?.label ?? answerId,
+      answerId: values.join(", "),
+      answerLabel: labels.join("; "),
     });
   }
 
+  if (hasDedicatedProgramQuiz(programKey, resolvedGender, answers)) return rows;
+
   for (const [key, value] of Object.entries(answers)) {
+    if (seen.has(key)) continue;
     if (key.startsWith("_")) continue;
+    if (STRIP_FROM_PUBLIC_FUNNEL_ANSWERS.has(key)) continue;
     if (steps.some((s) => s.id === key)) continue;
-    if (value == null || value === "") continue;
+    const values = answerValues(value);
+    if (values.length === 0) continue;
+    if (typeof value === "object" && !Array.isArray(value)) continue;
     rows.push({
       questionId: key,
       question: key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()),
-      answerId: String(value),
-      answerLabel: String(value),
+      answerId: values.join(", "),
+      answerLabel: values.join("; "),
     });
   }
 

@@ -29,6 +29,7 @@ import Link from "next/link";
 import { ConsentNotice } from "@/components/legal/ConsentNotice";
 import { logConsentEvent } from "@/lib/legal/log-consent";
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
+import { calculateBmi } from "@/lib/bmi";
 import {
   ArrowRight,
   ArrowLeft,
@@ -353,10 +354,7 @@ const howHeardOptions = [
 // ─── Quiz engagement helpers ──────────────────────────────────────────────────
 
 function calcBMI(weightKg: string, heightCm: string): number | null {
-  const w = parseFloat(weightKg);
-  const h = parseFloat(heightCm) / 100;
-  if (!w || !h || h === 0) return null;
-  return Math.round((w / (h * h)) * 10) / 10;
+  return calculateBmi(weightKg, heightCm);
 }
 
 function getBMICategory(bmi: number): {
@@ -813,9 +811,7 @@ function CircularProgressScreen({
   onComplete: () => void;
 }) {
   // Calculate BMI, this is what the ring "calculates" toward
-  const bmi = height > 0
-    ? parseFloat((currentWeight / Math.pow(height / 100, 2)).toFixed(1))
-    : 28.0;
+  const bmi = calculateBmi(currentWeight, height) ?? 28.0;
 
   const [displayNum, setDisplayNum] = useState(1);
   const [ringProgress, setRingProgress] = useState(0); // 0-100
@@ -1873,7 +1869,7 @@ function ShippingInfoScreen({
 
 function magicTokenFromLink(link: string): string | null {
   try {
-    const url = new URL(link, typeof window !== "undefined" ? window.location.origin : "https://sanative.com.au");
+    const url = new URL(link, "https://sanative.com.au");
     return url.searchParams.get("token");
   } catch {
     return null;
@@ -2335,11 +2331,7 @@ export default function WeightLossAssessmentPage() {
 
   // Calculate BMI
   const calculateBMI = (): number | null => {
-    const weight = Number.parseFloat(formData.currentWeight);
-    const heightCm = Number.parseFloat(formData.height);
-    if (!weight || !heightCm || heightCm < 100) return null;
-    const heightM = heightCm / 100;
-    return weight / (heightM * heightM);
+    return calculateBmi(formData.currentWeight, formData.height);
   };
 
   const bmi = calculateBMI();

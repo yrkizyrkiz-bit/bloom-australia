@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -23,6 +23,10 @@ import {
 } from "lucide-react";
 import { SideEffectReportForm } from "./SideEffectReportForm";
 import { ProgramBiomarkerStrip } from "./ProgramBiomarkerStrip";
+import {
+  todayRingProgress,
+  type RingWeekScore,
+} from "@/lib/weight-management/score-ring-week";
 
 type ProgramTask = {
   id: string;
@@ -63,7 +67,7 @@ type ProgramTodayData = {
   symptomOptions?: Array<{ id: string; label: string }>;
 };
 
-export function ProgramTodayCard() {
+export function ProgramTodayCard({ ringWeek }: { ringWeek?: RingWeekScore | null }) {
   const [data, setData] = useState<ProgramTodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sideEffectOpen, setSideEffectOpen] = useState(false);
@@ -99,10 +103,17 @@ export function ProgramTodayCard() {
 
   const pending =
     data.tasks?.filter((t) => t.status === "PENDING" || t.status === "OVERDUE") || [];
-  const progress =
-    data.totalToday && data.totalToday > 0
+  const today = ringWeek?.days.find((day) => day.isToday) ?? null;
+  const ringProgress = todayRingProgress(today);
+  const usingRings = ringProgress.total > 0;
+  const progress = usingRings
+    ? ringProgress.percent
+    : data.totalToday && data.totalToday > 0
       ? Math.round(((data.completedToday || 0) / data.totalToday) * 100)
       : 0;
+  const progressLabel = usingRings
+    ? `${ringProgress.completed}/${ringProgress.total} done`
+    : `${data.completedToday ?? 0}/${data.totalToday ?? 0} done`;
 
   const hasEscalation = data.openSideEffects?.some((r) => r.escalated);
   const isPrecision = data.program?.planTier === "PRECISION";
@@ -114,78 +125,70 @@ export function ProgramTodayCard() {
         flags={data.biomarkerFlags}
         summary={data.biomarkerSummary}
       />
-      <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-teal-50/80 dark:from-emerald-950/30">
+      <Card className="border-[#cdd8c6] bg-gradient-to-br from-[#f8f4ec] to-[#e6ebe3]">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <ListChecks className="w-5 h-5 text-emerald-600" />
-              Today&apos;s program
+            <CardTitle className="text-lg flex items-center gap-2 text-[#2c3628]">
+              <ListChecks className="w-5 h-5 text-[#4a6243]" />
+              AI has few words to say!
             </CardTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {isPrecision && (
-                <Badge className="bg-violet-600">Precision</Badge>
+                <Badge className="bg-[#4a6243] text-white">Precision</Badge>
               )}
-              <Badge variant="secondary" className="capitalize">
+              <Badge className="capitalize bg-[#cdd8c6] text-[#2c3628] hover:bg-[#cdd8c6]">
                 {data.program?.phase?.toLowerCase() || "induction"} · week{" "}
                 {(data.program?.currentWeek ?? 0) + 1}
               </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[#cdd8c6] bg-[#f8f4ec] text-[#2c3628] hover:bg-[#e6ebe3]"
+                onClick={generateInsight}
+                disabled={generatingInsight}
+              >
+                {generatingInsight ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1.5 h-4 w-4" />
+                )}
+                Refresh insight
+              </Button>
             </div>
           </div>
-          <CardDescription>
-            {data.program?.medicationName
-              ? `${data.program.medicationName}, your daily plan`
-              : "Complete your daily tasks"}
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {data.weeklyInsight && (
-            <div className="rounded-lg border border-emerald-200 bg-white/70 dark:bg-background/70 p-3 space-y-2">
-              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+            <div className="rounded-2xl border border-[#cdd8c6] bg-[#f8f4ec]/80 p-3 space-y-2">
+              <p className="text-xs font-semibold text-[#4a6243] uppercase tracking-wider flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" />
                 This week
               </p>
-              <p className="text-sm">{data.weeklyInsight.summary}</p>
-              <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+              <p className="text-sm text-[#2c3628]">{data.weeklyInsight.summary}</p>
+              <ul className="text-xs text-[#5c7a52] space-y-1 list-disc pl-4">
                 {data.weeklyInsight.bullets?.slice(0, 3).map((b, i) => (
                   <li key={i}>{b}</li>
                 ))}
               </ul>
-              <p className="text-xs font-medium text-emerald-800">
+              <p className="text-xs font-medium text-[#4a6243]">
                 Focus: {data.weeklyInsight.focusArea}
               </p>
             </div>
           )}
 
-          {!data.weeklyInsight && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full"
-              onClick={generateInsight}
-              disabled={generatingInsight}
-            >
-              {generatingInsight ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Sparkles className="w-4 h-4 mr-2" />
-              )}
-              Generate weekly insight
-            </Button>
-          )}
-
           <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <div className="flex justify-between text-xs text-[#5c7a52] mb-1">
               <span>Today&apos;s progress</span>
               <span>
-                {data.completedToday}/{data.totalToday} done
+                {progressLabel}
               </span>
             </div>
-            <Progress value={progress} className="h-2" />
+            <Progress value={progress} className="h-2 bg-[#cdd8c6] [&>div]:bg-[#4a6243]" />
           </div>
 
           {hasEscalation && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 rounded-2xl border border-[#e5d7bf] bg-[#f0e8d8] p-3 text-sm text-[#2c3628]">
+              <AlertTriangle className="w-4 h-4 text-[#c17a58] shrink-0 mt-0.5" />
               <p>Your care team is reviewing a recent side effect report.</p>
             </div>
           )}
@@ -195,14 +198,14 @@ export function ProgramTodayCard() {
               <li key={task.id}>
                 <Link
                   href={task.href}
-                  className="flex items-center justify-between rounded-lg border bg-white/60 dark:bg-background/60 px-3 py-2 hover:bg-white transition-colors"
+                  className="flex items-center justify-between rounded-2xl border border-[#cdd8c6] bg-[#f8f4ec] px-3 py-2 text-[#2c3628] transition-colors hover:bg-[#e6ebe3]"
                 >
                   <span className="text-sm font-medium flex items-center gap-2">
                     {task.taskType === "DOSE" && (
-                      <Pill className="w-4 h-4 text-violet-600" />
+                      <Pill className="w-4 h-4 text-[#4a6243]" />
                     )}
                     {task.taskType === "BIOMARKER_REVIEW" && (
-                      <Beaker className="w-4 h-4 text-violet-600" />
+                      <Beaker className="w-4 h-4 text-[#4a6243]" />
                     )}
                     {task.label}
                     {task.status === "OVERDUE" && (
@@ -211,7 +214,7 @@ export function ProgramTodayCard() {
                       </Badge>
                     )}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  <ChevronRight className="w-4 h-4 text-[#4a6243]" />
                 </Link>
               </li>
             ))}
@@ -221,13 +224,13 @@ export function ProgramTodayCard() {
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 min-w-[140px]"
+              className="flex-1 min-w-[140px] border-[#cdd8c6] bg-[#f8f4ec] text-[#2c3628] hover:bg-[#e6ebe3]"
               onClick={() => setSideEffectOpen(true)}
             >
               Report side effects
             </Button>
             <Link href="/dashboard/weight-management/treatment" className="flex-1 min-w-[140px]">
-              <Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700">
+              <Button size="sm" className="w-full bg-[#4a6243] hover:bg-[#3d4f38]">
                 Treatment hub
               </Button>
             </Link>

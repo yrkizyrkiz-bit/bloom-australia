@@ -16,10 +16,18 @@ export type ActivateMemberProgramResult = {
   activationDate: string;
 };
 
+export type ActivateMemberProgramOptions = {
+  triggerEvent?: string;
+  notifyMember?: boolean;
+};
+
 export async function activateMemberProgram(
   userId: string,
-  activatedBy: string
+  activatedBy: string,
+  options?: ActivateMemberProgramOptions
 ): Promise<ActivateMemberProgramResult> {
+  const triggerEvent = options?.triggerEvent ?? "welcome_call_manual";
+  const notifyMember = options?.notifyMember !== false;
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -35,6 +43,10 @@ export async function activateMemberProgram(
   }
 
   if (user.journeyStatus === "ACTIVE") {
+    const { ensureRingPlanActivated } = await import(
+      "@/lib/weight-management/activate-ring-plan"
+    );
+    await ensureRingPlanActivated(userId).catch(() => null);
     return {
       activated: false,
       alreadyActive: true,
@@ -163,13 +175,17 @@ export async function activateMemberProgram(
 
   const dashboardUrl = `${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/dashboard/weight-management`;
 
-  await sendEmail({
-    to: user.email,
-    subject: "Your Sanative program is now active!",
-    body: `
+  if (notifyMember) {
+    const doseLine = prescription
+      ? `<p><strong>First medication dose:</strong> scheduled for the start of week 2 (${firstDoseLabel}). Your care partner will confirm storage and usage instructions before then.</p>`
+      : "";
+    await sendEmail({
+      to: user.email,
+      subject: "Your Sanative program is now active!",
+      body: `
       <h2>Hi ${user.firstName},</h2>
       <p>Your Sanative weight management program is now active. You can start using your dashboard straight away, logging weight, meals, and goals during your first program week.</p>
-      <p><strong>First medication dose:</strong> scheduled for the start of week 2 (${firstDoseLabel}). Your care partner will confirm storage and usage instructions before then.</p>
+      ${doseLine}
       <div style="margin: 24px 0;">
         <a href="${dashboardUrl}" style="display:inline-block;background:#059669;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">
           Go to My Dashboard
@@ -177,7 +193,8 @@ export async function activateMemberProgram(
       </div>
       <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
     `,
-  });
+    });
+  }
 
   await prisma.activityLog.create({
     data: {
@@ -198,7 +215,7 @@ export async function activateMemberProgram(
     data: {
       userId,
       automationType: "member_program_activated",
-      triggerEvent: "welcome_call_manual",
+      triggerEvent,
       channel: "care_partner",
       status: "completed",
       metadata: {
@@ -208,10 +225,35 @@ export async function activateMemberProgram(
     },
   });
 
+  const { ensureRingPlanActivated } = await import(
+    "@/lib/weight-management/activate-ring-plan"
+  );
+  await ensureRingPlanActivated(userId).catch(() => null);
+
   return {
     activated: true,
     alreadyActive: false,
     firstDoseDate: firstDoseDate.toISOString(),
     activationDate: activationDate.toISOString(),
   };
+}
+
+/** Activate after a clinical approve. Approval itself should still succeed if this fails. */
+export async function tryActivateAfterDoctorApproval(
+  userId: string,
+  activatedBy: string
+): Promise<{ activated: boolean; alreadyActive: boolean; error?: string }> {
+  try {
+    const result = await activateMemberProgram(userId, activatedBy, {
+      triggerEvent: "doctor_approval",
+    });
+    return { activated: result.activated, alreadyActive: result.alreadyActive };
+  } catch (error) {
+    console.error("[activateMemberProgram] doctor approval:", error);
+    return {
+      activated: false,
+      alreadyActive: false,
+      error: error instanceof Error ? error.message : "Activation failed",
+    };
+  }
 }

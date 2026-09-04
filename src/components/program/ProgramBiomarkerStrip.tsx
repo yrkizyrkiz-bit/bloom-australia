@@ -30,13 +30,13 @@ export function ProgramBiomarkerStrip({
   const hasAlert = flags?.some((f) => f.status === "HIGH" || f.status === "LOW");
 
   return (
-    <Card className="border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/20 overflow-hidden">
+    <Card className="overflow-hidden border-[#cdd8c6] bg-gradient-to-br from-[#e6ebe3] to-[#cdd8c6]">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <Beaker className="w-5 h-5 text-violet-600 shrink-0" />
-              <span className="font-semibold text-violet-900 dark:text-violet-100">
+              <Beaker className="w-5 h-5 text-[#4a6243] shrink-0" />
+              <span className="font-semibold text-[#2c3628]">
                 Precision biomarkers
               </span>
               {hasAlert && (
@@ -47,9 +47,9 @@ export function ProgramBiomarkerStrip({
               )}
             </div>
             {summary && (
-              <p className="text-sm text-violet-800 dark:text-violet-200 mb-2">{summary}</p>
+              <p className="mb-2 text-sm text-[#2c3628]">{summary}</p>
             )}
-            <ul className="text-xs text-muted-foreground space-y-1">
+            <ul className="space-y-1 text-xs text-[#5c7a52]">
               {flags?.slice(0, 3).map((f) => (
                 <li key={f.biomarkerId}>
                   {f.name}: {f.value} {f.unit}{" "}
@@ -59,7 +59,7 @@ export function ProgramBiomarkerStrip({
             </ul>
           </div>
           <Link href="/dashboard/biomarkers">
-            <Button size="sm" variant="outline" className="shrink-0 border-violet-300">
+            <Button size="sm" variant="outline" className="shrink-0 border-[#4a6243] text-[#2c3628]">
               View labs
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>

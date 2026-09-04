@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireClinicalStaff } from "@/lib/auth/require-clinical-staff";
 import { recordSecurityAudit } from "@/lib/security/audit-log";
 import { canAccessPatientClinicalRecord } from "@/lib/security/patient-access";
+import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
+import { calculateBmi, roundBmi } from "@/lib/bmi";
 
 // GAP-014: Doctor Brief API
 // Returns comprehensive patient information for doctor consultation
@@ -29,9 +31,7 @@ function getBMICategory(bmi: number | null): string | null {
 }
 
 function calculateBMI(weight: number | null, height: number | null): number | null {
-  if (!weight || !height) return null;
-  const heightInMeters = height / 100;
-  return weight / (heightInMeters * heightInMeters);
+  return calculateBmi(weight, height);
 }
 
 export async function GET(
@@ -189,7 +189,7 @@ export async function GET(
     // Calculate metrics - height is stored in intake data, not healthProfile
     const weight = user.weightLogs[0]?.weight || (intakeData.currentWeight as number) || null;
     const height = (intakeData.height as number) || null;
-    const bmi = calculateBMI(weight, height) || (intakeData.bmi as number) || null;
+    const bmi = calculateBMI(weight, height) || roundBmi(intakeData.bmi);
 
     const response = {
       patient: {
@@ -238,7 +238,9 @@ export async function GET(
       },
       intakeData,
       documents: [], // TODO: Implement document uploads
-      notes: user.internalNotes.map((note) => ({
+      notes: user.internalNotes
+        .filter((note) => !isProgramQuizIntakeNote(note))
+        .map((note) => ({
         id: note.id,
         content: note.content,
         category: note.category,

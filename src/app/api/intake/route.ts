@@ -18,7 +18,7 @@ import {
 } from "@/lib/funnel/member-enrollment-phase";
 import { verifyResumeVerificationToken } from "@/lib/funnel/resume-verification-token";
 import { findProgramMemberByUserOrEmail } from "@/lib/portal/program-member-upsert";
-import { labelWaistMeasurement } from "@/lib/quiz-assessment";
+import { calculateBmi } from "@/lib/bmi";
 
 // ─── Program type definitions ─────────────────────────────────────────────────
 
@@ -948,126 +948,43 @@ function buildProgramSpecificRecords(programType: ProgramType, data: Record<stri
 
 // ─── Internal notes by program ────────────────────────────────────────────────
 
-const PREVIOUS_TREATMENT_LABELS: Record<string, string> = {
-  none: "No, this is my first time",
-  otc: "Over-the-counter or online products",
-  prescription: "Prescription medication or hormone therapy in the past",
-  current: "I'm currently on something",
-};
-
-const EXERCISE_FREQUENCY_LABELS: Record<string, string> = {
-  none: "I don't exercise",
-  "too-busy": "I'm too busy to exercise",
-  occasional: "A few times a month",
-  "1-2-week": "1–2 times a week",
-  "3-4-week": "3–4 times a week",
-  "most-days": "Most days",
-};
-
-function labelQuizOption(value: unknown, labels: Record<string, string>): string {
-  if (typeof value !== "string" || !value) return "";
-  return labels[value] || value;
-}
-
-async function saveNotesForProgram(userId: string, programType: ProgramType, data: Record<string, unknown>) {
-  const noteGroups: Array<{ title: string; conditions: string[] }> = [];
-
-  if (programType === "WEIGHT_MANAGEMENT") {
-    noteGroups.push(
-      { title: "Triage, Metabolic Conditions",      conditions: (data.metabolicConditions as string[]) || [] },
-      { title: "Triage, Digestive Conditions",      conditions: (data.digestiveConditions as string[]) || [] },
-      { title: "Triage, Cardiovascular Conditions", conditions: (data.cardiovascularConditions as string[]) || [] },
-      { title: "Triage, Mental Health Conditions",  conditions: (data.mentalHealthConditions as string[]) || [] },
-      { title: "Triage, Serious Conditions (FLAG)", conditions: ((data.seriousConditions as string[]) || []).filter((c: string) => c !== "None of these apply") },
-      { title: "Triage, Current Medications",       conditions: (data.currentMedications as string[]) || [] },
-      { title: "Patient Motivations",                conditions: (data.motivations as string[]) || [] },
-      { title: "Previous Weight Loss Attempts",      conditions: (data.previousAttempts as string[]) || [] },
-      { title: "Previous Treatment",                 conditions: data.previousTreatment ? [labelQuizOption(data.previousTreatment, PREVIOUS_TREATMENT_LABELS)] : [] },
-      { title: "Exercise Frequency",                 conditions: data.exerciseFrequency ? [labelQuizOption(data.exerciseFrequency, EXERCISE_FREQUENCY_LABELS)] : [] },
-      { title: "Waist Measurement",                  conditions: data.waistMeasurement ? [labelWaistMeasurement(data.waistMeasurement)] : [] },
-    );
-  }
-
-  if (programType === "WOMENS_HEALTH") {
-    noteGroups.push(
-      { title: "Women's Health, Category",          conditions: [(data.category as string) || "general"] },
-      { title: "Women's Health, Primary Concerns",  conditions: (data.primaryConcerns as string[]) || [] },
-      { title: "Women's Health, Medical Conditions",conditions: (data.medicalConditions as string[]) || [] },
-      { title: "Women's Health, Family History",    conditions: (data.familyHistory as string[]) || [] },
-      { title: "Women's Health, Current Treatments",conditions: (data.currentTreatments as string[]) || [] },
-      { title: "Women's Health, Goals",             conditions: (data.goals as string[]) || [] },
-    );
-  }
-
-  if (programType === "MENS_HEALTH") {
-    const canonicalKey = resolveMensHealthCanonicalKey((data.concern as string) || "");
-    if (canonicalKey === "MENS_HEALTH_SEXUAL") {
-      noteGroups.push(
-        { title: "Men's Health, Primary Concern", conditions: [(data.concern as string) || "sexual-health"] },
-        { title: "Men's Sexual Health, Focus", conditions: [(data.treatmentFocus as string) || ""] },
-        { title: "Men's Sexual Health, ED Duration", conditions: data.edDuration ? [`Duration: ${data.edDuration}`] : [] },
-        { title: "Men's Sexual Health, ED Severity", conditions: data.edSeverity ? [`Severity: ${data.edSeverity}`] : [] },
-        { title: "Men's Sexual Health, ED Main Issue", conditions: data.edMainIssue ? [`Issue: ${data.edMainIssue}`] : [] },
-        { title: "Men's Sexual Health, PE Duration", conditions: data.peDuration ? [`Duration: ${data.peDuration}`] : [] },
-        { title: "Men's Sexual Health, PE Frequency", conditions: data.peFrequency ? [`Frequency: ${data.peFrequency}`] : [] },
-        { title: "Men's Sexual Health, PE Timing", conditions: data.peTiming ? [`Timing: ${data.peTiming}`] : [] },
-        { title: "Men's Sexual Health, PE Distress", conditions: data.peDistress ? [`Distress: ${data.peDistress}`] : [] },
-        { title: "Men's Sexual Health, Previous Treatment", conditions: data.previousTreatment ? [`Previous: ${data.previousTreatment}`] : [] },
-        { title: "Men's Sexual Health, Start Timing", conditions: data.startTiming ? [`Timing: ${data.startTiming}`] : [] },
-        { title: "Men's Sexual Health, Nitrates (FLAG)", conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES, DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
-      );
-    } else {
-      noteGroups.push(
-        { title: "Men's Health, Primary Concern",     conditions: [(data.concern as string) || ""] },
-        { title: "Men's Health, ED Details",          conditions: [
-            `Duration: ${(data.edDuration as string) || "n/a"}`,
-            `Severity: ${(data.edSeverity as string) || "n/a"}`,
-            `Morning erections: ${(data.morningErections as string) || "n/a"}`,
-          ].filter(Boolean)
-        },
-        { title: "Men's Health, Contributing Causes", conditions: (data.edCauses as string[]) || [] },
-        { title: "Men's Health, Medical Conditions",  conditions: (data.medicalConditions as string[]) || [] },
-        { title: "Men's Health, Lifestyle Factors",   conditions: (data.lifestyleFactors as string[]) || [] },
-        { title: "Men's Health, Nitrates (FLAG)",     conditions: data.takingNitrates === "yes" ? ["TAKING NITRATES, DO NOT PRESCRIBE PDE5 INHIBITORS"] : [] },
-        { title: "Men's Health, Other Concerns",      conditions: (data.otherConcerns as string[]) || [] },
-      );
-    }
-  }
-
+async function saveNotesForProgram(userId: string, programType: ProgramType, _data: Record<string, unknown>) {
+  const titleFilters: Array<{ title: { startsWith: string } } | { title: { in: string[] } }> = [];
   if (programType === "HAIR_LOSS") {
-    noteGroups.push(
-      { title: "Hair Loss, Stage",                  conditions: [(data.hairStage as string) || ""] },
-      { title: "Hair Loss, Timeline",               conditions: [(data.hairLossTimeline as string) || ""] },
-      { title: "Hair Loss, Family History",         conditions: [(data.familyHistory as string) || ""] },
-      { title: "Hair Loss, Medical Conditions",     conditions: (data.medicalConditions as string[]) || [] },
-      { title: "Hair Loss, Pregnancy Status (FLAG)",conditions: data.pregnancyStatus === "pregnant" ? ["PATIENT IS PREGNANT, NO FINASTERIDE"] : [] },
-    );
+    titleFilters.push({ title: { startsWith: "Hair Loss," } });
   }
+  if (programType === "MENS_HEALTH") {
+    titleFilters.push({ title: { startsWith: "Men's Health," } });
+    titleFilters.push({ title: { startsWith: "Men's Sexual Health," } });
+  }
+  if (programType === "WOMENS_HEALTH") {
+    titleFilters.push({ title: { startsWith: "Women's Health," } });
+  }
+  if (programType === "WEIGHT_MANAGEMENT") {
+    titleFilters.push({ title: { startsWith: "Triage," } });
+    titleFilters.push({
+      title: {
+        in: [
+          "Patient Motivations",
+          "Previous Weight Loss Attempts",
+          "Previous Treatment",
+          "Exercise Frequency",
+          "Waist Measurement",
+          "Preferred Start Timing",
+        ],
+      },
+    });
+  }
+  if (titleFilters.length === 0) return;
 
-  const titles = noteGroups.map((g) => g.title);
+  // Program quiz answers belong on the program quiz tab, not InternalNotes.
   await prisma.internalNote.deleteMany({
     where: {
       userId,
       createdBy: "system",
-      category: "MEDICAL",
-      title: { in: titles },
+      OR: titleFilters,
     },
   }).catch(console.error);
-
-  // Write all notes (skip empty groups)
-  for (const group of noteGroups) {
-    if (group.conditions.filter(Boolean).length > 0) {
-      await prisma.internalNote.create({
-        data: {
-          userId:    userId,
-          category:  "MEDICAL",
-          title:     group.title,
-          content:   group.conditions.filter(Boolean).join(", "),
-          createdBy: "system",
-        }
-      }).catch(console.error);
-    }
-  }
 }
 
 // ─── Women's health appointment creator ──────────────────────────────────────
@@ -1133,10 +1050,7 @@ async function sendWelcomeEmailForProgram(
 // ─── Utility functions ────────────────────────────────────────────────────────
 
 function calcBMI(weight: string, heightCm: string): number | null {
-  const w = parseFloat(weight);
-  const h = parseFloat(heightCm) / 100;
-  if (!w || !h) return null;
-  return Math.round((w / (h * h)) * 10) / 10;
+  return calculateBmi(weight, heightCm);
 }
 
 function deriveTargetWeight(data: Record<string, unknown>): number {

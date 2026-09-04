@@ -7,6 +7,15 @@ import { WEIGHT_MANAGEMENT_PRICES } from "@/lib/stripe";
 export const WM_CORE_FIRST_MONTH_CENTS = WEIGHT_MANAGEMENT_PRICES.core.firstMonth.amount;
 export const WM_PRECISION_FIRST_MONTH_CENTS = WEIGHT_MANAGEMENT_PRICES.precision.firstMonth.amount;
 
+/** Annual Sanative Membership, current public funnel checkout. */
+export const SANATIVE_MEMBERSHIP_CENTS = 36500;
+
+export function isSanativeMembershipPaymentMetadata(
+  metadata?: Record<string, string> | null
+): boolean {
+  return (metadata?.purchaseType || "").trim() === "sanative_membership";
+}
+
 const NON_WM_ONGOING_CENTS = 7900; // $79/mo, men's / women's / hair public funnel pricing
 
 export type CheckoutProgramType =
@@ -111,6 +120,21 @@ export function expectedFirstMonthCentsForConsultProgram(
       : WM_CORE_FIRST_MONTH_CENTS;
   }
   return consultProgram.firstMonthAud * 100;
+}
+
+/** Amount the doctor-approval / booking verifier should accept for this PI. */
+export function expectedVerifiedPaymentCents(params: {
+  metadata?: Record<string, string> | null;
+  consultProgram: { isWeightManagement: boolean; firstMonthAud: number };
+  selectedPlan?: string | null;
+}): number {
+  if (isSanativeMembershipPaymentMetadata(params.metadata)) {
+    return SANATIVE_MEMBERSHIP_CENTS;
+  }
+  return expectedFirstMonthCentsForConsultProgram(
+    params.consultProgram,
+    params.selectedPlan
+  );
 }
 
 export function normalizeWmSelectedPlan(

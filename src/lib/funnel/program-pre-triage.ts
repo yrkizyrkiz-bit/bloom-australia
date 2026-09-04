@@ -181,7 +181,7 @@ export async function createProgramPreTriageTask(
   // that queue is for portal add-ons when a consult is already in triage.
   const existingPatient = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { assignedCarePartnerId: true, journeyStatus: true },
+    select: { assignedCarePartnerId: true, journeyStatus: true, gender: true },
   });
 
   let assignedOwnerId: string | null = existingPatient?.assignedCarePartnerId ?? null;
@@ -200,6 +200,8 @@ export async function createProgramPreTriageTask(
   }
 
   const programGender = genderForPublicConsultSlug(input.program.slug);
+  const alreadyHasSex =
+    existingPatient?.gender === "MALE" || existingPatient?.gender === "FEMALE";
   const alreadyInTriage = existingPatient?.journeyStatus === "PRE_TRIAGE_PENDING";
   const clinicalTier = clinicalSubscriptionTierForProgram(input.program);
 
@@ -209,7 +211,7 @@ export async function createProgramPreTriageTask(
       journeyStatus: "PRE_TRIAGE_PENDING",
       memberStatus: "MEMBER",
       ...(clinicalTier ? { subscriptionTier: clinicalTier } : {}),
-      ...(programGender ? { gender: programGender } : {}),
+      ...(programGender && !alreadyHasSex ? { gender: programGender } : {}),
       ...(assignedOwnerId ? { assignedCarePartnerId: assignedOwnerId } : {}),
     },
   });

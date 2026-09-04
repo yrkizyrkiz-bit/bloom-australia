@@ -16,13 +16,24 @@ export type ClinicalProgramFunnelConfig = {
   intentProgram: string;
   source: string;
   label: string;
+  /** Public landing CTA destination for this program's quiz funnel. */
+  assessmentPath: string;
   postCheckoutPath: string;
   qualificationImage: string;
   qualificationImageAlt: string;
+  /** Portrait photos use a contained frame so the face is not cropped. */
+  qualificationImagePortrait?: boolean;
   membershipCopy: string;
   paymentNote: string;
   nextSteps: Array<{ title: string; detail: string }>;
 };
+
+export const CLINICAL_FUNNEL_ASSESSMENT_PATHS = {
+  weight_management: "/weight-management/assessment",
+  hair_loss: "/hair-assessment",
+  mens_health: "/mens-health/assessment",
+  womens_health: "/womens-health/assessment?category=menopause",
+} as const satisfies Record<ClinicalFunnelProgramId, string>;
 
 const MEMBERSHIP_COPY =
   "Sanative starts with a comprehensive health check, including 85+ biomarkers, to help your doctor understand factors relevant to your health.";
@@ -72,6 +83,7 @@ export function getClinicalProgramFunnelConfig(
       programType: "HAIR_LOSS",
       source: "hair_assessment",
       label: "Hair Loss",
+      assessmentPath: CLINICAL_FUNNEL_ASSESSMENT_PATHS.hair_loss,
       postCheckoutPath: "/dashboard/mens-health/hair-loss?onboarding=post-checkout",
       qualificationImage: "/images/membership/hair_ages_1.webp",
       qualificationImageAlt: "Doctor-led hair loss care with Sanative",
@@ -87,6 +99,7 @@ export function getClinicalProgramFunnelConfig(
       programType: "MENS_HEALTH",
       source: "mens_health_assessment",
       label: "Men's Health",
+      assessmentPath: CLINICAL_FUNNEL_ASSESSMENT_PATHS.mens_health,
       postCheckoutPath: "/dashboard/mens-health?onboarding=post-checkout",
       qualificationImage: "/images/membership/Main_man.webp",
       qualificationImageAlt: "Doctor-led men's health care with Sanative",
@@ -102,9 +115,11 @@ export function getClinicalProgramFunnelConfig(
       programType: "WOMENS_HEALTH",
       source: "womens_health_assessment",
       label: "Women's Health",
+      assessmentPath: CLINICAL_FUNNEL_ASSESSMENT_PATHS.womens_health,
       postCheckoutPath: "/dashboard/womens-health?onboarding=post-checkout",
       qualificationImage: "/images/womens-health-doctor.webp",
       qualificationImageAlt: "Doctor-led women's health care with Sanative",
+      qualificationImagePortrait: true,
       paymentNote:
         "Your first 30 days of doctor-led women's health care are included. After that, continue for $240 every three months. Cancel anytime.",
     };
@@ -116,6 +131,7 @@ export function getClinicalProgramFunnelConfig(
     programType: "WEIGHT_MANAGEMENT",
     source: "weight_management_assessment",
     label: "Weight Management",
+    assessmentPath: CLINICAL_FUNNEL_ASSESSMENT_PATHS.weight_management,
     postCheckoutPath: "/dashboard/weight-management?onboarding=post-checkout",
     qualificationImage: "/images/membership/WM_quiz.webp",
     qualificationImageAlt: "Doctor-led weight management with Sanative",

@@ -75,19 +75,22 @@ export function DashboardNav() {
               </Button>
             </Link>
 
-            {/* Classic health overview, biomarker dashboard when labs are unlocked */}
-            {biomarkersUnlocked && (
-              <Link href="/dashboard">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`gap-2 rounded-xl ${pathname === "/dashboard" ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Overview
-                </Button>
-              </Link>
-            )}
+            {/* Keep this slot in the tree so Radix menu IDs stay stable after portal context loads. */}
+            <Link
+              href="/dashboard"
+              className={biomarkersUnlocked ? undefined : "hidden"}
+              tabIndex={biomarkersUnlocked ? undefined : -1}
+              aria-hidden={!biomarkersUnlocked}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`gap-2 rounded-xl ${pathname === "/dashboard" ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Overview
+              </Button>
+            </Link>
 
             {navItems.map((item) => {
               const isActive = pathname === item.href ||

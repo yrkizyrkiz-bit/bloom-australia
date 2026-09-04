@@ -34,7 +34,7 @@ const TAB_PATHS = [
   "/dashboard/weight-management/progress",
   "/dashboard/weight-management/treatment",
   "/dashboard/weight-management/support",
-];
+].filter((path) => path !== "/dashboard/weight-management/learn");
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();

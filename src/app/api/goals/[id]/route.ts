@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { normalizeHealthGoalStatus } from "@/lib/goal-deduplication";
+import { hasReachedNumericTarget } from "@/lib/goal-display";
 
 // GET /api/goals/[id]
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -54,6 +55,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       } catch {
         return NextResponse.json({ error: "Invalid goal status" }, { status: 400 });
       }
+    }
+
+    const nextCurrent = currentValue ?? existing.currentValue;
+    const nextTarget = targetValue ?? existing.targetValue;
+    if (
+      normalizedStatus === "ACHIEVED" &&
+      !hasReachedNumericTarget(nextCurrent, nextTarget, existing.startValue)
+    ) {
+      return NextResponse.json(
+        {
+          error: `Goal is not complete yet. Current is ${nextCurrent}; target is ${nextTarget}.`,
+        },
+        { status: 400 }
+      );
     }
 
     const goal = await prisma.healthGoal.update({
