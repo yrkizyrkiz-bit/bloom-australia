@@ -28,17 +28,12 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [platformReady, setPlatformReady] = useState(false);
   const [enabled, setEnabled] = useState(true);
   const [passkeys, setPasskeys] = useState<PasskeyRow[]>([]);
 
   const loadStatus = useCallback(async () => {
     try {
-      const [ready, res] = await Promise.all([
-        canUseFaceId(),
-        fetch("/api/auth/webauthn/status"),
-      ]);
-      setPlatformReady(ready);
+      const res = await fetch("/api/auth/webauthn/status");
       if (!res.ok) throw new Error("Could not load Face ID settings");
       const data = await res.json();
       setEnabled(data.enabled !== false);
@@ -57,12 +52,8 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
   const handleEnroll = async () => {
     setEnrolling(true);
     try {
-      // Always attempt enrollment — don't hide the button behind browser heuristics.
-      // If Face ID isn't available here, the OS/browser returns a clear error.
-      if (!(await canUseFaceId())) {
-        toast.error("Open Sanative in Safari on your iPhone, then tap Enable Face ID.");
-        return;
-      }
+      // Always start Face ID setup on tap. Do not block on browser capability probes —
+      // those are unreliable on iPhone and produced a false "open Safari" error.
       await enrollFaceId();
       toast.success("Face ID is ready. Use it next time you sign in.");
       await loadStatus();
@@ -120,10 +111,7 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
         ) : (
           <>
             <p className="text-sm">
-              Status:{" "}
-              <span className="font-medium">
-                {passkeys.length > 0 ? "On" : platformReady ? "Ready to enable" : "Available"}
-              </span>
+              Status: <span className="font-medium">{passkeys.length > 0 ? "On" : "Available"}</span>
             </p>
 
             <Button type="button" onClick={handleEnroll} disabled={enrolling} className="w-full sm:w-auto">
@@ -135,11 +123,9 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
               {enableLabel}
             </Button>
 
-            {!platformReady && (
-              <p className="text-sm text-muted-foreground">
-                Best on your iPhone in Safari. Tap the button above — your phone will ask for Face ID.
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              Tap the button — your phone will ask for Face ID to finish setup.
+            </p>
 
             {passkeys.length === 0 ? (
               <p className="text-sm text-muted-foreground">No phones have Face ID set up yet.</p>

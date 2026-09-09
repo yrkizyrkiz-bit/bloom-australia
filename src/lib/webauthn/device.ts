@@ -23,21 +23,25 @@ export function isFaceIdDevice(env?: FaceIdDeviceEnv): boolean {
 }
 
 /**
- * True when this browser can run a platform biometric (Face ID / Touch ID / fingerprint).
- * Do not require a "mobile" user-agent — iPhone Safari "Request Desktop Website" looks like a Mac
- * but Face ID still works.
+ * Whether we should offer Face ID UI. Prefer the platform-authenticator probe,
+ * but do not hard-fail when it returns false — iOS/WebKit sometimes reports
+ * unavailable even though Face ID registration still works after a user tap.
  */
 export async function canUseFaceId(): Promise<boolean> {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
-  if (typeof window.PublicKeyCredential !== "function") return false;
-  try {
-    if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function") {
-      return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  if (typeof window.PublicKeyCredential === "function") {
+    try {
+      if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function") {
+        if (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
+          return true;
+        }
+      }
+    } catch {
+      // ignore probe errors and fall through
     }
-  } catch {
-    // Fall through to a soft device heuristic.
+    // WebAuthn exists — let the user try. Real failures surface from the OS prompt.
+    return true;
   }
-  // Older browsers: allow an attempt on phone-like clients.
   return isFaceIdDevice();
 }
 
