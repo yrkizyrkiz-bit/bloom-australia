@@ -514,24 +514,39 @@ export default function WeightManagementPage() {
       {progress?.goalProgress && (
         <Card className="border-[#cdd8c6] bg-gradient-to-br from-[#f8f4ec] to-[#e6ebe3]">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#4a6243]" />
-                <span className="font-semibold text-[#2c3628]">You&apos;re making progress!</span>
-              </div>
-              <span className="text-xs font-medium text-[#4a6243]">
-                {formatAverageDailyLoss(
-                  averageDailyWeightLossKg(
-                    progress.goalProgress.actualLost,
-                    progress.goalProgress.startDate
-                  )
-                )}
-              </span>
-            </div>
-            <Progress value={progress.goalProgress.percentComplete} className="mb-2 h-2 bg-[#cdd8c6] [&>div]:bg-[#4a6243]" />
-            <p className="text-xs text-[#5c7a52]">
-              {progress.goalProgress.actualLost} kg down - amazing!
-            </p>
+            {progress.goalProgress.actualLost > 0 ? (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-[#4a6243]" />
+                    <span className="font-semibold text-[#2c3628]">You&apos;re making progress!</span>
+                  </div>
+                  <span className="text-xs font-medium text-[#4a6243]">
+                    {formatAverageDailyLoss(
+                      averageDailyWeightLossKg(
+                        progress.goalProgress.actualLost,
+                        progress.goalProgress.startDate
+                      )
+                    )}
+                  </span>
+                </div>
+                <Progress value={progress.goalProgress.percentComplete} className="mb-2 h-2 bg-[#cdd8c6] [&>div]:bg-[#4a6243]" />
+                <p className="text-xs text-[#5c7a52]">
+                  {progress.goalProgress.actualLost} kg down — keep going!
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="w-5 h-5 text-[#4a6243]" />
+                  <span className="font-semibold text-[#2c3628]">Your journey starts here</span>
+                </div>
+                <Progress value={0} className="mb-2 h-2 bg-[#cdd8c6] [&>div]:bg-[#4a6243]" />
+                <p className="text-xs text-[#5c7a52]">
+                  Log your weight as you go — we&apos;ll celebrate progress once it shows.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -665,7 +680,7 @@ export default function WeightManagementPage() {
         </Link>
       )}
 
-      {/* Streak Display - Celebratory */}
+      {/* Streak Display - Celebratory (only after a real weekly check-in) */}
       {checkInStatus && checkInStatus.streaks.current > 0 && !checkInStatus.checkInNeeded && (
         <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0e8d8] to-[#e5d7bf]">
           <div className="flex items-center justify-between p-4">
@@ -674,8 +689,18 @@ export default function WeightManagementPage() {
                 <Flame className="h-6 w-6 text-[#c17a58]" />
               </div>
               <div>
-                <h3 className="font-serif font-semibold text-[#2c3628]">{checkInStatus.streaks.current} week streak!</h3>
-                <p className="text-sm text-[#5c7a52]">You&apos;re on a roll - keep it up!</p>
+                <h3 className="font-serif font-semibold text-[#2c3628]">
+                  {checkInStatus.streaks.current === 1
+                    ? "First weekly check-in done"
+                    : `${checkInStatus.streaks.current} week streak!`}
+                </h3>
+                <p className="text-sm text-[#5c7a52]">
+                  {checkInStatus.streaks.current === 1
+                    ? "Nice start — come back next week to keep the habit going."
+                    : checkInStatus.streaks.current === 2
+                      ? "Two weeks in a row — a lovely rhythm."
+                      : "You're on a roll — keep it up!"}
+                </p>
               </div>
             </div>
             <Award className="h-8 w-8 text-[#c17a58]/50" />
@@ -718,25 +743,6 @@ export default function WeightManagementPage() {
       </Card>
 
       <ProgramTodayCard ringWeek={ringWeek} />
-
-      {/* Activity Summary - Encouraging */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-2xl bg-gradient-to-br from-[#e6ebe3] to-[#cdd8c6] p-4 text-center">
-          <Dumbbell className="mx-auto mb-1 h-5 w-5 text-[#4a6243]" />
-          <p className="font-serif text-lg text-[#2c3628]">{progress?.summary.exerciseDays || 0}</p>
-          <p className="text-[10px] text-[#5c7a52]">Active days this week</p>
-        </div>
-        <div className="rounded-2xl bg-gradient-to-br from-[#f0e8d8] to-[#e5d7bf] p-4 text-center">
-          <Flame className="mx-auto mb-1 h-5 w-5 text-[#c17a58]" />
-          <p className="font-serif text-lg text-[#2c3628]">{progress?.summary.totalCaloriesBurned?.toLocaleString() || 0}</p>
-          <p className="text-[10px] text-[#5c7a52]">Exercise calories this week</p>
-        </div>
-        <div className="rounded-2xl bg-gradient-to-br from-[#cdd8c6] to-[#a8bb9e] p-4 text-center">
-          <Award className="mx-auto mb-1 h-5 w-5 text-[#4a6243]" />
-          <p className="font-serif text-lg text-[#2c3628]">{progress?.summary.consistencyScore || 0}%</p>
-          <p className="text-[10px] text-[#5c7a52]">Consistency this week</p>
-        </div>
-      </div>
 
       {/* Onboarding Flow */}
       <OnboardingFlow

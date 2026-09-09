@@ -8,6 +8,11 @@ import {
   calculateBiomarkerStatus,
   type BiomarkerDefForStatus,
 } from "@/lib/biomarker-status";
+import {
+  ensureCatalogBiomarkerDefinitions,
+  isCodeCatalogBiomarkerId,
+} from "@/lib/ensure-catalog-biomarker-definitions";
+import { normalizeHba1cValueToPercent } from "@/lib/blood-test/normalize-hba1c";
 import type { BiomarkerStatus, Prisma } from "@prisma/client";
 
 type BiomarkerResultWithDef = Prisma.BiomarkerResultGetPayload<{
@@ -187,17 +192,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Keep DB definitions in sync with the code catalog so derived/new markers save.
+    const incomingIds = [
+      ...new Set(results.map((r) => r.biomarkerId).filter(Boolean)),
+    ];
+    await ensureCatalogBiomarkerDefinitions(
+      incomingIds.filter((id) => isCodeCatalogBiomarkerId(id))
+    );
+
     // Get all biomarker definitions for status calculation
     const biomarkerDefs = await prisma.biomarkerDefinition.findMany();
     const biomarkerDefMap = new Map(biomarkerDefs.map(b => [b.biomarkerId, b]));
 
-    // Validate all biomarker IDs exist
-    const invalidIds = results.filter((r) => !biomarkerDefMap.has(r.biomarkerId));
-    if (invalidIds.length > 0) {
-      console.error("[Biomarker Results] Invalid biomarker IDs:", invalidIds.map((r) => r.biomarkerId));
-      return NextResponse.json({
-        error: `Invalid biomarker IDs: ${invalidIds.map((r) => r.biomarkerId).join(", ")}`
-      }, { status: 400 });
+    // Only drop IDs that are not in the code catalog (e.g. AI hallucinations).
+    const unknownResults = results.filter((r) => !biomarkerDefMap.has(r.biomarkerId));
+    let knownResults = results.filter((r) => biomarkerDefMap.has(r.biomarkerId));
+
+    // Defense: HbA1c must be NGSP %. Convert IFCC mmol/mol if a raw value sneaks through.
+    knownResults = knownResults.flatMap((r) => {
+      if (r.biomarkerId !== "hba1c") return [r];
+      const normalized = normalizeHba1cValueToPercent(r.value, undefined);
+      if (!normalized) {
+        console.warn(`[Biomarker Results] Dropping invalid HbA1c value: ${r.value}`);
+        return [];
+      }
+      if (normalized.convertedFromIfcc) {
+        console.log(
+          `[Biomarker Results] Converted HbA1c ${r.value} mmol/mol → ${normalized.value}%`
+        );
+      }
+      return [{ ...r, value: normalized.value }];
+    });
+
+    if (unknownResults.length > 0) {
+      console.warn(
+        "[Biomarker Results] Skipping non-catalog biomarker IDs:",
+        unknownResults.map((r) => r.biomarkerId)
+      );
+    }
+
+    if (knownResults.length === 0) {
+      return NextResponse.json(
+        {
+          error: `No savable biomarker IDs. Unknown: ${unknownResults
+            .map((r) => r.biomarkerId)
+            .join(", ")}`,
+        },
+        { status: 400 }
+      );
     }
 
     // Check for existing results to avoid duplicates
@@ -205,7 +247,7 @@ export async function POST(request: NextRequest) {
     const existingResults = await prisma.biomarkerResult.findMany({
       where: {
         userId,
-        biomarkerId: { in: results.map((r) => r.biomarkerId) },
+        biomarkerId: { in: knownResults.map((r) => r.biomarkerId) },
       },
       select: {
         biomarkerId: true,
@@ -227,7 +269,7 @@ export async function POST(request: NextRequest) {
     const newResults: BiomarkerResultInput[] = [];
     const duplicateResults: BiomarkerResultInput[] = [];
 
-    for (const result of results) {
+    for (const result of knownResults) {
       const testedAt = new Date(result.testedAt || new Date());
       const dateStr = testedAt.toISOString().split('T')[0];
       const key = `${result.biomarkerId}|${dateStr}|${result.value}`;
@@ -250,6 +292,8 @@ export async function POST(request: NextRequest) {
         success: true,
         results: [],
         duplicatesSkipped: duplicateResults.length,
+        unknownSkipped: unknownResults.length,
+        unknownBiomarkerIds: unknownResults.map((r) => r.biomarkerId),
         message: `All ${duplicateResults.length} results already exist - no new data to save`
       }, { status: 200 });
     }
@@ -326,6 +370,8 @@ export async function POST(request: NextRequest) {
       success: true,
       results: createdResults,
       duplicatesSkipped: duplicateResults.length,
+      unknownSkipped: unknownResults.length,
+      unknownBiomarkerIds: unknownResults.map((r) => r.biomarkerId),
       derivedCreated: derivedPersist.created,
       message,
     }, { status: 201 });

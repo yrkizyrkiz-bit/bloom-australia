@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PortalContextProvider } from "@/contexts/PortalContextProvider";
+import { FaceIdEnrollPrompt } from "@/components/account/FaceIdEnrollPrompt";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 import { MobileNav } from "@/components/dashboard/MobileNav";
 import { Heart } from "lucide-react";
@@ -68,6 +69,7 @@ export default function DashboardLayoutClient({
             {children}
           </main>
           <MobileNav />
+          <FaceIdEnrollPrompt />
         </div>
       </NotificationProvider>
     </PortalContextProvider>

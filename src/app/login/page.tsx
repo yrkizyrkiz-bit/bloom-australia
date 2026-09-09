@@ -17,7 +17,10 @@ import {
   TrendingUp,
   Shield,
   CheckCircle2,
+  ScanFace,
 } from "lucide-react";
+import { loginWithFaceId, webauthnErrorMessage } from "@/lib/webauthn/client";
+import { canUseFaceId } from "@/lib/webauthn/device";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -27,7 +30,9 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const { login, user, isLoading: isAuthLoading } = useAuth();
+  const [showFaceId, setShowFaceId] = useState(false);
+  const [faceIdLoading, setFaceIdLoading] = useState(false);
+  const { login, loginWithPasskey, user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
 
   // Load remember me preference from localStorage
@@ -37,6 +42,16 @@ export default function LoginPage() {
       setEmail(savedEmail);
       setRememberMe(true);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void canUseFaceId().then((ready) => {
+      if (!cancelled) setShowFaceId(ready);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Handle redirect when user is authenticated
@@ -87,6 +102,9 @@ export default function LoginPage() {
     if (errorLower.includes("session") || errorLower.includes("expired")) {
       return "Your session has expired. Please sign in again.";
     }
+    if (errorLower.includes("face id")) {
+      return error;
+    }
 
     return error || "An unexpected error occurred. Please try again.";
   };
@@ -129,6 +147,34 @@ export default function LoginPage() {
         description: readableError
       });
       setIsLoading(false);
+    }
+  };
+
+  const handleFaceIdLogin = async () => {
+    setFaceIdLoading(true);
+    setLoginError(null);
+    try {
+      const webauthnToken = await loginWithFaceId(email.trim() || undefined);
+      const result = await loginWithPasskey(webauthnToken);
+      if (result.success) {
+        if (rememberMe && email.trim()) {
+          localStorage.setItem("sanative_remembered_email", email);
+        }
+        toast.success("Welcome back!", {
+          description: "You're being redirected to your dashboard.",
+        });
+        router.refresh();
+        return;
+      }
+      const readableError = getReadableError(result.error || "Face ID login failed");
+      setLoginError(readableError);
+      toast.error("Face ID login failed", { description: readableError });
+    } catch (error) {
+      const readableError = webauthnErrorMessage(error, "Face ID login failed");
+      setLoginError(readableError);
+      toast.error("Face ID login failed", { description: readableError });
+    } finally {
+      setFaceIdLoading(false);
     }
   };
 
@@ -306,7 +352,7 @@ export default function LoginPage() {
 
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || faceIdLoading}
                     className="w-full py-4 bg-[#5c7a52] text-white font-medium rounded-xl hover:bg-[#4a6243] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 promo-body"
                   >
                     {isLoading ? (
@@ -322,6 +368,33 @@ export default function LoginPage() {
                     )}
                   </button>
                 </form>
+                {showFaceId && (
+                  <div className="mt-5 space-y-3">
+                    <div className="flex items-center gap-3 text-[#7e9a72]">
+                      <div className="h-px flex-1 bg-[#e6ebe3]" />
+                      <span className="text-xs promo-body">or</span>
+                      <div className="h-px flex-1 bg-[#e6ebe3]" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleFaceIdLogin}
+                      disabled={isLoading || faceIdLoading}
+                      className="w-full py-4 border border-[#cdd8c6] text-[#2c3628] font-medium rounded-xl hover:bg-[#f4f7f2] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 promo-body"
+                    >
+                      {faceIdLoading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Waiting for Face ID...
+                        </>
+                      ) : (
+                        <>
+                          <ScanFace className="w-5 h-5 text-[#5c7a52]" />
+                          Face ID
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Card Footer */}

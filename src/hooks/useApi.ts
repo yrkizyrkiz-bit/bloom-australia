@@ -18,6 +18,7 @@ export function useApi<T>(url: string | null, options?: RequestInit) {
 
     try {
       const response = await fetch(url, {
+        cache: "no-store",
         ...options,
         headers: {
           "Content-Type": "application/json",

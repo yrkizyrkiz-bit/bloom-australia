@@ -22,6 +22,8 @@ export type RingWeekScore = {
   dailyCalorieGoal: number;
   dailyExerciseMin: number;
   days: RingDayScore[];
+  /** Grey preview until the doctor approves the program. */
+  locked?: boolean;
 };
 
 export type RingWeekLogInput = {
@@ -128,10 +130,14 @@ export function scoreRingWeek(
     dailyExerciseMin: number;
     weeklyTargetLoss?: number | null;
   },
-  now = new Date()
+  now = new Date(),
+  options?: { programStartedAt?: Date | string | null }
 ): RingWeekScore {
   const weekStart = startOfWeekMonday(now);
   const todayKey = toDateKey(now);
+  const programStartKey = options?.programStartedAt
+    ? toDateKey(options.programStartedAt)
+    : null;
   const calorieGoal = Math.max(0, targets.dailyCalorieGoal);
   const exerciseGoal = Math.max(0, targets.dailyExerciseMin);
 
@@ -167,7 +173,7 @@ export function scoreRingWeek(
     const meals = mealsByDay.get(key) ?? { calories: 0, count: 0 };
     const exercise = exerciseByDay.get(key) ?? { equivalent: 0, clock: 0 };
     const dose = dosesByDay.get(key);
-    const isFuture = key > todayKey;
+    const isFuture = key > todayKey || (programStartKey != null && key < programStartKey);
     const isToday = key === todayKey;
     const caloriesOver = calorieGoal > 0 && meals.calories > calorieGoal;
     const caloriesClosed =

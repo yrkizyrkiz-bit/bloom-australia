@@ -32,6 +32,13 @@ import {
 } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
 import { biomarkerDefinitions, categoryInfo } from "@/data/biomarkers";
+import {
+  isPdfFile,
+  MAX_PDF_PAGES,
+  PAGES_PER_PARSE_BATCH,
+  splitPdfIntoChunkFiles,
+} from "@/lib/blood-test/split-pdf-client";
+import { applyAustralianDateGuards } from "@/lib/blood-test/australian-dates";
 import { toast } from "sonner";
 import {
   FileText,
@@ -273,152 +280,218 @@ export default function AdminUploadPage() {
   };
 
   const parseWithAI = async (file: File): Promise<{ biomarkers: ExtractedBiomarker[]; hasHistoricalData: boolean; testDates: string[] }> => {
-    const formData = new FormData();
-    formData.append("file", file);
+    // Prefer native PDF chunks over JPEG rasterization — scans stay readable for Claude.
+    let chunks: File[] = [file];
 
-    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
-    console.log("[Upload] 🚀 Sending file to API:", file.name, file.type, `${fileSizeMB}MB`);
-    setDebugInfo({ lastRequest: `Uploading: ${file.name} (${file.type}, ${fileSizeMB}MB)` });
+    if (isPdfFile(file)) {
+      setProcessingStep("Preparing PDF pages for AI…");
+      try {
+        chunks = await splitPdfIntoChunkFiles(file, {
+          pagesPerChunk: PAGES_PER_PARSE_BATCH,
+          maxPages: MAX_PDF_PAGES,
+          onProgress: (page, total) => {
+            setProcessingStep(`Preparing PDF pages ${page}/${total}…`);
+          },
+        });
+        if (chunks.length === 0) {
+          throw new Error("Could not split PDF. Try uploading page images instead.");
+        }
+      } catch (error) {
+        console.error("[Upload] PDF split failed:", error);
+        throw new Error(
+          error instanceof Error
+            ? error.message
+            : "Could not prepare PDF for AI parsing."
+        );
+      }
+    }
 
-    try {
-      // Add timeout controller for fetch
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 115000); // 115 second timeout for larger PDFs
+    const mergedBiomarkers: ExtractedBiomarker[] = [];
+    const mergedDates = new Set<string>();
+    let hasHistoricalData = false;
+    let lastAiModel: string | null = null;
+    const seenKeys = new Set<string>();
+    let hardFailures = 0;
+    let emptyBatches = 0;
 
-      const response = await fetch("/api/parse-blood-test", {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
+    for (let batchIndex = 0; batchIndex < chunks.length; batchIndex++) {
+      const chunk = chunks[batchIndex];
+      const formData = new FormData();
+      formData.append("file", chunk);
+
+      const fileSizeMB = (chunk.size / (1024 * 1024)).toFixed(1);
+      console.log(
+        `[Upload] 🚀 Chunk ${batchIndex + 1}/${chunks.length}: ${chunk.name} (${fileSizeMB}MB)`
+      );
+      setProcessingStep(
+        chunks.length > 1
+          ? `Analyzing PDF with AI… (part ${batchIndex + 1}/${chunks.length})`
+          : "Analyzing document with AI…"
+      );
+      setDebugInfo({
+        lastRequest: `Part ${batchIndex + 1}/${chunks.length}: ${chunk.name} (${fileSizeMB}MB)`,
       });
 
-      clearTimeout(timeoutId);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 110000);
 
-      console.log("[Upload] 📥 API Response status:", response.status, response.statusText);
+        const response = await fetch("/api/parse-blood-test", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[Upload] ❌ API request failed:", response.status, errorText);
+        clearTimeout(timeoutId);
+        console.log(
+          `[Upload] 📥 Part ${batchIndex + 1} status:`,
+          response.status,
+          response.statusText
+        );
 
-        // Handle specific error codes
-        if (response.status === 504) {
-          const timeoutError = `Gateway timeout - file may be too large (${fileSizeMB}MB). Try using a smaller image or crop to show just the results table.`;
-          setDebugInfo(prev => ({ ...prev, lastError: timeoutError }));
-          toast.error(timeoutError);
-          throw new Error(timeoutError);
-        }
-
-        if (response.status === 413) {
-          let sizeError = `File too large (${fileSizeMB}MB).`;
+        const errorText = response.ok ? "" : await response.text();
+        let result: any = null;
+        if (response.ok) {
+          result = await response.json();
+        } else {
           try {
-            const errorJson = JSON.parse(errorText);
-            if (errorJson.error) sizeError = errorJson.error;
+            result = JSON.parse(errorText);
           } catch {
-            // use default message
+            result = { error: errorText || `HTTP ${response.status}` };
           }
-          setDebugInfo(prev => ({ ...prev, lastError: sizeError }));
-          toast.error(sizeError);
-          throw new Error(sizeError);
         }
 
-        setDebugInfo(prev => ({ ...prev, lastError: `API Error ${response.status}: ${errorText}` }));
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      // Store full response for debugging
-      setDebugInfo(prev => ({
-        ...prev,
-        lastResponse: {
-          mode: result.mode,
-          aiProvider: result.aiProvider,
-          aiModel: result.aiModel,
-          biomarkersCount: result.data?.biomarkers?.length || 0,
-          message: result.message,
-          error: result.error,
-          parseError: result.parseError,
-          errorSnippet: result.errorSnippet,
-          contentLength: result.contentLength,
-          firstBiomarker: result.data?.biomarkers?.[0] || null,
+        // Empty extract on a chunk is common (cover/admin pages) — soft-skip.
+        if (response.status === 422 || (result && result.success === false && !result.data?.biomarkers?.length)) {
+          emptyBatches++;
+          console.warn(
+            `[Upload] Part ${batchIndex + 1} had no readable biomarkers (soft skip)`
+          );
+          setDebugInfo((prev) => ({
+            ...prev,
+            lastResponse: {
+              batch: `${batchIndex + 1}/${chunks.length}`,
+              softSkip: true,
+              error: result?.error,
+            },
+          }));
+          continue;
         }
-      }));
 
-      // Log detailed AI status for debugging
-      console.log("[Upload] ✅ API Response parsed:", {
-        mode: result.mode,
-        aiProvider: result.aiProvider,
-        aiModel: result.aiModel,
-        biomarkersFound: result.data?.biomarkers?.length || 0,
-        message: result.message,
-        error: result.error || result.parseError
-      });
+        if (!response.ok) {
+          hardFailures++;
+          const apiError = result?.error || `API request failed: ${response.status}`;
+          console.error("[Upload] ❌ Part failed:", response.status, apiError);
+          setDebugInfo((prev) => ({
+            ...prev,
+            lastError: `Part ${batchIndex + 1}: ${apiError}`,
+          }));
+          continue;
+        }
 
-      // Always show the mode from API response, even for empty results
-      if (result.mode === "ai" && result.aiModel) {
-        setAiMode(`Claude AI (${result.aiModel})`);
-        console.log("[Upload] 🟢 Set AI mode: Claude AI");
-      } else if (result.mode === "demo") {
-        setAiMode(`Demo Mode${result.error ? ` - ${result.error}` : ''}`);
-        console.log("[Upload] 🟡 Set AI mode: Demo Mode - Reason:", result.error || result.message);
-      } else {
-        setAiMode(result.mode === "ai" ? "Claude AI" : "Demo Mode");
-      }
-
-      if (result.success && result.data?.biomarkers) {
-        const biomarkers = result.data.biomarkers.map((b: {
-          biomarkerId: string;
-          name: string;
-          value: number;
-          unit: string;
-          confidence: number;
-          testDate?: string;
-          isHistorical?: boolean;
-        }, index: number) => ({
-          id: `extracted_${index}`,
-          name: b.name,
-          value: b.value,
-          unit: b.unit,
-          confidence: b.confidence,
-          status: "matched" as const,
-          matchedBiomarkerId: b.biomarkerId,
-          testDate: b.testDate || null,
-          isHistorical: b.isHistorical || false,
-          selected: true, // All selected by default
+        setDebugInfo((prev) => ({
+          ...prev,
+          lastError: undefined,
+          lastResponse: {
+            mode: result.mode,
+            aiProvider: result.aiProvider,
+            aiModel: result.aiModel,
+            biomarkersCount: result.data?.biomarkers?.length || 0,
+            message: result.message,
+            batch: `${batchIndex + 1}/${chunks.length}`,
+            firstBiomarker: result.data?.biomarkers?.[0] || null,
+          },
         }));
 
-        console.log("[Upload] 📊 Returning", biomarkers.length, "biomarkers from API");
+        if (result.mode === "ai" && result.aiModel) {
+          lastAiModel = result.aiModel;
+          setAiMode(`Claude AI (${result.aiModel})`);
+        } else if (result.mode === "demo") {
+          throw new Error(
+            result.error ||
+              "AI extraction fell back to demo mode. Check Anthropic configuration and try again."
+          );
+        }
 
-        return {
-          biomarkers,
-          hasHistoricalData: result.data.hasHistoricalData || false,
-          testDates: result.data.testDates || [],
-        };
+        if (result.success && result.data?.biomarkers?.length) {
+          if (result.data.hasHistoricalData) hasHistoricalData = true;
+          for (const date of result.data.testDates || []) {
+            if (date) mergedDates.add(date);
+          }
+
+          for (const b of result.data.biomarkers as Array<{
+            biomarkerId: string;
+            name: string;
+            value: number;
+            unit: string;
+            confidence: number;
+            testDate?: string;
+            isHistorical?: boolean;
+          }>) {
+            const key = `${b.biomarkerId}|${b.testDate || ""}|${b.value}`;
+            if (seenKeys.has(key)) continue;
+            seenKeys.add(key);
+            mergedBiomarkers.push({
+              id: `extracted_${mergedBiomarkers.length}`,
+              name: b.name,
+              value: b.value,
+              unit: b.unit,
+              confidence: b.confidence,
+              status: "matched",
+              matchedBiomarkerId: b.biomarkerId,
+              testDate: b.testDate || null,
+              isHistorical: b.isHistorical || false,
+              selected: true,
+            });
+          }
+        } else {
+          emptyBatches++;
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          hardFailures++;
+          setDebugInfo((prev) => ({
+            ...prev,
+            lastError: `Part ${batchIndex + 1} timed out`,
+          }));
+          continue;
+        }
+        throw error;
       }
-
-      // API returned success but no biomarkers - still use API response, don't fallback
-      console.log("[Upload] ⚠️ API returned success but no biomarkers extracted");
-      return {
-        biomarkers: [],
-        hasHistoricalData: false,
-        testDates: [],
-      };
-
-    } catch (error) {
-      console.error("[Upload] ❌ AI parsing error:", error);
-
-      // Handle fetch abort (timeout)
-      if (error instanceof Error && error.name === 'AbortError') {
-        const timeoutMsg = "Request timed out. Large PDFs can take longer, try again, or crop to show just the results table.";
-        setDebugInfo(prev => ({ ...prev, lastError: timeoutMsg }));
-        toast.error(timeoutMsg);
-        setAiMode("Timeout - Try smaller file");
-        return simulateFallback();
-      }
-
-      // Only fall back to simulation on actual errors
-      setAiMode("Demo Mode (API Error)");
-      return simulateFallback();
     }
+
+    if (lastAiModel) {
+      setAiMode(`Claude AI (${lastAiModel})`);
+    }
+
+    console.log(
+      `[Upload] 📊 Merged ${mergedBiomarkers.length} biomarkers from ${chunks.length} part(s); empty=${emptyBatches}, hardFailures=${hardFailures}`
+    );
+
+    if (mergedBiomarkers.length === 0) {
+      throw new Error(
+        "AI could not read biomarkers from this PDF. If it keeps failing, try exporting the results pages as images."
+      );
+    }
+
+    // Final AU date pass across merged chunks (catches US day/month swaps like 03/09).
+    const guarded = applyAustralianDateGuards(
+      mergedBiomarkers.map((b) => ({
+        ...b,
+        testDate: b.testDate || undefined,
+      })),
+      [...mergedDates]
+    );
+
+    return {
+      biomarkers: guarded.biomarkers.map((b, index) => ({
+        ...b,
+        id: `extracted_${index}`,
+        testDate: b.testDate || null,
+      })),
+      hasHistoricalData,
+      testDates: guarded.testDates,
+    };
   };
 
   const simulateFallback = (): { biomarkers: ExtractedBiomarker[]; hasHistoricalData: boolean; testDates: string[] } => {
@@ -476,6 +549,9 @@ export default function AdminUploadPage() {
 
     setIsProcessing(true);
 
+    let processedCount = 0;
+    let errorCount = 0;
+
     for (const file of files) {
       if (file.status !== "pending") continue;
 
@@ -499,6 +575,7 @@ export default function AdminUploadPage() {
           result = simulateFallback();
         }
 
+        processedCount += 1;
         setFiles(prev => prev.map(f =>
           f.id === file.id ? {
             ...f,
@@ -508,7 +585,12 @@ export default function AdminUploadPage() {
             testDates: result.testDates,
           } : f
         ));
-      } catch {
+      } catch (error) {
+        errorCount += 1;
+        console.error("[Upload] File processing failed:", error);
+        const message =
+          error instanceof Error ? error.message : "Failed to process file";
+        toast.error(message);
         setFiles(prev => prev.map(f =>
           f.id === file.id ? { ...f, status: "error" as const } : f
         ));
@@ -517,7 +599,14 @@ export default function AdminUploadPage() {
 
     setIsProcessing(false);
     setProcessingStep("");
-    toast.success("AI extraction complete!");
+
+    if (errorCount > 0 && processedCount === 0) {
+      toast.error("AI extraction failed. Check the file size/format and try again.");
+    } else if (errorCount > 0) {
+      toast.warning(`Extracted ${processedCount} file(s); ${errorCount} failed.`);
+    } else {
+      toast.success("AI extraction complete!");
+    }
   };
 
   const updateValue = (fileId: string, biomarkerId: string, newValue: number) => {
@@ -610,6 +699,7 @@ export default function AdminUploadPage() {
       const data = await response.json();
       const savedCount = data.results?.length || 0;
       const duplicatesSkipped = data.duplicatesSkipped || 0;
+      const unknownSkipped = data.unknownSkipped || 0;
 
       setSavedBiomarkersCount(savedCount);
 
@@ -633,6 +723,9 @@ export default function AdminUploadPage() {
 
         if (duplicatesSkipped > 0) {
           message += ` (${duplicatesSkipped} duplicate${duplicatesSkipped > 1 ? 's' : ''} skipped)`;
+        }
+        if (unknownSkipped > 0) {
+          message += ` (${unknownSkipped} unrecognized marker${unknownSkipped > 1 ? "s" : ""} skipped)`;
         }
         toast.success(message);
       }

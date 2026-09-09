@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, Minus, Check, Apple, Loader2, X } from "lucide-react";
 import { FoodItem, FoodCategory, FOOD_CATEGORIES, calculateNutrition } from "@/data/foodDatabase";
 
@@ -103,15 +101,15 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="flex h-[min(90vh,720px)] max-h-[90vh] max-w-2xl flex-col gap-4 overflow-hidden p-6 sm:rounded-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Apple className="w-5 h-5 text-orange-500" />
             Search Food Database
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-1.5">
+        <div className="shrink-0 space-y-1.5">
           <Label>Meal type</Label>
           <Select value={mealType} onValueChange={setMealType}>
             <SelectTrigger>
@@ -128,12 +126,12 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
         </div>
 
         {!selectedFood ? (
-          <>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative shrink-0">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search foods... (e.g., chicken, rice, apple)"
+                placeholder="Search foods... (e.g., coffee, beer, protein shake)"
                 className="pl-10"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -141,9 +139,9 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
               />
             </div>
 
-            {/* Category Tabs */}
-            <ScrollArea className="w-full whitespace-nowrap">
-              <div className="flex gap-2 pb-2">
+            {/* Category Tabs — horizontal scroll */}
+            <div className="shrink-0 overflow-x-auto pb-1">
+              <div className="flex w-max gap-2">
                 <Button
                   variant={category === "all" ? "default" : "outline"}
                   size="sm"
@@ -164,36 +162,37 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
                   </Button>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
 
-            {/* Results */}
-            <ScrollArea className="flex-1 min-h-[300px] max-h-[400px]">
+            {/* Results — vertical scroll */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : foods.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Apple className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <div className="py-12 text-center text-muted-foreground">
+                  <Apple className="mx-auto mb-4 h-12 w-12 opacity-30" />
                   <p>No foods found. Try a different search term.</p>
                 </div>
               ) : (
-                <div className="space-y-2 pr-4">
+                <div className="space-y-2 pb-2">
                   {foods.map((food) => (
                     <button
                       key={food.id}
+                      type="button"
                       onClick={() => setSelectedFood(food)}
-                      className="w-full p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors text-left"
+                      className="w-full rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/50"
                     >
                       <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{food.name}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{food.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {food.servingUnit} • {food.calories} cal
                           </p>
                         </div>
-                        <div className="text-right shrink-0">
-                          <div className="flex gap-1.5 flex-wrap justify-end">
+                        <div className="shrink-0 text-right">
+                          <div className="flex flex-wrap justify-end gap-1.5">
                             <Badge variant="secondary" className="text-xs">
                               P: {food.protein}g
                             </Badge>
@@ -210,11 +209,11 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
                   ))}
                 </div>
               )}
-            </ScrollArea>
-          </>
+            </div>
+          </div>
         ) : (
           /* Selected Food - Portion Selection */
-          <div className="space-y-6">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto">
             <Button
               variant="ghost"
               size="sm"

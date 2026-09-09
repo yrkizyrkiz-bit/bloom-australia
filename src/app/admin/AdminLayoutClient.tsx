@@ -41,6 +41,7 @@ import {
   KeyRound,
   DollarSign,
 } from "lucide-react";
+import { FaceIdEnrollPrompt } from "@/components/account/FaceIdEnrollPrompt";
 import { DOCTOR_PORTAL_HOME } from "@/lib/portal/staff-home";
 
 type AdminNavItem = {
@@ -416,8 +417,22 @@ export default function AdminLayout({
                           Reset Password
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/doctor/account" className="cursor-pointer">
+                          <KeyRound className="w-4 h-4 mr-2" />
+                          Face ID
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
+                  )}
+                  {!isDoctor && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/account" className="cursor-pointer">
+                        <KeyRound className="w-4 h-4 mr-2" />
+                        Face ID
+                      </Link>
+                    </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
                     onClick={logout}
@@ -437,6 +452,7 @@ export default function AdminLayout({
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 md:pb-8">
         {children}
       </main>
+      <FaceIdEnrollPrompt staffCopy />
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
         <div className="mx-auto grid h-16 max-w-md grid-cols-4 px-1">

@@ -476,7 +476,7 @@ export default function MealsPage() {
     <div className="space-y-6 pb-20 md:pb-6">
       <SuccessAnimation
         show={showSuccess}
-        type="meal"
+        type="george"
         subMessage={successMessage}
         onComplete={() => setShowSuccess(false)}
       />

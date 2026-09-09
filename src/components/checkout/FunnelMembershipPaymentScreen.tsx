@@ -50,7 +50,7 @@ function ImageMarquee() {
             key={`${item.src}-${index}`}
             src={item.src}
             alt=""
-            className="h-40 w-64 sm:h-48 sm:w-80 shrink-0 rounded-2xl object-cover"
+            className="h-28 w-44 sm:h-40 sm:w-64 shrink-0 rounded-2xl object-cover"
             draggable={false}
           />
         ))}
@@ -144,18 +144,25 @@ function CardPaymentForm({
         </p>
       </div>
 
-      <PaymentElement
-        options={{
-          layout: "tabs",
-          wallets: STRIPE_CHECKOUT_WALLETS,
-          fields: {
-            billingDetails: {
-              email: "never",
-              name: "never",
+      <div className="w-full min-w-0 overflow-x-hidden [&_iframe]:max-w-full">
+        <PaymentElement
+          options={{
+            layout: {
+              type: "accordion",
+              defaultCollapsed: false,
+              radios: false,
+              spacedAccordionItems: true,
             },
-          },
-        }}
-      />
+            wallets: STRIPE_CHECKOUT_WALLETS,
+            fields: {
+              billingDetails: {
+                email: "never",
+                name: "never",
+              },
+            },
+          }}
+        />
+      </div>
 
       <PrePaymentConsentCheckbox
         checked={consentChecked}
@@ -335,14 +342,14 @@ export function FunnelMembershipPaymentScreen({
   };
 
   const summary = (
-    <div className="bg-white rounded-2xl border border-black/10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-5 sm:p-6 lg:p-7">
+    <div className="min-w-0 bg-white rounded-2xl border border-black/10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-4 sm:p-6 lg:p-7">
       <p className="text-sm font-semibold text-[#1c1c1c] mb-4">Order summary</p>
       <ImageMarquee />
       <p className="mt-5 text-sm leading-relaxed text-black/70">{membershipCopy}</p>
         <div className="mt-6 pt-5 border-t border-black/10">
         <h2 className="text-lg font-semibold text-[#1c1c1c]">Sanative Membership</h2>
         <div className="mt-3 flex items-baseline gap-1.5">
-          <span className="text-4xl font-semibold tracking-tight text-[#1c1c1c] tabular-nums">
+          <span className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#1c1c1c] tabular-nums">
             $1
           </span>
           <span className="text-base text-black/60">a day</span>
@@ -372,8 +379,8 @@ export function FunnelMembershipPaymentScreen({
 
   if (alreadyPaid) {
     return (
-      <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-        <div className="order-2 lg:order-1 bg-white rounded-2xl border border-black/10 p-6 sm:p-8 space-y-5">
+      <div className="grid w-full min-w-0 grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-12 items-start">
+        <div className="order-2 lg:order-1 min-w-0 bg-white rounded-2xl border border-black/10 p-4 sm:p-8 space-y-5">
           <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
               <Check className="h-4 w-4 text-white" />
@@ -398,8 +405,8 @@ export function FunnelMembershipPaymentScreen({
   }
 
   return (
-    <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-      <div className="order-2 lg:order-1 bg-white rounded-2xl border border-black/10 p-6 sm:p-8">
+    <div className="grid w-full min-w-0 grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-12 items-start">
+      <div className="order-2 lg:order-1 min-w-0 overflow-x-hidden bg-white rounded-2xl border border-black/10 p-4 sm:p-8">
         {activating ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-[#4f6038]" />

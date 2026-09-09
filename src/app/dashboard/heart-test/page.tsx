@@ -12,8 +12,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { biomarkerDefinitions, getBiomarkerById, getStatusForValue } from "@/data/biomarkers";
+import { getBiomarkerById } from "@/data/biomarkers";
 import type { BiomarkerDefinition, BiomarkerResult } from "@/types";
+import { buildOrganPanelAssessment } from "@/lib/healthTestScoring";
 import {
   Heart,
   Droplet,
@@ -74,50 +75,6 @@ const heartTestConfig = {
     biomarkerIds: ["glucose", "hba1c", "insulin"]
   }
 };
-
-function calculateHeartHealthScore(results: BiomarkerResult[], gender: "male" | "female"): {
-  overall: number;
-  categoryScores: Record<string, { score: number; optimal: number; normal: number; outOfRange: number }>;
-  trend: "improving" | "stable" | "declining";
-  riskLevel: string;
-} {
-  const categoryScores: Record<string, { score: number; optimal: number; normal: number; outOfRange: number }> = {};
-  let totalScore = 0, totalWeight = 0;
-
-  for (const [key, config] of Object.entries(heartTestConfig)) {
-    let categoryScore = 0, categoryWeight = 0, optimal = 0, normal = 0, outOfRange = 0;
-    for (const biomarkerId of config.biomarkerIds) {
-      const result = results.find(r => r.biomarkerId === biomarkerId);
-      const biomarker = getBiomarkerById(biomarkerId);
-      if (result && biomarker) {
-        const status = getStatusForValue(biomarker, result.value, gender);
-        if (status === "optimal") { categoryScore += 100; optimal++; }
-        else if (status === "normal") { categoryScore += 75; normal++; }
-        else if (status === "out_of_range") { categoryScore += 40; outOfRange++; }
-        else { categoryScore += 20; outOfRange++; }
-        categoryWeight++;
-      }
-    }
-    const finalCategoryScore = categoryWeight > 0 ? Math.round(categoryScore / categoryWeight) : 0;
-    categoryScores[key] = { score: finalCategoryScore, optimal, normal, outOfRange };
-    totalScore += finalCategoryScore * categoryWeight;
-    totalWeight += categoryWeight;
-  }
-
-  const overallScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
-  let riskLevel = "Low";
-  if (overallScore < 50) riskLevel = "High";
-  else if (overallScore < 70) riskLevel = "Moderate";
-  else if (overallScore < 85) riskLevel = "Low-Moderate";
-
-  const optimalCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.optimal, 0);
-  const outOfRangeCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.outOfRange, 0);
-  let trend: "improving" | "stable" | "declining" = "stable";
-  if (optimalCount > outOfRangeCount * 2) trend = "improving";
-  else if (outOfRangeCount > optimalCount) trend = "declining";
-
-  return { overall: overallScore, categoryScores, trend, riskLevel };
-}
 
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-green-600";
@@ -183,9 +140,9 @@ export default function HeartTestPage() {
     [allBiomarkerResults]
   );
 
-  // Calculate health score
+  // Headline score from shared scientific scorer (same as main dashboard).
   const healthScore = useMemo(() => {
-    return calculateHeartHealthScore(allBiomarkerResults, gender);
+    return buildOrganPanelAssessment("heart", heartTestConfig, gender, allBiomarkerResults);
   }, [allBiomarkerResults, gender]);
 
   const handleBiomarkerClick = (

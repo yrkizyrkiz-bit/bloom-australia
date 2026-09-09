@@ -1,54 +1,90 @@
 import { prisma } from "@/lib/prisma";
 import { summariseMedicationForInsight } from "./dose-insight";
+import {
+  daysOnProgramInWindow,
+  programActivityWindowStart,
+  resolveProgramCommencement,
+} from "./program-activity-window";
 
 export async function buildProgramContext(userId: string, memberProgramId: string) {
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const program = await prisma.memberProgram.findUnique({
+    where: { id: memberProgramId },
+    include: {
+      prescription: {
+        select: { medicationName: true, dosage: true, frequency: true, startDate: true },
+      },
+      user: { select: { firstName: true, gender: true, journeyStatus: true } },
+    },
+  });
 
-  const [program, weights, meals, exercises, checkIns, treatment, sideEffects] =
-    await Promise.all([
-      prisma.memberProgram.findUnique({
-        where: { id: memberProgramId },
-        include: {
-          prescription: { select: { medicationName: true, dosage: true, frequency: true, startDate: true } },
-          user: { select: { firstName: true, gender: true, journeyStatus: true } },
-        },
-      }),
-      prisma.weightLog.findMany({
-        where: { userId, measuredAt: { gte: weekAgo } },
-        orderBy: { measuredAt: "asc" },
-      }),
-      prisma.mealLog.findMany({
-        where: { userId, loggedAt: { gte: weekAgo } },
-      }),
-      prisma.exerciseLog.findMany({
-        where: { userId, loggedAt: { gte: weekAgo } },
-      }),
-      prisma.weeklyCheckIn.findMany({
-        where: { userId },
-        orderBy: { checkedInAt: "desc" },
-        take: 1,
-      }),
-      prisma.treatment.findFirst({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        include: { doses: { orderBy: { scheduledAt: "asc" } } },
-      }),
-      prisma.sideEffectReport.findMany({
-        where: { userId, createdAt: { gte: weekAgo } },
-      }),
-    ]);
+  const [goal, preferences, membership] = await Promise.all([
+    prisma.weightGoal.findFirst({
+      where: { userId, status: { in: ["IN_PROGRESS", "ACHIEVED"] } },
+      orderBy: { createdAt: "desc" },
+      select: { startDate: true, weeklyTargetLoss: true },
+    }),
+    prisma.weightManagementPreferences.findUnique({
+      where: { userId },
+      select: { ringPlanActivatedAt: true },
+    }),
+    prisma.memberSubscription.findFirst({
+      where: { userId, status: { in: ["ACTIVE", "PAST_DUE"] } },
+      orderBy: { activatedAt: "desc" },
+      select: { activatedAt: true, createdAt: true },
+    }),
+  ]);
+
+  const commencement = resolveProgramCommencement({
+    programStartedAt: program?.startedAt,
+    goalStartedAt: goal?.startDate,
+    ringPlanActivatedAt: preferences?.ringPlanActivatedAt,
+    membershipStartedAt: membership?.activatedAt ?? membership?.createdAt,
+  });
+
+  const windowStart = programActivityWindowStart({
+    programStartedAt: program?.startedAt,
+    goalStartedAt: goal?.startDate,
+    ringPlanActivatedAt: preferences?.ringPlanActivatedAt,
+    membershipStartedAt: membership?.activatedAt ?? membership?.createdAt,
+  });
+
+  const [weights, meals, exercises, checkIns, treatment, sideEffects] = await Promise.all([
+    prisma.weightLog.findMany({
+      where: { userId, measuredAt: { gte: windowStart } },
+      orderBy: { measuredAt: "asc" },
+    }),
+    prisma.mealLog.findMany({
+      where: { userId, loggedAt: { gte: windowStart } },
+    }),
+    prisma.exerciseLog.findMany({
+      where: { userId, loggedAt: { gte: windowStart } },
+    }),
+    prisma.weeklyCheckIn.findMany({
+      where: { userId },
+      orderBy: { checkedInAt: "desc" },
+      take: 1,
+    }),
+    prisma.treatment.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: { doses: { orderBy: { scheduledAt: "asc" } } },
+    }),
+    prisma.sideEffectReport.findMany({
+      where: { userId, createdAt: { gte: windowStart } },
+    }),
+  ]);
 
   const tasksDone = await prisma.programTask.count({
     where: {
       memberProgramId,
       status: "DONE",
-      completedAt: { gte: weekAgo },
+      completedAt: { gte: windowStart },
     },
   });
   const tasksTotal = await prisma.programTask.count({
     where: {
       memberProgramId,
-      scheduledFor: { gte: weekAgo },
+      scheduledFor: { gte: windowStart },
     },
   });
 
@@ -63,6 +99,8 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
     doses: treatment?.doses || [],
   });
 
+  const daysOnProgram = daysOnProgramInWindow(commencement);
+
   return {
     memberName: program?.user.firstName || "Member",
     journeyStatus: program?.user.journeyStatus || "LEAD",
@@ -70,8 +108,11 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
     programStarted: Boolean(
       program?.startedAt && program.startedAt.getTime() <= Date.now()
     ),
+    programStartedAt: commencement?.toISOString() || null,
+    daysOnProgram,
     planTier: program?.planTier || "CORE",
     phase: program?.phase || "INDUCTION",
+    weeklyTargetLossKg: goal?.weeklyTargetLoss ?? null,
     medication: medication.name,
     medicationNote: medication.coachNote,
     doseFrequency: medication.frequency,

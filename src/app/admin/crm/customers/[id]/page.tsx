@@ -67,6 +67,7 @@ import {
 } from "@/lib/healthTestScoring";
 import { isProspectiveEnrollment as checkProspectiveEnrollment } from "@/lib/funnel/member-enrollment-phase";
 import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
+import { MemberFaceIdPanel } from "@/components/admin/MemberFaceIdPanel";
 import { MemberWeightPlanPanel } from "@/components/admin/MemberWeightPlanPanel";
 import { ageFromDateOfBirth } from "@/lib/weight-management/calorie-calculator";
 
@@ -2162,6 +2163,7 @@ export default function CustomerDetailPage() {
                 <KeyRound className="w-4 h-4" />
                 Reset Password
               </Button>
+              <MemberFaceIdPanel userId={customer.id} onChanged={fetchData} />
             </CardContent>
           </Card>
 

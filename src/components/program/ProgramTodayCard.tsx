@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ListChecks,
   Loader2,
   ChevronRight,
   Pill,
@@ -23,6 +22,8 @@ import {
 } from "lucide-react";
 import { SideEffectReportForm } from "./SideEffectReportForm";
 import { ProgramBiomarkerStrip } from "./ProgramBiomarkerStrip";
+import { GeorgeMascot } from "@/components/george/GeorgeMascot";
+import { GEORGE_NAME } from "@/lib/george";
 import {
   todayRingProgress,
   type RingWeekScore,
@@ -128,9 +129,9 @@ export function ProgramTodayCard({ ringWeek }: { ringWeek?: RingWeekScore | null
       <Card className="border-[#cdd8c6] bg-gradient-to-br from-[#f8f4ec] to-[#e6ebe3]">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-lg flex items-center gap-2 text-[#2c3628]">
-              <ListChecks className="w-5 h-5 text-[#4a6243]" />
-              AI has few words to say!
+            <CardTitle className="text-lg flex items-center gap-2.5 text-[#2c3628]">
+              <GeorgeMascot size="sm" cropFace idle />
+              <span>A note from {GEORGE_NAME}</span>
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               {isPrecision && (
@@ -170,9 +171,16 @@ export function ProgramTodayCard({ ringWeek }: { ringWeek?: RingWeekScore | null
                   <li key={i}>{b}</li>
                 ))}
               </ul>
-              <p className="text-xs font-medium text-[#4a6243]">
-                Focus: {data.weeklyInsight.focusArea}
-              </p>
+              {data.weeklyInsight.focusArea ? (
+                <p className="text-xs font-medium text-[#4a6243]">
+                  Focus: {data.weeklyInsight.focusArea}
+                </p>
+              ) : null}
+              {data.weeklyInsight.encouragement ? (
+                <p className="text-sm font-medium text-[#2c3628]">
+                  {data.weeklyInsight.encouragement}
+                </p>
+              ) : null}
             </div>
           )}
 

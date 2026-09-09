@@ -3,6 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
+import {
+  ESCALATE_MARKER,
+  escalateChatToCareTeam,
+  memberRequestedCareTeam,
+  shouldGeorgeRespond,
+  stripEscalateMarker,
+} from "@/lib/chat/escalate-to-care-team";
 
 // Initialize Anthropic client (uses ANTHROPIC_API_KEY from environment)
 const anthropic = new Anthropic();
@@ -104,51 +111,68 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Check for available coaches
-      const availableCoach = await prisma.coachAvailability.findFirst({
-        where: {
-          status: "ONLINE",
-          activeChats: { lt: 3 },
-        },
-        orderBy: { activeChats: "asc" },
-      });
-
-      // Create new session
+      // Always start with George (AI). Care partners join via escalate → WAITING inbox.
       const newSession = await prisma.chatSession.create({
         data: {
           memberId: userId,
-          coachId: availableCoach?.coachId || null,
-          status: availableCoach ? "WAITING" : "AI_HANDLING",
-          isAiHandled: !availableCoach,
+          coachId: null,
+          status: "AI_HANDLING",
+          isAiHandled: true,
         },
-        include: { messages: true },
       });
 
-      // Add welcome message
-      const welcomeMessage = availableCoach
-        ? "Welcome to your care team chat! A care partner will be with you shortly. How can we help you today?"
-        : "Hey there! My team is helping others at the moment, but don't worry - I'm your AI-trained buddy here to help! Let's see if I can impress you. What's on your mind today?";
+      const welcomeMessage =
+        "Hey! I'm George — your first stop for questions. I can help with your program, and if you need a care partner I'll bring them into this chat. What's on your mind?";
 
       await prisma.chatMessage.create({
         data: {
           sessionId: newSession.id,
-          senderId: availableCoach ? "SYSTEM" : "AI",
-          senderType: availableCoach ? "SYSTEM" : "AI",
+          senderId: "AI",
+          senderType: "AI",
           message: welcomeMessage,
         },
       });
 
-      // Update coach active chats if assigned
-      if (availableCoach) {
-        await prisma.coachAvailability.update({
-          where: { coachId: availableCoach.coachId },
-          data: { activeChats: { increment: 1 } },
-        });
-      }
+      const sessionWithMessages = await prisma.chatSession.findUnique({
+        where: { id: newSession.id },
+        include: { messages: { orderBy: { createdAt: "asc" } } },
+      });
 
       return NextResponse.json({
-        session: newSession,
-        isAiHandled: !availableCoach,
+        session: sessionWithMessages,
+        isAiHandled: true,
+      });
+    }
+
+    // Member asks George to notify the care team (existing admin live-chat inbox)
+    if (action === "requestCareTeam" && sessionId) {
+      const chatSession = await prisma.chatSession.findUnique({
+        where: { id: sessionId },
+      });
+
+      if (!chatSession || chatSession.memberId !== userId) {
+        return NextResponse.json({ error: "Session not found" }, { status: 404 });
+      }
+
+      const result = await escalateChatToCareTeam(sessionId, {
+        notifiedBy: "member",
+        reason: typeof message === "string" ? message : null,
+      });
+
+      if (!result.session) {
+        return NextResponse.json({ error: "Unable to notify care team" }, { status: 400 });
+      }
+
+      const sessionWithMessages = await prisma.chatSession.findUnique({
+        where: { id: sessionId },
+        include: { messages: { orderBy: { createdAt: "asc" } } },
+      });
+
+      return NextResponse.json({
+        session: sessionWithMessages,
+        escalated: result.escalated,
+        alreadyWaiting: result.alreadyWaiting,
+        systemMessage: result.systemMessage,
       });
     }
 
@@ -178,22 +202,61 @@ export async function POST(request: NextRequest) {
         data: { lastMessageAt: new Date() },
       });
 
-      // If AI handled, generate response
-      if (chatSession.isAiHandled || chatSession.status === "AI_HANDLING") {
-        const aiResponse = await generateAIResponse(sessionId, message, userId);
+      // George answers until a care partner has joined the chat
+      if (shouldGeorgeRespond(chatSession)) {
+        const wantsCareTeam = memberRequestedCareTeam(message);
+        const alreadyQueued =
+          chatSession.status === "WAITING" && !chatSession.coachId;
+        let aiText = await generateAIResponse(sessionId, message, userId, {
+          careTeamQueued: alreadyQueued,
+        });
+        const { cleanText, shouldEscalate } = stripEscalateMarker(aiText);
+        aiText = cleanText;
+
+        if (wantsCareTeam && !shouldEscalate && !alreadyQueued) {
+          if (!aiText.toLowerCase().includes("care partner")) {
+            aiText =
+              "Absolutely — I'll notify a care partner now so they can join this chat. Hang tight.";
+          }
+        }
+
+        if (alreadyQueued && wantsCareTeam) {
+          aiText =
+            aiText ||
+            "They're already notified — a care partner will join this chat as soon as someone is free. I'm still here in the meantime.";
+        }
 
         const aiMessage = await prisma.chatMessage.create({
           data: {
             sessionId,
             senderId: "AI",
             senderType: "AI",
-            message: aiResponse,
+            message: aiText,
           },
         });
+
+        let systemMessage = null;
+        let updatedSession = null;
+        if ((shouldEscalate || wantsCareTeam) && !alreadyQueued) {
+          const result = await escalateChatToCareTeam(sessionId, {
+            notifiedBy: "ai",
+          });
+          systemMessage = result.systemMessage;
+          updatedSession = result.session;
+        }
 
         return NextResponse.json({
           memberMessage,
           aiMessage,
+          systemMessage,
+          session: updatedSession
+            ? {
+                id: updatedSession.id,
+                status: updatedSession.status,
+                isAiHandled: updatedSession.isAiHandled,
+                coachId: updatedSession.coachId,
+              }
+            : undefined,
         });
       }
 
@@ -288,38 +351,29 @@ export async function DELETE(request: NextRequest) {
 async function generateAIResponse(
   sessionId: string,
   userMessage: string,
-  userId: string
+  userId: string,
+  options?: { careTeamQueued?: boolean }
 ): Promise<string> {
   try {
-    let wmContextBlock = "";
+    let memberBrief = "";
     try {
-      const { isWeightManagementUser } = await import("@/lib/wm/is-wm-user");
-      if (await isWeightManagementUser(userId)) {
-        const program = await prisma.memberProgram.findUnique({
-          where: { userId },
-        });
-        if (program) {
-          const { buildProgramContext } = await import("@/lib/program/build-context");
-          const ctx = await buildProgramContext(userId, program.id);
-          wmContextBlock = `
-
-WM PROGRAM CONTEXT (use for personalised support, never change doses):
-- Plan: ${ctx.planTier}, phase: ${program.phase}
-- Weight logs (7d): ${ctx.weightLogs}, change: ${ctx.weightChangeKg ?? "n/a"} kg
-- Meals logged: ${ctx.mealLogs}, exercise min: ${ctx.exerciseMinutes}
-- Dose adherence: ${ctx.doseAdherencePct ?? "n/a"}%
-- Side effect reports (7d): ${ctx.sideEffectReports}`;
-        }
-      }
-    } catch {
-      /* optional context */
+      const { buildGeorgeMemberBrief } = await import("@/lib/chat/george-member-brief");
+      memberBrief = await buildGeorgeMemberBrief(userId);
+    } catch (briefError) {
+      console.error("[chat] member brief failed", briefError);
     }
+
+    const careTeamNote = options?.careTeamQueued
+      ? `
+
+CARE TEAM STATUS: A care partner has already been notified and will join this chat when free. Keep helping the member yourself. Do NOT use ${ESCALATE_MARKER} again. If they ask about the wait, reassure them you're still here.`
+      : "";
 
     // Get recent messages for context
     const recentMessages = await prisma.chatMessage.findMany({
       where: { sessionId },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 14,
     });
 
     // Build conversation history - ensure it starts with user message
@@ -337,7 +391,7 @@ WM PROGRAM CONTEXT (use for personalised support, never change doses):
         content: m.message,
       }));
 
-    const systemPrompt = `You are a friendly health buddy for Sanative Health, an Australian telehealth company.
+    const systemPrompt = `You are George, the friendly AI care companion for Sanative Health, an Australian telehealth company. You are the first point of contact in chat — a warm, encouraging mate on the member's health journey — not a clinician and not Dr George Wassif.
 
 IMPORTANT - Keep responses SHORT:
 - Maximum 2-3 sentences
@@ -345,19 +399,35 @@ IMPORTANT - Keep responses SHORT:
 - No repetition or filler words
 - One clear point per response
 
+You already have their portal data in MEMBER BRIEF below. Act like you have already checked it.
+- Never ask whether they have logged meals, weight, exercise, meds, or side effects if the brief already shows the answer.
+- Never ask for program, subscription, start weight, target, or current weight if those appear in the brief.
+- Reference concrete facts from the brief when relevant (e.g. today's meals, latest weigh-in, plan tier, days on program).
+- If something is missing from the brief, you may ask once — otherwise do not quiz them about data you can see.
+- Prefer "I can see you've logged…" / "Your latest weigh-in shows…" over "Have you logged…?"
+
 You help with: weight management, women's health (hormones, menopause, perimenopause, PCOS, fertility), men's health (hair, sexual health, vitality), biomarkers, treatment navigation, and general wellness.
 
+Care team handoff:
+- You are the default first contact. Solve simple questions yourself.
+- If the member asks for a human/care partner/care team, OR the issue needs account changes, prescriptions, billing disputes, clinical judgement, severe side effects, or anything you cannot safely answer: tell them you are notifying a care partner, then end your reply with the exact token ${ESCALATE_MARKER} on its own (the system strips it and alerts the care team inbox).
+- Keep chatting after escalate until a care partner actually joins — you are their companion while they wait.
+- Do not invent that a care partner has already joined — only use the escalate token when first notifying them.
+
 Guidelines:
+- Speak in first person as George
 - Casual, warm tone - like a helpful friend
 - Australian English spelling
 - For emergencies: call 000
 - For medical specifics: suggest speaking with a care partner or your clinician
 - Never diagnose, prescribe, change medication dosages, or interpret symptoms as a confirmed condition
-- For pregnancy, severe pelvic pain, heavy bleeding, chest pain, fainting, stroke symptoms, or severe allergic reactions: recommend urgent clinical care or 000${wmContextBlock}`;
+- For pregnancy, severe pelvic pain, heavy bleeding, chest pain, fainting, stroke symptoms, or severe allergic reactions: recommend urgent clinical care or 000
+
+${memberBrief || "MEMBER BRIEF: unavailable — ask only what you truly cannot know."}${careTeamNote}`;
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 150,
+      max_tokens: 180,
       system: systemPrompt,
       messages: [
         ...conversationHistory,
@@ -381,20 +451,20 @@ function generateFallbackResponse(userMessage: string): string {
   const message = userMessage.toLowerCase();
 
   if (message.includes("weight") || message.includes("diet") || message.includes("meal")) {
-    return "Ooh, weight management questions - I love these! Our program includes personalised meal plans, regular check-ins, and ongoing clinical support. For the really specific stuff, your care partner is great at reviewing your progress and goals. Also, have a peek at our Learn section - there's heaps of great content there!";
+    return "Ooh, weight management questions — I love these! Our program includes personalised meal plans, regular check-ins, and ongoing clinical support. For the really specific stuff, your care partner is great at reviewing your progress and goals. Also, have a peek at our Learn section — there's heaps of great content there!";
   }
 
   if (message.includes("hair") || message.includes("finasteride") || message.includes("minoxidil")) {
-    return "Ah, the hair journey! Great question. Our doctors create personalised hair loss care plans based on your assessment, specific treatment options are discussed privately in consultation. Patience is key: most people start noticing changes around the 3–6 month mark. For personalised advice, your care partner can walk you through what to expect.";
+    return "Ah, the hair journey! Great question. Our doctors create personalised hair loss care plans based on your assessment — specific treatment options are discussed privately in consultation. Patience is key: most people start noticing changes around the 3–6 month mark. For personalised advice, your care partner can walk you through what to expect.";
   }
 
   if (message.includes("medication") || message.includes("dose") || message.includes("side effect")) {
-    return "When it comes to your specific medication, dosage, or any side effects you might be noticing, I've gotta be straight with you - that's really a conversation for your healthcare provider. They know your full history and can give you proper personalised guidance. If you're having any severe side effects though, please don't wait - get medical attention right away!";
+    return "When it comes to your specific medication, dosage, or any side effects you might be noticing, I've gotta be straight with you — that's really a conversation for your healthcare provider. They know your full history and can give you proper personalised guidance. If you're having any severe side effects though, please don't wait — get medical attention right away!";
   }
 
   if (message.includes("emergency") || message.includes("urgent") || message.includes("chest pain")) {
-    return "Whoa, hold up! If this is a medical emergency, please call 000 right now or get to your nearest emergency department. This chat isn't the place for emergencies - your safety comes first!";
+    return "Whoa, hold up! If this is a medical emergency, please call 000 right now or get to your nearest emergency department. This chat isn't the place for emergencies — your safety comes first!";
   }
 
-  return "Hey, great to chat with you! I'm here to help with questions about our health programs - weight management, men's health, biomarkers, you name it. For the really personalised medical stuff, your care partner or healthcare provider would be your best bet. So, what would you like to know more about? I'm all ears!";
+  return "Hey, great to chat with you! I'm George, and I'm here to help with questions about our health programs — weight management, men's health, biomarkers, you name it. For the really personalised medical stuff, your care partner or healthcare provider would be your best bet. So, what would you like to know more about? I'm all ears!";
 }

@@ -55,11 +55,21 @@ export function AscvdSetupForm({
   missingForFirstRun = [],
 }: AscvdSetupFormProps) {
   const isInitial = mode === "initial";
+  // Recompute from live form values. Server `missingForFirstRun` still lists BP
+  // until save, which previously left the button disabled after entering BP.
+  const liveMissingForFirstRun = [
+    ...(!profile.systolicBP ? (["systolic blood pressure"] as const) : []),
+    ...(!profile.diastolicBP ? (["diastolic blood pressure"] as const) : []),
+    ...(!labInputs.hasHeartBiomarkers ? (["heart blood test results"] as const) : []),
+    ...missingForFirstRun.filter(
+      (item) =>
+        !item.includes("blood pressure") && item !== "heart blood test results"
+    ),
+  ];
   const canSubmit =
     mode === "bp_update"
       ? Boolean(profile.systolicBP && profile.diastolicBP)
-      : missingForFirstRun.length === 0 &&
-        Boolean(profile.systolicBP && profile.diastolicBP);
+      : liveMissingForFirstRun.length === 0;
 
   return (
     <Card className="border-0 shadow-md">
@@ -326,9 +336,9 @@ export function AscvdSetupForm({
           </div>
         )}
 
-        {isInitial && missingForFirstRun.length > 0 && (
+        {isInitial && liveMissingForFirstRun.length > 0 && (
           <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
-            Still needed before generating your report: {missingForFirstRun.join(", ")}.
+            Still needed before generating your report: {liveMissingForFirstRun.join(", ")}.
           </div>
         )}
 

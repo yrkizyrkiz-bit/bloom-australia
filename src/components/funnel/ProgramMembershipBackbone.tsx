@@ -112,7 +112,7 @@ export function ProgramMembershipBackbone({
 
   return (
     <div
-      className={`h-[100dvh] flex flex-col overflow-hidden ${
+      className={`h-[100dvh] flex flex-col overflow-x-hidden overflow-hidden ${
         phase === "welcome" ? "bg-[#5c7a52]" : "bg-[#fdfbf7]"
       }`}
     >
@@ -135,7 +135,7 @@ export function ProgramMembershipBackbone({
       <main
         className={
           phase === "pay"
-            ? "flex-1 min-h-0 overflow-y-auto max-w-6xl mx-auto w-full px-4 sm:px-6 py-8"
+            ? "flex-1 min-h-0 overflow-x-hidden overflow-y-auto w-full max-w-lg lg:max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8"
             : "flex-1 min-h-0 flex flex-col overflow-hidden"
         }
       >

@@ -11,8 +11,9 @@ import type { BloodPanelBiomarker } from "@/data/bloodPanelConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getBiomarkerById, getStatusForValue } from "@/data/biomarkers";
+import { getBiomarkerById } from "@/data/biomarkers";
 import type { BiomarkerDefinition, BiomarkerResult } from "@/types";
+import { buildOrganPanelAssessment } from "@/lib/healthTestScoring";
 import { Flame, Activity, TrendingUp, TrendingDown, Minus, CheckCircle, AlertTriangle, AlertCircle, BarChart3, Sparkles, Users, Calendar, Target, Brain, Droplets, Zap, Loader2, FileText, Info, Calculator, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
@@ -43,48 +44,6 @@ const metabolicPanelConfig = {
     biomarkerIds: ["sodium", "potassium", "calcium", "bicarbonate"]
   }
 };
-
-function calculateMetabolicScore(results: BiomarkerResult[], gender: "male" | "female") {
-  const categoryScores: Record<string, { score: number; optimal: number; normal: number; outOfRange: number }> = {};
-  let totalScore = 0, totalWeight = 0;
-
-  for (const [key, config] of Object.entries(metabolicPanelConfig)) {
-    let categoryScore = 0, categoryWeight = 0, optimal = 0, normal = 0, outOfRange = 0;
-    for (const biomarkerId of config.biomarkerIds) {
-      const result = results.find(r => r.biomarkerId === biomarkerId);
-      const biomarker = getBiomarkerById(biomarkerId);
-      if (result && biomarker) {
-        const status = getStatusForValue(biomarker, result.value, gender);
-        if (status === "optimal") { categoryScore += 100; optimal++; }
-        else if (status === "normal") { categoryScore += 75; normal++; }
-        else { categoryScore += 40; outOfRange++; }
-        categoryWeight++;
-      }
-    }
-    const finalCategoryScore = categoryWeight > 0 ? Math.round(categoryScore / categoryWeight) : 0;
-    categoryScores[key] = { score: finalCategoryScore, optimal, normal, outOfRange };
-    totalScore += finalCategoryScore * categoryWeight;
-    totalWeight += categoryWeight;
-  }
-
-  const overallScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
-
-  let metabolicStatus = "Normal";
-  const glucoseResult = results.find(r => r.biomarkerId === "glucose");
-  const hba1cResult = results.find(r => r.biomarkerId === "hba1c");
-  if (glucoseResult && hba1cResult) {
-    if (glucoseResult.value >= 126 || hba1cResult.value >= 6.5) metabolicStatus = "Diabetic Range";
-    else if (glucoseResult.value >= 100 || hba1cResult.value >= 5.7) metabolicStatus = "Prediabetic";
-  }
-
-  const optimalCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.optimal, 0);
-  const outOfRangeCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.outOfRange, 0);
-  let trend: "improving" | "stable" | "declining" = "stable";
-  if (optimalCount > outOfRangeCount * 2) trend = "improving";
-  else if (outOfRangeCount > optimalCount) trend = "declining";
-
-  return { overall: overallScore, categoryScores, trend, metabolicStatus };
-}
 
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-orange-600";
@@ -149,9 +108,9 @@ export default function MetabolicPanelPage() {
     [allBiomarkerResults]
   );
 
-  // Calculate health score
+  // Headline score from shared scientific scorer (same as main dashboard).
   const healthScore = useMemo(() => {
-    return calculateMetabolicScore(allBiomarkerResults, gender);
+    return buildOrganPanelAssessment("metabolic", metabolicPanelConfig, gender, allBiomarkerResults);
   }, [allBiomarkerResults, gender]);
 
   const handleBiomarkerClick = (
@@ -358,7 +317,7 @@ export default function MetabolicPanelPage() {
                   <h4 className="font-medium text-orange-700 dark:text-orange-400 mb-2">ADA & KDIGO Guidelines for Metabolic Scoring</h4>
                   <ul className="list-disc pl-5 space-y-2">
                     <li>
-                      <span className="font-semibold">Blood Sugar (Glucose, HbA1c, Insulin):</span> These markers are evaluated based on ADA Standards of Medical Care in Diabetes. Fasting glucose below 100 mg/dL and HbA1c below 5.7% are considered optimal. Levels between 100-125 mg/dL (glucose) or 5.7-6.4% (HbA1c) indicate prediabetes.
+                      <span className="font-semibold">Blood Sugar (Glucose, HbA1c, Insulin):</span> These markers are evaluated based on ADA Standards of Medical Care in Diabetes. Fasting glucose below 5.6 mmol/L and HbA1c below 5.7% are considered optimal. Levels of 5.6–6.9 mmol/L (glucose) or 5.7–6.4% (HbA1c) indicate prediabetes.
                     </li>
                     <li>
                       <span className="font-semibold">Kidney Function (Creatinine, eGFR, BUN):</span> These are assessed using KDIGO 2022 guidelines. eGFR above 90 mL/min indicates normal kidney function, while lower values may indicate CKD staging.

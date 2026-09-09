@@ -51,6 +51,11 @@ import { LiverTestScheduler } from "@/components/dashboard/LiverTestScheduler";
 import { LiverGoalSetting } from "@/components/dashboard/LiverGoalSetting";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
 import { PredictiveHealthRisk } from "@/components/dashboard/PredictiveHealthRisk";
+import {
+  calculateTestScore,
+  healthTestsConfig,
+  liverRiskBandFromScore,
+} from "@/lib/healthTestScoring";
 
 // Define liver test biomarkers grouped by category
 const liverTestConfig = {
@@ -662,17 +667,35 @@ export default function LiverTestPage() {
       { name: "ALT", value: altData.value, unit: "U/L", testedAt: altData.testedAt }
     ];
 
-    // Calculate scores
+    // Calculate scores — FIB-4/APRI stay local; headline liver score matches shared scorer.
     const fib4Result = calculateFIB4(userAge, astData.value, altData.value, plateletsData.value);
     const apriResult = calculateAPRI(astData.value, plateletsData.value);
     const deRitisResult = calculateDeRitisRatio(astData.value, altData.value);
-    const liverRiskResult = calculateLiverRiskScore(allBiomarkerResults, gender);
+    const localLiverRisk = calculateLiverRiskScore(allBiomarkerResults, gender);
+    const liverIds =
+      healthTestsConfig.find((t) => t.id === "liver")?.biomarkerIds ?? [];
+    const sharedLiver = calculateTestScore("liver", liverIds, gender, allBiomarkerResults);
+    const score = sharedLiver.score;
+    const risk = liverRiskBandFromScore(score);
+    const interpretation =
+      risk === "low"
+        ? "Excellent liver function. All markers within healthy ranges."
+        : risk === "moderate"
+          ? "Some markers mildly elevated. Monitor and consider lifestyle modifications."
+          : risk === "high"
+            ? "Multiple markers elevated. Medical evaluation recommended."
+            : "Significant abnormalities detected. Urgent medical consultation advised.";
 
     return {
       fib4: { ...fib4Result, inputs: fib4Inputs },
       apri: { ...apriResult, inputs: apriInputs },
       deRitis: { ...deRitisResult, inputs: deRitisInputs },
-      liverRisk: liverRiskResult
+      liverRisk: {
+        ...localLiverRisk,
+        score,
+        risk,
+        interpretation,
+      },
     };
   }, [allBiomarkerResults, userAge, gender]);
 

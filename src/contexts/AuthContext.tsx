@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithPasskey: (webauthnToken: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   register: (userData: Partial<User> & { password: string }) => Promise<{ success: boolean; error?: string }>;
 }
@@ -53,6 +54,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithPasskey = async (webauthnToken: string) => {
+    try {
+      const result = await signIn("credentials", {
+        webauthnToken,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        return { success: false, error: result.error };
+      }
+
+      await update();
+      return { success: true };
+    } catch {
+      return { success: false, error: "An unexpected error occurred" };
+    }
+  };
+
   const logout = async () => {
     if (user?.id) {
       try {
@@ -94,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithPasskey, logout, register }}>
       {children}
     </AuthContext.Provider>
   );

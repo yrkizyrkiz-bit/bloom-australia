@@ -83,6 +83,7 @@ export function AdminChatPanel() {
   const [waitingCount, setWaitingCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const previousWaitingCountRef = useRef<number | null>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -93,9 +94,20 @@ export function AdminChatPanel() {
     try {
       const res = await fetch("/api/chat/admin?view=my");
       const data = await res.json();
+      const nextWaiting = data.waitingCount || 0;
       setSessions(data.sessions || []);
       setAvailability(data.availability);
-      setWaitingCount(data.waitingCount || 0);
+      setWaitingCount(nextWaiting);
+
+      if (
+        previousWaitingCountRef.current != null &&
+        nextWaiting > previousWaitingCountRef.current
+      ) {
+        toast.message("New care chat request", {
+          description: "A member needs a care partner in Live Chat.",
+        });
+      }
+      previousWaitingCountRef.current = nextWaiting;
     } catch (error) {
       console.error("Error fetching sessions:", error);
     } finally {
@@ -206,7 +218,7 @@ export function AdminChatPanel() {
       setSelectedSession(null);
       setMessages([]);
       fetchSessions();
-      toast.success("Transferred to AI");
+      toast.success("Transferred to George");
     } catch (error) {
       toast.error("Failed to transfer");
     }
@@ -501,7 +513,7 @@ export function AdminChatPanel() {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={transferToAI}>
-                    <Bot className="w-4 h-4 mr-1" /> Transfer to AI
+                    <Bot className="w-4 h-4 mr-1" /> Transfer to George
                   </Button>
                   <Button variant="destructive" size="sm" onClick={endChat}>
                     <X className="w-4 h-4 mr-1" /> End

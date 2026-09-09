@@ -92,6 +92,7 @@ model User {
   renewalDate                     DateTime?
   assignedCarePartnerId           String?
   marketingOptIn                  Boolean                 @default(false)
+  passkeysEnabled                 Boolean                 @default(true)
   unsubscribedAt                  DateTime?
   aiAnalysisCache                 AIAnalysisCache[]
   aiAnalysisHistory               AIAnalysisHistory[]
@@ -131,6 +132,8 @@ model User {
   entitlements                    Entitlement[]
   portalQuizSubmissions           PortalQuizSubmission[]
   consentRecords                  ConsentRecord[]
+  passkeys                        Passkey[]
+  webAuthnChallenges              WebAuthnChallenge[]
 
   @@index([email])
   @@index([role])
@@ -2500,4 +2503,34 @@ model ConsentRecord {
   @@index([email])
   @@index([consentType])
   @@index([acceptedAt])
+}
+
+model Passkey {
+  id           String    @id @default(cuid())
+  userId       String
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      BigInt    @default(0)
+  deviceName   String?
+  transports   String[]
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model WebAuthnChallenge {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String?
+  type      String
+  challenge String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+  @@index([expiresAt])
 }

@@ -30,11 +30,13 @@ export function UntestedBiomarkerCard({
   const hasGenderRange = hasGenderSpecificRanges(biomarker);
   const isDerived = getMedicareEligibility(biomarker.id).type === "derived";
   const rangeSpan = range.normalHigh - range.normalLow;
+  const isIndicationOnly = biomarker.id === "uacr";
 
   return (
     <Card
       className={cn(
         "p-4 transition-all duration-200 border-dashed",
+        isIndicationOnly && "grayscale opacity-80",
         onClick && "cursor-pointer hover:shadow-md hover:border-primary/30 group"
       )}
       onClick={onClick}

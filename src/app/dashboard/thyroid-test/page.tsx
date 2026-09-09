@@ -12,8 +12,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { getBiomarkerById, getStatusForValue } from "@/data/biomarkers";
+import { getBiomarkerById } from "@/data/biomarkers";
 import type { BiomarkerDefinition, BiomarkerResult } from "@/types";
+import { buildOrganPanelAssessment } from "@/lib/healthTestScoring";
 import {
   Activity,
   TrendingUp,
@@ -52,46 +53,6 @@ const thyroidTestConfig = {
     biomarkerIds: ["tsh", "free_t4"]
   }
 };
-
-function calculateThyroidHealthScore(results: BiomarkerResult[], gender: "male" | "female") {
-  const categoryScores: Record<string, { score: number; optimal: number; normal: number; outOfRange: number }> = {};
-  let totalScore = 0, totalWeight = 0;
-
-  for (const [key, config] of Object.entries(thyroidTestConfig)) {
-    let categoryScore = 0, categoryWeight = 0, optimal = 0, normal = 0, outOfRange = 0;
-    for (const biomarkerId of config.biomarkerIds) {
-      const result = results.find(r => r.biomarkerId === biomarkerId);
-      const biomarker = getBiomarkerById(biomarkerId);
-      if (result && biomarker) {
-        const status = getStatusForValue(biomarker, result.value, gender);
-        if (status === "optimal") { categoryScore += 100; optimal++; }
-        else if (status === "normal") { categoryScore += 75; normal++; }
-        else { categoryScore += 40; outOfRange++; }
-        categoryWeight++;
-      }
-    }
-    const finalCategoryScore = categoryWeight > 0 ? Math.round(categoryScore / categoryWeight) : 0;
-    categoryScores[key] = { score: finalCategoryScore, optimal, normal, outOfRange };
-    totalScore += finalCategoryScore * categoryWeight;
-    totalWeight += categoryWeight;
-  }
-
-  const overallScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
-  let thyroidStatus = "Normal";
-  const tshResult = results.find(r => r.biomarkerId === "tsh");
-  if (tshResult) {
-    if (tshResult.value < 0.5) thyroidStatus = "Possible Hyperthyroidism";
-    else if (tshResult.value > 4.0) thyroidStatus = "Possible Hypothyroidism";
-  }
-
-  const optimalCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.optimal, 0);
-  const outOfRangeCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.outOfRange, 0);
-  let trend: "improving" | "stable" | "declining" = "stable";
-  if (optimalCount > outOfRangeCount * 2) trend = "improving";
-  else if (outOfRangeCount > optimalCount) trend = "declining";
-
-  return { overall: overallScore, categoryScores, trend, thyroidStatus };
-}
 
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-blue-600";
@@ -156,9 +117,9 @@ export default function ThyroidTestPage() {
     [allBiomarkerResults]
   );
 
-  // Calculate health score
+  // Headline score from shared scientific scorer (same as main dashboard).
   const healthScore = useMemo(() => {
-    return calculateThyroidHealthScore(allBiomarkerResults, gender);
+    return buildOrganPanelAssessment("thyroid", thyroidTestConfig, gender, allBiomarkerResults);
   }, [allBiomarkerResults, gender]);
 
   const handleBiomarkerClick = (

@@ -122,11 +122,22 @@ export function PredictiveHealthRisk() {
       const response = await fetch("/api/liver-analysis");
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || errorData.error || "Failed to fetch analysis");
+        const errorData = await response.json().catch(() => ({} as { message?: string; error?: string }));
+        throw new Error(
+          errorData.message || errorData.error || "Failed to fetch analysis"
+        );
       }
 
-      const data = await response.json();
+      const text = await response.text();
+      if (!text.trim()) {
+        throw new Error("Empty response from liver analysis. Please try again.");
+      }
+      let data: LiverAnalysisResult;
+      try {
+        data = JSON.parse(text) as LiverAnalysisResult;
+      } catch {
+        throw new Error("Could not read the liver analysis response. Please try again.");
+      }
       setAnalysis(data);
       fetchHistory();
     } catch (err) {

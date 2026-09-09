@@ -12,8 +12,9 @@ import type { BloodPanelBiomarker } from "@/data/bloodPanelConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getBiomarkerById, getStatusForValue } from "@/data/biomarkers";
+import { getBiomarkerById } from "@/data/biomarkers";
 import type { BiomarkerDefinition, BiomarkerResult } from "@/types";
+import { buildOrganPanelAssessment } from "@/lib/healthTestScoring";
 import {
   Sparkles,
   Activity,
@@ -80,46 +81,6 @@ const hormoneTestConfig = {
   }
 };
 
-function calculateHormoneHealthScore(results: BiomarkerResult[], gender: "male" | "female") {
-  const categoryScores: Record<string, { score: number; optimal: number; normal: number; outOfRange: number }> = {};
-  let totalScore = 0, totalWeight = 0;
-
-  for (const [key, config] of Object.entries(hormoneTestConfig)) {
-    let categoryScore = 0, categoryWeight = 0, optimal = 0, normal = 0, outOfRange = 0;
-    for (const biomarkerId of config.biomarkerIds) {
-      const result = results.find(r => r.biomarkerId === biomarkerId);
-      const biomarker = getBiomarkerById(biomarkerId);
-      if (result && biomarker) {
-        const status = getStatusForValue(biomarker, result.value, gender);
-        if (status === "optimal") { categoryScore += 100; optimal++; }
-        else if (status === "normal") { categoryScore += 75; normal++; }
-        else { categoryScore += 40; outOfRange++; }
-        categoryWeight++;
-      }
-    }
-    const finalCategoryScore = categoryWeight > 0 ? Math.round(categoryScore / categoryWeight) : 0;
-    categoryScores[key] = { score: finalCategoryScore, optimal, normal, outOfRange };
-    totalScore += finalCategoryScore * categoryWeight;
-    totalWeight += categoryWeight;
-  }
-
-  const overallScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
-
-  let hormoneStatus = "Balanced";
-  const cortisolResult = results.find(r => r.biomarkerId === "cortisol");
-  if (cortisolResult && cortisolResult.value > 20) {
-    hormoneStatus = "Elevated Stress";
-  }
-
-  const optimalCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.optimal, 0);
-  const outOfRangeCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.outOfRange, 0);
-  let trend: "improving" | "stable" | "declining" = "stable";
-  if (optimalCount > outOfRangeCount * 2) trend = "improving";
-  else if (outOfRangeCount > optimalCount) trend = "declining";
-
-  return { overall: overallScore, categoryScores, trend, hormoneStatus };
-}
-
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-purple-600";
   if (score >= 70) return "text-yellow-600";
@@ -183,9 +144,9 @@ export default function HormoneTestPage() {
     [allBiomarkerResults]
   );
 
-  // Calculate health score
+  // Headline score from shared scientific scorer (same as main dashboard).
   const healthScore = useMemo(() => {
-    return calculateHormoneHealthScore(allBiomarkerResults, gender);
+    return buildOrganPanelAssessment("hormones", hormoneTestConfig, gender, allBiomarkerResults);
   }, [allBiomarkerResults, gender]);
 
   const handleBiomarkerClick = (

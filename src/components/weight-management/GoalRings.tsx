@@ -198,6 +198,7 @@ function WeekStatCard({
   tone,
   swatchColor,
   valueClassName,
+  locked,
 }: {
   href: string;
   label: string;
@@ -208,16 +209,16 @@ function WeekStatCard({
   tone: "light" | "dark";
   swatchColor: string;
   valueClassName?: string;
+  locked?: boolean;
 }) {
   const dark = tone === "dark";
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-gradient-to-br px-3 py-2.5 transition-transform duration-300 md:hover:scale-[1.02]",
-        gradient
-      )}
-    >
+  const className = cn(
+    "group relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-gradient-to-br px-3 py-2.5",
+    !locked && "transition-transform duration-300 md:hover:scale-[1.02]",
+    gradient
+  );
+  const body = (
+    <>
       {dark ? (
         <div className="pointer-events-none absolute top-1 right-1 h-8 w-8 rounded-full bg-white/10 blur-md" />
       ) : null}
@@ -248,6 +249,14 @@ function WeekStatCard({
       >
         <span className="line-clamp-2">{hint || "\u00a0"}</span>
       </p>
+    </>
+  );
+  if (locked) {
+    return <div className={className}>{body}</div>;
+  }
+  return (
+    <Link href={href} className={className}>
+      {body}
     </Link>
   );
 }
@@ -256,6 +265,7 @@ export function GoalRings({ week }: { week: RingWeekScore }) {
   const days = week.days ?? [];
   const today = days.find((day) => day.isToday) ?? days[0];
   if (!today) return null;
+  const locked = Boolean(week.locked);
   const weighIn = weighInCopy(Boolean(today.weight));
   const meds = medsCopy(Boolean(today.meds), Boolean(today.medsDue));
 
@@ -268,57 +278,68 @@ export function GoalRings({ week }: { week: RingWeekScore }) {
             {week.dailyCalorieGoal} kcal · {week.dailyExerciseMin} min
             {week.weeklyTargetLoss != null ? ` · ${week.weeklyTargetLoss} kg weekly target` : ""}
           </p>
+          {locked ? (
+            <p className="mt-1 text-xs text-[#7e9a72]">
+              Rings stay grey until your doctor approves your program.
+            </p>
+          ) : null}
         </div>
       </div>
-      <div className="flex items-end justify-between gap-2 overflow-x-auto pb-1">
-        {days.map((day) => (
-          <DayRing key={day.date} day={day} size={day.isToday ? 88 : 68} />
-        ))}
-      </div>
-      <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <DayRing day={today} size={168} />
-        <div className="grid h-[15.5rem] w-full min-w-0 flex-1 grid-cols-2 grid-rows-2 gap-2">
-          <WeekStatCard
-            href="/dashboard/weight-management/meals"
-            label="Calories"
-            value={`${today.calories}/${today.calorieGoal}`}
-            hint={mealHint(today)}
-            icon={Flame}
-            gradient="from-[#f0e8d8] to-[#e5d7bf]"
-            tone="light"
-            swatchColor={CALORIES}
-          />
-          <WeekStatCard
-            href="/dashboard/weight-management/exercise"
-            label="Exercise"
-            value={`${today.exercise}/${today.exerciseGoal} min`}
-            hint={exerciseHint(today)}
-            icon={Activity}
-            gradient="from-[#e6ebe3] to-[#cdd8c6]"
-            tone="light"
-            swatchColor={EXERCISE}
-          />
-          <WeekStatCard
-            href="/dashboard/weight-management/track"
-            label="Weigh-in"
-            value={weighIn.value}
-            hint={weighIn.hint}
-            icon={Scale}
-            gradient="from-[#cdd8c6] to-[#a8bb9e]"
-            tone="light"
-            swatchColor={WEIGH_IN}
-            valueClassName={weighIn.value === "Well done" ? "text-[#d8d6d2]" : undefined}
-          />
-          <WeekStatCard
-            href="/dashboard/weight-management/treatment"
-            label="Meds"
-            value={meds.value}
-            hint={meds.hint}
-            icon={Pill}
-            gradient="from-[#4a6243] to-[#3d4f38]"
-            tone="dark"
-            swatchColor={MEDS_DONE}
-          />
+      <div className={cn(locked && "pointer-events-none select-none grayscale")}>
+        <div className="flex items-end justify-between gap-2 overflow-x-auto pb-1">
+          {days.map((day) => (
+            <DayRing key={day.date} day={day} size={day.isToday ? 88 : 68} />
+          ))}
+        </div>
+        <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <DayRing day={today} size={168} />
+          <div className="grid h-[15.5rem] w-full min-w-0 flex-1 grid-cols-2 grid-rows-2 gap-2">
+            <WeekStatCard
+              href="/dashboard/weight-management/meals"
+              label="Calories"
+              value={`${today.calories}/${today.calorieGoal}`}
+              hint={mealHint(today)}
+              icon={Flame}
+              gradient="from-[#f0e8d8] to-[#e5d7bf]"
+              tone="light"
+              swatchColor={CALORIES}
+              locked={locked}
+            />
+            <WeekStatCard
+              href="/dashboard/weight-management/exercise"
+              label="Exercise"
+              value={`${today.exercise}/${today.exerciseGoal} min`}
+              hint={exerciseHint(today)}
+              icon={Activity}
+              gradient="from-[#e6ebe3] to-[#cdd8c6]"
+              tone="light"
+              swatchColor={EXERCISE}
+              locked={locked}
+            />
+            <WeekStatCard
+              href="/dashboard/weight-management/track"
+              label="Weigh-in"
+              value={weighIn.value}
+              hint={weighIn.hint}
+              icon={Scale}
+              gradient="from-[#cdd8c6] to-[#a8bb9e]"
+              tone="light"
+              swatchColor={WEIGH_IN}
+              valueClassName={weighIn.value === "Well done" ? "text-[#d8d6d2]" : undefined}
+              locked={locked}
+            />
+            <WeekStatCard
+              href="/dashboard/weight-management/treatment"
+              label="Meds"
+              value={meds.value}
+              hint={meds.hint}
+              icon={Pill}
+              gradient="from-[#4a6243] to-[#3d4f38]"
+              tone="dark"
+              swatchColor={MEDS_DONE}
+              locked={locked}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  MessageCircle, Send, X, Minimize2, Maximize2, Bot,
-  User, Loader2, Phone, Clock, Sparkles, Shield
+  MessageCircle, Send, X, Minimize2, Maximize2,
+  User, Loader2, Clock, Sparkles, Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { GeorgeMascot } from "@/components/george/GeorgeMascot";
+import { GEORGE_IMAGE_SRC, GEORGE_NAME } from "@/lib/george";
 
 interface ChatMessage {
   id: string;
@@ -79,6 +81,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [coachesAvailable, setCoachesAvailable] = useState(false);
+  const [requestingCareTeam, setRequestingCareTeam] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
@@ -217,8 +220,15 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
         if (data.aiMessage) {
           incoming.push(data.aiMessage);
         }
+        if (data.systemMessage) {
+          incoming.push(data.systemMessage);
+        }
         return mergeChatMessages(withoutTemp, incoming);
       });
+
+      if (data.session) {
+        setSession(prev => (prev ? { ...prev, ...data.session } : null));
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
@@ -248,6 +258,38 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
     }
   };
 
+  const requestCareTeam = async () => {
+    if (!session || requestingCareTeam) return;
+    setRequestingCareTeam(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "requestCareTeam", sessionId: session.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to notify care team");
+      }
+      if (data.session) {
+        setSession(data.session);
+        setMessages(mergeChatMessages([], data.session.messages || []));
+      } else if (data.systemMessage) {
+        setMessages(prev => mergeChatMessages(prev, [data.systemMessage]));
+      }
+      toast.success(
+        data.alreadyWaiting
+          ? "Care team already notified — they'll join shortly."
+          : "Care team notified — they'll join this chat shortly."
+      );
+    } catch (error) {
+      console.error("Error requesting care team:", error);
+      toast.error("Couldn't notify care team. Please try again.");
+    } finally {
+      setRequestingCareTeam(false);
+    }
+  };
+
   // Initialize on mount
   useEffect(() => {
     if (isOpen && !minimized) {
@@ -255,12 +297,12 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
     }
   }, [isOpen, minimized, initializeChat]);
 
-  // Poll for coach replies only, AI responses come back on the send POST
+  // Poll while waiting for / chatting with a care partner (not while George alone is handling)
   useEffect(() => {
     if (
       session &&
       session.status !== "ENDED" &&
-      !session.isAiHandled &&
+      (session.status === "WAITING" || session.status === "ACTIVE" || !session.isAiHandled) &&
       !minimized
     ) {
       pollIntervalRef.current = setInterval(() => {
@@ -292,11 +334,11 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
   const getSenderInfo = (msg: ChatMessage) => {
     switch (msg.senderType) {
       case "MEMBER":
-        return { name: "You", avatar: null, color: "bg-emerald-600" };
+        return { name: "You", avatar: null as string | null, color: "bg-emerald-600" };
       case "COACH":
         return { name: "Care team", avatar: null, color: "bg-teal-600" };
       case "AI":
-        return { name: "AI Assistant", avatar: null, color: "bg-violet-600" };
+        return { name: GEORGE_NAME, avatar: GEORGE_IMAGE_SRC, color: "bg-[#e6ebe3]" };
       case "SYSTEM":
         return { name: "System", avatar: null, color: "bg-slate-500" };
       default:
@@ -318,19 +360,19 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
           minimized ? 'w-72' : 'w-[360px] sm:w-[400px] h-[600px] max-h-[80vh]'
         }`}>
           {/* Header */}
-          <CardHeader className="p-4 bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
+          <CardHeader className="p-4 bg-gradient-to-r from-[#4a6243] to-[#5c7a52] text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <MessageCircle className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden">
+                  <GeorgeMascot size="sm" cropFace />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Your Care Team</CardTitle>
+                  <CardTitle className="text-base">{GEORGE_NAME}</CardTitle>
                   <p className="text-xs text-white/80">
-                    {session?.status === "WAITING" && "Connecting..."}
-                    {session?.status === "ACTIVE" && "Online"}
-                    {session?.status === "AI_HANDLING" && "Online"}
-                    {!session && "Available"}
+                    {session?.status === "WAITING" && `${GEORGE_NAME} + care team notified`}
+                    {session?.status === "ACTIVE" && "Care partner online"}
+                    {session?.status === "AI_HANDLING" && "Your first point of contact"}
+                    {!session && "Your first point of contact"}
                   </p>
                 </div>
               </div>
@@ -372,17 +414,14 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
               {/* No Session - Start Chat */}
               {!loading && !session && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                  <div className="w-16 h-16 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center mb-4">
-                    <MessageCircle className="w-8 h-8 text-teal-600" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Chat with Our Care Team</h3>
+                  <GeorgeMascot size="lg" idle className="mb-4" />
+                  <h3 className="font-semibold mb-2">Chat with {GEORGE_NAME}</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    {coachesAvailable
-                      ? "Someone from your care team is available to help now."
-                      : "Our AI assistant is ready to help with your questions."
-                    }
+                    {GEORGE_NAME} is your first point of contact. If you need a care partner,
+                    he can bring them into this chat
+                    {coachesAvailable ? " — someone is online now." : "."}
                   </p>
-                  <Button onClick={startChat} className="bg-teal-600 hover:bg-teal-700">
+                  <Button onClick={startChat} className="bg-[#4a6243] hover:bg-[#3a5035]">
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Start Chat
                   </Button>
@@ -420,11 +459,16 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
                             animate={{ opacity: 1, y: 0 }}
                             className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}
                           >
-                            <Avatar className="w-8 h-8 shrink-0">
+                            <Avatar className="w-8 h-8 shrink-0 bg-white">
+                              {senderInfo.avatar ? (
+                                <AvatarImage
+                                  src={senderInfo.avatar}
+                                  alt={senderInfo.name}
+                                  className="object-cover object-[center_28%]"
+                                />
+                              ) : null}
                               <AvatarFallback className={senderInfo.color}>
-                                {msg.senderType === "AI" ? (
-                                  <Bot className="w-4 h-4 text-white" />
-                                ) : msg.senderType === "COACH" ? (
+                                {msg.senderType === "COACH" ? (
                                   <Sparkles className="w-4 h-4 text-white" />
                                 ) : (
                                   <User className="w-4 h-4 text-white" />
@@ -432,9 +476,14 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
                               </AvatarFallback>
                             </Avatar>
                             <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]`}>
+                              {!isMe ? (
+                                <span className="text-[10px] font-medium text-[#4a6243] mb-0.5 px-1">
+                                  {senderInfo.name}
+                                </span>
+                              ) : null}
                               <div className={`px-3 py-2 rounded-2xl ${
                                 isMe
-                                  ? 'bg-teal-600 text-white rounded-br-md'
+                                  ? 'bg-[#4a6243] text-white rounded-br-md'
                                   : 'bg-slate-100 dark:bg-slate-800 rounded-bl-md'
                               }`}>
                                 <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
@@ -454,10 +503,29 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
                   <div className="p-4 border-t bg-white dark:bg-slate-950">
                     {session.status === "WAITING" && (
                       <div className="flex items-center gap-2 mb-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-                        <Clock className="w-4 h-4 text-amber-600" />
+                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
                         <span className="text-xs text-amber-700 dark:text-amber-300">
-                          Connecting you with the care team...
+                          Care team notified — {GEORGE_NAME} is still here until a care partner joins.
                         </span>
+                      </div>
+                    )}
+                    {session.status === "AI_HANDLING" && (
+                      <div className="mb-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full border-[#cdd8c6] text-[#2c3628] hover:bg-[#e6ebe3]"
+                          onClick={requestCareTeam}
+                          disabled={requestingCareTeam}
+                        >
+                          {requestingCareTeam ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-4 h-4 mr-2" />
+                          )}
+                          Ask a care partner to join
+                        </Button>
                       </div>
                     )}
                     <form
@@ -475,7 +543,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
                         type="submit"
                         size="icon"
                         disabled={!inputMessage.trim() || sending}
-                        className="bg-teal-600 hover:bg-teal-700"
+                        className="bg-[#4a6243] hover:bg-[#3a5035]"
                       >
                         {sending ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -502,9 +570,10 @@ export function ChatButton({ onClick, hasUnread = false }: { onClick: () => void
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow"
+      aria-label={`Chat with ${GEORGE_NAME}`}
+      className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-white text-[#4a6243] shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow border border-[#cdd8c6] overflow-hidden"
     >
-      <MessageCircle className="w-6 h-6" />
+      <GeorgeMascot size="sm" cropFace />
       {hasUnread && (
         <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-white" />
       )}

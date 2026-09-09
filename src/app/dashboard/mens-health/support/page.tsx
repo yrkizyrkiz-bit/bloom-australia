@@ -113,7 +113,7 @@ export default function SupportPage() {
               </div>
               <div>
                 <h3 className="text-xl font-bold">Chat with a Health Coach</h3>
-                <p className="text-teal-100">Get instant support from our care team or AI assistant</p>
+                <p className="text-teal-100">Get instant support from our care team or George</p>
               </div>
             </div>
             <Button

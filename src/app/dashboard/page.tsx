@@ -12,13 +12,12 @@ import { BiomarkerCard } from "@/components/dashboard/BiomarkerCard";
 import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDialog";
 import { UnifiedHealthDashboard } from "@/components/dashboard/UnifiedHealthDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { biomarkerDefinitions, getBiomarkerById } from "@/data/biomarkers";
 import { calculateAllHealthTestScores } from "@/lib/healthTestScoring";
 // Mock data imports removed - using real API data only
 import type { BiomarkerDefinition, BiomarkerResult, HealthScore } from "@/types";
-import { AlertTriangle, TrendingUp, Clock, ArrowRight, Sparkles, LayoutGrid, List, Loader2, Scale, Heart, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, Sparkles, LayoutGrid, List, Loader2, Zap } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { RemindersCard } from "@/components/dashboard/RemindersCard";
@@ -58,7 +57,7 @@ function DashboardPageContent({
     result: BiomarkerResult;
   } | null>(null);
   const [showAIReport, setShowAIReport] = useState(false);
-  const [viewMode, setViewMode] = useState<"tests" | "categories">("tests");
+  const [viewMode, setViewMode] = useState<"tests" | "categories">("categories");
 
   const gender = user?.gender === "female" ? "female" : "male";
 
@@ -310,25 +309,8 @@ function DashboardPageContent({
       </div>
 
       {/* Specialized Health Programs */}
-      <div className={`grid gap-6 ${gender === "male" ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
-        <Link href="/dashboard/weight-management">
-          <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-emerald-200 dark:border-emerald-900 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg">
-                  <Scale className="w-7 h-7 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg text-emerald-900 dark:text-emerald-100">Weight Management</h3>
-                  <p className="text-sm text-emerald-700 dark:text-emerald-300">Track weight, meals, and exercise</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-emerald-600 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-        {/* Only show Men's Health for male users */}
-        {gender === "male" && (
+      {gender === "male" && (
+        <div className="grid gap-6 md:grid-cols-1">
           <Link href="/dashboard/mens-health">
             <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-slate-200 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-teal-50 dark:from-slate-900 dark:to-teal-950/20">
               <CardContent className="p-6">
@@ -345,92 +327,11 @@ function DashboardPageContent({
               </CardContent>
             </Card>
           </Link>
-        )}
-        {/* Only show Women's Health for female users */}
-        {gender === "female" && (
-          <Link href="/womens-health">
-            <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-rose-200 dark:border-rose-900/50 bg-gradient-to-br from-rose-50 to-purple-50 dark:from-rose-950/30 dark:to-purple-950/30">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg">
-                    <Heart className="w-7 h-7 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-rose-900 dark:text-rose-100">Women&apos;s Health</h3>
-                    <p className="text-sm text-rose-700 dark:text-rose-300">Cycle, fertility & wellness</p>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-purple-600 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Recent Activity */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Tests */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {dashboardData?.recentActivity && dashboardData.recentActivity.length > 0 ? (
-                dashboardData.recentActivity.slice(0, 3).map((activity: any, index: number) => (
-                  <div key={activity.id || index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{activity.action?.replace(/_/g, " ") || "Activity"}</p>
-                        <p className="text-xs text-muted-foreground">{activity.entity || ""}</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary">
-                      {new Date(activity.createdAt).toLocaleDateString()}
-                    </Badge>
-                  </div>
-                ))
-              ) : (
-                <>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">Lab Results Uploaded</p>
-                        <p className="text-xs text-muted-foreground">{biomarkerResults.length} biomarkers updated</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary">Recent</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-green-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">Health Score Calculated</p>
-                        <p className="text-xs text-muted-foreground">Overall score: {healthScore.overall}</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">Updated</Badge>
-                  </div>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reminders */}
-        <RemindersCard userId={user?.id || ""} compact />
-      </div>
+      {/* Reminders */}
+      <RemindersCard userId={user?.id || ""} compact />
 
       {/* Personalized Tips */}
       {outOfRangeBiomarkers.length > 0 && (

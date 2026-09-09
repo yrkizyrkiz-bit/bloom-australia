@@ -3,6 +3,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "./prisma";
 import { verifyMagicLoginToken } from "./magic-link";
+import { authUserFromRecord } from "./webauthn/session-user";
+import { verifyWebAuthnLoginToken } from "./webauthn/tokens";
 
 function getNextAuthSecret(): string | undefined {
   const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
@@ -31,9 +33,29 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         magicToken: { label: "Magic Token", type: "text" },
+        webauthnToken: { label: "WebAuthn Token", type: "text" },
       },
       async authorize(credentials) {
         authDebug("[Auth] Authorize called with email:", credentials?.email);
+
+        if (credentials?.webauthnToken) {
+          try {
+            const payload = verifyWebAuthnLoginToken(credentials.webauthnToken);
+            const user = await prisma.user.findUnique({
+              where: { id: payload.userId },
+            });
+            if (
+              user &&
+              user.email.toLowerCase() === payload.email.toLowerCase() &&
+              user.passkeysEnabled
+            ) {
+              return authUserFromRecord(user);
+            }
+          } catch {
+            throw new Error("Face ID sign-in expired. Please try again.");
+          }
+          throw new Error("Face ID sign-in expired. Please try again.");
+        }
 
         // Magic link sign-in (valid token, no password required)
         if (credentials?.magicToken) {
@@ -48,17 +70,7 @@ export const authOptions: NextAuthOptions = {
               user.email.toLowerCase() === payload.email.toLowerCase() &&
               payload.purpose === "magic_login"
             ) {
-              return {
-                id: user.id,
-                email: user.email,
-                name: `${user.firstName} ${user.lastName}`,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                role: user.role,
-                gender: user.gender,
-                image: user.image,
-                dateOfBirth: user.dateOfBirth?.toISOString() || null,
-              };
+              return authUserFromRecord(user);
             }
           } catch {
             throw new Error("Invalid or expired link");
@@ -86,17 +98,7 @@ export const authOptions: NextAuthOptions = {
 
           if (isValid) {
             authDebug("[Auth] User password valid, returning user");
-            return {
-              id: user.id,
-              email: user.email,
-              name: `${user.firstName} ${user.lastName}`,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              role: user.role,
-              gender: user.gender,
-              image: user.image,
-              dateOfBirth: user.dateOfBirth?.toISOString() || null,
-            };
+            return authUserFromRecord(user);
           }
         }
 

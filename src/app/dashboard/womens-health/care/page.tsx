@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bot, ChevronRight, HeartHandshake, MessageCircle, Shield, Sparkles, Stethoscope } from "lucide-react";
+import { ArrowLeft, ChevronRight, HeartHandshake, MessageCircle, Shield, Sparkles, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LiveChat } from "@/components/chat/LiveChat";
+import { GeorgeMascot } from "@/components/george/GeorgeMascot";
+import { GEORGE_NAME } from "@/lib/george";
 
 const supportTopics = [
   "Hormone symptoms and biomarker context",
@@ -33,7 +35,7 @@ export default function WomensHealthCarePage() {
             <HeartHandshake className="w-6 h-6 text-rose-600" />
             Care Team
           </h1>
-          <p className="text-muted-foreground">Talk to the AI assistant or message your care team.</p>
+          <p className="text-muted-foreground">Talk to {GEORGE_NAME} or message your care team.</p>
         </div>
       </div>
 
@@ -42,13 +44,13 @@ export default function WomensHealthCarePage() {
           <Badge className="bg-white/20 text-white border-white/20 mb-4">Women&apos;s Health support</Badge>
           <h2 className="text-2xl font-serif mb-3">Ask a question or get care-team help</h2>
           <p className="text-white/85 max-w-2xl">
-            Use the AI assistant for quick navigation and general guidance, or send a message
+            Chat with {GEORGE_NAME} for quick navigation and general guidance, or send a message
             to your care team for account, treatment, prescription and follow-up support.
           </p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button className="bg-white text-rose-700 hover:bg-white/90" onClick={() => setChatOpen(true)}>
-              <Bot className="w-4 h-4 mr-2" />
-              Talk to AI assistant
+              <GeorgeMascot size="xs" cropFace className="mr-2" />
+              Talk to {GEORGE_NAME}
             </Button>
             <Button asChild variant="outline" className="border-white/40 text-white hover:bg-white/10">
               <Link href="/dashboard/messages">
@@ -64,8 +66,8 @@ export default function WomensHealthCarePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-rose-600" />
-              AI assistant
+              <GeorgeMascot size="xs" cropFace />
+              {GEORGE_NAME}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -112,7 +114,7 @@ export default function WomensHealthCarePage() {
               reaction or urgent symptoms, call 000 or seek emergency care.
             </p>
             <p>
-              The AI assistant cannot diagnose, prescribe or change medication doses.
+              {GEORGE_NAME} cannot diagnose, prescribe or change medication doses.
             </p>
           </CardContent>
         </Card>

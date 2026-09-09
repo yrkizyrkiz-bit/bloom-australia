@@ -655,7 +655,7 @@ export function deriveBiomarkersForEpisode(
 
 function kdigoRiskScore(egfr: number, uacrMgMmol: number): number | null {
   if (egfr <= 0 || uacrMgMmol < 0) return null;
-  const a = uacrMgMmol < 3 ? 1 : uacrMgMmol <= 30 ? 2 : 3;
+  const a = uacrMgMmol < 3.4 ? 1 : uacrMgMmol <= 33.9 ? 2 : 3;
   let g = 6;
   if (egfr >= 90) g = 1;
   else if (egfr >= 60) g = 2;

@@ -25,6 +25,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { FaceIdSettingsCard } from "@/components/account/FaceIdSettingsCard";
 import { ProgramMembershipCard } from "@/components/account/ProgramMembershipCard";
 import { MemberBillingPanel } from "@/components/account/MemberBillingPanel";
 import type { MembershipSummary } from "@/lib/membership-display";
@@ -448,6 +449,8 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <FaceIdSettingsCard />
 
       <ProgramMembershipCard membership={membership} loading={membershipLoading} />
 

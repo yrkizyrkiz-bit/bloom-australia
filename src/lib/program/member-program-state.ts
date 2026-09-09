@@ -3,10 +3,12 @@ import { startOfDayUTC } from "./dose-schedule";
 import { ensureMemberProgram } from "./start-program";
 import { evaluateBiomarkerFlags } from "./biomarker-rules";
 import {
+  buildEarlyProgramWelcomeInsight,
   buildPreActivationInsight,
   isProgramReadyForWeeklyInsight,
   type WeeklyInsightPayload,
 } from "./weekly-insight";
+import { daysOnProgramInWindow } from "./program-activity-window";
 
 const TASK_LINKS: Record<string, string> = {
   WEIGH_IN: "/dashboard/weight-management/track",
@@ -148,16 +150,38 @@ export async function getMemberProgramState(userId: string) {
     programActive: program.isActive,
     startedAt: program.startedAt,
   });
-  const weeklyInsight: WeeklyInsightPayload | null = !programReady
-    ? buildPreActivationInsight(program.user.firstName)
-    : insightRow
-      ? {
-          summary: insightRow.summary || "",
-          bullets: (insightRow.insights as WeeklyInsightPayload)?.bullets || [],
-          focusArea: insightRow.focusArea || "",
-          encouragement: (insightRow.insights as WeeklyInsightPayload)?.encouragement || "",
-        }
-      : null;
+  const daysOnProgram = daysOnProgramInWindow(program.startedAt);
+  const earlyProgram = daysOnProgram > 0 && daysOnProgram <= 3;
+
+  const activeGoal = earlyProgram
+    ? await prisma.weightGoal.findFirst({
+        where: { userId, status: { in: ["IN_PROGRESS", "ACHIEVED"] } },
+        orderBy: { createdAt: "desc" },
+        select: { weeklyTargetLoss: true },
+      })
+    : null;
+
+  let weeklyInsight: WeeklyInsightPayload | null = null;
+  if (!programReady) {
+    weeklyInsight = buildPreActivationInsight(program.user.firstName);
+  } else if (earlyProgram) {
+    weeklyInsight = buildEarlyProgramWelcomeInsight({
+      memberName: program.user.firstName,
+      programWeek: currentWeek,
+      planTier: program.planTier,
+      phase: program.phase,
+      medicationName: program.prescription?.medicationName,
+      dosage: program.prescription?.dosage,
+      weeklyTargetLossKg: activeGoal?.weeklyTargetLoss ?? null,
+    });
+  } else if (insightRow) {
+    weeklyInsight = {
+      summary: insightRow.summary || "",
+      bullets: (insightRow.insights as WeeklyInsightPayload)?.bullets || [],
+      focusArea: insightRow.focusArea || "",
+      encouragement: (insightRow.insights as WeeklyInsightPayload)?.encouragement || "",
+    };
+  }
 
   return {
     program: {

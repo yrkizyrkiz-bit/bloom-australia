@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { shouldPromptWeeklyCheckIn } from "@/lib/weight-management/weekly-check-in-eligibility";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,11 +19,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const checkIns = await prisma.weeklyCheckIn.findMany({
-      where: { userId },
-      orderBy: { weekNumber: "desc" },
-      take: limit,
-    });
+    const [checkIns, activeGoal] = await Promise.all([
+      prisma.weeklyCheckIn.findMany({
+        where: { userId },
+        orderBy: { weekNumber: "desc" },
+        take: limit,
+      }),
+      prisma.weightGoal.findFirst({
+        where: { userId, status: { in: ["IN_PROGRESS", "ACHIEVED"] } },
+        orderBy: { createdAt: "desc" },
+        select: { startDate: true },
+      }),
+    ]);
 
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
@@ -30,14 +38,21 @@ export async function GET(request: NextRequest) {
 
     const lastCheckIn = checkIns[0];
     const lastCheckInDate = lastCheckIn ? new Date(lastCheckIn.checkedInAt) : null;
-    const daysSinceLastCheckIn = lastCheckInDate ? Math.floor((now.getTime() - lastCheckInDate.getTime()) / (1000 * 60 * 60 * 24)) : Infinity;
-    const checkInNeeded = daysSinceLastCheckIn >= 7;
+    const daysSinceLastCheckIn = lastCheckInDate ? Math.floor((now.getTime() - lastCheckInDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+    const checkInNeeded = shouldPromptWeeklyCheckIn({
+      programStart: activeGoal?.startDate ?? null,
+      lastCheckInAt: lastCheckInDate,
+      now,
+    });
 
     let currentStreak = 0;
     const checkInWeeks = new Set(checkIns.map(c => c.weekNumber));
+    // Only count weeks with a real check-in — do not invent a streak for new members.
     for (let week = currentWeek; week > 0; week--) {
-      if (checkInWeeks.has(week) || (week === currentWeek && !checkInNeeded)) {
+      if (checkInWeeks.has(week)) {
         currentStreak++;
+      } else if (week === currentWeek && !checkInNeeded) {
+        continue;
       } else {
         break;
       }
@@ -60,7 +75,7 @@ export async function GET(request: NextRequest) {
       checkIns,
       currentWeek,
       checkInNeeded,
-      daysSinceLastCheckIn: daysSinceLastCheckIn === Infinity ? null : daysSinceLastCheckIn,
+      daysSinceLastCheckIn,
       streaks: { current: currentStreak, longest: longestStreak },
       averages: {
         feeling: checkIns.length > 0 ? Math.round((checkIns.reduce((sum, c) => sum + c.overallFeeling, 0) / checkIns.length) * 10) / 10 : 0,

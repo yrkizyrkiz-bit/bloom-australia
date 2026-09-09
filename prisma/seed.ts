@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { biomarkerDefinitions } from "../src/data/biomarkers";
 import { DEPRECATED_BIOMARKER_IDS } from "../src/lib/catalog-biomarkers";
 
 const prisma = new PrismaClient();
@@ -120,47 +119,9 @@ async function main() {
 
   // ==================== CREATE BIOMARKER DEFINITIONS ====================
   console.log("Creating biomarker definitions...");
-  for (const biomarker of biomarkerDefinitions) {
-    await prisma.biomarkerDefinition.upsert({
-      where: { biomarkerId: biomarker.id },
-      update: {
-        name: biomarker.name,
-        shortName: biomarker.shortName,
-        category: biomarker.category.toUpperCase() as any,
-        description: biomarker.description,
-        whyItMatters: biomarker.whyItMatters,
-        unit: biomarker.ranges.male.unit,
-        maleRanges: {
-          low: biomarker.ranges.male.low,
-          optimal_low: biomarker.ranges.male.optimal_low,
-          optimal_high: biomarker.ranges.male.optimal_high,
-          high: biomarker.ranges.male.high,
-        },
-        femaleRanges: {
-          low: biomarker.ranges.female.low,
-          optimal_low: biomarker.ranges.female.optimal_low,
-          optimal_high: biomarker.ranges.female.optimal_high,
-          high: biomarker.ranges.female.high,
-        },
-        improvementTips: biomarker.improvementTips,
-        relatedBiomarkerIds: biomarker.relatedBiomarkers || [],
-      },
-      create: {
-        biomarkerId: biomarker.id,
-        name: biomarker.name,
-        shortName: biomarker.shortName,
-        category: biomarker.category.toUpperCase() as any,
-        description: biomarker.description,
-        whyItMatters: biomarker.whyItMatters,
-        unit: biomarker.ranges.male.unit,
-        maleRanges: { low: biomarker.ranges.male.low, optimal_low: biomarker.ranges.male.optimal_low, optimal_high: biomarker.ranges.male.optimal_high, high: biomarker.ranges.male.high },
-        femaleRanges: { low: biomarker.ranges.female.low, optimal_low: biomarker.ranges.female.optimal_low, optimal_high: biomarker.ranges.female.optimal_high, high: biomarker.ranges.female.high },
-        improvementTips: biomarker.improvementTips,
-        relatedBiomarkerIds: biomarker.relatedBiomarkers || [],
-      },
-    });
-  }
-  console.log(`✓ Created ${biomarkerDefinitions.length} biomarker definitions\n`);
+  const { ensureCatalogBiomarkerDefinitions } = await import("../src/lib/ensure-catalog-biomarker-definitions");
+  const synced = await ensureCatalogBiomarkerDefinitions(undefined, { updateExisting: true });
+  console.log(`✓ Synced ${synced.ensured} biomarker definitions (${synced.created} created, ${synced.updated} updated)\n`);
 
   // Retire private / removed markers — hide from portal and drop stale results
   const deprecatedIds = [...DEPRECATED_BIOMARKER_IDS];

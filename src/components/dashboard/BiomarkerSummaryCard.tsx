@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { ORGAN_METABOLIC_HEALTH_PANELS } from "@/components/dashboard/OrganMetabolicHealthPanels";
+
+const ORGAN_SHORTCUTS = ["Liver", "Heart", "Kidney"] as const;
 
 interface BiomarkerSummaryCardProps {
   optimal: number;
@@ -14,6 +17,10 @@ interface BiomarkerSummaryCardProps {
 
 export function BiomarkerSummaryCard({ optimal, normal, outOfRange, lastUpdated }: BiomarkerSummaryCardProps) {
   const total = optimal + normal + outOfRange;
+  const organShortcuts = ORGAN_SHORTCUTS.flatMap((label) => {
+    const panel = ORGAN_METABOLIC_HEALTH_PANELS.find((p) => p.label === label);
+    return panel ? [panel] : [];
+  });
 
   return (
     <Card>
@@ -69,12 +76,37 @@ export function BiomarkerSummaryCard({ optimal, normal, outOfRange, lastUpdated 
         </div>
 
         {/* CTA */}
-        <Link href="/dashboard/biomarkers">
-          <Button variant="outline" className="w-full group">
-            View all biomarkers
-            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
-        </Link>
+        <div className="space-y-3">
+          <Link href="/dashboard/biomarkers">
+            <Button variant="outline" className="w-full group">
+              View all biomarkers
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
+
+          <div className="grid grid-cols-3 gap-2">
+            {organShortcuts.map((panel) => {
+              const Icon = panel.icon;
+              return (
+                <Link
+                  key={panel.href}
+                  href={panel.href}
+                  className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card p-2.5 transition-shadow hover:shadow-md"
+                >
+                  <div
+                    className="flex h-8 w-8 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: `${panel.color}15` }}
+                  >
+                    <Icon className="h-4 w-4" style={{ color: panel.color }} />
+                  </div>
+                  <span className="text-center text-[11px] leading-tight text-muted-foreground">
+                    {panel.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

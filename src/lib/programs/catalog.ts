@@ -190,7 +190,7 @@ export const BIOMARKERS_HERO = {
   title: "Get My Biomarkers",
   titleAccent: "Biomarkers",
   tagline: "Your biological age and whole-body insights",
-  route: "/dashboard/biological-age",
+  route: "/dashboard",
   biomarkersRoute: "/dashboard/biomarkers/quiz",
   icon: Beaker,
   theme: {

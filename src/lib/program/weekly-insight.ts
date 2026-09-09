@@ -54,7 +54,61 @@ type InsightContext = {
   exerciseSessions: number;
   exerciseMinutes: number;
   sideEffectReports: number;
+  programStartedAt?: string | null;
+  daysOnProgram?: number;
+  planTier?: string | null;
+  phase?: string | null;
+  medicationName?: string | null;
+  weeklyTargetLossKg?: number | null;
 };
+
+function formatPlanLabel(planTier?: string | null) {
+  const tier = (planTier || "CORE").toUpperCase();
+  if (tier === "PRECISION") return "Sanative Precision";
+  if (tier === "ESSENTIAL") return "Sanative Essential";
+  return "Sanative Core";
+}
+
+function formatWeeklyLossGoal(weeklyTargetLossKg?: number | null): string {
+  if (weeklyTargetLossKg == null || !Number.isFinite(weeklyTargetLossKg) || weeklyTargetLossKg <= 0) {
+    return "your goals";
+  }
+  const rounded = Math.round(weeklyTargetLossKg * 10) / 10;
+  return `your goals (about ${rounded} kg average loss per week)`;
+}
+
+/** Welcome note for the first few days — no “missed days” language. */
+export function buildEarlyProgramWelcomeInsight(input: {
+  memberName?: string | null;
+  programWeek?: number;
+  planTier?: string | null;
+  phase?: string | null;
+  medicationName?: string | null;
+  dosage?: string | null;
+  weeklyTargetLossKg?: number | null;
+}): WeeklyInsightPayload {
+  const name = input.memberName?.trim() || "there";
+  const plan = formatPlanLabel(input.planTier);
+  const goalsLine = formatWeeklyLossGoal(input.weeklyTargetLossKg);
+  const medication = input.medicationName?.trim();
+  const dosage = input.dosage?.trim();
+  const medBit = medication
+    ? dosage
+      ? `meds (${medication} ${dosage})`
+      : `meds (${medication})`
+    : "meds";
+
+  return {
+    summary: `Welcome, ${name} — lovely to have you here. I'm George, your new friend on this journey, and I'm excited to join you.`,
+    bullets: [
+      `This is your first week on ${plan}, so familiarise yourself with the program and settle in.`,
+      `Please check in and complete your rings — daily would be fantastic.`,
+      `Keep on top of your activities, calories, and ${medBit}, and we should stay right on track for ${goalsLine}.`,
+    ],
+    focusArea: "Complete your rings today",
+    encouragement: "I'll keep track myself and update you as we go — let's do this!",
+  };
+}
 
 export function buildWeeklyInsightPrompts(input: InsightContext & {
   programWeek: number;
@@ -83,14 +137,38 @@ Medication rules:
 - Trust the medication note. Use the stated frequency and dates only.
 - Never treat medication as daily unless the note says it is daily.
 - If a dose is not due yet, do not say they missed it, skipped it, or have low medication follow-through.
-- Never suggest a dose change.`;
+- Never suggest a dose change.
+
+Program start rules:
+- Only judge days on or after their program start date.
+- If they started mid-week, do not mention gaps, catch-up, missed earlier weekdays, or “days before start”.
+- In the first few days, write as George — their warm companion on the journey. Welcome them by name, introduce yourself, encourage daily rings, and mention activities, calories, and meds. If a weekly loss target is known, reference it naturally.`;
+
+  const daysOnProgram = input.daysOnProgram ?? 0;
+  const startNote = input.programStartedAt
+    ? `Program commenced ${new Date(input.programStartedAt).toLocaleDateString("en-AU", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })} (${daysOnProgram} day${daysOnProgram === 1 ? "" : "s"} on the program so far).`
+    : "Program start date unknown — still do not invent missed earlier weekdays.";
+
+  const weeklyGoalNote =
+    input.weeklyTargetLossKg != null && input.weeklyTargetLossKg > 0
+      ? `Weekly loss goal: about ${Math.round(input.weeklyTargetLossKg * 10) / 10} kg average per week.`
+      : "Weekly loss goal: not set yet.";
 
   const userPrompt = `Week ${input.programWeek + 1} note for ${input.memberName} (${input.phase.toLowerCase()}).
+
+${startNote}
+Plan: ${formatPlanLabel(input.planTier)}.
+${weeklyGoalNote}
 
 Medication: ${input.medicationNote || "No medication schedule on file."}
 Dose status: ${input.doseStatus || "unknown"}
 
-This week they have ${input.weightLogs} weigh-in${input.weightLogs === 1 ? "" : "s"}${
+Since the program started they have ${input.weightLogs} weigh-in${input.weightLogs === 1 ? "" : "s"}${
     input.weightChangeKg != null ? ` (change ${input.weightChangeKg} kg)` : ""
   }, ${input.mealLogs} meal${input.mealLogs === 1 ? "" : "s"}, and ${input.exerciseSessions} movement session${
     input.exerciseSessions === 1 ? "" : "s"
@@ -98,7 +176,7 @@ This week they have ${input.weightLogs} weigh-in${input.weightLogs === 1 ? "" : 
 Side effects mentioned: ${input.sideEffectReports}.
 ${input.biomarkerNote || ""}
 
-Write about how the week actually felt from this, not a scorecard.`;
+If they are still in their first few days: welcome them as George, give a short program summary, encourage daily rings, and remind them about activities, calories, and meds. Do not talk about missed days before they started.`;
 
   return { systemPrompt, userPrompt };
 }
@@ -108,6 +186,18 @@ export function buildFriendlyFallbackInsight(
   programWeek: number,
   ctx: InsightContext
 ): WeeklyInsightPayload {
+  const earlyDays = (ctx.daysOnProgram ?? 0) > 0 && (ctx.daysOnProgram ?? 0) <= 3;
+  if (earlyDays) {
+    return buildEarlyProgramWelcomeInsight({
+      memberName,
+      programWeek,
+      planTier: ctx.planTier,
+      phase: ctx.phase,
+      medicationName: ctx.medicationName,
+      weeklyTargetLossKg: ctx.weeklyTargetLossKg,
+    });
+  }
+
   const name = memberName.trim() || "there";
   const doseLine =
     ctx.doseStatus === "not_due_yet"
@@ -200,6 +290,36 @@ export async function generateWeeklyInsight(
     return fallback;
   }
 
+  if ((ctx.daysOnProgram ?? 0) > 0 && (ctx.daysOnProgram ?? 0) <= 3) {
+    const welcome = buildEarlyProgramWelcomeInsight({
+      memberName: program?.user.firstName || ctx.memberName,
+      programWeek,
+      planTier: ctx.planTier,
+      phase: ctx.phase,
+      medicationName: ctx.medication,
+      weeklyTargetLossKg: ctx.weeklyTargetLossKg,
+    });
+    await prisma.programWeekSummary.upsert({
+      where: {
+        memberProgramId_programWeek: { memberProgramId, programWeek },
+      },
+      create: {
+        memberProgramId,
+        programWeek,
+        summary: welcome.summary,
+        focusArea: welcome.focusArea,
+        insights: { ...welcome, contextHash: hash },
+      },
+      update: {
+        summary: welcome.summary,
+        focusArea: welcome.focusArea,
+        insights: { ...welcome, contextHash: hash },
+        generatedAt: new Date(),
+      },
+    });
+    return welcome;
+  }
+
   if (existing && !force) {
     const stored = existing.insights as WeeklyInsightPayload & { contextHash?: string };
     if (stored.contextHash === hash && existing.summary && !stored.preActivation) {
@@ -225,6 +345,7 @@ export async function generateWeeklyInsight(
     memberName: ctx.memberName,
     programWeek,
     phase: ctx.phase,
+    planTier: ctx.planTier,
     medicationNote: ctx.medicationNote,
     doseStatus: ctx.doseStatus,
     weightLogs: ctx.weightLogs,
@@ -233,6 +354,9 @@ export async function generateWeeklyInsight(
     exerciseSessions: ctx.exerciseSessions,
     exerciseMinutes: ctx.exerciseMinutes,
     sideEffectReports: ctx.sideEffectReports,
+    programStartedAt: ctx.programStartedAt,
+    daysOnProgram: ctx.daysOnProgram,
+    weeklyTargetLossKg: ctx.weeklyTargetLossKg,
     biomarkerNote,
   });
 

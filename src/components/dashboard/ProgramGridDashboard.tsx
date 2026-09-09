@@ -227,9 +227,7 @@ function BiomarkersHero({
   const isReady = clock?.state === "ready";
   const coverage = clock?.coverage;
   const href = hasBiomarkersEntitlement
-    ? isReady
-      ? BIOMARKERS_HERO.route
-      : "/dashboard/biomarkers"
+    ? BIOMARKERS_HERO.route
     : BIOMARKERS_HERO.biomarkersRoute;
   const theme = BIOMARKERS_HERO.theme;
   const colors = toneClasses(theme.tone);
@@ -273,11 +271,11 @@ function BiomarkersHero({
           </p>
         )}
         <div className={cn("mt-4 inline-flex items-center gap-2 text-sm font-medium", colors.cta)}>
-          {isReady
-            ? "View biological age"
-            : hasBiomarkersEntitlement
-              ? "View biomarkers"
-              : "Get my biomarkers"}
+          {hasBiomarkersEntitlement
+            ? isReady
+              ? "View my biomarkers"
+              : "View biomarkers"
+            : "Get my biomarkers"}
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </div>
       </div>

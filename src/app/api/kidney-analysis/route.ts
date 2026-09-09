@@ -48,8 +48,8 @@ function getGFRCategory(eGFR: number): GFRCategoryInfo {
 
 /**
  * KDIGO Albuminuria Categories (A1-A3)
- * Based on UACR (Urine Albumin-to-Creatinine Ratio)
- * Unit: mg/g (or mg/mmol with conversion factor 0.113)
+ * UACR stored in Australian units: mg/mmol (NSW Health Pathology).
+ * KDIGO cut-offs ≈ <3.4 / 3.4–33.9 / >33.9 mg/mmol (≈ <30 / 30–300 / >300 mg/g).
  */
 type AlbuminuriaCategory = "A1" | "A2" | "A3";
 
@@ -60,10 +60,29 @@ interface AlbuminuriaCategoryInfo {
   riskScore: number;
 }
 
-function getAlbuminuriaCategory(uacr: number): AlbuminuriaCategoryInfo {
-  if (uacr < 30) return { category: "A1", range: "<30 mg/g", description: "Normal to mildly increased", riskScore: 5 };
-  if (uacr <= 300) return { category: "A2", range: "30-300 mg/g", description: "Moderately increased (microalbuminuria)", riskScore: 35 };
-  return { category: "A3", range: ">300 mg/g", description: "Severely increased (macroalbuminuria)", riskScore: 70 };
+/** Convert UACR mg/mmol → mg/g for equations validated on ACR (mg/g), e.g. KFRE. */
+function uacrMgMmolToMgG(uacrMgMmol: number): number {
+  return uacrMgMmol / 0.113;
+}
+
+function getAlbuminuriaCategory(uacrMgMmol: number): AlbuminuriaCategoryInfo {
+  if (uacrMgMmol < 3.4) {
+    return { category: "A1", range: "<3.4 mg/mmol", description: "Normal to mildly increased", riskScore: 5 };
+  }
+  if (uacrMgMmol <= 33.9) {
+    return {
+      category: "A2",
+      range: "3.4–33.9 mg/mmol",
+      description: "Moderately increased (microalbuminuria)",
+      riskScore: 35,
+    };
+  }
+  return {
+    category: "A3",
+    range: ">33.9 mg/mmol",
+    description: "Severely increased (macroalbuminuria)",
+    riskScore: 70,
+  };
 }
 
 /**
@@ -137,15 +156,16 @@ interface KFREResult {
   reason?: string;
 }
 
-function calculateKFRE(eGFR: number, uacr: number, age: number, sex: "male" | "female"): KFREResult {
+function calculateKFRE(eGFR: number, uacrMgMmol: number, age: number, sex: "male" | "female"): KFREResult {
   // KFRE is only applicable for eGFR < 60
   if (eGFR >= 60) {
     return { twoYearRisk: 0, fiveYearRisk: 0, applicable: false, reason: "eGFR ≥60 - KFRE not applicable" };
   }
 
-  // 4-variable KFRE equation coefficients
+  // 4-variable KFRE equation coefficients (Tangri; ACR in mg/g)
   const isMale = sex === "male" ? 1 : 0;
-  const logUACR = Math.log(Math.max(uacr, 1)); // Prevent log(0)
+  const uacrMgG = uacrMgMmolToMgG(uacrMgMmol);
+  const logUACR = Math.log(Math.max(uacrMgG, 1)); // Prevent log(0)
 
   // 2-year risk calculation
   const alpha2 = -0.2201 * (age / 10 - 7.036) +

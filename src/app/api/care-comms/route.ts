@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
           subject: chat.wasAiHandled ? "AI Chat Session" : "Live Chat Session",
           preview: chat.summary || `${chat.messageCount} messages`,
           date: chat.createdAt,
-          agent: chat.coachName || (chat.wasAiHandled ? "AI Assistant" : "Unknown"),
+          agent: chat.coachName || (chat.wasAiHandled ? "George" : "Unknown"),
           status: "completed",
           details: {
             messageCount: chat.messageCount,

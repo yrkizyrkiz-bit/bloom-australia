@@ -40,7 +40,17 @@ describe("weight-management funnel checkout sequence", () => {
     expect(payment).toContain("mens-marquee");
     expect(payment).toContain("MembershipPricingCard.module.css");
     expect(payment).toContain("Sanative Membership");
+    expect(payment).toContain('type: "accordion"');
+    expect(payment).not.toContain('layout: "tabs"');
     expect(assessment).not.toContain("requireBookingHold={false}");
+  });
+
+  it("keeps the payment step phone-width until the desktop split", () => {
+    const payment = readSource("components/checkout/FunnelMembershipPaymentScreen.tsx");
+    const backbone = readSource("components/funnel/ProgramMembershipBackbone.tsx");
+    expect(assessment).toContain("max-w-lg lg:max-w-6xl");
+    expect(backbone).toContain("max-w-lg lg:max-w-6xl");
+    expect(payment).toContain("grid-cols-1 lg:grid-cols-2");
   });
 
   it("does not enqueue public WM members into Pre-Triage Queue at membership payment", () => {

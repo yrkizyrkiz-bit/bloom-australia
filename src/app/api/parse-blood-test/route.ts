@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { biomarkerDefinitions, getBiomarkerById } from "@/data/biomarkers";
 import { deriveBiomarkersForEpisode, normalizeDeriveGender } from "@/lib/derived-biomarkers";
+import { extractPathologyPdfText } from "@/lib/blood-test/extract-pdf-text";
+import {
+  coerceBiomarkerValue,
+  normalizeExtractedBiomarkerValues,
+  resolveCatalogBiomarkerId,
+} from "@/lib/blood-test/normalize-extracted-biomarkers";
+import { applyAustralianDateGuards } from "@/lib/blood-test/australian-dates";
+import { normalizeExtractedHba1cEntries } from "@/lib/blood-test/normalize-hba1c";
 import { requireClinicalStaff } from "@/lib/auth/require-clinical-staff";
 import { isProductionEnvironment } from "@/lib/security/environment";
 import { RATE_LIMITS, rateLimitBucketKey } from "@/lib/security/rate-limit-config";
@@ -11,8 +19,7 @@ import {
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
 
-// Next.js route segment config - increase timeout to 60 seconds
-// Note: Platform gateway may have its own lower timeout (nginx ~30-60s)
+// Netlify sync functions are capped ~60s; local can run longer for PDF chunks.
 export const maxDuration = 120;
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +27,10 @@ export const dynamic = 'force-dynamic';
 const MAX_PDF_SIZE = 10 * 1024 * 1024;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
-// Initialize Anthropic Claude AI with timeout
+// 3-page PDF chunks usually finish well under this; leave headroom on Netlify.
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
-  timeout: 90000, // 90s for larger multi-page PDFs
+  timeout: 90000,
 });
 
 // Build a comprehensive reference list of biomarkers for the AI with common aliases
@@ -114,6 +121,17 @@ Australian pathology reports use SI units. Extract values EXACTLY as shown in th
 
 **DO NOT convert values. If the document shows "Albumin: 45 g/L", return value: 45, unit: "g/L"**
 
+### CRITICAL: HbA1c dual units (Australian reports)
+
+Labs often print BOTH:
+- HbA1c in mmol/mol (IFCC), e.g. 39 mmol/mol
+- HbA1c in % (NGSP), e.g. 5.7%
+
+Sanative stores HbA1c as **% only**.
+- Prefer the **%** value when both are present.
+- If only mmol/mol is present, still extract it with unit "mmol/mol" (the server will convert).
+- Never store mmol/mol as if it were a percent (39 mmol/mol is NOT 39%).
+
 ## PRIORITY: CORE PHENOTYPIC AGE BIOMARKERS
 
 These 9 biomarkers are ESSENTIAL for biological age calculation. Extract them FIRST if present:
@@ -169,13 +187,18 @@ This document likely contains MULTIPLE TEST DATES with results for each date. Lo
 
 ## Date Format Recognition
 
-Recognize these Australian date formats in headers:
-- DD-MMM-YY (e.g., "03-May-26" = 2026-05-03)
-- DD-MMM-YYYY (e.g., "03-May-2026")
-- DD/MM/YY (e.g., "03/05/26" = 2026-05-03)
-- DD/MM/YYYY (e.g., "03/05/2026")
+This is an AUSTRALIAN pathology report. Dates are ALWAYS day-first (DMY), never US month-first (MDY).
 
-For 2-digit years: 00-30 = 2000s, 31-99 = 1900s (e.g., "26" = 2026, "19" = 2019)
+Recognize these Australian date formats in headers:
+- DD-MMM-YY (e.g., "03-Sep-26" = 2026-09-03)
+- DD-MMM-YYYY (e.g., "03-Sep-2026" = 2026-09-03)
+- DD/MM/YY (e.g., "03/09/26" = 2026-09-03, NOT 2026-03-09)
+- DD/MM/YYYY (e.g., "03/09/2026" = 2026-09-03, NOT March 9)
+
+Critical: "03/09/2026" means 3 September 2026. Never interpret slash dates as US MM/DD/YYYY.
+Output every testDate as ISO YYYY-MM-DD using that Australian meaning.
+
+For 2-digit years: 00-79 = 2000s, 80-99 = 1900s (e.g., "26" = 2026, "19" = 2019)
 
 ## Value Flags
 
@@ -254,6 +277,33 @@ Return ONLY valid JSON:
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanation.`;
 
+/** Compact prompt for image/vision mode — large prompts + many page images often yield empty extracts. */
+const visionSystemPrompt = `You are an expert Australian pathology report reader.
+
+Extract EVERY readable blood-test biomarker value from the page image(s).
+Do NOT skip values for low confidence — include anything readable and set confidence honestly.
+Do NOT convert units generally. Use values exactly as printed (Australian SI units).
+Exception — HbA1c: prefer % when both % and mmol/mol are printed; if only mmol/mol is present, set unit to "mmol/mol".
+
+Use these catalog IDs when possible:
+${biomarkerReference.map((b) => `${b.id} = ${b.name} (${b.unit})`).join("\n")}
+
+If multiple date columns exist, create one entry per date.
+Most recent date → isHistorical:false; older dates → isHistorical:true.
+
+Return ONLY JSON:
+{
+  "biomarkers":[
+    {"biomarkerId":"hemoglobin","name":"Haemoglobin","value":145,"unit":"g/L","testDate":"2026-05-03","confidence":0.9,"isHistorical":false,"flag":null}
+  ],
+  "labName":"string or null",
+  "testDates":["2026-05-03"],
+  "hasHistoricalData":false,
+  "patientName":null
+}
+
+value MUST be a JSON number (not a string). Extract all pages provided.`;
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -280,37 +330,44 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const rawFiles = [
+      ...formData.getAll("file"),
+      ...formData.getAll("files"),
+    ].filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-    if (!file) {
+    if (rawFiles.length === 0) {
       return NextResponse.json(
         { error: "No file provided" },
         { status: 400 }
       );
     }
 
-    const isImage = file.type.startsWith("image/");
-    const isPdf = file.type === "application/pdf";
-    const maxFileSize = isPdf ? MAX_PDF_SIZE : MAX_IMAGE_SIZE;
+    // Cap page images from client-side PDF rasterization (batches of ~3).
+    const files = rawFiles.slice(0, 4);
 
-    if (!isImage && !isPdf) {
-      return NextResponse.json(
-        { error: "Unsupported file type. Please upload an image or PDF." },
-        { status: 400 }
-      );
-    }
+    for (const file of files) {
+      const isImage = file.type.startsWith("image/");
+      const isPdf = file.type === "application/pdf";
+      const maxFileSize = isPdf ? MAX_PDF_SIZE : MAX_IMAGE_SIZE;
 
-    // Check file size against Claude's limits
-    if (file.size > maxFileSize) {
-      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(0);
-      const fileTypeLabel = isPdf ? "PDF" : "image";
-      console.log(`[Blood Test Parser] ❌ File too large: ${fileSizeMB}MB (max: ${maxSizeMB}MB for ${fileTypeLabel})`);
-      return NextResponse.json({
-        success: false,
-        error: `File too large (${fileSizeMB}MB). Maximum ${fileTypeLabel} size is ${maxSizeMB}MB.`,
-        mode: "error",
-      }, { status: 413 });
+      if (!isImage && !isPdf) {
+        return NextResponse.json(
+          { error: "Unsupported file type. Please upload an image or PDF." },
+          { status: 400 }
+        );
+      }
+
+      if (file.size > maxFileSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(0);
+        const fileTypeLabel = isPdf ? "PDF" : "image";
+        console.log(`[Blood Test Parser] ❌ File too large: ${fileSizeMB}MB (max: ${maxSizeMB}MB for ${fileTypeLabel})`);
+        return NextResponse.json({
+          success: false,
+          error: `File too large (${fileSizeMB}MB). Maximum ${fileTypeLabel} size is ${maxSizeMB}MB.`,
+          mode: "error",
+        }, { status: 413 });
+      }
     }
 
     // Check if Anthropic API key is configured
@@ -344,14 +401,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[Blood Test Parser] ✅ Using Claude AI (API key verified)");
 
-    // Convert file to base64
-    const bytes = await file.arrayBuffer();
-    const base64 = Buffer.from(bytes).toString("base64");
-    const mimeType = file.type;
-
-    console.log(`[Blood Test Parser] Processing ${file.name} (${mimeType}, ${bytes.byteLength} bytes)`);
-
-    // Build content array based on file type
+    // Build content array based on file type(s)
     type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
     type ContentBlock =
       | { type: "image"; source: { type: "base64"; media_type: ImageMediaType; data: string } }
@@ -359,44 +409,105 @@ export async function POST(request: NextRequest) {
       | { type: "text"; text: string };
 
     const contentBlocks: ContentBlock[] = [];
+    let parseMode: "pdf-text" | "pdf-document" | "image" = "image";
 
-    if (isPdf) {
-      // For PDFs, use document type
-      contentBlocks.push({
-        type: "document",
-        source: {
-          type: "base64",
-          media_type: "application/pdf",
-          data: base64,
-        },
-      });
+    const onlyPdf =
+      files.length === 1 && files[0].type === "application/pdf";
+
+    if (onlyPdf) {
+      const file = files[0];
+      const bytes = await file.arrayBuffer();
+      const base64 = Buffer.from(bytes).toString("base64");
+      console.log(`[Blood Test Parser] Processing ${file.name} (application/pdf, ${bytes.byteLength} bytes)`);
+
+      // Prefer extracted text when available (fast). Otherwise send the PDF to Claude
+      // document mode. Client splits large reports into ≤3-page chunks so this stays
+      // within Netlify's time budget while keeping native scan quality.
+      const extracted = await extractPathologyPdfText(bytes);
+      if (extracted) {
+        parseMode = "pdf-text";
+        contentBlocks.push({
+          type: "text",
+          text: `${systemPrompt}
+
+--- BEGIN EXTRACTED PDF TEXT (${extracted.totalPages} page(s)) ---
+${extracted.text}
+--- END EXTRACTED PDF TEXT ---`,
+        });
+      } else {
+        parseMode = "pdf-document";
+        contentBlocks.push({
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: base64,
+          },
+        });
+        contentBlocks.push({
+          type: "text",
+          text: `${systemPrompt}
+
+This PDF chunk is part of a larger pathology report. Extract EVERY readable biomarker value from these pages. Return numeric values only (JSON numbers).`,
+        });
+      }
     } else {
-      // For images, determine the correct media type
-      let imageMediaType: ImageMediaType = "image/jpeg";
-      if (mimeType === "image/png") imageMediaType = "image/png";
-      else if (mimeType === "image/gif") imageMediaType = "image/gif";
-      else if (mimeType === "image/webp") imageMediaType = "image/webp";
+      parseMode = "image";
+      // Brief instruction first helps vision models orient before reading pages.
+      contentBlocks.push({
+        type: "text",
+        text:
+          files.length > 1
+            ? `${visionSystemPrompt}\n\nThese ${files.length} images are consecutive pages from the same blood test report. Extract biomarkers from ALL pages.`
+            : visionSystemPrompt,
+      });
+
+      for (const file of files) {
+        if (file.type === "application/pdf") {
+          return NextResponse.json(
+            {
+              success: false,
+              mode: "error",
+              error: "Mixed PDF/image uploads are not supported. Upload images only, or a single PDF.",
+            },
+            { status: 400 }
+          );
+        }
+
+        const bytes = await file.arrayBuffer();
+        const base64 = Buffer.from(bytes).toString("base64");
+        const mimeType = file.type || "image/jpeg";
+        console.log(
+          `[Blood Test Parser] Processing ${file.name} (${mimeType}, ${bytes.byteLength} bytes)`
+        );
+
+        let imageMediaType: ImageMediaType = "image/jpeg";
+        if (mimeType === "image/png") imageMediaType = "image/png";
+        else if (mimeType === "image/gif") imageMediaType = "image/gif";
+        else if (mimeType === "image/webp") imageMediaType = "image/webp";
+
+        contentBlocks.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: imageMediaType,
+            data: base64,
+          },
+        });
+      }
 
       contentBlocks.push({
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: imageMediaType,
-          data: base64,
-        },
+        type: "text",
+        text: "Now return ONLY the JSON object with every readable biomarker value from the images above.",
       });
     }
-
-    // Add the text prompt
-    contentBlocks.push({
-      type: "text",
-      text: systemPrompt,
-    });
 
     // Use Claude Sonnet 4.6 model with vision/PDF capabilities
     // This model supports both image_input and pdf_input
     const MODEL_NAME = "claude-sonnet-4-6";
-    console.log(`[Blood Test Parser] 🚀 Calling Claude AI with model: ${MODEL_NAME}...`);
+    console.log(
+      `[Blood Test Parser] 🚀 Calling Claude AI with model: ${MODEL_NAME} (mode: ${parseMode}, files: ${files.length})...`
+    );
     const startTime = Date.now();
 
     const message = await anthropic.messages.create({
@@ -622,22 +733,77 @@ export async function POST(request: NextRequest) {
         throw new Error("Invalid response structure - missing biomarkers array");
       }
 
-      // Validate each biomarker and ensure IDs match our definitions
-      parsedData.biomarkers = parsedData.biomarkers
-        .filter((b: { biomarkerId?: string; value?: number }) => {
-          // Check if biomarkerId exists in our definitions
-          const exists = biomarkerReference.some(ref => ref.id === b.biomarkerId);
-          if (!exists && b.biomarkerId) {
-            console.log(`[Blood Test Parser] Unknown biomarker ID: ${b.biomarkerId}`);
-          }
-          return exists && typeof b.value === "number";
-        })
-        .map((b: { biomarkerId: string; name?: string; value: number; unit?: string; confidence?: number; testDate?: string; isHistorical?: boolean; flag?: string }) => ({
-          ...b,
+      // Validate each biomarker and ensure IDs match our definitions.
+      // AI often returns string values ("126") or AU spellings (haemoglobin) — normalize both.
+      const rawCount = parsedData.biomarkers.length;
+      const normalized: typeof parsedData.biomarkers = [];
+      let droppedUnknown = 0;
+      let droppedBadValue = 0;
+
+      for (const b of parsedData.biomarkers as Array<{
+        biomarkerId?: string;
+        name?: string;
+        value?: unknown;
+        unit?: string;
+        confidence?: number;
+        testDate?: string;
+        isHistorical?: boolean;
+        flag?: string;
+      }>) {
+        const resolvedId = resolveCatalogBiomarkerId(b.biomarkerId, b.name);
+        const numericValue = coerceBiomarkerValue(b.value);
+
+        if (!resolvedId) {
+          droppedUnknown++;
+          console.log(
+            `[Blood Test Parser] Unknown biomarker ID/name: ${b.biomarkerId} / ${b.name}`
+          );
+          continue;
+        }
+        if (numericValue === null) {
+          droppedBadValue++;
+          console.log(
+            `[Blood Test Parser] Non-numeric value for ${resolvedId}:`,
+            b.value
+          );
+          continue;
+        }
+
+        normalized.push({
+          biomarkerId: resolvedId,
+          name: b.name,
+          value: numericValue,
+          unit: b.unit,
           confidence: Math.min(1, Math.max(0, b.confidence || 0.85)),
           testDate: b.testDate || parsedData.testDate || undefined,
           isHistorical: b.isHistorical || false,
-        }));
+          flag: b.flag,
+        });
+      }
+
+      parsedData.biomarkers = normalized;
+      console.log(
+        `[Blood Test Parser] Normalized biomarkers: ${rawCount} raw → ${normalized.length} kept (unknown=${droppedUnknown}, badValue=${droppedBadValue})`
+      );
+
+      // AU unit/scale fixes: haematocrit L/L, UACR mg/mmol, zinc µmol/L.
+      parsedData.biomarkers = normalizeExtractedBiomarkerValues(parsedData.biomarkers);
+
+      // HbA1c: convert IFCC mmol/mol → NGSP % and drop dual-unit duplicates.
+      parsedData.biomarkers = normalizeExtractedHba1cEntries(parsedData.biomarkers);
+
+      // Force Australian DMY semantics and collapse US day/month swaps in the same batch.
+      const dateGuarded = applyAustralianDateGuards(
+        parsedData.biomarkers,
+        parsedData.testDates
+      );
+      parsedData.biomarkers = dateGuarded.biomarkers;
+      parsedData.testDates = dateGuarded.testDates;
+      if (parsedData.testDate) {
+        parsedData.testDate =
+          dateGuarded.testDates[0] ||
+          parsedData.testDate;
+      }
 
       // ==================== DERIVE CALCULATED BIOMARKERS ====================
       // Many biomarkers can be calculated from other values when not directly reported.
@@ -1046,6 +1212,22 @@ export async function POST(request: NextRequest) {
       console.log("[Blood Test Parser] Content start:", content.substring(0, 500));
       console.log("[Blood Test Parser] Content end:", content.substring(content.length - 500));
 
+      if (isProductionEnvironment()) {
+        return NextResponse.json(
+          {
+            success: false,
+            mode: "error",
+            aiProvider: "Anthropic",
+            aiModel: MODEL_NAME,
+            parseError: parseError instanceof Error ? parseError.message : "Unknown parse error",
+            errorSnippet,
+            contentLength: content.length,
+            error: "AI returned data that could not be parsed. Please try again or use a clearer PDF/image.",
+          },
+          { status: 502 }
+        );
+      }
+
       return NextResponse.json({
         success: true,
         mode: "demo",
@@ -1060,6 +1242,21 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Blood Test Parser] ✅ Claude AI extraction complete - ${parsedData.biomarkers.length} biomarkers found`);
+
+    if (parsedData.biomarkers.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          mode: "error",
+          aiProvider: "Anthropic",
+          aiModel: MODEL_NAME,
+          error:
+            "AI could not read any biomarkers from this report. Try clearer page images, or a PDF with selectable text.",
+          data: parsedData,
+        },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -1079,15 +1276,28 @@ export async function POST(request: NextRequest) {
                       errorMessage.includes('ETIMEDOUT') ||
                       errorMessage.includes('ECONNRESET');
 
-    // Return helpful error message
+    const friendly = isTimeout
+      ? "Request timed out while reading the blood test. Try a smaller/cropped file, or a text-based PDF instead of a scan."
+      : errorMessage;
+
+    if (isProductionEnvironment()) {
+      return NextResponse.json(
+        {
+          success: false,
+          mode: "error",
+          error: friendly,
+        },
+        { status: isTimeout ? 504 : 500 }
+      );
+    }
+
+    // Dev-only demo fallback so local UI work can continue without Anthropic.
     return NextResponse.json({
       success: true,
       mode: "demo",
       aiProvider: null,
       aiModel: null,
-      error: isTimeout
-        ? "Request timed out. The image may be too complex. Try cropping to show only the results table."
-        : errorMessage,
+      error: friendly,
       data: generateMockExtraction(),
       message: isTimeout
         ? "Request timed out - using DEMO data. Try a simpler image or crop to just the results."

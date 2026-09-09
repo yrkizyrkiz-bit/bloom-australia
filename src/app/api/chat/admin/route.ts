@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+
+const CHAT_STAFF_ROLES = new Set(["ADMIN", "CARE_PARTNER"]);
+
+function canAccessStaffChat(role?: string | null) {
+  return Boolean(role && CHAT_STAFF_ROLES.has(role));
+}
 
 // GET - Get all active chat sessions for coach
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || session.user.role !== "ADMIN") {
+    if (!session?.user?.id || !canAccessStaffChat(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -113,7 +118,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || session.user.role !== "ADMIN") {
+    if (!session?.user?.id || !canAccessStaffChat(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -237,7 +242,7 @@ export async function POST(request: NextRequest) {
           sessionId,
           senderId: "SYSTEM",
           senderType: "SYSTEM",
-          message: "You've been transferred to our AI assistant. How can I help you?",
+          message: "You've been transferred to George, your care companion. How can I help you?",
         },
       });
 

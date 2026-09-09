@@ -42,7 +42,7 @@ import { getWomensHealthSubcategory } from "@/lib/womens-health-biomarker-subcat
 import { Search, Filter, X, Loader2, Info, User, BookOpen, LayoutGrid, Stethoscope, History } from "lucide-react";
 
 type FilterStatus = "all" | "optimal" | "normal" | "out_of_range" | "not_tested";
-type BiomarkerViewMode = "all" | "program" | "history";
+type BiomarkerViewMode = "categories" | "program" | "history";
 
 export default function BiomarkersPage() {
   return (
@@ -61,12 +61,13 @@ export default function BiomarkersPage() {
 function BiomarkersPageContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams?.get("category") as BloodPanelCategoryKey | null;
+  const viewParam = searchParams?.get("view");
   const initialView: BiomarkerViewMode =
-    searchParams?.get("view") === "program"
+    viewParam === "program"
       ? "program"
-      : searchParams?.get("view") === "history"
+      : viewParam === "history"
         ? "history"
-        : "all";
+        : "categories";
   const programParam = searchParams?.get("program");
   const womensHealthSubcategory = getWomensHealthSubcategory(searchParams?.get("subcategory"));
   const initialProgram: ProgramEssentialSlug =
@@ -331,11 +332,14 @@ function BiomarkersPageContent() {
 
   const noResultsYet = counts.tested === 0;
 
-  const healthScoreInsightState = resolveInsightDisplayState(
-    portal?.membership?.scopes?.HEALTH_SCORE,
-    hasHealthScoreData,
-    { noResultsYet }
-  );
+  // Health Score is available on the biomarkers hub for all members with results
+  // (not gated behind Organ Care / Complete Health HEALTH_SCORE entitlement).
+  const healthScoreInsightState =
+    hasHealthScoreData
+      ? null
+      : noResultsYet
+        ? ("pending_results" as const)
+        : ("partial" as const);
 
   const biologicalAgeInsightState = resolveInsightDisplayState(
     portal?.membership?.scopes?.BIOLOGICAL_CLOCK,
@@ -421,10 +425,9 @@ function BiomarkersPageContent() {
         onValueChange={(v) => setViewMode(v as BiomarkerViewMode)}
       >
         <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1">
-          <TabsTrigger value="all" className="gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm">
+          <TabsTrigger value="categories" className="gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm">
             <LayoutGrid className="h-4 w-4 shrink-0" />
-            <span className="truncate sm:hidden">All</span>
-            <span className="hidden truncate sm:inline">All biomarkers</span>
+            <span className="truncate">Categories</span>
           </TabsTrigger>
           <TabsTrigger value="program" className="gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm">
             <Stethoscope className="h-4 w-4 shrink-0" />

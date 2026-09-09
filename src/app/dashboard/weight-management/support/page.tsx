@@ -13,6 +13,8 @@ import { ArrowLeft, HelpCircle, MessageSquare, MessageCircle, Phone, Mail, Clock
 import Link from "next/link";
 import { toast } from "sonner";
 import { LiveChat, ChatButton } from "@/components/chat/LiveChat";
+import { GeorgeMascot } from "@/components/george/GeorgeMascot";
+import { GEORGE_NAME } from "@/lib/george";
 
 interface Ticket {
   id: string;
@@ -141,21 +143,21 @@ export default function SupportPage() {
       </div>
 
       {/* Live Chat CTA */}
-      <Card className="bg-gradient-to-r from-teal-600 to-emerald-600 border-0 text-white overflow-hidden">
+      <Card className="bg-gradient-to-r from-[#4a6243] to-[#5c7a52] border-0 text-white overflow-hidden">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-                <MessageSquare className="w-7 h-7" />
+              <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+                <GeorgeMascot size="md" cropFace />
               </div>
               <div>
-                <h3 className="text-xl font-bold">Chat with your care team</h3>
-                <p className="text-teal-100">Live help from Sanative support or our AI assistant</p>
+                <h3 className="text-xl font-bold">Chat with {GEORGE_NAME}</h3>
+                <p className="text-white/80">Your care companion — plus Sanative support when you need a human</p>
               </div>
             </div>
             <Button
               onClick={() => setChatOpen(true)}
-              className="bg-white text-teal-700 hover:bg-teal-50"
+              className="bg-white text-[#2c3628] hover:bg-[#f8f4ec]"
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Start Chat

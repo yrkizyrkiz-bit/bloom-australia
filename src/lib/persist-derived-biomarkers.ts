@@ -1,12 +1,14 @@
 import prisma from "@/lib/prisma";
 import {
   ageFromDateOfBirth,
+  DERIVED_BIOMARKER_IDS,
   deriveBiomarkersForEpisode,
   normalizeDeriveGender,
   type DerivedBiomarkerOutput,
 } from "@/lib/derived-biomarkers";
 import type { BiomarkerStatus } from "@prisma/client";
 import { calculateBiomarkerStatus } from "@/lib/biomarker-status";
+import { ensureCatalogBiomarkerDefinitions } from "@/lib/ensure-catalog-biomarker-definitions";
 
 function dateKeyFromTestedAt(testedAt: Date): string {
   return testedAt.toISOString().split("T")[0];
@@ -84,8 +86,11 @@ export async function persistDerivedBiomarkersForUser(
     }
   }
 
+  // Ensure every derived catalog marker can be persisted (no silent drops).
+  await ensureCatalogBiomarkerDefinitions([...DERIVED_BIOMARKER_IDS]);
+
   const biomarkerDefs = await prisma.biomarkerDefinition.findMany();
-  const biomarkerDefMap = new Map(biomarkerDefs.map(b => [b.biomarkerId, b]));
+  const biomarkerDefMap = new Map(biomarkerDefs.map((b) => [b.biomarkerId, b]));
 
   const toCreate: Array<{
     biomarkerId: string;

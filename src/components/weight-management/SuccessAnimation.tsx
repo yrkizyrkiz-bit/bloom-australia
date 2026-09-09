@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Sparkles, Star, Heart, Flame } from "lucide-react";
+import { GeorgeMascot } from "@/components/george/GeorgeMascot";
+import { GEORGE_NAME } from "@/lib/george";
 
 interface SuccessAnimationProps {
   show: boolean;
   message?: string;
   subMessage?: string;
-  type?: "weight" | "meal" | "exercise" | "milestone" | "streak";
+  type?: "weight" | "meal" | "exercise" | "milestone" | "streak" | "george";
   onComplete?: () => void;
 }
 
@@ -134,6 +136,17 @@ const TYPE_CONFIG = {
       "Unstoppable!",
     ]
   },
+  george: {
+    icon: Heart,
+    iconColor: "text-[#4a6243]",
+    bgColor: "bg-[#e6ebe3]",
+    messages: [
+      `${GEORGE_NAME}'s cheering!`,
+      "Nice one!",
+      "You showed up!",
+      "Let's go!",
+    ],
+  },
 };
 
 export function SuccessAnimation({
@@ -208,26 +221,42 @@ export function SuccessAnimation({
               <FloatingIcon icon={Heart} delay={0.6} color="text-rose-400" />
             </div>
 
-            {/* Main icon */}
-            <motion.div
-              className={`w-24 h-24 rounded-full ${config.bgColor} flex items-center justify-center mb-4 shadow-xl`}
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 20,
-                delay: 0.1
-              }}
-            >
+            {/* Main icon / George cheering */}
+            {type === "george" || type === "meal" ? (
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.3, 1] }}
-                transition={{ delay: 0.3, duration: 0.4 }}
+                className="mb-4"
+                initial={{ scale: 0, y: 40 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 320,
+                  damping: 18,
+                  delay: 0.08,
+                }}
               >
-                <Icon className={`w-12 h-12 ${config.iconColor}`} />
+                <GeorgeMascot size="xl" cheering priority />
               </motion.div>
-            </motion.div>
+            ) : (
+              <motion.div
+                className={`w-24 h-24 rounded-full ${config.bgColor} flex items-center justify-center mb-4 shadow-xl`}
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 20,
+                  delay: 0.1
+                }}
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: [0, 1.3, 1] }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
+                >
+                  <Icon className={`w-12 h-12 ${config.iconColor}`} />
+                </motion.div>
+              </motion.div>
+            )}
 
             {/* Message */}
             <motion.div

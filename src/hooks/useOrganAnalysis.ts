@@ -28,19 +28,33 @@ export function useOrganAnalysis(organ: OrganType) {
         body: config.method === "POST" ? JSON.stringify({}) : undefined,
       });
 
+      const text = await response.text();
+      let data: Record<string, unknown> = {};
+      if (text.trim()) {
+        try {
+          data = JSON.parse(text) as Record<string, unknown>;
+        } catch {
+          throw new Error(
+            response.ok
+              ? "Could not read the AI analysis response. Please try again."
+              : "Failed to load AI analysis"
+          );
+        }
+      }
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || errorData.error || "Failed to load AI analysis"
+          (typeof data.message === "string" && data.message) ||
+            (typeof data.error === "string" && data.error) ||
+            "Failed to load AI analysis"
         );
       }
 
-      const data = await response.json();
       setRawAnalysis(data);
-      setDataDate(data.dataDate ?? null);
-      setResultsStale(data.resultsStale ?? false);
+      setDataDate(typeof data.dataDate === "string" ? data.dataDate : null);
+      setResultsStale(Boolean(data.resultsStale));
 
-      const payload = organ === "hormone" ? data.analysis ?? data : data;
+      const payload = organ === "hormone" ? (data.analysis as unknown) ?? data : data;
       setAnalysis(normalizeOrganAnalysis(organ, payload));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load AI analysis");

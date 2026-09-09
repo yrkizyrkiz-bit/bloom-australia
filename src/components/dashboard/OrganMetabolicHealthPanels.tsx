@@ -11,6 +11,7 @@ import {
   Activity,
   Sparkles,
   Flame,
+  Hourglass,
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,8 @@ export type OrganMetabolicPanel = {
   label: string;
   icon: LucideIcon;
   color: string;
+  /** When true, tile stays available even without Organ Care entitlement. */
+  alwaysAvailable?: boolean;
 };
 
 export const ORGAN_METABOLIC_HEALTH_PANELS: OrganMetabolicPanel[] = [
@@ -31,6 +34,13 @@ export const ORGAN_METABOLIC_HEALTH_PANELS: OrganMetabolicPanel[] = [
   { href: "/dashboard/thyroid-test", label: "Thyroid", icon: Activity, color: "#2563eb" },
   { href: "/dashboard/hormone-test", label: "Hormones", icon: Sparkles, color: "#a855f7" },
   { href: "/dashboard/metabolic-panel", label: "Metabolic", icon: Flame, color: "#f97316" },
+  {
+    href: "/dashboard/biological-age",
+    label: "Bio Age",
+    icon: Hourglass,
+    color: "#0284c7",
+    alwaysAvailable: true,
+  },
 ];
 
 type OrganMetabolicHealthPanelsProps = {
@@ -65,11 +75,12 @@ export function OrganMetabolicHealthPanels({
         <div className="min-w-0 flex-1 overflow-x-auto pb-1">
           <div className="flex w-max gap-2">
           {ORGAN_METABOLIC_HEALTH_PANELS.map((panel) => {
+            const unlocked = organCareEntitled || panel.alwaysAvailable;
             const content = (
               <div
                 className={cn(
                   "flex w-20 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card p-3 transition-shadow",
-                  organCareEntitled
+                  unlocked
                     ? "hover:shadow-md"
                     : "cursor-not-allowed opacity-45 grayscale"
                 )}
@@ -86,7 +97,7 @@ export function OrganMetabolicHealthPanels({
               </div>
             );
 
-            if (organCareEntitled) {
+            if (unlocked) {
               return (
                 <Link key={panel.href} href={panel.href} className="shrink-0">
                   {content}

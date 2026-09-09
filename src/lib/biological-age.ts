@@ -22,7 +22,16 @@
  * - Hormones: TSH, Testosterone, Cortisol, DHEA-S
  * - Vitamins: Vitamin D, B12, Ferritin
  * - Inflammation: Homocysteine, ESR
+ *
+ * Age ≤30: primary biologicalAge uses KDM (blood-only) when markers allow;
+ * phenotypicAge remains Levine for the existing UI field.
  */
+
+import {
+  YOUNG_ADULT_KDM_MAX_AGE,
+  buildKdmInputFromBiomarkers,
+  calculateKdmBiologicalAge,
+} from "@/lib/biological-age-kdm";
 
 export interface BiologicalAgeInput {
   chronologicalAge: number;
@@ -205,47 +214,47 @@ interface BiomarkerRef {
 
 const BIOMARKER_REFS: Record<string, BiomarkerRef> = {
   // Core Phenotypic Age biomarkers (Australian units)
-  albumin: { optimal: 42, min: 35, max: 50, unit: "g/L", agingCoeff: -0.25, name: "Albumin", category: "core" },
-  creatinine: { optimal: 80, min: 60, max: 110, unit: "μmol/L", agingCoeff: 0.02, name: "Creatinine", category: "core", maleOptimal: 85, femaleOptimal: 70 },
-  glucose: { optimal: 4.7, min: 3.9, max: 5.5, unit: "mmol/L", agingCoeff: 1.5, name: "Fasting Glucose", category: "core" },
-  crp: { optimal: 0.5, min: 0, max: 3.0, unit: "mg/L", agingCoeff: 1.2, name: "C-Reactive Protein", category: "inflammation" },
+  albumin: { optimal: 40.5, min: 33, max: 48, unit: "g/L", agingCoeff: -0.25, name: "Albumin", category: "core" },
+  creatinine: { optimal: 80, min: 60, max: 110, unit: "μmol/L", agingCoeff: 0.02, name: "Creatinine", category: "core", maleOptimal: 85, femaleOptimal: 67.5 },
+  glucose: { optimal: 4.25, min: 3.0, max: 5.5, unit: "mmol/L", agingCoeff: 1.5, name: "Fasting Glucose", category: "core" },
+  crp: { optimal: 1.5, min: 0, max: 3.0, unit: "mg/L", agingCoeff: 1.2, name: "C-Reactive Protein", category: "inflammation" },
   lymphocytePercent: { optimal: 30, min: 20, max: 40, unit: "%", agingCoeff: -0.1, name: "Lymphocyte %", category: "core" },
-  mcv: { optimal: 88, min: 80, max: 96, unit: "fL", agingCoeff: 0.08, name: "Mean Cell Volume", category: "blood" },
+  mcv: { optimal: 90, min: 80, max: 100, unit: "fL", agingCoeff: 0.08, name: "Mean Cell Volume", category: "blood" },
   rdw: { optimal: 12.5, min: 11.5, max: 14.5, unit: "%", agingCoeff: 1.0, name: "Red Cell Distribution Width", category: "blood" },
-  alp: { optimal: 70, min: 40, max: 120, unit: "U/L", agingCoeff: 0.025, name: "Alkaline Phosphatase", category: "core" },
-  wbc: { optimal: 6.0, min: 4.0, max: 10.0, unit: "x10⁹/L", agingCoeff: 0.25, name: "White Blood Cells", category: "blood" },
+  alp: { optimal: 70, min: 30, max: 110, unit: "U/L", agingCoeff: 0.025, name: "Alkaline Phosphatase", category: "core" },
+  wbc: { optimal: 7.25, min: 3.5, max: 11.0, unit: "x10⁹/L", agingCoeff: 0.25, name: "White Blood Cells", category: "blood" },
 
   // Blood health
-  hemoglobin: { optimal: 145, min: 120, max: 170, unit: "g/L", agingCoeff: -0.04, name: "Hemoglobin", category: "blood", maleOptimal: 150, femaleOptimal: 135 },
-  hematocrit: { optimal: 0.43, min: 0.36, max: 0.50, unit: "L/L", agingCoeff: -5, name: "Hematocrit", category: "blood", maleOptimal: 0.45, femaleOptimal: 0.40 },
-  rbc: { optimal: 4.8, min: 4.0, max: 5.5, unit: "x10¹²/L", agingCoeff: -0.5, name: "Red Blood Cells", category: "blood", maleOptimal: 5.0, femaleOptimal: 4.5 },
-  platelets: { optimal: 250, min: 150, max: 400, unit: "x10⁹/L", agingCoeff: 0.01, name: "Platelets", category: "blood" },
+  hemoglobin: { optimal: 155, min: 130, max: 180, unit: "g/L", agingCoeff: -0.04, name: "Hemoglobin", category: "blood", maleOptimal: 155, femaleOptimal: 140 },
+  hematocrit: { optimal: 0.47, min: 0.40, max: 0.54, unit: "L/L", agingCoeff: -5, name: "Hematocrit", category: "blood", maleOptimal: 0.47, femaleOptimal: 0.42 },
+  rbc: { optimal: 5.5, min: 4.5, max: 6.5, unit: "x10¹²/L", agingCoeff: -0.5, name: "Red Blood Cells", category: "blood", maleOptimal: 5.5, femaleOptimal: 4.8 },
+  platelets: { optimal: 300, min: 150, max: 450, unit: "x10⁹/L", agingCoeff: 0.01, name: "Platelets", category: "blood" },
 
   // Lipid panel (Australian mmol/L)
-  triglycerides: { optimal: 1.0, min: 0.5, max: 1.7, unit: "mmol/L", agingCoeff: 0.8, name: "Triglycerides", category: "lipid" },
-  hdl_cholesterol: { optimal: 1.5, min: 1.0, max: 2.5, unit: "mmol/L", agingCoeff: -1.5, name: "HDL Cholesterol", category: "lipid", maleOptimal: 1.3, femaleOptimal: 1.6 },
-  ldl_cholesterol: { optimal: 2.5, min: 1.5, max: 3.4, unit: "mmol/L", agingCoeff: 0.5, name: "LDL Cholesterol", category: "lipid" },
-  total_cholesterol: { optimal: 4.5, min: 3.5, max: 5.5, unit: "mmol/L", agingCoeff: 0.3, name: "Total Cholesterol", category: "lipid" },
+  triglycerides: { optimal: 1.0, min: 0, max: 2.0, unit: "mmol/L", agingCoeff: 0.8, name: "Triglycerides", category: "lipid" },
+  hdl_cholesterol: { optimal: 1.3, min: 0.7, max: 1.9, unit: "mmol/L", agingCoeff: -1.5, name: "HDL Cholesterol", category: "lipid", maleOptimal: 1.3, femaleOptimal: 1.65 },
+  ldl_cholesterol: { optimal: 1.75, min: 0, max: 3.5, unit: "mmol/L", agingCoeff: 0.5, name: "LDL Cholesterol", category: "lipid" },
+  total_cholesterol: { optimal: 4.25, min: 3.0, max: 5.5, unit: "mmol/L", agingCoeff: 0.3, name: "Total Cholesterol", category: "lipid" },
 
   // Metabolic
-  hba1c: { optimal: 5.2, min: 4.0, max: 5.7, unit: "%", agingCoeff: 3.0, name: "HbA1c", category: "metabolic" },
+  hba1c: { optimal: 5.0, min: 4.0, max: 6.0, unit: "%", agingCoeff: 3.0, name: "HbA1c", category: "metabolic" },
   insulin: { optimal: 6, min: 2, max: 12, unit: "mU/L", agingCoeff: 0.15, name: "Fasting Insulin", category: "metabolic" },
-  uric_acid: { optimal: 0.30, min: 0.15, max: 0.45, unit: "mmol/L", agingCoeff: 8, name: "Uric Acid", category: "metabolic", maleOptimal: 0.35, femaleOptimal: 0.28 },
+  uric_acid: { optimal: 0.31, min: 0.20, max: 0.42, unit: "mmol/L", agingCoeff: 8, name: "Uric Acid", category: "metabolic", maleOptimal: 0.31, femaleOptimal: 0.24 },
 
   // Liver function
-  alt: { optimal: 22, min: 7, max: 40, unit: "U/L", agingCoeff: 0.06, name: "ALT", category: "liver" },
-  ast: { optimal: 24, min: 10, max: 35, unit: "U/L", agingCoeff: 0.05, name: "AST", category: "liver" },
-  ggt: { optimal: 25, min: 8, max: 50, unit: "U/L", agingCoeff: 0.04, name: "GGT", category: "liver", maleOptimal: 30, femaleOptimal: 20 },
-  bilirubin: { optimal: 12, min: 5, max: 21, unit: "μmol/L", agingCoeff: -0.1, name: "Bilirubin", category: "liver" },
+  alt: { optimal: 25, min: 0, max: 51, unit: "U/L", agingCoeff: 0.06, name: "ALT", category: "liver" },
+  ast: { optimal: 18, min: 0, max: 36, unit: "U/L", agingCoeff: 0.05, name: "AST", category: "liver" },
+  ggt: { optimal: 27.5, min: 5, max: 50, unit: "U/L", agingCoeff: 0.04, name: "GGT", category: "liver", maleOptimal: 27.5, femaleOptimal: 27.5 },
+  bilirubin: { optimal: 10, min: 0, max: 20, unit: "μmol/L", agingCoeff: -0.1, name: "Bilirubin", category: "liver" },
 
   // Kidney function
-  bun: { optimal: 5.0, min: 2.5, max: 7.5, unit: "mmol/L", agingCoeff: 0.5, name: "Urea", category: "kidney" },
+  bun: { optimal: 5.75, min: 3.5, max: 8.0, unit: "mmol/L", agingCoeff: 0.5, name: "Urea", category: "kidney" },
   egfr: { optimal: 100, min: 60, max: 120, unit: "mL/min/1.73m²", agingCoeff: -0.08, name: "eGFR", category: "kidney" },
 
   // Thyroid
-  tsh: { optimal: 2.0, min: 0.4, max: 4.0, unit: "mIU/L", agingCoeff: 0.8, name: "TSH", category: "hormone" },
-  free_t4: { optimal: 15, min: 10, max: 22, unit: "pmol/L", agingCoeff: -0.2, name: "Free T4", category: "hormone" },
-  free_t3: { optimal: 5.0, min: 3.5, max: 6.5, unit: "pmol/L", agingCoeff: -0.4, name: "Free T3", category: "hormone" },
+  tsh: { optimal: 2.2, min: 0.27, max: 4.2, unit: "mIU/L", agingCoeff: 0.8, name: "TSH", category: "hormone" },
+  free_t4: { optimal: 17, min: 12, max: 22, unit: "pmol/L", agingCoeff: -0.2, name: "Free T4", category: "hormone" },
+  free_t3: { optimal: 5.0, min: 3.1, max: 6.8, unit: "pmol/L", agingCoeff: -0.4, name: "Free T3", category: "hormone" },
 
   // Hormones
   testosterone_total: { optimal: 18, min: 8, max: 30, unit: "nmol/L", agingCoeff: -0.15, name: "Testosterone", category: "hormone", maleOptimal: 20, femaleOptimal: 1.5 },
@@ -256,11 +265,11 @@ const BIOMARKER_REFS: Record<string, BiomarkerRef> = {
   vitamin_d: { optimal: 100, min: 50, max: 150, unit: "nmol/L", agingCoeff: -0.02, name: "Vitamin D", category: "vitamin" },
   vitamin_b12: { optimal: 400, min: 200, max: 700, unit: "pmol/L", agingCoeff: -0.005, name: "Vitamin B12", category: "vitamin" },
   folate: { optimal: 25, min: 10, max: 45, unit: "nmol/L", agingCoeff: -0.03, name: "Folate", category: "vitamin" },
-  ferritin: { optimal: 100, min: 30, max: 300, unit: "μg/L", agingCoeff: 0.005, name: "Ferritin", category: "vitamin", maleOptimal: 150, femaleOptimal: 80 },
-  iron: { optimal: 18, min: 10, max: 30, unit: "μmol/L", agingCoeff: -0.1, name: "Iron", category: "vitamin" },
+  ferritin: { optimal: 160, min: 20, max: 300, unit: "μg/L", agingCoeff: 0.005, name: "Ferritin", category: "vitamin", maleOptimal: 160, femaleOptimal: 107.5 },
+  iron: { optimal: 20.35, min: 8.1, max: 32.6, unit: "μmol/L", agingCoeff: -0.1, name: "Iron", category: "vitamin" },
 
   // Inflammation
-  homocysteine: { optimal: 8, min: 5, max: 12, unit: "μmol/L", agingCoeff: 0.4, name: "Homocysteine", category: "inflammation" },
+  homocysteine: { optimal: 10, min: 5, max: 15, unit: "μmol/L", agingCoeff: 0.4, name: "Homocysteine", category: "inflammation" },
   esr: { optimal: 8, min: 0, max: 20, unit: "mm/hr", agingCoeff: 0.15, name: "ESR", category: "inflammation", maleOptimal: 5, femaleOptimal: 10 },
 };
 
@@ -855,7 +864,10 @@ function getMissingBiomarkerImpactDescription(importance: "core" | "recommended"
 }
 
 /**
- * Main function to calculate biological age
+ * Main function to calculate biological age.
+ * Age ≤30: primary biologicalAge from KDM (blood-only) when markers allow;
+ * otherwise (and for age >30): Levine PhenoAge + organ blend.
+ * Response shape is unchanged for member UI.
  */
 export function calculateBiologicalAge(input: BiologicalAgeInput): BiologicalAgeResult {
   const { chronologicalAge, gender, biomarkers } = input;
@@ -878,7 +890,7 @@ export function calculateBiologicalAge(input: BiologicalAgeInput): BiologicalAge
   const biomarkersUsed = availableBiomarkers.length;
   console.log(`[BioAge] Available biomarkers (${biomarkersUsed}): ${availableBiomarkers.join(', ')}`);
 
-  // Calculate phenotypic age
+  // Calculate phenotypic age (always retained for phenotypicAge UI field)
   const { age: phenotypicAge, confidence: phenoConfidence } = calculatePhenotypicAge(validChronAge, biomarkers, gender);
   console.log(`[BioAge] Phenotypic Age: ${phenotypicAge.toFixed(1)}, Confidence: ${phenoConfidence.toFixed(2)}`);
 
@@ -913,15 +925,34 @@ export function calculateBiologicalAge(input: BiologicalAgeInput): BiologicalAge
   // Instead, just report lower confidence
   const confidence = Math.min(biomarkersUsed / 15, 1) * 0.7 + phenoConfidence * 0.3;
 
-  // REMOVED: Don't pull biological age toward chronological age based on confidence
-  // This was causing both samples to return similar results
-  // The phenotypic age formula already handles this properly
-  // OLD CODE (REMOVED):
-  // biologicalAge = validChronAge + (biologicalAge - validChronAge) * confidence;
+  let methodology =
+    "Phenotypic Age (Levine et al. 2018) + Organ-Specific Age Estimation (Nature 2023)";
 
-  // Apply minor gender adjustment (women tend to age slightly slower biologically)
-  if (gender === "female") {
-    biologicalAge -= 0.5;
+  // Young adults (≤30): prefer KDM biological age when the 7 blood markers are present.
+  // Sex-specific KDM already encodes sex; do not apply the female −0.5 PhenoAge tweak.
+  const useYoungAdultKdm = chronologicalAge <= YOUNG_ADULT_KDM_MAX_AGE;
+  const kdmInput = useYoungAdultKdm
+    ? buildKdmInputFromBiomarkers(validChronAge, gender, biomarkers)
+    : null;
+
+  if (kdmInput) {
+    const kdm = calculateKdmBiologicalAge(kdmInput);
+    biologicalAge = kdm.biologicalAge;
+    methodology =
+      "KDM Biological Age (Klemera–Doubal / NHANES III blood-only) for age ≤30";
+    console.log(
+      `[BioAge] Young-adult KDM override: ${biologicalAge.toFixed(1)} (advance ${kdm.ageAcceleration})`
+    );
+  } else {
+    if (useYoungAdultKdm) {
+      console.log(
+        `[BioAge] Age ≤${YOUNG_ADULT_KDM_MAX_AGE} but KDM markers incomplete — falling back to PhenoAge blend`
+      );
+    }
+    // Apply minor gender adjustment (women tend to age slightly slower biologically)
+    if (gender === "female") {
+      biologicalAge -= 0.5;
+    }
   }
 
   // Cap biological age at 99 (silently) - min 18, max 99
@@ -976,7 +1007,7 @@ export function calculateBiologicalAge(input: BiologicalAgeInput): BiologicalAge
     contributingFactors,
     organAges,
     recommendations,
-    methodology: "Phenotypic Age (Levine et al. 2018) + Organ-Specific Age Estimation (Nature 2023)",
+    methodology,
     calculatedAt: new Date().toISOString(),
   };
 }

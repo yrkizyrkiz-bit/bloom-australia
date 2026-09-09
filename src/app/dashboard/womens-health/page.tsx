@@ -89,7 +89,7 @@ const functionalActions = [
     icon: BarChart3,
   },
   {
-    title: "Talk to AI assistant",
+    title: "Talk to George",
     description: "Ask quick questions and get guidance to the right portal area.",
     href: "/dashboard/womens-health/care",
     icon: Bot,

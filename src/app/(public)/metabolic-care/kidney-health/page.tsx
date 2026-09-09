@@ -142,8 +142,8 @@ export default function KidneyHealthPage() {
     {
       name: "uACR (Urine Albumin-Creatinine Ratio)",
       description: "Protein in urine test",
-      normal: "<30 mg/g",
-      significance: "Lower is better. ≥30 may indicate kidney damage"
+      normal: "<2.5 mg/mmol (M) / <3.5 mg/mmol (F)",
+      significance: "Lower is better. Above NSW cut-offs may indicate albuminuria"
     },
   ];
 

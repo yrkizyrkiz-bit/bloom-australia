@@ -4221,7 +4221,7 @@ export default function WeightLossAssessmentPage() {
               isThankYouStep ? "bg-[#5c7a52]" : "bg-[#fdfbf7]"
             }`
           : isPaymentStep
-          ? "min-h-screen bg-[#f5f5f4] overflow-y-auto"
+          ? "min-h-screen bg-[#f5f5f4] overflow-x-hidden overflow-y-auto"
           : useCreamTheme
           ? "min-h-screen bg-[#fdfbf7] overflow-y-auto"
           : "min-h-screen bg-white overflow-y-auto"
@@ -4249,7 +4249,7 @@ export default function WeightLossAssessmentPage() {
         } backdrop-blur-sm z-40 border-b border-[#e6ebe3]`}
       >
         <div
-          className={`${isPaymentStep ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${
+          className={`${isPaymentStep ? "max-w-lg lg:max-w-6xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${
             useViewportLayout || useFullscreenImmersive || isProfileStep
               ? "pt-3 pb-0"
               : isPaymentStep
@@ -4283,7 +4283,7 @@ export default function WeightLossAssessmentPage() {
       <main
         className={
           isPaymentStep
-            ? "max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10 relative z-10"
+            ? "w-full max-w-lg lg:max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8 lg:py-10 relative z-10 overflow-x-hidden"
             : isProfileStep
             ? "flex-1 min-h-0 flex flex-col max-w-2xl mx-auto w-full px-4 pt-2 pb-0 relative z-10 bg-[#fdfbf7]"
             : step === 21

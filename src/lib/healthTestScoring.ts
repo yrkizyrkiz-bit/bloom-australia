@@ -94,6 +94,216 @@ export interface OverallHealthScore {
   lastUpdated: string;
 }
 
+export type GlycemicFlag = "normal" | "prediabetic" | "diabetic";
+
+export type PanelCategoryConfig = Record<
+  string,
+  { biomarkerIds: readonly string[] }
+>;
+
+function readBiomarkerValue(
+  biomarkerResults: BiomarkerResultInput[],
+  id: string
+): number | null {
+  const result = biomarkerResults.find((r) => r.biomarkerId === id);
+  return result ? result.value : null;
+}
+
+/** ADA thresholds in AU units: fasting glucose mmol/L, HbA1c NGSP %. */
+export function getGlycemicFlag(
+  biomarkerResults: BiomarkerResultInput[]
+): GlycemicFlag {
+  const glucose = readBiomarkerValue(biomarkerResults, "glucose");
+  const hba1c = readBiomarkerValue(biomarkerResults, "hba1c");
+  if ((glucose != null && glucose >= 7.0) || (hba1c != null && hba1c >= 6.5)) {
+    return "diabetic";
+  }
+  if ((glucose != null && glucose >= 5.6) || (hba1c != null && hba1c >= 5.7)) {
+    return "prediabetic";
+  }
+  return "normal";
+}
+
+export function getMetabolicStatusLabel(
+  biomarkerResults: BiomarkerResultInput[]
+): string {
+  const flag = getGlycemicFlag(biomarkerResults);
+  if (flag === "diabetic") return "Diabetic Range";
+  if (flag === "prediabetic") return "Prediabetic";
+  return "Normal";
+}
+
+export function getCkdStageLabel(
+  biomarkerResults: BiomarkerResultInput[]
+): string {
+  const egfr = readBiomarkerValue(biomarkerResults, "egfr");
+  if (egfr == null) return "Normal";
+  if (egfr >= 90) return "Normal (G1)";
+  if (egfr >= 60) return "Mild (G2)";
+  if (egfr >= 45) return "Moderate (G3a)";
+  if (egfr >= 30) return "Moderate (G3b)";
+  if (egfr >= 15) return "Severe (G4)";
+  return "Kidney Failure (G5)";
+}
+
+export function getThyroidStatusLabel(
+  biomarkerResults: BiomarkerResultInput[]
+): string {
+  const tsh = readBiomarkerValue(biomarkerResults, "tsh");
+  if (tsh == null) return "Normal";
+  if (tsh < 0.27) return "Possible Hyperthyroidism";
+  if (tsh > 4.2) return "Possible Hypothyroidism";
+  return "Normal";
+}
+
+export function getHormoneStatusLabel(
+  biomarkerResults: BiomarkerResultInput[]
+): string {
+  const cortisol = readBiomarkerValue(biomarkerResults, "cortisol");
+  if (cortisol == null) return "Balanced";
+  if (cortisol > 550) return "Elevated Stress";
+  if (cortisol < 140) return "Low Cortisol";
+  return "Balanced";
+}
+
+export function riskLevelFromScore(score: number): string {
+  if (score < 50) return "High";
+  if (score < 70) return "Moderate";
+  if (score < 85) return "Low-Moderate";
+  return "Low";
+}
+
+export function liverRiskBandFromScore(
+  score: number
+): "low" | "moderate" | "high" | "very_high" {
+  if (score >= 80) return "low";
+  if (score >= 60) return "moderate";
+  if (score >= 40) return "high";
+  return "very_high";
+}
+
+/** Clinical caps so headline scores cannot contradict key risk flags. */
+function applyOrganClinicalCap(
+  testId: string,
+  score: number,
+  biomarkerResults: BiomarkerResultInput[]
+): number {
+  if (testId === "heart" || testId === "metabolic") {
+    const flag = getGlycemicFlag(biomarkerResults);
+    if (flag === "diabetic") return Math.min(score, 55);
+    if (flag === "prediabetic") return Math.min(score, 72);
+  }
+
+  if (testId === "kidney") {
+    const stage = getCkdStageLabel(biomarkerResults);
+    if (stage.startsWith("Kidney Failure") || stage.startsWith("Severe")) {
+      return Math.min(score, 55);
+    }
+    if (stage.startsWith("Moderate")) return Math.min(score, 65);
+    if (stage.startsWith("Mild")) return Math.min(score, 79);
+  }
+
+  if (testId === "thyroid" && getThyroidStatusLabel(biomarkerResults) !== "Normal") {
+    return Math.min(score, 72);
+  }
+
+  if (testId === "hormones" && getHormoneStatusLabel(biomarkerResults) !== "Balanced") {
+    return Math.min(score, 72);
+  }
+
+  return score;
+}
+
+/** Sub-panel bars for organ pages (status average). Headline score stays scientific. */
+export function buildStatusCategoryScores(
+  categoryConfig: PanelCategoryConfig,
+  biomarkerResults: BiomarkerResultInput[],
+  gender: "male" | "female"
+): Record<
+  string,
+  { score: number; optimal: number; normal: number; outOfRange: number; hasData: boolean }
+> {
+  const categoryScores: Record<
+    string,
+    { score: number; optimal: number; normal: number; outOfRange: number; hasData: boolean }
+  > = {};
+
+  for (const [key, config] of Object.entries(categoryConfig)) {
+    let categoryScore = 0;
+    let categoryWeight = 0;
+    let optimal = 0;
+    let normal = 0;
+    let outOfRange = 0;
+
+    for (const biomarkerId of config.biomarkerIds) {
+      const result = biomarkerResults.find((r) => r.biomarkerId === biomarkerId);
+      const biomarker = getBiomarkerById(biomarkerId);
+      if (!result || !biomarker) continue;
+
+      const status = getStatusForValue(biomarker, result.value, gender);
+      if (status === "optimal") {
+        categoryScore += 100;
+        optimal++;
+      } else if (status === "normal") {
+        categoryScore += 75;
+        normal++;
+      } else if (status === "out_of_range") {
+        categoryScore += 40;
+        outOfRange++;
+      } else {
+        categoryScore += 20;
+        outOfRange++;
+      }
+      categoryWeight++;
+    }
+
+    categoryScores[key] = {
+      score: categoryWeight > 0 ? Math.round(categoryScore / categoryWeight) : 0,
+      optimal,
+      normal,
+      outOfRange,
+      hasData: categoryWeight > 0,
+    };
+  }
+
+  return categoryScores;
+}
+
+/**
+ * Single organ-panel assessment used by dashboard + detail pages.
+ * Overall score comes from the scientific scorer (with clinical caps).
+ */
+export function buildOrganPanelAssessment(
+  testId: HealthTestId,
+  categoryConfig: PanelCategoryConfig,
+  gender: "male" | "female",
+  biomarkerResults: BiomarkerResultInput[]
+) {
+  const test = healthTestsConfig.find((t) => t.id === testId);
+  const scientific = calculateTestScore(
+    testId,
+    test?.biomarkerIds ?? [],
+    gender,
+    biomarkerResults
+  );
+
+  return {
+    overall: scientific.score,
+    trend: scientific.trend,
+    optimal: scientific.optimal,
+    normal: scientific.normal,
+    outOfRange: scientific.outOfRange,
+    hasData: scientific.hasData,
+    lastTested: scientific.lastTested,
+    categoryScores: buildStatusCategoryScores(categoryConfig, biomarkerResults, gender),
+    riskLevel: riskLevelFromScore(scientific.score),
+    metabolicStatus: getMetabolicStatusLabel(biomarkerResults),
+    ckdStage: getCkdStageLabel(biomarkerResults),
+    thyroidStatus: getThyroidStatusLabel(biomarkerResults),
+    hormoneStatus: getHormoneStatusLabel(biomarkerResults),
+  };
+}
+
 // Helper function to count biomarker status using consistent criteria
 function countBiomarkerStatuses(
   biomarkerIds: readonly string[],
@@ -109,18 +319,14 @@ function countBiomarkerStatuses(
     const biomarker = getBiomarkerById(biomarkerId);
 
     if (result && biomarker) {
-      // Use the stored status if available, otherwise calculate from value
-      let status = result.status?.toLowerCase();
-      if (!status || status === "") {
-        status = getStatusForValue(biomarker, result.value, gender);
-      }
+      // Always classify from live catalog ranges so UI matches current clinical bands.
+      const status = getStatusForValue(biomarker, result.value, gender);
 
       if (status === "optimal") {
         optimal++;
       } else if (status === "normal") {
         normal++;
       } else {
-        // out_of_range, critical, or any other status
         outOfRange++;
       }
     }
@@ -328,13 +534,13 @@ function calculateKidneyRiskScore(
     totalScore += egfrScore * 0.35;
   }
 
-  // ===== UACR/Albuminuria (KDIGO A1-A3) - Weight: 25% =====
+  // ===== UACR/Albuminuria (KDIGO A1-A3, mg/mmol) - Weight: 25% =====
   const uacrValue = getBiomarkerValue("uacr");
   if (uacrValue !== null) {
     let uacrScore: number;
-    if (uacrValue < 30) {
+    if (uacrValue < 3.4) {
       uacrScore = 100;
-    } else if (uacrValue <= 300) {
+    } else if (uacrValue <= 33.9) {
       uacrScore = 55;
     } else {
       uacrScore = 20;
@@ -478,7 +684,7 @@ function calculateKidneyRiskScore(
   );
 
   return {
-    score: normalizedScore,
+    score: applyOrganClinicalCap("kidney", normalizedScore, biomarkerResults),
     optimal,
     normal,
     outOfRange,
@@ -653,7 +859,7 @@ function calculateHeartRiskScore(
   );
 
   return {
-    score: normalizedScore,
+    score: applyOrganClinicalCap("heart", normalizedScore, biomarkerResults),
     optimal,
     normal,
     outOfRange,
@@ -752,7 +958,7 @@ function calculateThyroidRiskScore(
   );
 
   return {
-    score: normalizedScore,
+    score: applyOrganClinicalCap("thyroid", normalizedScore, biomarkerResults),
     optimal,
     normal,
     outOfRange,
@@ -981,7 +1187,7 @@ function calculateMetabolicRiskScore(
   );
 
   return {
-    score: normalizedScore,
+    score: applyOrganClinicalCap("metabolic", normalizedScore, biomarkerResults),
     optimal,
     normal,
     outOfRange,
@@ -1349,7 +1555,7 @@ function calculateHormoneRiskScore(
   );
 
   return {
-    score: normalizedScore,
+    score: applyOrganClinicalCap("hormones", normalizedScore, biomarkerResults),
     optimal,
     normal,
     outOfRange,
@@ -1409,9 +1615,8 @@ export function calculateStatusBasedScore(
   }
 
   const score = count > 0 ? Math.round(totalScore / count) : 0;
-  let trend: "improving" | "stable" | "declining" = "stable";
-  if (optimal > outOfRange * 2) trend = "improving";
-  else if (outOfRange > optimal) trend = "declining";
+  // Serial history is not available here — do not invent improving/declining.
+  const trend: "improving" | "stable" | "declining" = "stable";
 
   return {
     score,
@@ -1453,9 +1658,9 @@ export function calculateTestScore(
     return latestDate ? latestDate.toISOString() : null;
   };
 
-  const calculateTrend = (optimal: number, outOfRange: number): "improving" | "stable" | "declining" => {
-    if (optimal > outOfRange * 2) return "improving";
-    if (outOfRange > optimal) return "declining";
+  // Trend needs serial results. Optimal-count heuristics falsely show "Improving"
+  // on a first panel, so stay stable until real history is wired in.
+  const calculateTrend = (_optimal: number, _outOfRange: number): "improving" | "stable" | "declining" => {
     return "stable";
   };
 

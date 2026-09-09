@@ -572,7 +572,7 @@ export function KidneyPredictiveHealthRisk() {
                       <>
                         <p className="text-2xl font-bold text-slate-800 mb-1">{ckdStage.albuminuriaCategory.range}</p>
                         <p className="text-sm text-slate-600">{ckdStage.albuminuriaCategory.description}</p>
-                        <p className="text-xs text-slate-400 mt-2">UACR (mg/g)</p>
+                        <p className="text-xs text-slate-400 mt-2">UACR (mg/mmol)</p>
                       </>
                     ) : (
                       <>
@@ -695,18 +695,18 @@ export function KidneyPredictiveHealthRisk() {
                           GFR<br/>Category
                         </th>
                         <th className="p-2 text-xs font-medium text-slate-500 text-center" colSpan={3}>
-                          Albuminuria Categories (UACR mg/g)
+                          Albuminuria Categories (UACR mg/mmol)
                         </th>
                       </tr>
                       <tr>
                         <th className="p-2 text-xs font-medium text-slate-600 text-center border border-slate-200">
-                          A1<br/><span className="font-normal text-slate-400">&lt;30</span>
+                          A1<br/><span className="font-normal text-slate-400">&lt;3.4</span>
                         </th>
                         <th className="p-2 text-xs font-medium text-slate-600 text-center border border-slate-200">
-                          A2<br/><span className="font-normal text-slate-400">30-300</span>
+                          A2<br/><span className="font-normal text-slate-400">3.4–33.9</span>
                         </th>
                         <th className="p-2 text-xs font-medium text-slate-600 text-center border border-slate-200">
-                          A3<br/><span className="font-normal text-slate-400">&gt;300</span>
+                          A3<br/><span className="font-normal text-slate-400">&gt;33.9</span>
                         </th>
                       </tr>
                     </thead>

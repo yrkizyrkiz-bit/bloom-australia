@@ -152,7 +152,7 @@ export function WeightTracker() {
       {/* Success Animation */}
       <SuccessAnimation
         show={showSuccess}
-        type="weight"
+        type="george"
         subMessage={successMessage}
         onComplete={() => setShowSuccess(false)}
       />

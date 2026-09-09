@@ -7,14 +7,16 @@ import {
   History,
   Target,
   Grid3X3,
+  LayoutDashboard,
 } from "lucide-react";
-import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { MEMBER_HEALTH_OVERVIEW, MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: MEMBER_PROGRAMS_HOME, label: "Home", icon: Grid3X3 },
-  { href: "/dashboard/goals", label: "Goals", icon: Target },
-  { href: "/dashboard/reports", label: "Reports", icon: History },
+  { href: MEMBER_HEALTH_OVERVIEW, label: "Home", icon: LayoutDashboard, match: "exact" as const },
+  { href: MEMBER_PROGRAMS_HOME, label: "Programs", icon: Grid3X3, match: "prefix" as const },
+  { href: "/dashboard/goals", label: "Goals", icon: Target, match: "prefix" as const },
+  { href: "/dashboard/reports", label: "Reports", icon: History, match: "prefix" as const },
 ];
 
 export function MobileNav() {
@@ -30,15 +32,17 @@ export function MobileNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t border-border safe-area-bottom">
       <div className="flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== MEMBER_PROGRAMS_HOME && pathname.startsWith(item.href));
+          const isActive =
+            item.match === "exact"
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors",
+                "relative flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"

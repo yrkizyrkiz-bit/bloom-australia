@@ -7,16 +7,17 @@ import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDia
 import { OrganTestBiomarkerGrid } from "@/components/dashboard/OrganTestBiomarkerGrid";
 import { buildBiomarkerResultsMap } from "@/lib/organ-test-biomarkers";
 import { mapApiBiomarkerResults } from "@/lib/map-api-biomarker-results";
+import { cn } from "@/lib/utils";
 import type { BloodPanelBiomarker } from "@/data/bloodPanelConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { biomarkerDefinitions, getBiomarkerById, getStatusForValue } from "@/data/biomarkers";
+import { getBiomarkerById } from "@/data/biomarkers";
 import type { BiomarkerDefinition, BiomarkerResult } from "@/types";
+import { buildOrganPanelAssessment } from "@/lib/healthTestScoring";
 import {
   Droplets,
-  Beaker,
   Zap,
   TrendingUp,
   TrendingDown,
@@ -84,85 +85,6 @@ const kidneyTestConfig = {
   }
 };
 
-// Calculate kidney health score
-function calculateKidneyHealthScore(
-  results: BiomarkerResult[],
-  gender: "male" | "female"
-): {
-  overall: number;
-  categoryScores: Record<string, { score: number; optimal: number; normal: number; outOfRange: number }>;
-  trend: "improving" | "stable" | "declining";
-  ckdStage: string;
-} {
-  const categoryScores: Record<string, { score: number; optimal: number; normal: number; outOfRange: number }> = {};
-  let totalScore = 0;
-  let totalWeight = 0;
-
-  for (const [key, config] of Object.entries(kidneyTestConfig)) {
-    let categoryScore = 0;
-    let categoryWeight = 0;
-    let optimal = 0;
-    let normal = 0;
-    let outOfRange = 0;
-
-    for (const biomarkerId of config.biomarkerIds) {
-      const result = results.find(r => r.biomarkerId === biomarkerId);
-      const biomarker = getBiomarkerById(biomarkerId);
-
-      if (result && biomarker) {
-        const status = getStatusForValue(biomarker, result.value, gender);
-
-        if (status === "optimal") {
-          categoryScore += 100;
-          optimal++;
-        } else if (status === "normal") {
-          categoryScore += 75;
-          normal++;
-        } else if (status === "out_of_range") {
-          categoryScore += 40;
-          outOfRange++;
-        } else {
-          categoryScore += 20;
-          outOfRange++;
-        }
-        categoryWeight++;
-      }
-    }
-
-    const finalCategoryScore = categoryWeight > 0 ? Math.round(categoryScore / categoryWeight) : 0;
-    categoryScores[key] = { score: finalCategoryScore, optimal, normal, outOfRange };
-    totalScore += finalCategoryScore * categoryWeight;
-    totalWeight += categoryWeight;
-  }
-
-  const overallScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
-
-  // Calculate CKD stage based on eGFR
-  const egfrResult = results.find(r => r.biomarkerId === "egfr");
-  let ckdStage = "Normal";
-  if (egfrResult) {
-    const egfr = egfrResult.value;
-    if (egfr >= 90) ckdStage = "Normal (G1)";
-    else if (egfr >= 60) ckdStage = "Mild (G2)";
-    else if (egfr >= 45) ckdStage = "Moderate (G3a)";
-    else if (egfr >= 30) ckdStage = "Moderate (G3b)";
-    else if (egfr >= 15) ckdStage = "Severe (G4)";
-    else ckdStage = "Kidney Failure (G5)";
-  }
-
-  let trend: "improving" | "stable" | "declining" = "stable";
-  const optimalCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.optimal, 0);
-  const outOfRangeCount = Object.values(categoryScores).reduce((sum, cat) => sum + cat.outOfRange, 0);
-
-  if (optimalCount > outOfRangeCount * 2) {
-    trend = "improving";
-  } else if (outOfRangeCount > optimalCount) {
-    trend = "declining";
-  }
-
-  return { overall: overallScore, categoryScores, trend, ckdStage };
-}
-
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-cyan-600";
   if (score >= 70) return "text-yellow-600";
@@ -227,9 +149,9 @@ export default function KidneyTestPage() {
     [allBiomarkerResults]
   );
 
-  // Calculate health score
+  // Headline score from shared scientific scorer (same as main dashboard).
   const healthScore = useMemo(() => {
-    return calculateKidneyHealthScore(allBiomarkerResults, gender);
+    return buildOrganPanelAssessment("kidney", kidneyTestConfig, gender, allBiomarkerResults);
   }, [allBiomarkerResults, gender]);
 
   const handleBiomarkerClick = (
@@ -410,7 +332,9 @@ export default function KidneyTestPage() {
                   </div>
                   <div className="flex-1 space-y-3">
                     {Object.entries(kidneyTestConfig).map(([key, config]) => {
-                      const score = healthScore.categoryScores[key]?.score || 0;
+                      const category = healthScore.categoryScores[key];
+                      if (!category?.hasData) return null;
+                      const score = category.score;
                       return (
                         <div key={key} className="space-y-1">
                           <div className="flex items-center justify-between text-sm">
@@ -529,9 +453,10 @@ export default function KidneyTestPage() {
             {Object.entries(kidneyTestConfig).map(([key, config]) => {
               const categoryScore = healthScore.categoryScores[key];
               const testedInCategory = config.biomarkerIds.filter((id) => resultsById[id]).length;
+              const untestedUrine = key === "urineMarkers" && testedInCategory === 0;
 
               return (
-                <div key={key}>
+                <div key={key} className={cn(untestedUrine && "grayscale opacity-80")}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className={`w-10 h-10 rounded-xl ${config.bgColor} flex items-center justify-center`}>
                       <config.icon className="w-5 h-5" style={{ color: config.color }} />
@@ -543,14 +468,18 @@ export default function KidneyTestPage() {
                         <Badge variant="outline" className="text-xs">
                           {testedInCategory}/{config.biomarkerIds.length} tested
                         </Badge>
-                        {categoryScore && (
+                        {categoryScore?.hasData && (
                           <Badge variant="outline" className={`${getScoreColor(categoryScore.score)} border-current`}>
                             Score: {categoryScore.score}
                           </Badge>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {categoryScore?.optimal || 0} optimal, {categoryScore?.normal || 0} normal, {categoryScore?.outOfRange || 0} out of range
+                        {categoryScore?.hasData
+                          ? `${categoryScore.optimal || 0} optimal, ${categoryScore.normal || 0} normal, ${categoryScore.outOfRange || 0} out of range`
+                          : key === "urineMarkers"
+                            ? "Tested on clinical indication of poor kidney function"
+                            : "Not recorded"}
                       </p>
                     </div>
                   </div>

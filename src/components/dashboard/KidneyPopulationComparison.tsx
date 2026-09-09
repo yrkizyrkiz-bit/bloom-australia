@@ -25,29 +25,29 @@ interface PopulationData {
 }
 
 const mockPopulationData: Record<string, { mean: number; p25: number; p75: number }> = {
-  creatinine: { mean: 0.95, p25: 0.75, p75: 1.15 },
+  creatinine: { mean: 85, p25: 65, p75: 100 },
   egfr: { mean: 92, p25: 78, p75: 105 },
-  bun: { mean: 15, p25: 10, p75: 20 },
-  uacr: { mean: 22, p25: 8, p75: 35 },
+  bun: { mean: 5.5, p25: 3.5, p75: 7.0 },
+  uacr: { mean: 1.5, p25: 0.5, p75: 2.5 },
   potassium: { mean: 4.3, p25: 3.9, p75: 4.8 },
   sodium: { mean: 140, p25: 137, p75: 143 },
-  phosphorus: { mean: 3.6, p25: 3.0, p75: 4.2 },
-  calcium: { mean: 9.4, p25: 9.0, p75: 9.8 },
-  bicarbonate: { mean: 24, p25: 22, p75: 27 },
-  pth: { mean: 45, p25: 25, p75: 65 },
+  phosphorus: { mean: 1.1, p25: 0.9, p75: 1.3 },
+  calcium: { mean: 2.35, p25: 2.2, p75: 2.45 },
+  bicarbonate: { mean: 26, p25: 24, p75: 28 },
+  pth: { mean: 4.5, p25: 2.5, p75: 6.5 },
 };
 
 const biomarkerNames: Record<string, { name: string; unit: string; higherIsBetter: boolean }> = {
-  creatinine: { name: "Creatinine", unit: "mg/dL", higherIsBetter: false },
-  egfr: { name: "eGFR", unit: "mL/min", higherIsBetter: true },
-  bun: { name: "BUN", unit: "mg/dL", higherIsBetter: false },
-  uacr: { name: "UACR", unit: "mg/g", higherIsBetter: false },
-  potassium: { name: "Potassium", unit: "mEq/L", higherIsBetter: false },
-  sodium: { name: "Sodium", unit: "mEq/L", higherIsBetter: false },
-  phosphorus: { name: "Phosphorus", unit: "mg/dL", higherIsBetter: false },
-  calcium: { name: "Calcium", unit: "mg/dL", higherIsBetter: false },
-  bicarbonate: { name: "Bicarbonate", unit: "mEq/L", higherIsBetter: false },
-  pth: { name: "PTH", unit: "pg/mL", higherIsBetter: false },
+  creatinine: { name: "Creatinine", unit: "µmol/L", higherIsBetter: false },
+  egfr: { name: "eGFR", unit: "mL/min/1.73m²", higherIsBetter: true },
+  bun: { name: "Urea", unit: "mmol/L", higherIsBetter: false },
+  uacr: { name: "UACR", unit: "mg/mmol", higherIsBetter: false },
+  potassium: { name: "Potassium", unit: "mmol/L", higherIsBetter: false },
+  sodium: { name: "Sodium", unit: "mmol/L", higherIsBetter: false },
+  phosphorus: { name: "Phosphate", unit: "mmol/L", higherIsBetter: false },
+  calcium: { name: "Calcium", unit: "mmol/L", higherIsBetter: false },
+  bicarbonate: { name: "Bicarbonate", unit: "mmol/L", higherIsBetter: false },
+  pth: { name: "PTH", unit: "pmol/L", higherIsBetter: false },
 };
 
 function calculatePercentile(value: number, mean: number, p25: number, p75: number, higherIsBetter: boolean): number {
