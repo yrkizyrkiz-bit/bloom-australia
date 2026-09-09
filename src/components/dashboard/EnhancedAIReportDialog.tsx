@@ -1,34 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { mapApiReportToPersonalizedReport } from "@/lib/ai-report-mapper";
-import type { PersonalizedReport, AIInsight } from "@/types";
+import {
+  sanitizeHolisticHealthReport,
+  type HolisticHealthReport,
+  type HolisticMarkerItem,
+  type HolisticPriorityBand,
+} from "@/lib/holistic-health-report-types";
 import {
   Sparkles,
-  Download,
   AlertTriangle,
-  CheckCircle,
+  Brain,
+  Loader2,
   TrendingUp,
   TrendingDown,
-  Lightbulb,
-  Link2,
-  Target,
-  Trophy,
-  ArrowRight,
-  Brain,
+  Minus,
+  CheckCircle2,
+  Eye,
+  Stethoscope,
+  Activity,
   Heart,
-  Clock,
-  Loader2
+  Bean,
+  Droplets,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 import { toast } from "sonner";
 
 interface EnhancedAIReportDialogProps {
@@ -38,394 +38,487 @@ interface EnhancedAIReportDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type ReportState = {
+  report: HolisticHealthReport | null;
+  cached: boolean;
+  canGenerate: boolean;
+  requiresNewBloodTest: boolean;
+  biomarkerCount: number;
+  overallHealthScore: number;
+  dataDate: string | null;
+  resultsStale: boolean;
+  generatedAt: string | null;
+};
+
+function riskBadgeClass(risk: string) {
+  switch (risk) {
+    case "high":
+      return "bg-red-600 text-white";
+    case "elevated":
+      return "bg-orange-600 text-white";
+    case "moderate":
+      return "bg-amber-500 text-white";
+    default:
+      return "bg-emerald-600 text-white";
+  }
+}
+
+function bandMeta(band: HolisticPriorityBand) {
+  switch (band) {
+    case "immediate":
+      return {
+        label: "Immediate attention",
+        className: "border-red-500/40 bg-red-500/5",
+        badge: "bg-red-600 text-white",
+        icon: <AlertTriangle className="h-4 w-4 text-red-600" />,
+      };
+    case "needs_attention":
+      return {
+        label: "Needs attention",
+        className: "border-orange-500/40 bg-orange-500/5",
+        badge: "bg-orange-600 text-white",
+        icon: <Eye className="h-4 w-4 text-orange-600" />,
+      };
+    case "look_out":
+      return {
+        label: "Look out for",
+        className: "border-amber-500/40 bg-amber-500/5",
+        badge: "bg-amber-500 text-white",
+        icon: <Activity className="h-4 w-4 text-amber-600" />,
+      };
+    default:
+      return {
+        label: "Looking good",
+        className: "border-emerald-500/40 bg-emerald-500/5",
+        badge: "bg-emerald-600 text-white",
+        icon: <CheckCircle2 className="h-4 w-4 text-emerald-600" />,
+      };
+  }
+}
+
+function TrendIcon({ trend }: { trend?: string }) {
+  if (trend === "improving") return <TrendingUp className="h-3.5 w-3.5 text-green-600" />;
+  if (trend === "worsening" || trend === "declining") {
+    return <TrendingDown className="h-3.5 w-3.5 text-red-600" />;
+  }
+  if (trend === "stable") return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
+  return null;
+}
+
+function organIcon(id: string) {
+  if (id === "liver") return <Bean className="h-4 w-4 text-green-700" />;
+  if (id === "heart") return <Heart className="h-4 w-4 text-red-600" />;
+  if (id === "kidney") return <Droplets className="h-4 w-4 text-sky-600" />;
+  return <Activity className="h-4 w-4 text-[#5c7a52]" />;
+}
+
+function MarkerList({ items, band }: { items: HolisticMarkerItem[]; band: HolisticPriorityBand }) {
+  const meta = bandMeta(band);
+  if (!items.length) {
+    return (
+      <p className="text-sm text-muted-foreground py-6 text-center">
+        Nothing in “{meta.label}” from your latest panel.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <Card key={`${band}-${item.biomarkerId}`} className={meta.className}>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                {meta.icon}
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{item.name}</p>
+                    <Badge className={meta.badge}>{meta.label}</Badge>
+                    <TrendIcon trend={item.trend} />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">{item.plainEnglish}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {item.value} {item.unit}
+                    {item.previousValue != null ? ` · was ${item.previousValue}` : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export function EnhancedAIReportDialog({
   userId,
   userName,
   open,
-  onOpenChange
+  onOpenChange,
 }: EnhancedAIReportDialogProps) {
-  const [report, setReport] = useState<PersonalizedReport | null>(null);
-  const [healthScoreOverall, setHealthScoreOverall] = useState<number | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [state, setState] = useState<ReportState | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  const loadReport = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    setGenerateError(null);
+    try {
+      const res = await fetch(`/api/holistic-health-report?userId=${encodeURIComponent(userId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to load report");
+      setState({
+        report: data.report ? sanitizeHolisticHealthReport(data.report) : null,
+        cached: Boolean(data.cached),
+        canGenerate: Boolean(data.canGenerate),
+        requiresNewBloodTest: Boolean(data.requiresNewBloodTest),
+        biomarkerCount: data.biomarkerCount || 0,
+        overallHealthScore: data.overallHealthScore || 0,
+        dataDate: data.dataDate || null,
+        resultsStale: Boolean(data.resultsStale),
+        generatedAt: data.generatedAt || null,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load your health report");
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (open) void loadReport();
+  }, [open, loadReport]);
 
   const generateReport = async () => {
-    setIsGenerating(true);
+    if (!userId) {
+      setGenerateError("Your session is still loading. Please wait a moment and try again.");
+      return;
+    }
+    setGenerating(true);
+    setGenerateError(null);
     try {
-      const [scoreRes, reportRes] = await Promise.all([
-        fetch(`/api/health-scores?userId=${encodeURIComponent(userId)}&latest=true`),
-        fetch("/api/ai-reports", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        }),
-      ]);
+      const res = await fetch("/api/holistic-health-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json().catch(() => ({}));
 
-      if (scoreRes.ok) {
-        const scoreData = await scoreRes.json();
-        setHealthScoreOverall(scoreData.score?.overall ?? null);
-      }
-
-      if (!reportRes.ok) {
-        const err = await reportRes.json().catch(() => ({}));
-        toast.error(err.error || "Could not generate report. Add biomarker results first.");
+      if (res.status === 409) {
+        setState((prev) =>
+          prev
+            ? {
+                ...prev,
+                report: data.report ? sanitizeHolisticHealthReport(data.report) : prev.report,
+                requiresNewBloodTest: true,
+                canGenerate: false,
+              }
+            : prev
+        );
+        toast.message("Report already exists for your latest blood test");
         return;
       }
 
-      const data = await reportRes.json();
-      setReport(mapApiReportToPersonalizedReport(userId, data.report));
-    } catch {
-      toast.error("Failed to generate health report");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+      if (!res.ok) throw new Error(data.error || "Generation failed");
+      const report = data.report ? sanitizeHolisticHealthReport(data.report) : null;
+      if (!report) throw new Error("Report was generated but could not be displayed.");
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "bg-red-500/10 text-red-600 border-red-500/30";
-      case "medium": return "bg-yellow-500/10 text-yellow-600 border-yellow-500/30";
-      case "low": return "bg-green-500/10 text-green-600 border-green-500/30";
-      default: return "bg-gray-500/10 text-gray-600";
-    }
-  };
-
-  const getInsightIcon = (type: string) => {
-    switch (type) {
-      case "warning": return <AlertTriangle className="w-5 h-5 text-orange-500" />;
-      case "achievement": return <Trophy className="w-5 h-5 text-green-500" />;
-      case "recommendation": return <Lightbulb className="w-5 h-5 text-yellow-500" />;
-      case "correlation": return <Link2 className="w-5 h-5 text-blue-500" />;
-      case "trend": return <TrendingUp className="w-5 h-5 text-purple-500" />;
-      default: return <Brain className="w-5 h-5 text-primary" />;
-    }
-  };
-
-  const InsightCard = ({ insight }: { insight: AIInsight }) => (
-    <Card className="border-l-4" style={{ borderLeftColor: insight.priority === "high" ? "#ef4444" : insight.priority === "medium" ? "#eab308" : "#22c55e" }}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5">{getInsightIcon(insight.type)}</div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h4 className="font-medium">{insight.title}</h4>
-              <Badge variant="outline" className={getPriorityColor(insight.priority)}>
-                {insight.priority}
-              </Badge>
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">{insight.description}</p>
-
-            {insight.relatedBiomarkers && insight.relatedBiomarkers.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-3">
-                {insight.relatedBiomarkers.map(id => {
-                  const biomarker = getBiomarkerById(id);
-                  if (!biomarker) return null;
-                  return (
-                    <Badge key={id} variant="outline" className="text-xs" style={{
-                      borderColor: categoryInfo[biomarker.category].color,
-                      color: categoryInfo[biomarker.category].color
-                    }}>
-                      {biomarker.shortName}
-                    </Badge>
-                  );
-                })}
-              </div>
-            )}
-
-            {insight.actionItems && insight.actionItems.length > 0 && (
-              <div className="space-y-1">
-                {insight.actionItems.map((item, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {insight.projectedImprovement && (
-              <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Projected Improvement</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-2xl font-serif font-bold">{insight.projectedImprovement.currentValue}</span>
-                  <ArrowRight className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-2xl font-serif font-bold text-green-600">{insight.projectedImprovement.projectedValue}</span>
-                  <Badge className="bg-primary/10 text-primary">{insight.projectedImprovement.timeframe}</Badge>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const downloadPDF = async () => {
-    if (!report) return;
-    setIsDownloading(true);
-
-    try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-
-      // Cover Page
-      doc.setFillColor(250, 248, 245);
-      doc.rect(0, 0, pageWidth, 297, "F");
-
-      doc.setFontSize(28);
-      doc.setTextColor(60, 80, 60);
-      doc.text(`${userName}'s`, pageWidth / 2, 50, { align: "center" });
-      doc.text("Personalized Health Report", pageWidth / 2, 65, { align: "center" });
-
-      doc.setFontSize(12);
-      doc.setTextColor(120, 120, 120);
-      doc.text(new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }), pageWidth / 2, 80, { align: "center" });
-
-      // Health Score
-      doc.setFontSize(48);
-      doc.setTextColor(60, 130, 60);
-      doc.text(String(healthScoreOverall ?? "—"), pageWidth / 2, 120, { align: "center" });
-      doc.setFontSize(14);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Overall Health Score", pageWidth / 2, 135, { align: "center" });
-
-      // Summary
-      doc.setFontSize(11);
-      doc.setTextColor(80, 80, 80);
-      const summaryLines = doc.splitTextToSize(report.summary, pageWidth - 40);
-      doc.text(summaryLines, 20, 160);
-
-      // Key Findings Page
-      doc.addPage();
-      doc.setFillColor(250, 248, 245);
-      doc.rect(0, 0, pageWidth, 297, "F");
-
-      doc.setFontSize(20);
-      doc.setTextColor(60, 80, 60);
-      doc.text("Key Findings", 20, 30);
-
-      let yPos = 50;
-      for (const finding of report.keyFindings.slice(0, 3)) {
-        doc.setFontSize(12);
-        doc.setTextColor(60, 60, 60);
-        doc.text(finding.title, 20, yPos);
-        yPos += 8;
-
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        const lines = doc.splitTextToSize(finding.description, pageWidth - 40);
-        doc.text(lines.slice(0, 3), 20, yPos);
-        yPos += lines.slice(0, 3).length * 5 + 15;
-      }
-
-      // Recommendations Page
-      doc.addPage();
-      doc.setFillColor(250, 248, 245);
-      doc.rect(0, 0, pageWidth, 297, "F");
-
-      doc.setFontSize(20);
-      doc.setTextColor(60, 80, 60);
-      doc.text("Recommendations", 20, 30);
-
-      yPos = 50;
-      for (const rec of report.recommendations.slice(0, 3)) {
-        doc.setFontSize(12);
-        doc.setTextColor(60, 60, 60);
-        doc.text(rec.title, 20, yPos);
-        yPos += 10;
-
-        if (rec.actionItems) {
-          doc.setFontSize(10);
-          doc.setTextColor(80, 80, 80);
-          for (const item of rec.actionItems.slice(0, 4)) {
-            doc.text(`• ${item}`, 25, yPos);
-            yPos += 6;
-          }
-        }
-        yPos += 10;
-      }
-
-      // Next Steps Page
-      doc.addPage();
-      doc.setFillColor(250, 248, 245);
-      doc.rect(0, 0, pageWidth, 297, "F");
-
-      doc.setFontSize(20);
-      doc.setTextColor(60, 80, 60);
-      doc.text("Next Steps", 20, 30);
-
-      yPos = 50;
-      report.nextSteps.forEach((step, i) => {
-        doc.setFontSize(11);
-        doc.setTextColor(60, 60, 60);
-        doc.text(`${i + 1}. ${step}`, 20, yPos);
-        yPos += 12;
+      setState({
+        report,
+        cached: false,
+        canGenerate: false,
+        requiresNewBloodTest: true,
+        biomarkerCount: report.priorityBands.good.length +
+          report.priorityBands.lookOut.length +
+          report.priorityBands.needsAttention.length +
+          report.priorityBands.immediate.length,
+        overallHealthScore: report.overallHealthScore,
+        dataDate: data.dataDate || null,
+        resultsStale: Boolean(data.resultsStale),
+        generatedAt: report.analysisTimestamp,
       });
-
-      doc.save(`${userName}_AI_Health_Report_${new Date().toISOString().split('T')[0]}.pdf`);
-      toast.success("Report downloaded!");
+      if (data.usedFallback) {
+        toast.message("Report ready using clinical rules (AI narrative unavailable)");
+      } else {
+        toast.success("Holistic health report ready");
+      }
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to download report");
+      const message = error instanceof Error ? error.message : "Could not generate report";
+      setGenerateError(message);
+      toast.error(message);
+    } finally {
+      setGenerating(false);
     }
-
-    setIsDownloading(false);
   };
+
+  const report = state?.report;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            Enhanced AI Health Report
+            <Sparkles className="w-5 h-5 text-[#5c7a52]" />
+            AI Health Report
           </DialogTitle>
         </DialogHeader>
 
-        {!report ? (
-          <div className="py-12 text-center">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center mx-auto mb-6">
-              <Brain className="w-10 h-10 text-primary" />
+        {loading ? (
+          <div className="py-16 flex flex-col items-center gap-3 text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin text-[#5c7a52]" />
+            Preparing your holistic report...
+          </div>
+        ) : !report ? (
+          <div className="py-10 text-center space-y-4">
+            <div className="w-20 h-20 rounded-full bg-[#5c7a52]/10 flex items-center justify-center mx-auto">
+              <Brain className="w-10 h-10 text-[#5c7a52]" />
             </div>
-            <h3 className="text-xl font-serif mb-2">Generate Your Personalized Report</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Our AI will analyze your biomarker data to provide personalized insights,
-              correlations, and actionable recommendations.
+            <h3 className="text-xl font-serif">Your Holistic Health Report</h3>
+            <p className="text-muted-foreground max-w-lg mx-auto text-sm">
+              We analyse liver, heart, kidney, metabolic, thyroid and hormone markers together,
+              compare with previous results, and explain what looks good, what to watch, and what
+              needs attention — including how your Sanative programs may support future results.
             </p>
-            <Button onClick={generateReport} disabled={isGenerating} size="lg" className="gap-2">
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Analyzing your data...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5" />
-                  Generate AI Report
-                </>
-              )}
-            </Button>
+            {state && state.biomarkerCount === 0 ? (
+              <p className="text-sm text-orange-700">Add blood-test results before generating a report.</p>
+            ) : (
+              <Button
+                onClick={generateReport}
+                disabled={generating || !state?.canGenerate}
+                size="lg"
+                className="gap-2 bg-[#5c7a52] hover:bg-[#4a6243]"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Analysing your full panel...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Generate Holistic Report
+                  </>
+                )}
+              </Button>
+            )}
+            {generateError && <p className="text-sm text-red-600">{generateError}</p>}
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              Educational only — not a diagnosis. Australian clinical context with clinician handoff summary.
+            </p>
           </div>
         ) : (
           <ScrollArea className="h-[70vh]">
             <div className="space-y-6 pr-4">
-              {/* Summary */}
-              <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-2xl font-serif font-bold text-primary">{healthScoreOverall ?? "—"}</span>
+              <Card className="border-[#5c7a52]/20 bg-gradient-to-r from-[#5c7a52]/5 to-transparent">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-16 h-16 rounded-full bg-[#5c7a52]/10 flex items-center justify-center">
+                        <span className="text-2xl font-serif font-bold text-[#5c7a52]">
+                          {report.overallHealthScore}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <h3 className="font-medium text-lg">{report.reportTitle}</h3>
+                          <Badge className={riskBadgeClass(report.overallRisk)}>
+                            {report.overallRisk} risk
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{report.executiveSummary}</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          For {userName}
+                          {state?.dataDate
+                            ? ` · Panel ${new Date(state.dataDate).toLocaleDateString("en-AU")}`
+                            : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-lg mb-2">Health Summary</h3>
-                      <p className="text-sm text-muted-foreground">{report.summary}</p>
-                    </div>
+                    {state?.canGenerate && (
+                      <Button variant="outline" size="sm" onClick={generateReport} disabled={generating}>
+                        {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}
+                      </Button>
+                    )}
                   </div>
+                  <p className="text-sm text-muted-foreground border-t pt-3">{report.clinicalContext}</p>
                 </CardContent>
               </Card>
 
-              <Tabs defaultValue="findings">
-                <TabsList className="grid grid-cols-5 w-full">
-                  <TabsTrigger value="findings">Key Findings</TabsTrigger>
-                  <TabsTrigger value="correlations">Correlations</TabsTrigger>
-                  <TabsTrigger value="recommendations">Actions</TabsTrigger>
-                  <TabsTrigger value="achievements">Wins</TabsTrigger>
-                  <TabsTrigger value="projections">Projections</TabsTrigger>
+              <Tabs defaultValue="priorities">
+                <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full h-auto">
+                  <TabsTrigger value="priorities">Priorities</TabsTrigger>
+                  <TabsTrigger value="organs">Organs</TabsTrigger>
+                  <TabsTrigger value="patterns">Patterns</TabsTrigger>
+                  <TabsTrigger value="programs">Programs</TabsTrigger>
+                  <TabsTrigger value="actions">Actions</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="findings" className="space-y-4 mt-4">
-                  {report.keyFindings.map(insight => (
-                    <InsightCard key={insight.id} insight={insight} />
-                  ))}
+                <TabsContent value="priorities" className="space-y-6 mt-4">
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-600" /> Immediate attention
+                    </h4>
+                    <MarkerList items={report.priorityBands.immediate} band="immediate" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-orange-600" /> Needs attention
+                    </h4>
+                    <MarkerList items={report.priorityBands.needsAttention} band="needs_attention" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-amber-600" /> Look out for
+                    </h4>
+                    <MarkerList items={report.priorityBands.lookOut} band="look_out" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Looking good
+                    </h4>
+                    <MarkerList items={report.priorityBands.good} band="good" />
+                  </div>
                 </TabsContent>
 
-                <TabsContent value="correlations" className="space-y-4 mt-4">
-                  {report.correlations.map(insight => (
-                    <InsightCard key={insight.id} insight={insight} />
-                  ))}
-                </TabsContent>
-
-                <TabsContent value="recommendations" className="space-y-4 mt-4">
-                  {report.recommendations.map(insight => (
-                    <InsightCard key={insight.id} insight={insight} />
-                  ))}
-                </TabsContent>
-
-                <TabsContent value="achievements" className="space-y-4 mt-4">
-                  {report.achievements.map(insight => (
-                    <InsightCard key={insight.id} insight={insight} />
-                  ))}
-                </TabsContent>
-
-                <TabsContent value="projections" className="space-y-4 mt-4">
-                  {report.projectedImprovements.map(insight => (
-                    <InsightCard key={insight.id} insight={insight} />
-                  ))}
-                </TabsContent>
-              </Tabs>
-
-              <Separator />
-
-              {/* Risk Factors */}
-              {report.riskFactors.length > 0 && (
-                <div>
-                  <h3 className="font-medium mb-3 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-orange-500" />
-                    Risk Factors to Monitor
-                  </h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {report.riskFactors.map((risk, i) => (
-                      <Card key={i} className={`border-l-4 ${
-                        risk.severity === "high" ? "border-l-red-500" :
-                        risk.severity === "medium" ? "border-l-yellow-500" : "border-l-green-500"
-                      }`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{risk.factor}</span>
-                            <Badge className={getPriorityColor(risk.severity)}>{risk.severity}</Badge>
+                <TabsContent value="organs" className="space-y-3 mt-4">
+                  {report.organSystems.map((organ) => (
+                    <Card key={organ.id}>
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            {organIcon(organ.id)}
+                            <p className="font-medium">{organ.label}</p>
+                            <Badge variant="outline">{organ.status.replace("_", " ")}</Badge>
+                            <TrendIcon trend={organ.trend} />
                           </div>
-                          <p className="text-sm text-muted-foreground">{risk.mitigation}</p>
+                          <span className="text-lg font-serif text-[#5c7a52]">{organ.score}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{organ.summary}</p>
+                        {organ.highlights.length > 0 && (
+                          <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+                            {organ.highlights.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </TabsContent>
+
+                <TabsContent value="patterns" className="space-y-3 mt-4">
+                  {report.crossSystemPatterns.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No strong cross-system patterns flagged from this panel.
+                    </p>
+                  ) : (
+                    report.crossSystemPatterns.map((pattern) => (
+                      <Card key={pattern.title}>
+                        <CardContent className="p-4 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{pattern.title}</p>
+                            <Badge variant="outline">{pattern.severity}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{pattern.explanation}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Systems: {pattern.involvedSystems.join(", ")}
+                          </p>
+                          <p className="text-sm">{pattern.monitoringAdvice}</p>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="programs" className="space-y-3 mt-4">
+                  {report.programContributions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No active Sanative programs linked yet. Enrolling can help target the markers most likely to improve next.
+                    </p>
+                  ) : (
+                    report.programContributions.map((program) => (
+                      <Card key={program.key}>
+                        <CardContent className="p-4 space-y-2">
+                          <p className="font-medium">{program.label}</p>
+                          <p className="text-sm text-muted-foreground">{program.howItHelpsFutureResults}</p>
+                          <p className="text-sm">
+                            <span className="font-medium">Monitoring focus: </span>
+                            {program.monitoringFocus}
+                          </p>
+                          {program.markersLikelyToImprove.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Markers often influenced: {program.markersLikelyToImprove.join(", ")}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="actions" className="space-y-4 mt-4">
+                  {report.urgentActions.length > 0 && (
+                    <Card className="border-red-500/30 bg-red-500/5">
+                      <CardContent className="p-4 space-y-2">
+                        <p className="font-medium text-red-700">Urgent educational actions</p>
+                        <ul className="list-disc pl-5 text-sm space-y-1">
+                          {report.urgentActions.map((action) => (
+                            <li key={action}>{action}</li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <div className="space-y-3">
+                    {report.recommendations.map((rec) => (
+                      <Card key={`${rec.category}-${rec.action}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline">{rec.priority}</Badge>
+                            <Badge variant="secondary">{rec.category}</Badge>
+                          </div>
+                          <p className="font-medium text-sm">{rec.action}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{rec.rationale}</p>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
-                </div>
-              )}
 
-              {/* Next Steps */}
-              <div>
-                <h3 className="font-medium mb-3 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-primary" />
-                  Recommended Next Steps
-                </h3>
-                <div className="space-y-2">
-                  {report.nextSteps.map((step, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <span className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm">{step}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                  <Card>
+                    <CardContent className="p-4 space-y-2">
+                      <p className="font-medium flex items-center gap-2">
+                        <Stethoscope className="h-4 w-4" /> Ask your care team
+                      </p>
+                      <ul className="list-disc pl-5 text-sm space-y-1">
+                        {report.questionsForCareTeam.map((q) => (
+                          <li key={q}>{q}</li>
+                        ))}
+                      </ul>
+                      <p className="text-sm pt-2">
+                        <span className="font-medium">Retesting: </span>
+                        {report.retestingGuidance}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-muted/40">
+                    <CardContent className="p-4 space-y-2">
+                      <p className="font-medium text-sm">Care team handoff</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {report.careTeamHandoffSummary}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+
+              <p className="text-xs text-muted-foreground pb-4">{report.regulatoryNotice}</p>
             </div>
           </ScrollArea>
-        )}
-
-        {report && (
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setReport(null)}>
-              Regenerate
-            </Button>
-            <Button onClick={downloadPDF} disabled={isDownloading} className="gap-2">
-              {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              Download PDF
-            </Button>
-          </div>
         )}
       </DialogContent>
     </Dialog>
