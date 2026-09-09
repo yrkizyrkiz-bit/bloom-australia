@@ -60,6 +60,21 @@ export function isHolisticGenerationError(data: unknown): data is HolisticGenera
   );
 }
 
+/** Pending rows older than this are treated as dead (gateway timeout / failed enqueue). */
+export const HOLISTIC_PENDING_STALE_MS = Number(
+  process.env.HOLISTIC_PENDING_STALE_MS || 5 * 60 * 1000
+);
+
+export function isHolisticGenerationPendingStale(
+  data: unknown,
+  nowMs: number = Date.now()
+): boolean {
+  if (!isHolisticGenerationPending(data)) return false;
+  const started = Date.parse(data.startedAt);
+  if (!Number.isFinite(started)) return true;
+  return nowMs - started > HOLISTIC_PENDING_STALE_MS;
+}
+
 type OrganCareContext = NonNullable<Awaited<ReturnType<typeof loadOrganCareReportContext>>>;
 
 type HolisticContext = OrganCareContext & {
