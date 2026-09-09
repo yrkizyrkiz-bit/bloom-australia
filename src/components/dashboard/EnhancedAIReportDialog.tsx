@@ -205,7 +205,24 @@ export function EnhancedAIReportDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
-      const data = await res.json().catch(() => ({}));
+      const text = await res.text();
+      let data: {
+        report?: HolisticHealthReport;
+        error?: string;
+        reason?: string;
+        usedFallback?: boolean;
+        dataDate?: string | null;
+        resultsStale?: boolean;
+      } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          res.status === 504 || res.status === 502
+            ? "Report timed out on the server. Please try again in a moment."
+            : "Could not read the report response. Please try again."
+        );
+      }
 
       if (res.status === 409) {
         setState((prev) =>
@@ -218,11 +235,11 @@ export function EnhancedAIReportDialog({
               }
             : prev
         );
-        toast.message("Report already exists for your latest blood test");
+        toast.message(data.reason || "Report already exists for your latest blood test");
         return;
       }
 
-      if (!res.ok) throw new Error(data.error || "Generation failed");
+      if (!res.ok) throw new Error(data.error || data.reason || `Generation failed (${res.status})`);
       const report = data.report ? sanitizeHolisticHealthReport(data.report) : null;
       if (!report) throw new Error("Report was generated but could not be displayed.");
 
@@ -231,7 +248,8 @@ export function EnhancedAIReportDialog({
         cached: false,
         canGenerate: false,
         requiresNewBloodTest: true,
-        biomarkerCount: report.priorityBands.good.length +
+        biomarkerCount:
+          report.priorityBands.good.length +
           report.priorityBands.lookOut.length +
           report.priorityBands.needsAttention.length +
           report.priorityBands.immediate.length,
@@ -240,11 +258,7 @@ export function EnhancedAIReportDialog({
         resultsStale: Boolean(data.resultsStale),
         generatedAt: report.analysisTimestamp,
       });
-      if (data.usedFallback) {
-        toast.message("Report ready using clinical rules (AI narrative unavailable)");
-      } else {
-        toast.success("Holistic health report ready");
-      }
+      toast.success("Holistic health report ready");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not generate report";
       setGenerateError(message);

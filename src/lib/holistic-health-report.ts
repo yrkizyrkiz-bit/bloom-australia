@@ -29,8 +29,10 @@ const CLAUDE_MODEL =
   process.env.ORGAN_CARE_AI_MODEL ||
   process.env.ANTHROPIC_MODEL ||
   "claude-sonnet-4-6";
-const CLAUDE_TIMEOUT_MS = 180_000;
-const CLAUDE_MAX_TOKENS = 5000;
+// Keep well under typical Netlify function limits so mobile clients get a
+// deterministic report instead of a blank "Generation failed" gateway timeout.
+const CLAUDE_TIMEOUT_MS = Number(process.env.HOLISTIC_HEALTH_AI_TIMEOUT_MS || 18_000);
+const CLAUDE_MAX_TOKENS = 4000;
 
 type OrganCareContext = NonNullable<Awaited<ReturnType<typeof loadOrganCareReportContext>>>;
 
@@ -552,9 +554,8 @@ async function generateHolisticClaudeReport(
   try {
     message = await withTimeout(callClaude(), CLAUDE_TIMEOUT_MS);
   } catch (firstError) {
-    const isTimeout = firstError instanceof Error && firstError.message.includes("timed out");
-    if (!isTimeout) throw firstError;
-    message = await withTimeout(callClaude(), CLAUDE_TIMEOUT_MS);
+    // Do not retry on serverless — a second attempt usually exceeds the platform timeout.
+    throw firstError;
   }
 
   const toolUse = message.content.find(
@@ -612,7 +613,13 @@ export async function generateHolisticHealthReport(context: HolisticContext): Pr
   usedFallback: boolean;
 }> {
   const seed = buildDeterministicHolisticReport(context);
-  if (!process.env.ANTHROPIC_API_KEY) {
+
+  // Prefer a reliable report on serverless. Set HOLISTIC_HEALTH_AI_ENABLED=1 to opt into Claude.
+  const aiEnabled =
+    process.env.HOLISTIC_HEALTH_AI_ENABLED === "1" ||
+    process.env.HOLISTIC_HEALTH_AI_ENABLED === "true";
+
+  if (!aiEnabled || !process.env.ANTHROPIC_API_KEY) {
     return { report: seed, usedFallback: true };
   }
 
