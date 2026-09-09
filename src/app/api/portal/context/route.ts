@@ -13,6 +13,7 @@ import {
   deriveMembershipEntitlements,
   type EntitlementRecord,
 } from "@/lib/membership/entitlements";
+import { getDistinctBiomarkerIdsForUser } from "@/lib/biomarkers/latest-results";
 
 const PAID_JOURNEY_STATUSES = Array.from(PAID_WEIGHT_JOURNEY_STATUSES);
 
@@ -55,12 +56,8 @@ export async function GET() {
         entitlements = await getAllEntitlements(userId);
       }
 
-      const [biomarkerResults, pendingLabCount] = await Promise.all([
-        prisma.biomarkerResult.findMany({
-          where: { userId },
-          select: { biomarkerId: true, testedAt: true },
-          orderBy: { testedAt: "desc" },
-        }),
+      const [biomarkerIds, pendingLabCount] = await Promise.all([
+        getDistinctBiomarkerIdsForUser(userId),
         prisma.labReport.count({
           where: { userId, status: { in: ["PENDING", "PROCESSING"] } },
         }),
@@ -70,7 +67,8 @@ export async function GET() {
         entitlements: entitlements.map(
           (e): EntitlementRecord => ({ type: e.type, key: e.key, status: e.status })
         ),
-        biomarkerResults,
+        // Coverage only needs marker presence — not full result history.
+        biomarkerResults: biomarkerIds.map((biomarkerId) => ({ biomarkerId })),
         gender: user.gender,
         hasPendingResults: pendingLabCount > 0,
       });
