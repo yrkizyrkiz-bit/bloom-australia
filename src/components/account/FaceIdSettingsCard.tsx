@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { enrollFaceId, webauthnErrorMessage } from "@/lib/webauthn/client";
-import { canUseFaceId } from "@/lib/webauthn/device";
 
 type PasskeyRow = {
   id: string;
