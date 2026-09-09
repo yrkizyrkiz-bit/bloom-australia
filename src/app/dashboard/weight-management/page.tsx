@@ -78,10 +78,10 @@ interface ProgressData {
     actualLost: number;
   } | null;
   weightProgress: {
-    logs: Array<{ measuredAt: string; weight: number }>;
+    logs?: Array<{ measuredAt: string; weight: number }>;
     weeklyAverages: Array<{ week: string; avgWeight: number }>;
   };
-  checkInTrends: Array<{ week: number; feeling: number; energy: number }>;
+  checkInTrends?: Array<{ week: number; feeling: number; energy: number }>;
 }
 
 interface CheckInStatus {
@@ -180,17 +180,16 @@ export default function WeightManagementPage() {
             setRingWeek(data.ringWeek);
           }
         }
-
-        await fetchRings();
       } catch (error) {
         console.error("Error initializing:", error);
       } finally {
+        // Unlock as soon as home returns — rings are already included in that payload.
         setLoading(false);
       }
     };
 
     void init();
-  }, [fetchRings]);
+  }, []);
 
   useEffect(() => {
     const onVisible = () => {

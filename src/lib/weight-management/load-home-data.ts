@@ -41,54 +41,6 @@ function stageFor(journeyStatus: string) {
   return { stage: "unknown", description };
 }
 
-async function loadCheckInSummary(userId: string) {
-  const [checkIns, activeGoal] = await Promise.all([
-    prisma.weeklyCheckIn.findMany({
-      where: { userId },
-      orderBy: { weekNumber: "desc" },
-      take: 10,
-    }),
-    prisma.weightGoal.findFirst({
-      where: { userId, status: { in: ["IN_PROGRESS", "ACHIEVED"] } },
-      orderBy: { createdAt: "desc" },
-      select: { startDate: true },
-    }),
-  ]);
-
-  const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const currentWeek = Math.ceil(
-    ((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24) + startOfYear.getDay() + 1) / 7
-  );
-
-  const lastCheckIn = checkIns[0];
-  const lastCheckInDate = lastCheckIn ? new Date(lastCheckIn.checkedInAt) : null;
-  const checkInNeeded = shouldPromptWeeklyCheckIn({
-    programStart: activeGoal?.startDate ?? null,
-    lastCheckInAt: lastCheckInDate,
-    now,
-  });
-
-  let currentStreak = 0;
-  const checkInWeeks = new Set(checkIns.map((c) => c.weekNumber));
-  // Only count weeks with a real check-in — do not invent a streak for new members.
-  for (let week = currentWeek; week > 0; week--) {
-    if (checkInWeeks.has(week)) {
-      currentStreak++;
-    } else if (week === currentWeek && !checkInNeeded) {
-      // Current week still open and not due yet — skip it without breaking a prior streak.
-      continue;
-    } else {
-      break;
-    }
-  }
-
-  return {
-    checkInNeeded,
-    streaks: { current: currentStreak },
-  };
-}
-
 function weeklyAveragesFromLogs(logs: Array<{ measuredAt: Date; weight: number }>) {
   const weightsByWeek: Record<string, number[]> = {};
   logs.forEach((log) => {
@@ -137,42 +89,67 @@ function goalProgressFromQuiz(
   };
 }
 
-async function loadProgressSummary(userId: string, days = 90) {
+function buildCheckInStatus(
+  checkIns: Array<{ weekNumber: number; checkedInAt: Date }>,
+  programStart: Date | null | undefined
+) {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const currentWeek = Math.ceil(
+    ((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24) + startOfYear.getDay() + 1) / 7
+  );
+
+  const lastCheckIn = checkIns[0];
+  const lastCheckInDate = lastCheckIn ? new Date(lastCheckIn.checkedInAt) : null;
+  const checkInNeeded = shouldPromptWeeklyCheckIn({
+    programStart: programStart ?? null,
+    lastCheckInAt: lastCheckInDate,
+    now,
+  });
+
+  let currentStreak = 0;
+  const checkInWeeks = new Set(checkIns.map((c) => c.weekNumber));
+  for (let week = currentWeek; week > 0; week--) {
+    if (checkInWeeks.has(week)) {
+      currentStreak++;
+    } else if (week === currentWeek && !checkInNeeded) {
+      continue;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    checkInNeeded,
+    streaks: { current: currentStreak },
+  };
+}
+
+/** Slim progress for the home page — weekly averages only, not full log dumps. */
+function buildSlimProgress(input: {
+  weightLogs: Array<{ measuredAt: Date; weight: number }>;
+  exerciseLogs: Array<{
+    loggedAt: Date;
+    durationMinutes: number;
+    caloriesBurned: number | null;
+  }>;
+  checkIns: Array<{ checkedInAt: Date }>;
+  activeGoal: Awaited<ReturnType<typeof prisma.weightGoal.findFirst>>;
+  activePlan: {
+    startWeight: number | null;
+    targetWeight: number | null;
+    targetDate: string | Date | null;
+    weeklyTargetLoss: number | null;
+  } | null;
+  days: number;
+}) {
+  const { weightLogs, exerciseLogs, checkIns, days } = input;
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  const journeyLookback = new Date();
-  journeyLookback.setMonth(journeyLookback.getMonth() - 18);
 
-  const [weightLogs, exerciseLogs, checkIns, activeGoal, activePlan] = await Promise.all([
-    prisma.weightLog.findMany({
-      where: { userId, measuredAt: { gte: journeyLookback } },
-      orderBy: { measuredAt: "asc" },
-    }),
-    prisma.exerciseLog.findMany({
-      where: { userId, loggedAt: { gte: startDate } },
-      orderBy: { loggedAt: "desc" },
-    }),
-    prisma.weeklyCheckIn.findMany({
-      where: { userId },
-      orderBy: { weekNumber: "desc" },
-      take: 12,
-    }),
-    prisma.weightGoal.findFirst({
-      where: { userId, status: "IN_PROGRESS" },
-    }),
-    prisma.weightManagementPlan.findFirst({
-      where: { userId, status: "ACTIVE" },
-      orderBy: { version: "desc" },
-      select: {
-        startWeight: true,
-        targetWeight: true,
-        targetDate: true,
-        weeklyTargetLoss: true,
-      },
-    }),
-  ]);
-
-  const goal = activeGoal ? overlayGoalWithActivePlan(activeGoal, activePlan) : null;
+  const goal = input.activeGoal
+    ? overlayGoalWithActivePlan(input.activeGoal, input.activePlan)
+    : null;
   const recentLogs = weightLogs.filter((log) => log.measuredAt >= startDate);
   const goalStart = parsePlanDate(goal?.startDate);
   const chartLogs =
@@ -201,16 +178,7 @@ async function loadProgressSummary(userId: string, days = 90) {
       (exerciseDays / elapsedWeekDays) * 40 +
       (checkedInThisWeek ? 20 : 0)
   );
-
   const totalExerciseMinutes = exerciseThisWeek.reduce((sum, l) => sum + l.durationMinutes, 0);
-
-  const checkInTrends = checkIns
-    .map((c) => ({
-      week: c.weekNumber,
-      feeling: c.overallFeeling,
-      energy: c.energyLevel,
-    }))
-    .reverse();
 
   let goalProgress = null;
   if (goal) {
@@ -243,68 +211,103 @@ async function loadProgressSummary(userId: string, days = 90) {
     },
     goalProgress,
     weightProgress: {
-      logs: weightLogs.map((l) => ({ measuredAt: l.measuredAt.toISOString(), weight: l.weight })),
       weeklyAverages,
     },
-    checkInTrends,
   };
 }
 
+type RingWeekContext = {
+  preferences?: {
+    dailyCalorieGoal: number | null;
+    dailyExerciseMin: number | null;
+    ringPlanActivatedAt: Date | null;
+  } | null;
+  activePlan?: {
+    dailyCalorieGoal?: number | null;
+    dailyExerciseMin?: number | null;
+    weeklyTargetLoss?: number | null;
+  } | null;
+  member?: { journeyStatus: string | null; approvalStatus: string | null } | null;
+  programStartedAt?: Date | null;
+  activeGoalMeta?: { weeklyTargetLoss: number | null; startDate: Date } | null;
+  weekWeights?: Array<{ measuredAt: Date }>;
+  weekExercises?: Array<{
+    loggedAt: Date;
+    durationMinutes: number;
+    intensity?: string | null;
+  }>;
+};
+
 /** Always return a week. Grey it until the doctor approves the program. */
-export async function loadRingWeek(userId: string) {
-  const [preferences, activePlan, member, program, activeGoalMeta] = await Promise.all([
-    prisma.weightManagementPreferences.findUnique({
-      where: { userId },
-      select: {
-        dailyCalorieGoal: true,
-        dailyExerciseMin: true,
-        ringPlanActivatedAt: true,
-      },
-    }),
-    prisma.weightManagementPlan.findFirst({
-      where: { userId, status: "ACTIVE" },
-      orderBy: { version: "desc" },
-    }),
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { journeyStatus: true, approvalStatus: true },
-    }),
-    prisma.memberProgram.findUnique({
-      where: { userId },
-      select: { startedAt: true },
-    }),
-    prisma.weightGoal.findFirst({
-      where: { userId, status: "IN_PROGRESS" },
-      select: { weeklyTargetLoss: true, startDate: true },
-    }),
-  ]);
+export async function loadRingWeek(userId: string, ctx?: RingWeekContext) {
+  const weekStart = startOfWeekMonday();
+
+  const [preferences, activePlan, member, program, activeGoalMeta, weights, meals, exercises, doses] =
+    await Promise.all([
+      ctx?.preferences !== undefined
+        ? Promise.resolve(ctx.preferences)
+        : prisma.weightManagementPreferences.findUnique({
+            where: { userId },
+            select: {
+              dailyCalorieGoal: true,
+              dailyExerciseMin: true,
+              ringPlanActivatedAt: true,
+            },
+          }),
+      ctx?.activePlan !== undefined
+        ? Promise.resolve(ctx.activePlan)
+        : prisma.weightManagementPlan.findFirst({
+            where: { userId, status: "ACTIVE" },
+            orderBy: { version: "desc" },
+          }),
+      ctx?.member !== undefined
+        ? Promise.resolve(ctx.member)
+        : prisma.user.findUnique({
+            where: { id: userId },
+            select: { journeyStatus: true, approvalStatus: true },
+          }),
+      ctx?.programStartedAt !== undefined
+        ? Promise.resolve(
+            ctx.programStartedAt ? { startedAt: ctx.programStartedAt } : null
+          )
+        : prisma.memberProgram.findUnique({
+            where: { userId },
+            select: { startedAt: true },
+          }),
+      ctx?.activeGoalMeta !== undefined
+        ? Promise.resolve(ctx.activeGoalMeta)
+        : prisma.weightGoal.findFirst({
+            where: { userId, status: "IN_PROGRESS" },
+            select: { weeklyTargetLoss: true, startDate: true },
+          }),
+      ctx?.weekWeights
+        ? Promise.resolve(ctx.weekWeights)
+        : prisma.weightLog.findMany({
+            where: { userId, measuredAt: { gte: weekStart } },
+            select: { measuredAt: true },
+          }),
+      prisma.mealLog.findMany({
+        where: { userId, loggedAt: { gte: weekStart } },
+        select: { loggedAt: true, calories: true },
+      }),
+      ctx?.weekExercises
+        ? Promise.resolve(ctx.weekExercises)
+        : prisma.exerciseLog.findMany({
+            where: { userId, loggedAt: { gte: weekStart } },
+            select: { loggedAt: true, durationMinutes: true, intensity: true },
+          }),
+      prisma.medicationDose.findMany({
+        where: { treatment: { userId }, scheduledAt: { gte: weekStart } },
+        select: { scheduledAt: true, takenAt: true },
+      }),
+    ]);
 
   const locked = !isWeightManagementApproved(member?.journeyStatus, member?.approvalStatus);
   const programStartedAt =
-    program?.startedAt ||
+    (program && "startedAt" in program ? program.startedAt : null) ||
     preferences?.ringPlanActivatedAt ||
     activeGoalMeta?.startDate ||
     null;
-
-  const weekStart = startOfWeekMonday();
-  const [weights, meals, exercises, doses] = await Promise.all([
-    prisma.weightLog.findMany({
-      where: { userId, measuredAt: { gte: weekStart } },
-      select: { measuredAt: true },
-    }),
-    prisma.mealLog.findMany({
-      where: { userId, loggedAt: { gte: weekStart } },
-      select: { loggedAt: true, calories: true },
-    }),
-    prisma.exerciseLog.findMany({
-      where: { userId, loggedAt: { gte: weekStart } },
-      select: { loggedAt: true, durationMinutes: true, intensity: true },
-    }),
-    prisma.medicationDose.findMany({
-      where: { treatment: { userId }, scheduledAt: { gte: weekStart } },
-      select: { scheduledAt: true, takenAt: true },
-    }),
-  ]);
 
   return {
     ...scoreRingWeek(
@@ -322,46 +325,53 @@ export async function loadRingWeek(userId: string) {
 }
 
 export async function loadWeightManagementHome(userId: string) {
-  const [
-    user,
-    prescription,
-    intake,
-    pendingTestsTasks,
-    preferences,
-    doctorSetGoal,
-  ] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        journeyStatus: true,
-        subscriptionStatus: true,
-        approvalStatus: true,
-      },
-    }),
-    prisma.prescription.findFirst({
-      where: { patientId: userId, category: "WEIGHT_MANAGEMENT", status: "ACTIVE" },
-      select: { id: true, scriptStatus: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.weightManagementIntake.findFirst({
-      where: { userId },
-      select: { scheduledAt: true, quizData: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.careCommunication.findMany({
-      where: { userId, type: "PATHOLOGY_REQUEST", status: { in: ["PENDING", "IN_PROGRESS"] } },
-      select: { id: true, subject: true, status: true, dueDate: true },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-    prisma.weightManagementPreferences.findUnique({ where: { userId } }),
-    prisma.weightGoal.findFirst({
-      where: { userId, status: { in: ["IN_PROGRESS", "ACHIEVED"] } },
-      select: { id: true },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const [user, prescription, intake, pendingTestsTasks, preferences, doctorSetGoal] =
+    await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          journeyStatus: true,
+          subscriptionStatus: true,
+          approvalStatus: true,
+        },
+      }),
+      prisma.prescription.findFirst({
+        where: { patientId: userId, category: "WEIGHT_MANAGEMENT", status: "ACTIVE" },
+        select: { id: true, scriptStatus: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.weightManagementIntake.findFirst({
+        where: { userId },
+        select: { scheduledAt: true, quizData: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.careCommunication.findMany({
+        where: {
+          userId,
+          type: "PATHOLOGY_REQUEST",
+          status: { in: ["PENDING", "IN_PROGRESS"] },
+        },
+        select: { id: true, subject: true, status: true, dueDate: true },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+      prisma.weightManagementPreferences.findUnique({
+        where: { userId },
+        select: {
+          hasCompletedOnboarding: true,
+          dailyCalorieGoal: true,
+          dailyExerciseMin: true,
+          ringPlanActivatedAt: true,
+          weightUnit: true,
+        },
+      }),
+      prisma.weightGoal.findFirst({
+        where: { userId, status: { in: ["IN_PROGRESS", "ACHIEVED"] } },
+        select: { id: true },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
   if (!user) return null;
 
@@ -374,8 +384,6 @@ export async function loadWeightManagementHome(userId: string) {
     pendingTestsTasks.length > 0;
   const isActive = journeyStatus === "ACTIVE";
 
-  // Doctor sets start/target/date in consultation — never re-ask those on first login.
-  // If a goal already exists, mark portal onboarding complete and skip the dialog.
   let hasCompletedOnboarding = preferences?.hasCompletedOnboarding === true;
   if (!hasCompletedOnboarding && doctorSetGoal) {
     await prisma.weightManagementPreferences.upsert({
@@ -390,17 +398,96 @@ export async function loadWeightManagementHome(userId: string) {
     journeyStatus === "ONBOARDING_PENDING" ||
     journeyStatus === "ONBOARDING_COMPLETE" ||
     journeyStatus === "ACTIVE";
-
   const showOnboarding = shouldShowOnboarding && !hasCompletedOnboarding;
+
+  const days = 90;
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  const journeyLookback = new Date();
+  journeyLookback.setMonth(journeyLookback.getMonth() - 18);
+  const weekStart = startOfWeekMonday();
+
+  const memberCtx = {
+    journeyStatus: user.journeyStatus,
+    approvalStatus: user.approvalStatus,
+  };
 
   let progress = null;
   let checkInStatus = null;
+  let ringWeek = null;
+  let scheduledConsultation = null;
 
   if (isActive) {
-    [progress, checkInStatus] = await Promise.all([
-      loadProgressSummary(userId),
-      loadCheckInSummary(userId),
+    const [
+      weightLogs,
+      exerciseLogs,
+      checkIns,
+      activeGoal,
+      activePlan,
+      program,
+      weekMeals,
+      weekDoses,
+      consultation,
+    ] = await Promise.all([
+      prisma.weightLog.findMany({
+        where: { userId, measuredAt: { gte: journeyLookback } },
+        select: { measuredAt: true, weight: true },
+        orderBy: { measuredAt: "asc" },
+      }),
+      prisma.exerciseLog.findMany({
+        where: { userId, loggedAt: { gte: startDate } },
+        select: {
+          loggedAt: true,
+          durationMinutes: true,
+          caloriesBurned: true,
+          intensity: true,
+        },
+        orderBy: { loggedAt: "desc" },
+      }),
+      prisma.weeklyCheckIn.findMany({
+        where: { userId },
+        orderBy: { weekNumber: "desc" },
+        take: 12,
+        select: { weekNumber: true, checkedInAt: true },
+      }),
+      prisma.weightGoal.findFirst({
+        where: { userId, status: "IN_PROGRESS" },
+      }),
+      prisma.weightManagementPlan.findFirst({
+        where: { userId, status: "ACTIVE" },
+        orderBy: { version: "desc" },
+        select: {
+          startWeight: true,
+          targetWeight: true,
+          targetDate: true,
+          weeklyTargetLoss: true,
+          dailyCalorieGoal: true,
+          dailyExerciseMin: true,
+        },
+      }),
+      prisma.memberProgram.findUnique({
+        where: { userId },
+        select: { startedAt: true },
+      }),
+      prisma.mealLog.findMany({
+        where: { userId, loggedAt: { gte: weekStart } },
+        select: { loggedAt: true, calories: true },
+      }),
+      prisma.medicationDose.findMany({
+        where: { treatment: { userId }, scheduledAt: { gte: weekStart } },
+        select: { scheduledAt: true, takenAt: true },
+      }),
+      loadPortalConsultation(userId, journeyStatus),
     ]);
+
+    progress = buildSlimProgress({
+      weightLogs,
+      exerciseLogs,
+      checkIns,
+      activeGoal,
+      activePlan,
+      days,
+    });
     if (progress && !progress.goalProgress) {
       progress = {
         ...progress,
@@ -412,14 +499,54 @@ export async function loadWeightManagementHome(userId: string) {
         ),
       };
     }
+
+    checkInStatus = buildCheckInStatus(checkIns, activeGoal?.startDate ?? null);
+
+    const weekWeights = weightLogs
+      .filter((log) => log.measuredAt >= weekStart)
+      .map((log) => ({ measuredAt: log.measuredAt }));
+    const weekExercises = exerciseLogs
+      .filter((log) => log.loggedAt >= weekStart)
+      .map((log) => ({
+        loggedAt: log.loggedAt,
+        durationMinutes: log.durationMinutes,
+        intensity: log.intensity,
+      }));
+
+    ringWeek = {
+      ...scoreRingWeek(
+        { weights: weekWeights, meals: weekMeals, exercises: weekExercises, doses: weekDoses },
+        {
+          dailyCalorieGoal: preferences?.dailyCalorieGoal ?? activePlan?.dailyCalorieGoal ?? 1800,
+          dailyExerciseMin: preferences?.dailyExerciseMin ?? activePlan?.dailyExerciseMin ?? 30,
+          weeklyTargetLoss: activePlan?.weeklyTargetLoss ?? activeGoal?.weeklyTargetLoss ?? null,
+        },
+        new Date(),
+        {
+          programStartedAt:
+            program?.startedAt ||
+            preferences?.ringPlanActivatedAt ||
+            activeGoal?.startDate ||
+            null,
+        }
+      ),
+      locked: !isApproved,
+    };
+    scheduledConsultation = consultation;
+  } else {
+    const [rings, consultation] = await Promise.all([
+      loadRingWeek(userId, {
+        preferences,
+        member: memberCtx,
+      }).catch((error) => {
+        console.error("[ringWeek]", error);
+        return null;
+      }),
+      loadPortalConsultation(userId, journeyStatus),
+    ]);
+    ringWeek = rings;
+    scheduledConsultation = consultation;
   }
-
-  const ringWeek = await loadRingWeek(userId).catch((error) => {
-    console.error("[ringWeek]", error);
-    return null;
-  });
-
-  const scheduledConsultation = await loadPortalConsultation(userId, journeyStatus);
 
   return {
     journeyStatus: {
