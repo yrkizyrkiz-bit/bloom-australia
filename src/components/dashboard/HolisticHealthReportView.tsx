@@ -545,8 +545,7 @@ export function HolisticHealthReportEmpty({
         )}
         {generateError && <p className="mt-3 text-sm text-red-700">{generateError}</p>}
         <p className="mx-auto mt-4 max-w-md text-xs text-[#5c7a52]">
-          Educational only — not a diagnosis. Australian clinical context with clinician handoff
-          summary.
+          Report is a draft pending Sanative health practitioner review.
         </p>
       </div>
     </div>
@@ -895,7 +894,7 @@ export function HolisticHealthReportView({
         </SoftPanel>
 
         <p className="px-1 pb-1 text-[11px] leading-relaxed text-[#5c7a52]/90">
-          {report.regulatoryNotice}
+          Report is a draft pending Sanative health practitioner review.
         </p>
       </div>
     </div>

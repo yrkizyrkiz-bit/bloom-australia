@@ -10,11 +10,8 @@ import {
   HolisticHealthReportEmpty,
   HolisticHealthReportView,
 } from "@/components/dashboard/HolisticHealthReportView";
+import { useHolisticHealthReport } from "@/hooks/useHolisticHealthReport";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-
-const POLL_MS = 4000;
-const POLL_MAX_MS = 4 * 60 * 1000;
 
 type HistoryItem = {
   id: string;
@@ -45,17 +42,13 @@ export function GeneratedAIReportPanel() {
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [index, setIndex] = useState(0);
-  const [canGenerate, setCanGenerate] = useState(false);
-  const [biomarkerCount, setBiomarkerCount] = useState(0);
-  const [latestDataDate, setLatestDataDate] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
-  const loadAll = useCallback(async () => {
+  const loadHistory = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
-    setError(null);
+    setHistoryLoading(true);
+    setHistoryError(null);
     try {
       const [currentRes, historyRes] = await Promise.all([
         fetch(`/api/holistic-health-report?userId=${encodeURIComponent(userId)}`),
@@ -64,7 +57,6 @@ export function GeneratedAIReportPanel() {
       const currentData = await currentRes.json().catch(() => ({}));
       const historyData = await historyRes.json().catch(() => ({}));
 
-      if (!currentRes.ok) throw new Error(currentData.error || "Failed to load AI report");
       if (!historyRes.ok) throw new Error(historyData.error || "Failed to load report history");
 
       const list = Array.isArray(historyData.history)
@@ -73,10 +65,10 @@ export function GeneratedAIReportPanel() {
           )
         : [];
 
-      // If cache has a Claude report not yet mirrored in history (edge case), prepend it.
-      const cached = currentData.report
-        ? sanitizeHolisticHealthReport(currentData.report as Partial<HolisticHealthReport>)
-        : null;
+      const cached =
+        currentRes.ok && currentData.report
+          ? sanitizeHolisticHealthReport(currentData.report as Partial<HolisticHealthReport>)
+          : null;
       if (cached?.aiProvider === "claude") {
         const already = list.some(
           (h) =>
@@ -100,114 +92,38 @@ export function GeneratedAIReportPanel() {
 
       setHistory(list);
       setIndex(0);
-      setCanGenerate(Boolean(currentData.canGenerate) || list.length === 0);
-      setBiomarkerCount(Number(currentData.biomarkerCount || 0));
-      setLatestDataDate((currentData.dataDate as string | null) || null);
-      if (currentData.generating) setGenerating(true);
-      if (currentData.generationError) setError(String(currentData.generationError));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load report");
+      setHistoryError(err instanceof Error ? err.message : "Could not load report history");
     } finally {
-      setLoading(false);
+      setHistoryLoading(false);
     }
   }, [userId]);
 
-  useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
+  const onReady = useCallback(() => {
+    void loadHistory();
+  }, [loadHistory]);
+
+  // Same generate / poll / load path as dashboard AI Health Report dialog.
+  const {
+    state,
+    loading: reportLoading,
+    generateError,
+    waitingForClaude,
+    generateReport,
+  } = useHolisticHealthReport({
+    userId,
+    enabled: Boolean(userId),
+    onReady,
+  });
 
   useEffect(() => {
-    if (!userId || !generating) return;
-    const started = Date.now();
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/holistic-health-report?userId=${encodeURIComponent(userId)}`);
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || cancelled) return;
-
-        const raw = data.report
-          ? sanitizeHolisticHealthReport(data.report as Partial<HolisticHealthReport>)
-          : null;
-        if (raw?.aiProvider === "claude") {
-          setGenerating(false);
-          toast.success("Your AI health report is ready");
-          await loadAll();
-          return;
-        }
-        if (data.generationError) {
-          setGenerating(false);
-          setError(String(data.generationError));
-          return;
-        }
-        if (Date.now() - started > POLL_MAX_MS) {
-          setGenerating(false);
-          setError("Report is taking longer than expected. Please try again.");
-          return;
-        }
-      } catch {
-        if (!cancelled) {
-          setGenerating(false);
-          setError("Could not refresh report status");
-        }
-        return;
-      }
-      timer = setTimeout(poll, POLL_MS);
-    };
-
-    timer = setTimeout(poll, POLL_MS);
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [userId, generating, loadAll]);
-
-  const generateReport = async () => {
-    if (!userId) return;
-    setGenerating(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/holistic-health-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (res.status === 409 && data.report) {
-        await loadAll();
-        setGenerating(false);
-        return;
-      }
-
-      if (res.status === 202 || data.generating) {
-        toast.message("Claude is writing your report — usually 1–2 minutes.");
-        return;
-      }
-
-      if (!res.ok) throw new Error(data.error || "Generation failed");
-
-      const raw = data.report
-        ? sanitizeHolisticHealthReport(data.report as Partial<HolisticHealthReport>)
-        : null;
-      if (!raw || raw.aiProvider !== "claude") {
-        throw new Error("Claude report was not returned");
-      }
-      setGenerating(false);
-      toast.success("Your AI health report is ready");
-      await loadAll();
-    } catch (err) {
-      setGenerating(false);
-      const message = err instanceof Error ? err.message : "Could not generate report";
-      setError(message);
-      toast.error(message);
-    }
-  };
+    void loadHistory();
+  }, [loadHistory]);
 
   const current = history[index] || null;
   const isLatest = index === 0;
+  const canGenerate = Boolean(state?.canGenerate) || (!current && Number(state?.biomarkerCount || 0) > 0);
+  const dataDate = (isLatest ? state?.dataDate : null) || current?.dataDate || null;
 
   const dateNav = useMemo(() => {
     if (history.length === 0) return null;
@@ -219,12 +135,11 @@ export function GeneratedAIReportPanel() {
       canGoNewer: index > 0,
       onOlder: () => setIndex((i) => Math.min(history.length - 1, i + 1)),
       onNewer: () => setIndex((i) => Math.max(0, i - 1)),
-      positionLabel:
-        history.length > 1 ? `${index + 1} of ${history.length}` : undefined,
+      positionLabel: history.length > 1 ? `${index + 1} of ${history.length}` : undefined,
     };
   }, [history, index]);
 
-  if (loading) {
+  if (reportLoading || historyLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin text-[#5c7a52]" />
@@ -236,10 +151,10 @@ export function GeneratedAIReportPanel() {
   if (!current) {
     return (
       <HolisticHealthReportEmpty
-        biomarkerCount={biomarkerCount}
-        canGenerate={canGenerate || Boolean(error)}
-        waitingForClaude={generating}
-        generateError={error}
+        biomarkerCount={state?.biomarkerCount || 0}
+        canGenerate={canGenerate || Boolean(generateError || state?.generationError)}
+        waitingForClaude={waitingForClaude}
+        generateError={generateError || state?.generationError || historyError}
         onGenerate={generateReport}
       />
     );
@@ -250,9 +165,9 @@ export function GeneratedAIReportPanel() {
       report={current.report}
       userId={userId}
       userName={userName}
-      dataDate={current.dataDate || (isLatest ? latestDataDate : null)}
+      dataDate={dataDate}
       canGenerate={isLatest && canGenerate}
-      waitingForClaude={generating}
+      waitingForClaude={waitingForClaude}
       onGenerate={generateReport}
       dateNav={dateNav}
     />

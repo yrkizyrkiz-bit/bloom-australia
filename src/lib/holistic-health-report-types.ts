@@ -86,7 +86,7 @@ export type HolisticHealthReport = {
 };
 
 export const AU_REGULATORY_NOTICE =
-  "Educational information only. This report does not diagnose, treat, or replace advice from an AHPRA-registered clinician. Urgent or unexplained symptoms need prompt medical care (GP, specialist, or emergency services). Laboratory reference intervals can vary by lab; results are interpreted in an Australian clinical context.";
+  "Report is a draft pending Sanative health practitioner review.";
 
 function overallRiskFromScore(score: number): HolisticHealthReport["overallRisk"] {
   if (score >= 75) return "low";
@@ -206,7 +206,7 @@ export function sanitizeHolisticHealthReport(
     executiveSummary,
     // Member narrative lives only in executiveSummary — avoid a second repeated block.
     clinicalContext: "",
-    regulatoryNotice: report.regulatoryNotice || AU_REGULATORY_NOTICE,
+    regulatoryNotice: AU_REGULATORY_NOTICE,
     careTeamHandoffSummary: report.careTeamHandoffSummary || "",
     priorityBands: {
       good: Array.isArray(report.priorityBands?.good) ? report.priorityBands!.good : [],
