@@ -1,4 +1,5 @@
 const FACE_ID_DISMISS_PREFIX = "sanative_faceid_prompt_dismissed";
+const FACE_ID_READY_KEY = "sanative_faceid_ready";
 
 export type FaceIdDeviceEnv = {
   userAgent?: string;
@@ -43,6 +44,32 @@ export async function canUseFaceId(): Promise<boolean> {
     return true;
   }
   return isFaceIdDevice();
+}
+
+/** True after Face ID was successfully set up or used on this browser. */
+export function isFaceIdSetupOnThisDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(FACE_ID_READY_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markFaceIdSetupOnThisDevice() {
+  try {
+    window.localStorage.setItem(FACE_ID_READY_KEY, "1");
+  } catch {
+    // ignore
+  }
+}
+
+export function clearFaceIdSetupOnThisDevice() {
+  try {
+    window.localStorage.removeItem(FACE_ID_READY_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function faceIdPromptDismissed(userId: string): boolean {

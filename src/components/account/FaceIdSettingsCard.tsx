@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { enrollFaceId, webauthnErrorMessage } from "@/lib/webauthn/client";
+import {
+  clearFaceIdSetupOnThisDevice,
+  markFaceIdSetupOnThisDevice,
+} from "@/lib/webauthn/device";
 
 type PasskeyRow = {
   id: string;
@@ -54,10 +58,11 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
       // Always start Face ID setup on tap. Do not block on browser capability probes —
       // those are unreliable on iPhone and produced a false "open Safari" error.
       await enrollFaceId();
+      markFaceIdSetupOnThisDevice();
       toast.success("Face ID is ready. Use it next time you sign in.");
       await loadStatus();
     } catch (error) {
-      toast.error(webauthnErrorMessage(error, "Could not enable Face ID"));
+      toast.error(webauthnErrorMessage(error, "Could not enable Face ID setup"));
     } finally {
       setEnrolling(false);
     }
@@ -70,6 +75,9 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not remove this device");
       toast.success("Device removed. Email and password still work.");
+      const remaining = passkeys.filter((passkey) => passkey.id !== id);
+      setPasskeys(remaining);
+      if (remaining.length === 0) clearFaceIdSetupOnThisDevice();
       await loadStatus();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not remove this device");
@@ -123,7 +131,8 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
             </Button>
 
             <p className="text-sm text-muted-foreground">
-              Tap the button — your phone will ask for Face ID to finish setup.
+              Tap the button — your phone will ask for Face ID. If iPhone asks about passkeys or Autofill, turn on{" "}
+              <span className="font-medium">AutoFill Passwords</span> in Settings → Passwords → Password Options, then try again.
             </p>
 
             {passkeys.length === 0 ? (

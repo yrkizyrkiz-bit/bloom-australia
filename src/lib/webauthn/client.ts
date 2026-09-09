@@ -4,7 +4,12 @@ import { startAuthentication, startRegistration } from "@simplewebauthn/browser"
 
 export function webauthnErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) {
-    if (error.name === "NotAllowedError") return "Face ID was cancelled.";
+    if (error.name === "NotAllowedError") {
+      if (/enable|setup|enroll|register/i.test(fallback)) {
+        return "Face ID setup was cancelled. On iPhone: Settings → Passwords → Password Options → turn on AutoFill Passwords, then try again.";
+      }
+      return "Face ID was cancelled.";
+    }
     if (error.name === "NotSupportedError" || error.name === "InvalidStateError") {
       return "This browser can’t use Face ID. Open Sanative in Safari on your iPhone and try again.";
     }

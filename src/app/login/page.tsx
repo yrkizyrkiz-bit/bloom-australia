@@ -20,7 +20,12 @@ import {
   ScanFace,
 } from "lucide-react";
 import { loginWithFaceId, webauthnErrorMessage } from "@/lib/webauthn/client";
-import { canUseFaceId } from "@/lib/webauthn/device";
+import {
+  canUseFaceId,
+  clearFaceIdSetupOnThisDevice,
+  isFaceIdSetupOnThisDevice,
+  markFaceIdSetupOnThisDevice,
+} from "@/lib/webauthn/device";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -44,15 +49,47 @@ export default function LoginPage() {
     }
   }, []);
 
+  // Face ID login only when this account/device already has Face ID set up.
   useEffect(() => {
     let cancelled = false;
-    void canUseFaceId().then((ready) => {
-      if (!cancelled) setShowFaceId(ready);
-    });
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const capable = await canUseFaceId();
+        if (!capable) {
+          if (!cancelled) setShowFaceId(false);
+          return;
+        }
+
+        if (isFaceIdSetupOnThisDevice()) {
+          if (!cancelled) setShowFaceId(true);
+          return;
+        }
+
+        const trimmed = email.trim().toLowerCase();
+        if (!trimmed.includes("@")) {
+          if (!cancelled) setShowFaceId(false);
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/auth/webauthn/available", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: trimmed }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!cancelled) setShowFaceId(Boolean(data.available));
+        } catch {
+          if (!cancelled) setShowFaceId(false);
+        }
+      })();
+    }, 250);
+
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, []);
+  }, [email]);
 
   // Handle redirect when user is authenticated
   useEffect(() => {
@@ -154,10 +191,18 @@ export default function LoginPage() {
     setFaceIdLoading(true);
     setLoginError(null);
     try {
-      const webauthnToken = await loginWithFaceId(email.trim() || undefined);
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail) {
+        const readableError = "Enter your email, then tap Face ID.";
+        setLoginError(readableError);
+        toast.error("Face ID login failed", { description: readableError });
+        return;
+      }
+      const webauthnToken = await loginWithFaceId(trimmedEmail);
       const result = await loginWithPasskey(webauthnToken);
       if (result.success) {
-        if (rememberMe && email.trim()) {
+        markFaceIdSetupOnThisDevice();
+        if (rememberMe) {
           localStorage.setItem("sanative_remembered_email", email);
         }
         toast.success("Welcome back!", {
@@ -166,10 +211,19 @@ export default function LoginPage() {
         router.refresh();
         return;
       }
+      if ((result.error || "").toLowerCase().includes("not set up")) {
+        clearFaceIdSetupOnThisDevice();
+        setShowFaceId(false);
+      }
       const readableError = getReadableError(result.error || "Face ID login failed");
       setLoginError(readableError);
       toast.error("Face ID login failed", { description: readableError });
     } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.toLowerCase().includes("not set up")) {
+        clearFaceIdSetupOnThisDevice();
+        setShowFaceId(false);
+      }
       const readableError = webauthnErrorMessage(error, "Face ID login failed");
       setLoginError(readableError);
       toast.error("Face ID login failed", { description: readableError });

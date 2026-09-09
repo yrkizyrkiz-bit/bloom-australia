@@ -14,7 +14,12 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { enrollFaceId, webauthnErrorMessage } from "@/lib/webauthn/client";
-import { canUseFaceId, dismissFaceIdPrompt, faceIdPromptDismissed } from "@/lib/webauthn/device";
+import {
+  canUseFaceId,
+  dismissFaceIdPrompt,
+  faceIdPromptDismissed,
+  markFaceIdSetupOnThisDevice,
+} from "@/lib/webauthn/device";
 
 export function FaceIdEnrollPrompt({ staffCopy = false }: { staffCopy?: boolean }) {
   const { user } = useAuth();
@@ -53,11 +58,12 @@ export function FaceIdEnrollPrompt({ staffCopy = false }: { staffCopy?: boolean 
     setEnrolling(true);
     try {
       await enrollFaceId();
+      markFaceIdSetupOnThisDevice();
       dismissFaceIdPrompt(user.id);
       setOpen(false);
       toast.success("Face ID is ready. Use it next time you sign in on this phone.");
     } catch (error) {
-      toast.error(webauthnErrorMessage(error, "Could not enable Face ID"));
+      toast.error(webauthnErrorMessage(error, "Could not enable Face ID setup"));
     } finally {
       setEnrolling(false);
     }

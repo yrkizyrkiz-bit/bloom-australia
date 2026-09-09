@@ -44,11 +44,13 @@ export async function POST(request: Request) {
       transports: passkey.transports,
     })),
     authenticatorSelection: {
+      // Device Face ID / biometrics only — not a synced iCloud passkey provider.
+      // Avoids the iOS “Choose how to manage your passkeys” Autofill sheet when possible.
       authenticatorAttachment: "platform",
-      residentKey: "preferred",
+      residentKey: "discouraged",
+      requireResidentKey: false,
       userVerification: "required",
     },
-    preferredAuthenticatorType: "localDevice",
   });
 
   const row = await storeWebAuthnChallenge({
