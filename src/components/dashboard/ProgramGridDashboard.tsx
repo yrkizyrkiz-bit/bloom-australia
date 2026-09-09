@@ -217,18 +217,24 @@ function CleanCardShell({
 
 function BiomarkersHero({
   membership,
+  membershipLoading,
   onNavigate,
 }: {
   membership: DerivedMembershipEntitlements | undefined;
+  membershipLoading: boolean;
   onNavigate?: () => void;
 }) {
   const clock = membership?.biologicalClock;
   const hasBiomarkersEntitlement = Boolean(membership?.scopes?.BIOLOGICAL_CLOCK?.hasEntitlement);
   const isReady = clock?.state === "ready";
   const coverage = clock?.coverage;
-  const href = hasBiomarkersEntitlement
-    ? BIOMARKERS_HERO.route
-    : BIOMARKERS_HERO.biomarkersRoute;
+  // While portal entitlements are still loading, link to the member dashboard — not the
+  // purchase quiz. Otherwise the first post-login click races ahead of membership and the
+  // quiz then redirects entitled members with a ready clock to /dashboard/biological-age.
+  const href =
+    membershipLoading || hasBiomarkersEntitlement
+      ? BIOMARKERS_HERO.route
+      : BIOMARKERS_HERO.biomarkersRoute;
   const theme = BIOMARKERS_HERO.theme;
   const colors = toneClasses(theme.tone);
   const Icon = BIOMARKERS_HERO.icon;
@@ -509,7 +515,7 @@ function SupplementsTile({ onNavigate }: { onNavigate?: () => void }) {
 
 export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { user } = useAuth();
-  const { data: portal } = usePortalContext();
+  const { data: portal, isLoading: portalLoading } = usePortalContext();
   const membership = portal?.membership;
   const entitledProgramKeys = (Object.keys(membership?.programs ?? {}) as ProgramKey[]).filter(
     (key) => membership?.programs?.[key]?.hasEntitlement
@@ -537,7 +543,11 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
         <p className="mt-2 text-[#5c7a52]">What can we help you with today?</p>
       </div>
 
-      <BiomarkersHero membership={membership} onNavigate={onNavigate} />
+      <BiomarkersHero
+        membership={membership}
+        membershipLoading={portalLoading || !portal}
+        onNavigate={onNavigate}
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
         {cards.map((card) => (

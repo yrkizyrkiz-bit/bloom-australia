@@ -64,8 +64,10 @@ export default function BiomarkersQuizPage() {
 
   useEffect(() => {
     if (portalLoading || !hasBiomarkersEntitlement) return;
+    // Entitled members belong on the health dashboard / biomarkers hub — not Biological Age.
+    // (A race after login used to send the biomarkers card here, then bounce to bio-age.)
     const clockReady = portal?.membership?.biologicalClock?.state === "ready";
-    router.replace(clockReady ? "/dashboard/biological-age" : "/dashboard/biomarkers");
+    router.replace(clockReady ? "/dashboard" : "/dashboard/biomarkers");
   }, [portalLoading, hasBiomarkersEntitlement, portal?.membership?.biologicalClock?.state, router]);
 
   const [hydrated, setHydrated] = useState(false);
