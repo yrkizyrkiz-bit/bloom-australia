@@ -58,7 +58,7 @@ export function FaceIdEnrollPrompt({ staffCopy = false }: { staffCopy?: boolean 
     setEnrolling(true);
     try {
       await enrollFaceId();
-      markFaceIdSetupOnThisDevice();
+      markFaceIdSetupOnThisDevice(user.email);
       dismissFaceIdPrompt(user.id);
       setOpen(false);
       toast.success("Face ID is ready. Use it next time you sign in on this phone.");

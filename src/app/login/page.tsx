@@ -23,6 +23,7 @@ import { loginWithFaceId, webauthnErrorMessage } from "@/lib/webauthn/client";
 import {
   canUseFaceId,
   clearFaceIdSetupOnThisDevice,
+  getFaceIdEmailOnThisDevice,
   isFaceIdSetupOnThisDevice,
   markFaceIdSetupOnThisDevice,
 } from "@/lib/webauthn/device";
@@ -40,12 +41,15 @@ export default function LoginPage() {
   const { login, loginWithPasskey, user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
 
-  // Load remember me preference from localStorage
+  // Prefill email from Remember me or from a prior Face ID setup on this phone.
   useEffect(() => {
     const savedEmail = localStorage.getItem("sanative_remembered_email");
+    const faceIdEmail = getFaceIdEmailOnThisDevice();
     if (savedEmail) {
       setEmail(savedEmail);
       setRememberMe(true);
+    } else if (faceIdEmail) {
+      setEmail(faceIdEmail);
     }
   }, []);
 
@@ -191,19 +195,20 @@ export default function LoginPage() {
     setFaceIdLoading(true);
     setLoginError(null);
     try {
-      const trimmedEmail = email.trim();
+      const trimmedEmail = (email.trim() || getFaceIdEmailOnThisDevice() || "").toLowerCase();
       if (!trimmedEmail) {
         const readableError = "Enter your email, then tap Face ID.";
         setLoginError(readableError);
         toast.error("Face ID login failed", { description: readableError });
         return;
       }
+      if (!email.trim()) setEmail(trimmedEmail);
       const webauthnToken = await loginWithFaceId(trimmedEmail);
       const result = await loginWithPasskey(webauthnToken);
       if (result.success) {
-        markFaceIdSetupOnThisDevice();
+        markFaceIdSetupOnThisDevice(trimmedEmail);
         if (rememberMe) {
-          localStorage.setItem("sanative_remembered_email", email);
+          localStorage.setItem("sanative_remembered_email", trimmedEmail);
         }
         toast.success("Welcome back!", {
           description: "You're being redirected to your dashboard.",

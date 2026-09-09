@@ -1,5 +1,6 @@
 const FACE_ID_DISMISS_PREFIX = "sanative_faceid_prompt_dismissed";
 const FACE_ID_READY_KEY = "sanative_faceid_ready";
+const FACE_ID_EMAIL_KEY = "sanative_faceid_email";
 
 export type FaceIdDeviceEnv = {
   userAgent?: string;
@@ -56,9 +57,23 @@ export function isFaceIdSetupOnThisDevice(): boolean {
   }
 }
 
-export function markFaceIdSetupOnThisDevice() {
+export function getFaceIdEmailOnThisDevice(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const email = window.localStorage.getItem(FACE_ID_EMAIL_KEY);
+    return email?.includes("@") ? email : null;
+  } catch {
+    return null;
+  }
+}
+
+export function markFaceIdSetupOnThisDevice(email?: string | null) {
   try {
     window.localStorage.setItem(FACE_ID_READY_KEY, "1");
+    const normalized = email?.trim().toLowerCase();
+    if (normalized?.includes("@")) {
+      window.localStorage.setItem(FACE_ID_EMAIL_KEY, normalized);
+    }
   } catch {
     // ignore
   }
@@ -67,6 +82,7 @@ export function markFaceIdSetupOnThisDevice() {
 export function clearFaceIdSetupOnThisDevice() {
   try {
     window.localStorage.removeItem(FACE_ID_READY_KEY);
+    window.localStorage.removeItem(FACE_ID_EMAIL_KEY);
   } catch {
     // ignore
   }

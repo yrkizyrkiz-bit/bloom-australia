@@ -5,9 +5,11 @@ import { Loader2, ScanFace, Smartphone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
 import { enrollFaceId, webauthnErrorMessage } from "@/lib/webauthn/client";
 import {
   clearFaceIdSetupOnThisDevice,
+  isFaceIdSetupOnThisDevice,
   markFaceIdSetupOnThisDevice,
 } from "@/lib/webauthn/device";
 
@@ -28,11 +30,13 @@ function formatDate(value: string | null) {
 }
 
 export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean }) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [passkeys, setPasskeys] = useState<PasskeyRow[]>([]);
+  const [thisDeviceReady, setThisDeviceReady] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -40,13 +44,21 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
       if (!res.ok) throw new Error("Could not load Face ID settings");
       const data = await res.json();
       setEnabled(data.enabled !== false);
-      setPasskeys(data.passkeys || []);
+      const rows = data.passkeys || [];
+      setPasskeys(rows);
+      // If this phone already enrolled, keep a local ready flag + email for login.
+      if (rows.length > 0 && user?.email && isFaceIdSetupOnThisDevice()) {
+        markFaceIdSetupOnThisDevice(user.email);
+        setThisDeviceReady(true);
+      } else {
+        setThisDeviceReady(isFaceIdSetupOnThisDevice());
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load Face ID settings");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.email]);
 
   useEffect(() => {
     void loadStatus();
@@ -55,10 +67,9 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
   const handleEnroll = async () => {
     setEnrolling(true);
     try {
-      // Always start Face ID setup on tap. Do not block on browser capability probes —
-      // those are unreliable on iPhone and produced a false "open Safari" error.
       await enrollFaceId();
-      markFaceIdSetupOnThisDevice();
+      markFaceIdSetupOnThisDevice(user?.email);
+      setThisDeviceReady(true);
       toast.success("Face ID is ready. Use it next time you sign in.");
       await loadStatus();
     } catch (error) {
@@ -77,7 +88,10 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
       toast.success("Device removed. Email and password still work.");
       const remaining = passkeys.filter((passkey) => passkey.id !== id);
       setPasskeys(remaining);
-      if (remaining.length === 0) clearFaceIdSetupOnThisDevice();
+      if (remaining.length === 0) {
+        clearFaceIdSetupOnThisDevice();
+        setThisDeviceReady(false);
+      }
       await loadStatus();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not remove this device");
@@ -86,6 +100,7 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
     }
   };
 
+  const showEnrollButton = !(thisDeviceReady && passkeys.length > 0);
   const enableLabel = passkeys.length === 0 ? "Enable Face ID" : "Add this device";
 
   return (
@@ -118,22 +133,36 @@ export function FaceIdSettingsCard({ staffCopy = false }: { staffCopy?: boolean 
         ) : (
           <>
             <p className="text-sm">
-              Status: <span className="font-medium">{passkeys.length > 0 ? "On" : "Available"}</span>
+              Status:{" "}
+              <span className="font-medium">
+                {thisDeviceReady && passkeys.length > 0
+                  ? "On for this phone"
+                  : passkeys.length > 0
+                    ? "On"
+                    : "Available"}
+              </span>
             </p>
 
-            <Button type="button" onClick={handleEnroll} disabled={enrolling} className="w-full sm:w-auto">
-              {enrolling ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Smartphone className="w-4 h-4 mr-2" />
-              )}
-              {enableLabel}
-            </Button>
-
-            <p className="text-sm text-muted-foreground">
-              Tap the button — your phone will ask for Face ID. If iPhone asks about passkeys or Autofill, turn on{" "}
-              <span className="font-medium">AutoFill Passwords</span> in Settings → Passwords → Password Options, then try again.
-            </p>
+            {showEnrollButton ? (
+              <>
+                <Button type="button" onClick={handleEnroll} disabled={enrolling} className="w-full sm:w-auto">
+                  {enrolling ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Smartphone className="w-4 h-4 mr-2" />
+                  )}
+                  {enableLabel}
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Tap the button — your phone will ask for Face ID. If iPhone asks about passkeys or Autofill, turn on{" "}
+                  <span className="font-medium">AutoFill Passwords</span> in Settings → Passwords → Password Options, then try again.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Face ID is already set up on this phone. Use it on the login screen next time.
+              </p>
+            )}
 
             {passkeys.length === 0 ? (
               <p className="text-sm text-muted-foreground">No phones have Face ID set up yet.</p>
