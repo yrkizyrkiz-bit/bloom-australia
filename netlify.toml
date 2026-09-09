@@ -2,13 +2,27 @@
   remote_images = ["https://source.unsplash.com/.*", "https://images.unsplash.com/.*", "https://ext.same-assets.com/.*", "https://ugc.same-assets.com/.*"]
 
 [build]
-  command = "bun install && bunx prisma generate && bun run build"
+  command = "bun install && bunx prisma generate && bun run build:holistic-bg && bun run build"
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
   # Increase Node.js memory limit for large builds
   NODE_OPTIONS = "--max-old-space-size=8192"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "nft"
+
+[functions."holistic-health-report-background"]
+  # Prisma engines must ship with the background job.
+  included_files = [
+    "node_modules/.prisma/client/**",
+    "node_modules/@prisma/client/**",
+  ]
+
+# Background function: up to ~15 minutes for the full Claude holistic report.
+# Sync Next.js API routes remain capped (~10–26s) — do not rely on maxDuration alone.
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

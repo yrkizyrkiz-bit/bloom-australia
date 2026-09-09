@@ -24,7 +24,6 @@ import {
   Calendar,
   BarChart3,
   FileText,
-  LineChart
 } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useApi";
 import { getBiomarkerById, getStatusForValue } from "@/data/biomarkers";
@@ -346,7 +345,7 @@ export function UnifiedHealthDashboard({
       {/* Quick Actions */}
       <div
         className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${
-          hideAiQuickAction ? "md:grid-cols-3" : "md:grid-cols-4"
+          hideAiQuickAction ? "md:grid-cols-2" : "md:grid-cols-3"
         }`}
       >
         {!hideAiQuickAction && (
@@ -369,25 +368,6 @@ export function UnifiedHealthDashboard({
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                <LineChart className="w-5 h-5 text-cyan-600" />
-              </div>
-              <div>
-                <h4 className="font-medium">Historical Trends</h4>
-                <p className="text-xs text-muted-foreground">Track changes over time</p>
-              </div>
-            </div>
-            <Link href="/dashboard/trends">
-              <Button variant="outline" size="sm" className="w-full">
-                View Trends <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardContent className="pt-5">

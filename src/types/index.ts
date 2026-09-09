@@ -56,6 +56,8 @@ export interface BiomarkerDefinition {
   id: string;
   name: string;
   shortName: string;
+  /** Everyday nickname shown under the clinical name, e.g. The "bad" cholesterol */
+  commonName?: string;
   category: BiomarkerCategory;
   description: string;
   whyItMatters: string;

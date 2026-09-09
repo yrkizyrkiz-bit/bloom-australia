@@ -22,7 +22,6 @@ import {
   History,
   Target,
   Heart,
-  LineChart,
   MessageSquare,
   HelpCircle,
   CreditCard,
@@ -32,7 +31,6 @@ import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { RealTimeNotificationBell } from "./RealTimeNotificationBell";
 
 const navItems = [
-  { href: "/dashboard/trends", label: "Trends", icon: LineChart },
   { href: "/dashboard/goals", label: "Goals", icon: Target },
   { href: "/dashboard/reports", label: "Reports", icon: History },
 ];

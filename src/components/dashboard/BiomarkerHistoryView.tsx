@@ -6,33 +6,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBiomarkerById, categoryInfo } from "@/data/biomarkers";
 import type { BiomarkerDefinition, BiomarkerResult, BiomarkerStatus } from "@/types";
 import { BiomarkerHistoryDialog } from "@/components/dashboard/BiomarkerHistoryDialog";
 import { TestComparisonDialog } from "@/components/dashboard/TestComparisonDialog";
+import { GeneratedAIReportPanel } from "@/components/dashboard/GeneratedAIReportPanel";
 import { MiniChart } from "@/components/dashboard/BiomarkerChart";
 import {
   FileText,
-  Download,
   Calendar,
   TrendingUp,
   TrendingDown,
   Minus,
   Sparkles,
-  Loader2,
-  CheckCircle,
-  AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
   ArrowLeftRight,
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { jsPDF } from "jspdf";
 
 interface BiomarkerTrendData {
   biomarkerId: string;
@@ -75,11 +68,11 @@ interface BiomarkerHistoryViewProps {
 
 export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }: BiomarkerHistoryViewProps) {
   const { user } = useAuth();
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [selectedHistoryBiomarker, setSelectedHistoryBiomarker] = useState<BiomarkerDefinition | null>(null);
   const [showComparisonDialog, setShowComparisonDialog] = useState(false);
+  const [expandedTestDates, setExpandedTestDates] = useState<Record<string, boolean>>({});
+  const [trendFilter, setTrendFilter] = useState<"all" | "improving" | "stable" | "worsening">("all");
+  const [activeTab, setActiveTab] = useState("history");
 
   const [isLoading, setIsLoading] = useState(true);
   const [biomarkerData, setBiomarkerData] = useState<BiomarkerTrendData[]>([]);
@@ -87,6 +80,21 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
   const [statistics, setStatistics] = useState<HistoryApiResponse["statistics"] | null>(null);
 
   const gender = user?.gender === "female" ? "female" : "male";
+
+  const filteredBiomarkerData = useMemo(() => {
+    if (trendFilter === "all") return biomarkerData;
+    return biomarkerData.filter((b) => b.trend === trendFilter);
+  }, [biomarkerData, trendFilter]);
+
+  const filteredBiomarkerIds = useMemo(
+    () => new Set(filteredBiomarkerData.map((b) => b.biomarkerId)),
+    [filteredBiomarkerData]
+  );
+
+  const selectTrendFilter = (next: "all" | "improving" | "stable" | "worsening") => {
+    setTrendFilter((prev) => (prev === next ? "all" : next));
+    if (next !== "all") setActiveTab("trends");
+  };
 
   const fetchBiomarkerHistory = async () => {
     setIsLoading(true);
@@ -134,7 +142,12 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
   }, [biomarkerData]);
 
   const getResultsForDate = (date: string) => {
-    return allResults.filter((r) => r.testedAt.startsWith(date));
+    const dateKey = date.slice(0, 10);
+    return allResults.filter((r) => {
+      if (r.testedAt.slice(0, 10) !== dateKey) return false;
+      if (trendFilter === "all") return true;
+      return filteredBiomarkerIds.has(r.biomarkerId);
+    });
   };
 
   const getTrendForBiomarker = (biomarkerId: string) => {
@@ -171,76 +184,6 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
     }));
   };
 
-  const handleGenerateReport = async () => {
-    setIsGenerating(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    setIsGenerating(false);
-    setShowPdfPreview(true);
-    toast.success("AI Report generated successfully!");
-  };
-
-  const handleDownloadPdf = async () => {
-    setIsDownloading(true);
-    try {
-      const doc = new jsPDF();
-      const userName = user?.firstName || "Member";
-      const pageWidth = doc.internal.pageSize.getWidth();
-
-      doc.setFillColor(255, 250, 245);
-      doc.rect(0, 0, pageWidth, 297, "F");
-
-      doc.setFontSize(32);
-      doc.setTextColor(60, 80, 60);
-      doc.text(`${userName}'s Health Report`, pageWidth / 2, 40, { align: "center" });
-
-      doc.setFontSize(12);
-      doc.setTextColor(120, 120, 120);
-      doc.text(
-        new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" }),
-        pageWidth / 2,
-        50,
-        { align: "center" }
-      );
-
-      if (statistics) {
-        doc.setFontSize(14);
-        doc.setTextColor(60, 60, 60);
-        doc.text(`Total Biomarkers Tracked: ${statistics.totalBiomarkers}`, 25, 80);
-        doc.text(`Test Dates: ${statistics.totalTestDates}`, 25, 95);
-        doc.text(`Improving: ${statistics.improving}`, 25, 110);
-        doc.text(`Stable: ${statistics.stable}`, 25, 125);
-        doc.text(`Needs Attention: ${statistics.worsening}`, 25, 140);
-      }
-
-      doc.addPage();
-      doc.setFontSize(18);
-      doc.setTextColor(60, 80, 60);
-      doc.text("Test Results by Date", 25, 30);
-
-      let yPos = 50;
-      for (const testDate of testDates.slice(0, 5)) {
-        doc.setFontSize(12);
-        doc.setTextColor(60, 60, 60);
-        doc.text(new Date(testDate.date).toLocaleDateString("en-AU"), 25, yPos);
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text(
-          `${testDate.biomarkerCount} biomarkers - ${testDate.optimal} optimal, ${testDate.outOfRange} flagged`,
-          25,
-          yPos + 10
-        );
-        yPos += 30;
-      }
-
-      doc.save(`${userName}_Health_Report_${new Date().toISOString().split("T")[0]}.pdf`);
-      toast.success("Report downloaded successfully!");
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -310,43 +253,89 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
             <ArrowLeftRight className="w-4 h-4" />
             Compare Tests
           </Button>
-          <Button onClick={handleGenerateReport} disabled={isGenerating} className="w-full gap-2 sm:w-auto">
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                Generate AI Report
-              </>
-            )}
+          <Button
+            onClick={() => setActiveTab("reports")}
+            className="w-full gap-2 sm:w-auto bg-[#1D9E75] hover:bg-[#178a64]"
+          >
+            <Sparkles className="w-4 h-4" />
+            AI Report
           </Button>
         </div>
       </div>
 
       {statistics && (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          <Card>
+          <Card
+            role="button"
+            tabIndex={0}
+            onClick={() => selectTrendFilter("all")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectTrendFilter("all");
+              }
+            }}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              trendFilter === "all" ? "ring-2 ring-primary border-primary/40" : ""
+            }`}
+          >
             <CardContent className="px-3 pt-4 pb-4 text-center sm:pt-6">
               <p className="text-2xl font-bold text-primary sm:text-3xl">{statistics.totalBiomarkers}</p>
               <p className="text-xs text-muted-foreground sm:text-sm">Biomarkers Tracked</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            role="button"
+            tabIndex={0}
+            onClick={() => selectTrendFilter("improving")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectTrendFilter("improving");
+              }
+            }}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              trendFilter === "improving" ? "ring-2 ring-green-500 border-green-500/40" : ""
+            }`}
+          >
             <CardContent className="px-3 pt-4 pb-4 text-center sm:pt-6">
               <p className="text-2xl font-bold text-green-600 sm:text-3xl">{statistics.improving}</p>
               <p className="text-xs text-muted-foreground sm:text-sm">Improving</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            role="button"
+            tabIndex={0}
+            onClick={() => selectTrendFilter("stable")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectTrendFilter("stable");
+              }
+            }}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              trendFilter === "stable" ? "ring-2 ring-blue-500 border-blue-500/40" : ""
+            }`}
+          >
             <CardContent className="px-3 pt-4 pb-4 text-center sm:pt-6">
               <p className="text-2xl font-bold text-blue-600 sm:text-3xl">{statistics.stable}</p>
               <p className="text-xs text-muted-foreground sm:text-sm">Stable</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            role="button"
+            tabIndex={0}
+            onClick={() => selectTrendFilter("worsening")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectTrendFilter("worsening");
+              }
+            }}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              trendFilter === "worsening" ? "ring-2 ring-orange-500 border-orange-500/40" : ""
+            }`}
+          >
             <CardContent className="px-3 pt-4 pb-4 text-center sm:pt-6">
               <p className="text-2xl font-bold text-orange-600 sm:text-3xl">{statistics.worsening}</p>
               <p className="text-xs text-muted-foreground sm:text-sm">Needs Attention</p>
@@ -355,7 +344,26 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
         </div>
       )}
 
-      <Tabs defaultValue="history" className="space-y-6">
+      {trendFilter !== "all" && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+          <p className="text-muted-foreground">
+            Showing{" "}
+            <span className="font-medium text-foreground">
+              {trendFilter === "improving"
+                ? "improving"
+                : trendFilter === "worsening"
+                  ? "needs attention"
+                  : "stable"}
+            </span>{" "}
+            biomarkers ({filteredBiomarkerData.length})
+          </p>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setTrendFilter("all")}>
+            Clear filter
+          </Button>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="overflow-x-auto pb-1">
           <TabsList className="inline-flex h-auto w-max min-w-full sm:min-w-0">
             <TabsTrigger value="history" className="text-xs sm:text-sm">Test History</TabsTrigger>
@@ -365,8 +373,18 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
         </div>
 
         <TabsContent value="history" className="space-y-6">
+          {testDates.every((testDate) => getResultsForDate(testDate.date).length === 0) && (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                No biomarkers match this filter for your test history.
+              </CardContent>
+            </Card>
+          )}
           {testDates.map((testDate) => {
             const results = getResultsForDate(testDate.date);
+            if (results.length === 0) return null;
+            const isExpanded = Boolean(expandedTestDates[testDate.date]);
+            const visibleResults = isExpanded ? results : results.slice(0, 6);
 
             return (
               <Card key={testDate.date}>
@@ -401,7 +419,7 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
                 </CardHeader>
                 <CardContent>
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {results.slice(0, 6).map((result) => {
+                    {visibleResults.map((result) => {
                       const biomarker = getBiomarkerById(result.biomarkerId);
                       const trend = getTrendForBiomarker(result.biomarkerId);
                       if (!biomarker) return null;
@@ -454,8 +472,21 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
                     })}
                   </div>
                   {results.length > 6 && (
-                    <Button variant="ghost" size="sm" className="w-full mt-3">
-                      View all {results.length} results
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-3"
+                      onClick={() =>
+                        setExpandedTestDates((prev) => ({
+                          ...prev,
+                          [testDate.date]: !prev[testDate.date],
+                        }))
+                      }
+                    >
+                      {isExpanded
+                        ? "Show fewer results"
+                        : `View all ${results.length} results`}
                     </Button>
                   )}
                 </CardContent>
@@ -470,8 +501,13 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
               <CardTitle className="text-lg">Biomarker Trends Over Time</CardTitle>
             </CardHeader>
             <CardContent>
+              {filteredBiomarkerData.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No biomarkers match this filter.
+                </p>
+              ) : (
               <div className="space-y-4">
-                {biomarkerData.map((biomarkerTrend) => {
+                {filteredBiomarkerData.map((biomarkerTrend) => {
                   const biomarkerDef = getBiomarkerById(biomarkerTrend.biomarkerId);
                   const category = biomarkerDef?.category || biomarkerTrend.category;
                   const categoryColor =
@@ -548,155 +584,15 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
                   );
                 })}
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-6">
-          <Card>
-            <CardContent className="py-8 text-center">
-              <Sparkles className="w-12 h-12 mx-auto text-primary/30 mb-4" />
-              <h3 className="text-lg font-medium mb-2">Generate Your Health Report</h3>
-              <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                Our AI will analyze your biomarker trends and generate a personalized health report
-                with recommendations.
-              </p>
-              <Button onClick={handleGenerateReport} disabled={isGenerating}>
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Generate AI Report
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+          <GeneratedAIReportPanel />
         </TabsContent>
       </Tabs>
-
-      <Dialog open={showPdfPreview} onOpenChange={setShowPdfPreview}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              AI-Generated Health Report
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-[70vh]">
-            <div className="space-y-8 p-6 bg-white rounded-lg">
-              <div className="text-center border-b pb-6">
-                <h1 className="text-3xl font-serif text-foreground">{user?.firstName}&apos;s Health Report</h1>
-                <p className="text-muted-foreground mt-2">
-                  {new Date().toLocaleDateString("en-AU", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </p>
-              </div>
-
-              {statistics && (
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="text-center p-6 rounded-xl bg-primary/5 border">
-                    <p className="text-5xl font-serif font-bold text-primary">
-                      {statistics.totalBiomarkers}
-                    </p>
-                    <p className="text-muted-foreground mt-2">Biomarkers Tracked</p>
-                  </div>
-                  <div className="text-center p-6 rounded-xl bg-green-500/5 border">
-                    <p className="text-5xl font-serif font-bold text-green-600">
-                      {statistics.improving}
-                    </p>
-                    <p className="text-muted-foreground mt-2">Improving</p>
-                  </div>
-                </div>
-              )}
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h2 className="text-xl font-serif">Test History Summary</h2>
-                {testDates.slice(0, 3).map((testDate) => (
-                  <div key={testDate.date} className="p-4 rounded-lg border">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">
-                        {new Date(testDate.date).toLocaleDateString("en-AU")}
-                      </span>
-                      <div className="flex gap-2">
-                        <Badge className="bg-green-500/10 text-green-600">{testDate.optimal} optimal</Badge>
-                        <Badge className="bg-orange-500/10 text-orange-600">
-                          {testDate.outOfRange} flagged
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h2 className="text-xl font-serif">Biomarkers Needing Attention</h2>
-                {biomarkerData
-                  .filter((b) => b.trend === "worsening")
-                  .slice(0, 3)
-                  .map((biomarker) => {
-                    const def = getBiomarkerById(biomarker.biomarkerId);
-                    return (
-                      <div
-                        key={biomarker.biomarkerId}
-                        className="p-4 rounded-lg border border-orange-200 bg-orange-50"
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <AlertTriangle className="w-4 h-4 text-orange-600" />
-                          <h4 className="font-medium text-orange-900">{biomarker.name}</h4>
-                        </div>
-                        <p className="text-sm text-orange-800">
-                          Current: {biomarker.latestValue} {biomarker.unit}
-                          {biomarker.previousValue && ` (was ${biomarker.previousValue})`}
-                        </p>
-                        {def?.whyItMatters && (
-                          <p className="text-sm text-orange-700 mt-2">{def.whyItMatters}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                {biomarkerData.filter((b) => b.trend === "worsening").length === 0 && (
-                  <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                      <p className="text-green-800">All biomarkers are stable or improving!</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </ScrollArea>
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowPdfPreview(false)}>
-              Close
-            </Button>
-            <Button onClick={handleDownloadPdf} disabled={isDownloading}>
-              {isDownloading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download PDF
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <BiomarkerHistoryDialog
         biomarker={selectedHistoryBiomarker}

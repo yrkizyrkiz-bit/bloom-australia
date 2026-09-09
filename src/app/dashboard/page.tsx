@@ -333,29 +333,6 @@ function DashboardPageContent({
       {/* Reminders */}
       <RemindersCard userId={user?.id || ""} compact />
 
-      {/* Personalized Tips */}
-      {outOfRangeBiomarkers.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-medium">Personalized Tips</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {outOfRangeBiomarkers.slice(0, 4).map(({ biomarker }) => (
-                <div key={biomarker.id} className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
-                  <p className="text-sm font-medium text-foreground mb-1">
-                    Improve your {biomarker.shortName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {biomarker.improvementTips[0]}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Biomarker Detail Dialog */}
       <BiomarkerDetailDialog
         biomarker={selectedBiomarker?.biomarker || null}

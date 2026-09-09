@@ -20,9 +20,12 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "total_cholesterol",
     name: "Total Cholesterol",
     shortName: "TC",
+    commonName: "Overall cholesterol in your blood",
     category: "heart",
-    description: "This is the overall amount of cholesterol in your blood, including both the harmful and helpful types.",
-    whyItMatters: "When total cholesterol stays high over time, fatty deposits can build up in your arteries. That raises your chance of heart disease and stroke. Your doctor uses this number, together with LDL and HDL, to judge heart risk.",
+    description:
+      "This is the overall amount of cholesterol in your blood — including both the protective and the plaque-building types.",
+    whyItMatters:
+      "When total cholesterol stays high over time, fatty deposits can build up in your arteries. That raises your chance of heart disease and stroke. Your doctor looks at this together with bad cholesterol (LDL) and good cholesterol (HDL).",
     ranges: {
       male: { low: 3, optimal_low: 3, optimal_high: 5.5, high: 7, unit: "mmol/L" },
       female: { low: 3, optimal_low: 3, optimal_high: 5.5, high: 7, unit: "mmol/L" },
@@ -40,19 +43,22 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "ldl_cholesterol",
     name: "LDL Cholesterol",
     shortName: "LDL",
+    commonName: 'The "bad" cholesterol',
     category: "heart",
-    description: "LDL is often called “bad” cholesterol. It is the type that can stick to the walls of your arteries.",
-    whyItMatters: "High LDL makes arteries narrower and stiffer over time. That increases the risk of heart attack and stroke. Lowering LDL is one of the main ways doctors protect your heart.",
+    description:
+      "LDL is linked to plaque buildup in artery walls. When levels are high, excess LDL can cause inflammation which raises your chance of heart disease.",
+    whyItMatters:
+      "High LDL makes arteries narrower and stiffer over time. That increases the risk of heart attack and stroke. Lowering LDL is one of the main ways doctors protect your heart.",
     ranges: {
       male: { low: 0, optimal_low: 0, optimal_high: 3.5, high: 5, unit: "mmol/L" },
       female: { low: 0, optimal_low: 0, optimal_high: 3.5, high: 5, unit: "mmol/L" },
     },
     improvementTips: [
-      "Eliminate trans fats from your diet",
-      "Eat more omega-3 rich foods like salmon and walnuts",
-      "Increase soluble fiber intake",
-      "Add whey protein to your diet",
-      "Consider statin therapy if lifestyle changes aren't enough",
+      "Cut back on fried foods, processed snacks, and fatty red meat",
+      "Eat more fibre — oats, beans, lentils, and vegetables help",
+      "Add omega-3 rich foods like salmon, sardines, or walnuts",
+      "Move most days — even brisk walking helps cholesterol",
+      "Ask your GP whether medication is right if lifestyle changes are not enough",
     ],
     relatedBiomarkers: ["total_cholesterol", "hdl_cholesterol", "non_hdl_cholesterol"],
   },
@@ -60,9 +66,12 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "hdl_cholesterol",
     name: "HDL Cholesterol",
     shortName: "HDL",
+    commonName: 'The "good" cholesterol',
     category: "heart",
-    description: "HDL is often called “good” cholesterol. It helps carry leftover cholesterol away from your arteries back to the liver.",
-    whyItMatters: "Higher HDL is generally linked with better heart health. Low HDL, especially with high LDL or triglycerides, can mean more heart risk.",
+    description:
+      "HDL helps carry leftover cholesterol away from your arteries back to the liver so it can be cleared. Higher HDL is generally linked with better heart health.",
+    whyItMatters:
+      "When good cholesterol is low — especially with high bad cholesterol or blood fats — your heart risk can rise. Building HDL usually comes from movement, healthier fats, and not smoking.",
     ranges: {
       male: { low: 0.7, optimal_low: 0.7, optimal_high: 1.9, high: 3, unit: "mmol/L" },
       female: { low: 0.9, optimal_low: 0.9, optimal_high: 2.4, high: 3.5, unit: "mmol/L" },
@@ -80,9 +89,12 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "triglycerides",
     name: "Triglycerides",
     shortName: "TG",
+    commonName: "A common type of blood fat",
     category: "heart",
-    description: "Triglycerides are a common type of fat in your blood. After you eat, extra energy is stored as triglycerides.",
-    whyItMatters: "High triglycerides can raise heart and pancreas risk, especially if cholesterol is also out of balance. They often rise with sugar-heavy diets, alcohol, low activity, or insulin resistance.",
+    description:
+      "Triglycerides are fats that travel in your blood. After you eat, extra energy is stored as triglycerides — and high levels can raise heart and pancreas risk.",
+    whyItMatters:
+      "High blood fats often rise with sugary foods, alcohol, low activity, or insulin resistance. Improving them usually helps your overall heart and metabolic picture.",
     ranges: {
       male: { low: 0, optimal_low: 0, optimal_high: 2, high: 5, unit: "mmol/L" },
       female: { low: 0, optimal_low: 0, optimal_high: 2, high: 5, unit: "mmol/L" },
@@ -218,9 +230,12 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "glucose",
     name: "Fasting Glucose",
     shortName: "Glucose",
+    commonName: "Sugar in your blood",
     category: "metabolic",
-    description: "This is the amount of sugar (glucose) in your blood after fasting. Your body uses glucose for energy.",
-    whyItMatters: "High fasting glucose can mean your body is struggling to control blood sugar. Over time that raises the risk of type 2 diabetes and heart disease.",
+    description:
+      "This is the amount of sugar in your blood after fasting. Your body uses it for energy — but too much over time can strain your heart, nerves, and kidneys.",
+    whyItMatters:
+      "High fasting glucose can mean your body is struggling to control blood sugar. Over time that raises the risk of type 2 diabetes and heart disease.",
     ranges: {
       male: { low: 3, optimal_low: 3, optimal_high: 5.5, high: 7, unit: "mmol/L" },
       female: { low: 3, optimal_low: 3, optimal_high: 5.5, high: 7, unit: "mmol/L" },
@@ -239,9 +254,12 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "hba1c",
     name: "Hemoglobin A1c",
     shortName: "HbA1c",
+    commonName: "Your average blood sugar over ~3 months",
     category: "metabolic",
-    description: "HbA1c shows your average blood sugar over roughly the past 2–3 months, not just one day’s reading.",
-    whyItMatters: "It is one of the best checks for prediabetes and diabetes control. Higher HbA1c over time raises the risk of nerve, eye, kidney, and heart problems.",
+    description:
+      "HbA1c shows your average blood sugar over roughly the past 2–3 months — not just one day’s reading — so it is one of the clearest long-term sugar checks.",
+    whyItMatters:
+      "Higher average blood sugar over time raises the risk of nerve, eye, kidney, and heart problems. It is a key marker for prediabetes and diabetes control.",
     ranges: {
       male: { low: 0, optimal_low: 4, optimal_high: 5.6, high: 6.5, unit: "%" },
       female: { low: 0, optimal_low: 4, optimal_high: 5.6, high: 6.5, unit: "%" },
@@ -502,9 +520,12 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "crp",
     name: "C-Reactive Protein (CRP)",
     shortName: "CRP",
+    commonName: "A signal of inflammation in the body",
     category: "inflammation",
-    description: "CRP (often measured as hs-CRP) is a marker of inflammation in the body.",
-    whyItMatters: "Mildly raised CRP can reflect ongoing low-grade inflammation linked with heart risk. Higher levels can also rise with infection or injury, so timing and symptoms matter.",
+    description:
+      "CRP rises when your body is inflamed. Mildly raised levels can link to heart risk; higher spikes can also come from infection or injury.",
+    whyItMatters:
+      "Ongoing low-grade inflammation is linked with heart disease risk. Your clinician looks at CRP with your symptoms and other heart markers — timing matters.",
     ranges: {
       male: { low: 0, optimal_low: 0, optimal_high: 3, high: 10, unit: "mg/L" },
       female: { low: 0, optimal_low: 0, optimal_high: 3, high: 10, unit: "mg/L" },
@@ -642,9 +663,12 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "alt",
     name: "Alanine Aminotransferase",
     shortName: "ALT",
+    commonName: "A marker of liver cell stress",
     category: "liver",
-    description: "ALT is a liver enzyme. It rises when liver cells are irritated or damaged.",
-    whyItMatters: "Raised ALT is a common early sign of fatty liver, medication effects, alcohol strain, or viral hepatitis. Your doctor looks at the pattern with other liver tests.",
+    description:
+      "ALT is a liver enzyme. It rises when liver cells are irritated or damaged — often from fatty liver, medicines, alcohol, or infection.",
+    whyItMatters:
+      "Raised ALT is a common early sign that your liver needs attention. Your doctor looks at the pattern with other liver tests, not this number alone.",
     ranges: {
       male: { low: 0, optimal_low: 0, optimal_high: 51, high: 100, unit: "U/L" },
       female: { low: 0, optimal_low: 0, optimal_high: 36, high: 80, unit: "U/L" },
@@ -880,9 +904,12 @@ export const biomarkerDefinitions: BiomarkerDefinition[] = [
     id: "egfr",
     name: "Estimated GFR",
     shortName: "eGFR",
+    commonName: "How well your kidneys filter blood",
     category: "kidney",
-    description: "eGFR estimates how well your kidneys are filtering blood, based mainly on creatinine, age, and sex.",
-    whyItMatters: "A lower eGFR means reduced kidney function. Tracking it over time helps catch chronic kidney disease early, when lifestyle and medical care can slow decline.",
+    description:
+      "eGFR estimates how well your kidneys are filtering waste from your blood. A lower number means reduced kidney filter function.",
+    whyItMatters:
+      "Tracking kidney filter rate over time helps catch chronic kidney disease early — when blood pressure, blood sugar, and care plans can slow decline.",
     ranges: {
       male: { low: 60, optimal_low: 90, optimal_high: 150, high: 200, unit: "mL/min/1.73m²" },
       female: { low: 60, optimal_low: 90, optimal_high: 150, high: 200, unit: "mL/min/1.73m²" },

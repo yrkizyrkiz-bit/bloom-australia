@@ -49,3 +49,7 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Generated Netlify background function (built by bun run build:holistic-bg)
+/netlify/functions/holistic-health-report-background.js
+/netlify/functions/holistic-health-report-background.js.map

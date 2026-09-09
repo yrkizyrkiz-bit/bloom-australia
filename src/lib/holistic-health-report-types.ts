@@ -95,11 +95,107 @@ function overallRiskFromScore(score: number): HolisticHealthReport["overallRisk"
   return "high";
 }
 
+function splitSummarySentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function normalizeSummarySentence(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function summarySpecificity(s: string): number {
+  const numbers = s.match(/\d+(?:\.\d+)?/g)?.length || 0;
+  return numbers * 20 + Math.min(s.length, 220);
+}
+
+function sentencesOverlap(a: string, b: string): boolean {
+  const n = normalizeSummarySentence(a);
+  const e = normalizeSummarySentence(b);
+  if (!n || !e) return false;
+  if (n === e) return true;
+  if (n.includes(e) || e.includes(n)) return true;
+
+  // Same clinical topic (e.g. both about CRP / kidneys) counts as repetition.
+  const topics = [
+    "crp",
+    "inflammation",
+    "kidney",
+    "egfr",
+    "creatinine",
+    "cholesterol",
+    "blood sugar",
+    "hba1c",
+    "liver",
+    "alp",
+    "thyroid",
+    "hormone",
+    "heart",
+    "emergenc",
+    "not a diagnosis",
+  ];
+  if (topics.some((t) => n.includes(t) && e.includes(t))) return true;
+
+  const nWords = n.split(" ").filter((w) => w.length > 4);
+  const eWords = e.split(" ").filter((w) => w.length > 4);
+  if (eWords.length === 0 || nWords.length === 0) return false;
+  const overlap = eWords.filter((w) => nWords.includes(w)).length;
+  return overlap >= Math.min(4, Math.ceil(Math.min(eWords.length, nWords.length) * 0.45));
+}
+
+/**
+ * One short member-facing summary: merges legacy executiveSummary + clinicalContext
+ * without repeating the same points (older Claude reports wrote both).
+ * When two sentences cover the same idea, keeps the more specific one (numbers win).
+ */
+export function coalesceMemberFacingSummary(
+  executiveSummary?: string | null,
+  clinicalContext?: string | null,
+  maxSentences = 5
+): string {
+  const exec = (executiveSummary || "").trim();
+  const clinical = (clinicalContext || "").trim();
+  if (!clinical) return exec || "Report summary unavailable.";
+  if (!exec) return clinical;
+
+  const kept: string[] = [];
+  for (const sentence of [...splitSummarySentences(exec), ...splitSummarySentences(clinical)]) {
+    const idx = kept.findIndex((existing) => sentencesOverlap(sentence, existing));
+    if (idx >= 0) {
+      if (summarySpecificity(sentence) > summarySpecificity(kept[idx])) {
+        kept[idx] = sentence;
+      }
+      continue;
+    }
+    kept.push(sentence);
+  }
+
+  // Prefer score/lead + numeric findings; drop soft duplicates past the cap.
+  const ranked = kept
+    .map((sentence, order) => ({ sentence, order, score: summarySpecificity(sentence) }))
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, maxSentences)
+    .sort((a, b) => a.order - b.order)
+    .map((x) => x.sentence);
+
+  return ranked.join(" ") || exec;
+}
+
 export function sanitizeHolisticHealthReport(
   report: Partial<HolisticHealthReport> | null | undefined
 ): HolisticHealthReport | null {
   if (!report || typeof report !== "object") return null;
   const score = Number(report.overallHealthScore) || 0;
+  const executiveSummary = coalesceMemberFacingSummary(
+    report.executiveSummary,
+    report.clinicalContext
+  );
 
   return {
     aiProvider: report.aiProvider,
@@ -107,8 +203,9 @@ export function sanitizeHolisticHealthReport(
     reportTitle: report.reportTitle || "Holistic Health Report",
     overallHealthScore: score,
     overallRisk: report.overallRisk || overallRiskFromScore(score),
-    executiveSummary: report.executiveSummary || "Report summary unavailable.",
-    clinicalContext: report.clinicalContext || "",
+    executiveSummary,
+    // Member narrative lives only in executiveSummary — avoid a second repeated block.
+    clinicalContext: "",
     regulatoryNotice: report.regulatoryNotice || AU_REGULATORY_NOTICE,
     careTeamHandoffSummary: report.careTeamHandoffSummary || "",
     priorityBands: {

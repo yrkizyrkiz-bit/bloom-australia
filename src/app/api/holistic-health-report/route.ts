@@ -4,13 +4,57 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   HOLISTIC_HEALTH_ANALYSIS_TYPE,
-  generateHolisticHealthReport,
+  getHolisticJobSecret,
+  isHolisticGenerationError,
+  isHolisticGenerationPending,
   loadHolisticHealthReportContext,
+  markHolisticHealthReportPending,
   normalizeHolisticHealthReport,
+  runHolisticHealthReportJob,
 } from "@/lib/holistic-health-report";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
+
+function siteOrigin() {
+  return (
+    process.env.URL ||
+    process.env.DEPLOY_PRIME_URL ||
+    process.env.NEXTAUTH_URL ||
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+}
+
+async function enqueueHolisticReportJob(userId: string) {
+  const onNetlify = process.env.NETLIFY === "true";
+  if (!onNetlify) {
+    // Local/dev: await Claude so the report actually lands in cache (fire-and-forget
+    // is unreliable under Next.js dev and previously left George on the failover seed).
+    await runHolisticHealthReportJob(userId);
+    return;
+  }
+
+  const secret = getHolisticJobSecret();
+  if (!secret) {
+    throw new Error("HOLISTIC_REPORT_JOB_SECRET or NEXTAUTH_SECRET is required to enqueue Claude jobs");
+  }
+
+  const url = `${siteOrigin()}/.netlify/functions/holistic-health-report-background`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-holistic-job-secret": secret,
+    },
+    body: JSON.stringify({ userId }),
+  });
+
+  // Background functions acknowledge with 202; treat that as success.
+  if (!res.ok && res.status !== 202) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Failed to enqueue Claude report job (${res.status})${body ? `: ${body}` : ""}`);
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,25 +77,41 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const cachedData = cachedReport?.analysisData;
+    const generating =
+      isHolisticGenerationPending(cachedData) &&
+      cachedReport?.biomarkerHash === context.biomarkerHash;
+    const generationError =
+      isHolisticGenerationError(cachedData) && cachedReport?.biomarkerHash === context.biomarkerHash
+        ? cachedData.message
+        : null;
+
+    const normalized = normalizeHolisticHealthReport(
+      cachedData as Record<string, unknown> | null,
+      cachedReport && !generating && !generationError ? context : undefined
+    );
+
+    // Never serve the deterministic failover seed as the member-facing report.
+    const report = normalized?.aiProvider === "claude" ? normalized : null;
+    const hasReadyReport =
+      Boolean(report) && cachedReport?.biomarkerHash === context.biomarkerHash;
     const canGenerate =
       context.biomarkerCount > 0 &&
-      (!cachedReport || cachedReport.biomarkerHash !== context.biomarkerHash);
-
-    const report = normalizeHolisticHealthReport(
-      cachedReport?.analysisData as Record<string, unknown> | null,
-      cachedReport ? context : undefined
-    );
+      !generating &&
+      (!hasReadyReport || Boolean(generationError));
 
     return NextResponse.json({
       report,
-      cached: Boolean(cachedReport),
+      cached: hasReadyReport,
+      generating,
+      generationError,
       canGenerate,
-      requiresNewBloodTest: Boolean(cachedReport && !canGenerate),
+      requiresNewBloodTest: hasReadyReport && !canGenerate,
       biomarkerCount: context.biomarkerCount,
       overallHealthScore: context.healthScores.overall,
       dataDate: context.dataDate,
       resultsStale: context.resultsStale,
-      generatedAt: cachedReport?.updatedAt?.toISOString() || null,
+      generatedAt: hasReadyReport ? cachedReport?.updatedAt?.toISOString() || null : null,
       programs: context.programs,
     });
   } catch (error) {
@@ -89,13 +149,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (existingReport && existingReport.biomarkerHash === context.biomarkerHash) {
+    const existingData = existingReport?.analysisData;
+    const sameHash = existingReport?.biomarkerHash === context.biomarkerHash;
+    const alreadyGenerating = sameHash && isHolisticGenerationPending(existingData);
+    const readyReport =
+      sameHash && !isHolisticGenerationPending(existingData) && !isHolisticGenerationError(existingData)
+        ? normalizeHolisticHealthReport(existingData as Record<string, unknown>, context)
+        : null;
+
+    // Allow replacing a clinical/deterministic cache with the full Claude report.
+    const isClaudeReady = readyReport?.aiProvider === "claude";
+
+    if (isClaudeReady) {
       return NextResponse.json(
         {
-          report: normalizeHolisticHealthReport(
-            existingReport.analysisData as Record<string, unknown>,
-            context
-          ),
+          report: readyReport,
           cached: true,
           blocked: true,
           reason:
@@ -107,62 +175,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { report, usedFallback } = await generateHolisticHealthReport(context);
-    const analysisData = JSON.parse(JSON.stringify(report));
-    const expiresAt = new Date();
-    expiresAt.setFullYear(expiresAt.getFullYear() + 100);
-
-    await prisma.aIAnalysisCache.upsert({
-      where: {
-        userId_analysisType: { userId, analysisType: HOLISTIC_HEALTH_ANALYSIS_TYPE },
-      },
-      update: {
-        analysisData,
-        biomarkerHash: context.biomarkerHash,
-        expiresAt,
-        updatedAt: new Date(),
-      },
-      create: {
+    if (!alreadyGenerating) {
+      await markHolisticHealthReportPending({
         userId,
-        analysisType: HOLISTIC_HEALTH_ANALYSIS_TYPE,
-        analysisData,
         biomarkerHash: context.biomarkerHash,
-        expiresAt,
-      },
-    });
+      });
+    }
 
-    const riskLevel =
-      report.overallRisk === "high"
-        ? "high"
-        : report.overallRisk === "elevated"
-          ? "elevated"
-          : report.overallRisk === "moderate"
-            ? "moderate"
-            : "low";
+    const onNetlify = process.env.NETLIFY === "true";
+    if (!onNetlify) {
+      await runHolisticHealthReportJob(userId);
+      const cached = await prisma.aIAnalysisCache.findUnique({
+        where: {
+          userId_analysisType: { userId, analysisType: HOLISTIC_HEALTH_ANALYSIS_TYPE },
+        },
+      });
+      const report = normalizeHolisticHealthReport(
+        cached?.analysisData as Record<string, unknown> | null,
+        context
+      );
+      if (!report || report.aiProvider !== "claude") {
+        throw new Error("Claude report did not persist correctly");
+      }
+      return NextResponse.json(
+        {
+          report,
+          cached: false,
+          generating: false,
+          usedFallback: false,
+          dataDate: context.dataDate,
+          resultsStale: context.resultsStale,
+        },
+        { status: 201 }
+      );
+    }
 
-    await prisma.aIAnalysisHistory.create({
-      data: {
-        userId,
-        analysisType: HOLISTIC_HEALTH_ANALYSIS_TYPE,
-        analysisData,
-        overallScore: report.overallHealthScore,
-        riskLevel,
-        biomarkerCount: context.biomarkerCount,
-      },
-    });
+    if (!alreadyGenerating) {
+      await enqueueHolisticReportJob(userId);
+    }
 
     return NextResponse.json(
       {
-        report,
+        generating: true,
         cached: false,
-        usedFallback,
+        message: "Claude is preparing your comprehensive report. This usually takes 1–2 minutes.",
         dataDate: context.dataDate,
         resultsStale: context.resultsStale,
       },
-      { status: 201 }
+      { status: 202 }
     );
   } catch (error) {
     console.error("[holistic-health-report] POST", error);
-    return NextResponse.json({ error: "Failed to generate holistic health report" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to generate holistic health report";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

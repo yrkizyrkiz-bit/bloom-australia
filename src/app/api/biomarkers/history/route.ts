@@ -33,6 +33,16 @@ interface TestDateSummary {
   outOfRange: number;
 }
 
+/** Lower rank = better clinical band. */
+function statusBandRank(status: string | null | undefined): number {
+  const s = (status || "normal").toLowerCase();
+  if (s === "optimal") return 0;
+  if (s === "normal") return 1;
+  if (s === "critical") return 3;
+  // out_of_range, high, low, abnormal, etc.
+  return 2;
+}
+
 // GET - Fetch historical biomarker data
 export async function GET(request: Request) {
   try {
@@ -111,49 +121,37 @@ export async function GET(request: Request) {
           status: r.status?.toLowerCase() || "normal"
         }));
 
-      // Get latest and previous values
-      const latestValue = sortedResults[sortedResults.length - 1].value;
-      const previousValue = sortedResults.length > 1
-        ? sortedResults[sortedResults.length - 2].value
-        : null;
+      // Get latest and previous values (previous = reading immediately before latest)
+      const latest = sortedResults[sortedResults.length - 1];
+      const previous =
+        sortedResults.length >= 2 ? sortedResults[sortedResults.length - 2] : null;
+      const latestValue = latest.value;
+      const previousValue = previous?.value ?? null;
 
-      // Calculate trend
+      // Trend: compare latest vs previous within the 24-month window.
+      // A status-band change (e.g. optimal → normal) is never "stable".
       let trend: "improving" | "stable" | "worsening" = "stable";
       let changePercent = 0;
 
-      if (sortedResults.length >= 2) {
-        const firstValue = sortedResults[0].value;
-        const lastValue = sortedResults[sortedResults.length - 1].value;
-        changePercent = ((lastValue - firstValue) / firstValue) * 100;
+      const windowStart = startDate.getTime();
+      const previousInWindow =
+        previous != null && new Date(previous.testedAt).getTime() >= windowStart;
 
-        // Parse ranges to determine if higher or lower is better
-        let ranges: { optimal_low?: number; optimal_high?: number } = {};
-        try {
-          const rangeField = gender === "female" ? biomarker.femaleRanges : biomarker.maleRanges;
-          if (rangeField) {
-            ranges = typeof rangeField === "string" ? JSON.parse(rangeField) : rangeField as typeof ranges;
-          }
-        } catch {
-          // Ignore parse errors
+      if (previousInWindow && previous) {
+        if (previous.value !== 0) {
+          changePercent = ((latestValue - previous.value) / Math.abs(previous.value)) * 100;
         }
 
-        // Determine if biomarker is "lower is better" or "higher is better"
-        // For most biomarkers, being within optimal range is best
-        // Check if latest value is closer to or further from optimal
-        if (ranges.optimal_low !== undefined && ranges.optimal_high !== undefined) {
-          const optimalMid = (ranges.optimal_low + ranges.optimal_high) / 2;
-          const firstDistance = Math.abs(firstValue - optimalMid);
-          const lastDistance = Math.abs(lastValue - optimalMid);
+        const previousRank = statusBandRank(previous.status);
+        const latestRank = statusBandRank(latest.status);
 
-          if (lastDistance < firstDistance * 0.9) {
-            trend = "improving";
-          } else if (lastDistance > firstDistance * 1.1) {
-            trend = "worsening";
-          }
+        if (latestRank < previousRank) {
+          trend = "improving";
+        } else if (latestRank > previousRank) {
+          trend = "worsening";
         } else {
-          // Default: assume lower is better for most markers
-          if (changePercent < -5) trend = "improving";
-          else if (changePercent > 5) trend = "worsening";
+          // Same band → stable (no range change between consecutive tests)
+          trend = "stable";
         }
       }
 
