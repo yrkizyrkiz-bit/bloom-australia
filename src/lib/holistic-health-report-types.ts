@@ -6,7 +6,8 @@ export type HolisticOrganSystemId =
   | "heart"
   | "thyroid"
   | "hormones"
-  | "metabolic";
+  | "metabolic"
+  | "blood";
 
 export type HolisticMarkerItem = {
   biomarkerId: string;

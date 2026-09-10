@@ -1,6 +1,10 @@
+import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { getActiveEntitlements } from "@/lib/membership/entitlement-service";
+import { getDataDate, isResultsStale } from "@/lib/ai-report-cache";
+import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
+import { DERIVED_BIOMARKER_IDS } from "@/lib/derived-biomarkers";
 import {
   loadOrganCareReportContext,
 } from "@/lib/organ-care-ai-report";
@@ -76,6 +80,7 @@ export function isHolisticGenerationPendingStale(
 }
 
 type OrganCareContext = NonNullable<Awaited<ReturnType<typeof loadOrganCareReportContext>>>;
+type BiomarkerSummary = OrganCareContext["biomarkerSummaries"][number];
 
 type HolisticContext = OrganCareContext & {
   programs: HolisticProgramContribution[];
@@ -86,6 +91,191 @@ type HolisticContext = OrganCareContext & {
     hormoneStatus: string;
   };
 };
+
+/** Iron studies + FBC — not in organ-care scoring, but critical for holistic priority bands. */
+const HOLISTIC_EXTRA_BIOMARKER_IDS = [
+  "ferritin",
+  "iron",
+  "transferrin_saturation",
+  "tibc",
+  "hemoglobin",
+  "hematocrit",
+  "mcv",
+  "mch",
+  "mchc",
+  "rdw",
+  "rbc",
+  "vitamin_d",
+  "vitamin_b12",
+  "folate",
+] as const;
+
+const BLOOD_SYSTEM_MARKER_IDS = new Set([
+  "ferritin",
+  "iron",
+  "transferrin_saturation",
+  "tibc",
+  "hemoglobin",
+  "hematocrit",
+  "mcv",
+  "mch",
+  "mchc",
+  "rdw",
+  "rbc",
+]);
+
+const DERIVED_BIOMARKER_ID_SET = new Set<string>(DERIVED_BIOMARKER_IDS);
+
+function parseRanges(
+  biomarker: { femaleRanges?: unknown; maleRanges?: unknown },
+  gender: "male" | "female"
+) {
+  try {
+    const rangeField = gender === "female" ? biomarker.femaleRanges : biomarker.maleRanges;
+    if (!rangeField) return {};
+    return typeof rangeField === "string" ? JSON.parse(rangeField) : (rangeField as Record<string, number>);
+  } catch {
+    return {};
+  }
+}
+
+function computeTrend(
+  sortedValues: number[],
+  ranges: { optimal_low?: number; optimal_high?: number }
+): { trend: "improving" | "stable" | "worsening"; changePercent: number } {
+  if (sortedValues.length < 2) {
+    return { trend: "stable", changePercent: 0 };
+  }
+
+  const firstValue = sortedValues[0];
+  const lastValue = sortedValues[sortedValues.length - 1];
+  const changePercent =
+    firstValue !== 0 ? ((lastValue - firstValue) / firstValue) * 100 : 0;
+
+  if (ranges.optimal_low !== undefined && ranges.optimal_high !== undefined) {
+    const optimalMid = (ranges.optimal_low + ranges.optimal_high) / 2;
+    const firstDistance = Math.abs(firstValue - optimalMid);
+    const lastDistance = Math.abs(lastValue - optimalMid);
+
+    if (lastDistance < firstDistance * 0.9) return { trend: "improving", changePercent };
+    if (lastDistance > firstDistance * 1.1) return { trend: "worsening", changePercent };
+    return { trend: "stable", changePercent };
+  }
+
+  if (changePercent < -5) return { trend: "improving", changePercent };
+  if (changePercent > 5) return { trend: "worsening", changePercent };
+  return { trend: "stable", changePercent };
+}
+
+function generateBiomarkerHash(
+  biomarkers: Array<{ biomarkerId: string; value: number; testedAt: Date | string }>
+): string {
+  const sortedData = biomarkers
+    .map((item) => `${item.biomarkerId}:${item.value}:${new Date(item.testedAt).toISOString()}`)
+    .sort()
+    .join("|");
+  return crypto.createHash("md5").update(sortedData).digest("hex");
+}
+
+function summarizeBiomarkerGroup(
+  biomarkerId: string,
+  bioResults: Array<{
+    value: number;
+    status: string;
+    testedAt: Date;
+    biomarker: {
+      name: string | null;
+      shortName: string | null;
+      category: string | null;
+      unit: string | null;
+      femaleRanges?: unknown;
+      maleRanges?: unknown;
+    } | null;
+  }>,
+  gender: "male" | "female"
+): BiomarkerSummary {
+  const sorted = [...bioResults].sort(
+    (a, b) => new Date(a.testedAt).getTime() - new Date(b.testedAt).getTime()
+  );
+  const latest = sorted[sorted.length - 1];
+  const previous = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+  const ranges = latest.biomarker ? parseRanges(latest.biomarker, gender) : {};
+  const trendData = computeTrend(
+    sorted.map((r) => r.value),
+    ranges
+  );
+
+  return {
+    biomarkerId,
+    name: latest.biomarker?.name || biomarkerId,
+    shortName: latest.biomarker?.shortName || biomarkerId,
+    category: latest.biomarker?.category || "unknown",
+    value: latest.value,
+    unit: latest.biomarker?.unit || "",
+    status: latest.status?.toLowerCase() || "normal",
+    testedAt: latest.testedAt.toISOString(),
+    previousValue: previous?.value ?? null,
+    previousTestedAt: previous?.testedAt.toISOString() ?? null,
+    trend: sorted.length >= 2 ? trendData.trend : ("unknown" as const),
+    changePercent: sorted.length >= 2 ? Math.round(trendData.changePercent * 10) / 10 : null,
+  };
+}
+
+/**
+ * Load iron/FBC (+ nutrients) and any other catalog markers whose latest status is
+ * CRITICAL or OUT_OF_RANGE — organ-care context alone omits these.
+ */
+async function loadHolisticPriorityBiomarkerSummaries(
+  userId: string,
+  gender: "male" | "female",
+  alreadyHave: Set<string>
+): Promise<BiomarkerSummary[]> {
+  const allResults = await prisma.biomarkerResult.findMany({
+    where: { userId },
+    select: { biomarkerId: true, status: true, testedAt: true },
+    orderBy: { testedAt: "desc" },
+  });
+
+  const seenLatest = new Set<string>();
+  const flaggedIds: string[] = [];
+  for (const row of allResults) {
+    if (seenLatest.has(row.biomarkerId)) continue;
+    seenLatest.add(row.biomarkerId);
+    if (alreadyHave.has(row.biomarkerId)) continue;
+    if (!isCatalogBiomarker(row.biomarkerId)) continue;
+    if (DERIVED_BIOMARKER_ID_SET.has(row.biomarkerId)) continue;
+    const status = String(row.status).toLowerCase();
+    if (status === "critical" || status === "out_of_range") {
+      flaggedIds.push(row.biomarkerId);
+    }
+  }
+
+  const extraIds = [
+    ...new Set([
+      ...HOLISTIC_EXTRA_BIOMARKER_IDS.filter((id) => !alreadyHave.has(id)),
+      ...flaggedIds,
+    ]),
+  ];
+  if (extraIds.length === 0) return [];
+
+  const results = await prisma.biomarkerResult.findMany({
+    where: { userId, biomarkerId: { in: extraIds } },
+    include: { biomarker: true },
+    orderBy: { testedAt: "desc" },
+  });
+
+  const catalogResults = results.filter((r) => isCatalogBiomarker(r.biomarkerId));
+  const grouped = new Map<string, typeof catalogResults>();
+  for (const result of catalogResults) {
+    const existing = grouped.get(result.biomarkerId) || [];
+    existing.push(result);
+    grouped.set(result.biomarkerId, existing);
+  }
+
+  return Array.from(grouped.entries()).map(([biomarkerId, bioResults]) =>
+    summarizeBiomarkerGroup(biomarkerId, bioResults, gender)
+  );
+}
 
 const PROGRAM_IMPACT: Record<
   string,
@@ -206,15 +396,21 @@ const REPORT_TOOL = {
 function bandForMarker(summary: OrganCareContext["biomarkerSummaries"][number]): HolisticPriorityBand {
   const id = summary.biomarkerId;
   const value = summary.value;
+  const status = String(summary.status || "").toLowerCase();
 
   // Immediate educational red flags (AU clinical thresholds) — not a diagnosis.
   if (id === "egfr" && value < 30) return "immediate";
   if (id === "glucose" && value >= 7.0) return "immediate";
   if (id === "hba1c" && value >= 6.5) return "immediate";
   if (id === "potassium" && (value < 2.8 || value > 6.0)) return "immediate";
-  if (summary.status === "critical") return "immediate";
+  // Severe iron deficiency / anaemia pattern thresholds.
+  if (id === "ferritin" && value < 15) return "immediate";
+  if (id === "iron" && value < 5) return "immediate";
+  if (id === "transferrin_saturation" && value < 10) return "immediate";
+  if (id === "hemoglobin" && value < 100) return "immediate";
+  if (status === "critical") return "immediate";
 
-  if (summary.status === "out_of_range") return "needs_attention";
+  if (status === "out_of_range") return "needs_attention";
   if (
     summary.trend === "worsening" ||
     (id === "glucose" && value >= 5.6) ||
@@ -222,7 +418,7 @@ function bandForMarker(summary: OrganCareContext["biomarkerSummaries"][number]):
   ) {
     return "look_out";
   }
-  if (summary.status === "optimal" || summary.status === "normal") return "good";
+  if (status === "optimal" || status === "normal") return "good";
   return "look_out";
 }
 
@@ -328,6 +524,37 @@ function buildOrganSystems(context: OrganCareContext, markers: HolisticMarkerIte
     });
   }
 
+  const bloodMarkers = markers.filter((m) => BLOOD_SYSTEM_MARKER_IDS.has(m.biomarkerId));
+  if (bloodMarkers.length > 0) {
+    const flagged = bloodMarkers.filter((m) => m.band !== "good");
+    const hasImmediate = flagged.some((m) => m.band === "immediate");
+    const hasAttention = flagged.some((m) => m.band === "needs_attention");
+    const highlights = flagged.slice(0, 4).map((m) => m.plainEnglish);
+    const goodCount = bloodMarkers.filter((m) => m.band === "good").length;
+    const score = Math.max(
+      5,
+      Math.round((goodCount / bloodMarkers.length) * 100) -
+        (hasImmediate ? 40 : hasAttention ? 20 : 0)
+    );
+
+    systems.push({
+      id: "blood",
+      label: "Blood & iron",
+      score,
+      status: hasImmediate || hasAttention ? "needs_attention" : organStatusFromScore(score),
+      trend: flagged.some((m) => m.trend === "worsening")
+        ? "declining"
+        : flagged.some((m) => m.trend === "improving")
+          ? "improving"
+          : "stable",
+      summary:
+        highlights[0] ||
+        "Iron stores and red-blood-cell markers from your full blood count are included here.",
+      biomarkersTracked: bloodMarkers.length,
+      highlights,
+    });
+  }
+
   return systems;
 }
 
@@ -403,6 +630,29 @@ function buildCrossPatterns(
     });
   }
 
+  const iron = flagged([
+    "ferritin",
+    "iron",
+    "transferrin_saturation",
+    "tibc",
+    "hemoglobin",
+    "mcv",
+    "mch",
+  ]);
+  const ironCritical = iron.filter((m) => m.band === "immediate" || m.status === "critical");
+  if (iron.length >= 2 || ironCritical.length >= 1) {
+    patterns.push({
+      title: "Low iron / anaemia pattern",
+      severity: ironCritical.length >= 1 ? "high" : "medium",
+      involvedSystems: ["blood", "metabolic"],
+      involvedBiomarkers: iron.map((m) => m.biomarkerId),
+      explanation:
+        "Low iron stores, low circulating iron, and smaller/pale red cells often travel together. That pattern commonly links to tiredness and should be reviewed promptly — causes can include diet, periods, gut absorption, or bleeding.",
+      monitoringAdvice:
+        "Ask your GP to review full iron studies with your blood count, check for a cause, and plan treatment and a repeat test.",
+    });
+  }
+
   return patterns.slice(0, 5);
 }
 
@@ -431,8 +681,21 @@ export async function loadHolisticHealthReportContext(userId: string): Promise<H
   const base = await loadOrganCareReportContext(userId);
   if (!base) return null;
 
+  const alreadyHave = new Set(base.biomarkerSummaries.map((item) => item.biomarkerId));
+  const extras = await loadHolisticPriorityBiomarkerSummaries(userId, base.gender, alreadyHave);
+  const biomarkerSummaries = [...base.biomarkerSummaries, ...extras];
+
+  const latestResults = biomarkerSummaries.map((item) => ({
+    biomarkerId: item.biomarkerId,
+    value: item.value,
+    testedAt: item.testedAt,
+  }));
+  const biomarkerHash = latestResults.length ? generateBiomarkerHash(latestResults) : null;
+  const dataDate = getDataDate(latestResults.map((r) => r.testedAt));
+  const resultsStale = isResultsStale(dataDate);
+
   const programs = await loadProgramContributions(userId);
-  const biomarkerInputs = base.biomarkerSummaries.map((item) => ({
+  const biomarkerInputs = biomarkerSummaries.map((item) => ({
     id: item.biomarkerId,
     biomarkerId: item.biomarkerId,
     value: item.value,
@@ -442,6 +705,11 @@ export async function loadHolisticHealthReportContext(userId: string): Promise<H
 
   return {
     ...base,
+    biomarkerSummaries,
+    biomarkerHash,
+    dataDate,
+    resultsStale,
+    biomarkerCount: biomarkerSummaries.length,
     programs,
     clinicalFlags: {
       glycemic: getGlycemicFlag(biomarkerInputs),
@@ -565,8 +833,10 @@ Hard rules (AU-aligned):
 - Educational only. Do NOT diagnose, prescribe, or claim disease certainty.
 - Use ONLY provided data. No open-web facts.
 - Prefer Australian units/framing (mmol/L glucose, HbA1c %, eGFR stages) but explain them in plain English.
-- Connect liver + heart + kidney + metabolic patterns; compare with previous values when present.
+- Connect liver + heart + kidney + metabolic + blood/iron patterns; compare with previous values when present.
 - Keep urgentActions limited to genuine laboratory red flags from the data.
+- CRITICAL: If IMMEDIATE MARKERS is non-empty, the executiveSummary MUST lead with those markers (especially iron stores, iron, iron saturation, haemoglobin, or other critical labs). Never omit CRITICAL/OUT_OF_RANGE iron or blood-count findings that appear in IMMEDIATE or ATTENTION lists.
+- Do not focus only on organ-care scores when blood & iron markers are flagged.
 
 PATIENT: ${context.user.firstName || "Member"}, ${context.user.gender}, age ${context.age ?? "unknown"}
 OVERALL SCORE: ${context.healthScores.overall}/100

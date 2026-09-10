@@ -164,6 +164,9 @@ function organVisual(id: string) {
   if (id === "hormones") {
     return { icon: <Sparkles className="h-4 w-4" />, color: "#a855f7" };
   }
+  if (id === "blood") {
+    return { icon: <Droplets className="h-4 w-4" />, color: "#b45309" };
+  }
   return { icon: <Activity className="h-4 w-4" />, color: "#5c7a52" };
 }
 
