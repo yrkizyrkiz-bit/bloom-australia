@@ -41,7 +41,7 @@ export function EnhancedAIReportDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[#5c7a52]" />
-            AI Health Report
+            AI-Powered Health Report
           </DialogTitle>
         </DialogHeader>
 

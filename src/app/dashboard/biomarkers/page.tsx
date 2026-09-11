@@ -1,15 +1,12 @@
 "use client";
 
-import { Suspense, useState, useMemo } from "react";
+import { Suspense, useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBiomarkerResults, useDashboardStats } from "@/hooks/useApi";
-import { usePortalContext } from "@/hooks/usePortalContext";
+import { useBiomarkerResults } from "@/hooks/useApi";
 import { BiomarkerCard } from "@/components/dashboard/BiomarkerCard";
 import { BiomarkerDetailDialog } from "@/components/dashboard/BiomarkerDetailDialog";
-import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
-import { BiologicalAgeCard } from "@/components/dashboard/BiologicalAgeCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,25 +21,20 @@ import {
   type BloodPanelBiomarker,
   type Gender
 } from "@/data/bloodPanelConfig";
-import type { BiomarkerDefinition, BiomarkerResult, HealthScore } from "@/types";
+import type { BiomarkerDefinition, BiomarkerResult } from "@/types";
 import { BiomarkerProgramEssentialView } from "@/components/dashboard/BiomarkerProgramEssentialView";
-import { BiomarkerHistoryView } from "@/components/dashboard/BiomarkerHistoryView";
-import { OrganMetabolicHealthPanels } from "@/components/dashboard/OrganMetabolicHealthPanels";
 import { UntestedBiomarkerCard } from "@/components/dashboard/UntestedBiomarkerCard";
-import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
-import { resolveInsightDisplayState } from "@/lib/membership/insight-display";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
-import { calculateAllHealthTestScores } from "@/lib/healthTestScoring";
-import { shouldShowPortalMarkerCard } from "@/lib/biomarkers/panel-biomarker-display";
+import { shouldShowPortalMarkerCard, CATEGORY_ORDER } from "@/lib/biomarkers/panel-biomarker-display";
 import {
   isProgramEssentialSlug,
   type ProgramEssentialSlug,
 } from "@/lib/program-essential-panels";
 import { getWomensHealthSubcategory } from "@/lib/womens-health-biomarker-subcategories";
-import { Search, Filter, X, Loader2, Info, User, BookOpen, LayoutGrid, Stethoscope, History } from "lucide-react";
+import { Search, Filter, X, Loader2, Info, User, BookOpen, LayoutGrid, Stethoscope, ArrowLeft } from "lucide-react";
 
 type FilterStatus = "all" | "optimal" | "normal" | "out_of_range" | "not_tested";
-type BiomarkerViewMode = "categories" | "program" | "history";
+type BiomarkerViewMode = "categories" | "program";
 
 export default function BiomarkersPage() {
   return (
@@ -60,14 +52,14 @@ export default function BiomarkersPage() {
 
 function BiomarkersPageContent() {
   const searchParams = useSearchParams();
-  const initialCategory = searchParams?.get("category") as BloodPanelCategoryKey | null;
+  const categoryParam = searchParams?.get("category");
+  const initialCategory =
+    categoryParam && categoryParam in bloodPanelConfig
+      ? (categoryParam as BloodPanelCategoryKey)
+      : null;
   const viewParam = searchParams?.get("view");
   const initialView: BiomarkerViewMode =
-    viewParam === "program"
-      ? "program"
-      : viewParam === "history"
-        ? "history"
-        : "categories";
+    viewParam === "program" ? "program" : "categories";
   const programParam = searchParams?.get("program");
   const womensHealthSubcategory = getWomensHealthSubcategory(searchParams?.get("subcategory"));
   const initialProgram: ProgramEssentialSlug =
@@ -76,12 +68,10 @@ function BiomarkersPageContent() {
       : "WEIGHT_MANAGEMENT";
 
   const { user } = useAuth();
-  const { data: portal } = usePortalContext();
   const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
     latest: true,
     ensureDerived: true,
   });
-  const { data: dashboardData } = useDashboardStats();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<BloodPanelCategoryKey | null>(initialCategory);
@@ -91,76 +81,40 @@ function BiomarkersPageContent() {
     result: BiomarkerResult | null;
     panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
-  const [viewMode, setViewMode] = useState<BiomarkerViewMode>(initialView);
+  const [viewMode, setViewMode] = useState<BiomarkerViewMode>(
+    initialCategory ? "categories" : initialView
+  );
   const [selectedProgram, setSelectedProgram] = useState<ProgramEssentialSlug>(initialProgram);
+  const resultsFilterRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keep category filter in sync with ?category= and jump to the results search section.
+  useEffect(() => {
+    const nextCategory =
+      categoryParam && categoryParam in bloodPanelConfig
+        ? (categoryParam as BloodPanelCategoryKey)
+        : null;
+    setSelectedCategory(nextCategory);
+    if (nextCategory) {
+      setViewMode("categories");
+    }
+  }, [categoryParam]);
+
+  useEffect(() => {
+    const shouldScroll =
+      Boolean(categoryParam && categoryParam in bloodPanelConfig) ||
+      (typeof window !== "undefined" && window.location.hash === "#biomarker-results");
+    if (!shouldScroll || viewMode !== "categories" || isLoading) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      resultsFilterRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      searchInputRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [categoryParam, viewMode, isLoading]);
 
   // Get user gender for gender-specific ranges
   const gender: Gender = user?.gender === "female" ? "female" : "male";
-
-  const healthScore: HealthScore = useMemo(() => {
-    const biomarkerResults: BiomarkerResult[] =
-      dashboardData?.biomarkerResults?.length
-        ? dashboardData.biomarkerResults.map((r: {
-            id: string;
-            biomarkerId: string;
-            value: number;
-            status?: string;
-            testedAt: string;
-          }) => ({
-            id: r.id,
-            biomarkerId: r.biomarkerId,
-            value: r.value,
-            status: (r.status?.toLowerCase() || "normal") as BiomarkerResult["status"],
-            testedAt: r.testedAt,
-          }))
-        : [];
-
-    const healthTestScores =
-      biomarkerResults.length > 0 ? calculateAllHealthTestScores(gender, biomarkerResults) : null;
-
-    if (healthTestScores) {
-      return {
-        overall: healthTestScores.overall,
-        biologicalAge: dashboardData?.biologicalAge?.biologicalAge ?? null,
-        chronologicalAge: dashboardData?.biologicalAge?.chronologicalAge ?? null,
-        categories: healthTestScores.categories.map((c) => ({
-          category: c.id,
-          score: c.score,
-          optimal: c.optimal,
-          normal: c.normal,
-          outOfRange: c.outOfRange,
-        })),
-        lastUpdated: healthTestScores.lastUpdated,
-      };
-    }
-
-    if (dashboardData?.healthScore) {
-      const hs = dashboardData.healthScore;
-      return {
-        overall: hs.overall || 0,
-        biologicalAge: hs.biologicalAge ?? dashboardData.biologicalAge?.biologicalAge ?? null,
-        chronologicalAge: hs.chronologicalAge ?? dashboardData.biologicalAge?.chronologicalAge ?? null,
-        categories: (hs.categoryScores || []).map(
-          (c: { category?: string; score?: number; optimal?: number; normal?: number; outOfRange?: number }) => ({
-            category: c.category || "",
-            score: c.score || 0,
-            optimal: c.optimal || 0,
-            normal: c.normal || 0,
-            outOfRange: c.outOfRange || 0,
-          })
-        ),
-        lastUpdated: hs.calculatedAt || new Date().toISOString(),
-      };
-    }
-
-    return {
-      overall: 0,
-      biologicalAge: dashboardData?.biologicalAge?.biologicalAge ?? null,
-      chronologicalAge: dashboardData?.biologicalAge?.chronologicalAge ?? null,
-      categories: [],
-      lastUpdated: new Date().toISOString(),
-    };
-  }, [dashboardData, gender]);
 
   // Transform API data to a lookup map by biomarkerId (derived values persisted server-side)
   const biomarkerResultsMap = useMemo(() => {
@@ -215,9 +169,7 @@ function BiomarkersPageContent() {
 
   const visibleCategories = useMemo(() => {
     const keys = new Set(allBiomarkersWithResults.map((item) => item.category));
-    return (Object.keys(bloodPanelConfig) as BloodPanelCategoryKey[]).filter((key) =>
-      keys.has(key)
-    );
+    return CATEGORY_ORDER.filter((key) => keys.has(key));
   }, [allBiomarkersWithResults]);
 
   // Filter biomarkers
@@ -270,16 +222,21 @@ function BiomarkersPageContent() {
 
   // Group by category
   const groupedBiomarkers = useMemo(() => {
-    const groups: Record<BloodPanelCategoryKey, typeof filteredBiomarkers> = {} as Record<BloodPanelCategoryKey, typeof filteredBiomarkers>;
+    const groups = {} as Partial<
+      Record<BloodPanelCategoryKey, typeof filteredBiomarkers>
+    >;
 
     for (const item of filteredBiomarkers) {
       if (!groups[item.category]) {
         groups[item.category] = [];
       }
-      groups[item.category].push(item);
+      groups[item.category]!.push(item);
     }
 
-    return groups;
+    return CATEGORY_ORDER.filter((key) => groups[key]?.length).map((key) => ({
+      category: key,
+      items: groups[key]!,
+    }));
   }, [filteredBiomarkers]);
 
   // Calculate counts - based on ACTUAL test results from database
@@ -318,36 +275,11 @@ function BiomarkersPageContent() {
     };
   }, [allBiomarkersWithResults, gender]);
 
-  const organCareEntitled = isOrganCareEntitled(portal?.membership);
-
-  const hasHealthScoreData =
-    healthScore.overall > 0 &&
-    healthScore.categories.some((c) => c.optimal + c.normal + c.outOfRange > 0);
-
-  const hasBiologicalAgeData =
-    healthScore.biologicalAge != null &&
-    healthScore.biologicalAge > 0 &&
-    healthScore.chronologicalAge != null &&
-    healthScore.chronologicalAge > 0;
-
-  const noResultsYet = counts.tested === 0;
-
-  // Health Score is available on the biomarkers hub for all members with results
-  // (not gated behind Organ Care / Complete Health HEALTH_SCORE entitlement).
-  const healthScoreInsightState =
-    hasHealthScoreData
-      ? null
-      : noResultsYet
-        ? ("pending_results" as const)
-        : ("partial" as const);
-
-  const biologicalAgeInsightState = resolveInsightDisplayState(
-    portal?.membership?.scopes?.BIOLOGICAL_CLOCK,
-    hasBiologicalAgeData,
-    { noResultsYet }
-  );
-
-  const handleBiomarkerClick = (biomarkerDef: BiomarkerDefinition | undefined, result: BiomarkerResult | null, panelBiomarker?: BloodPanelBiomarker) => {
+  const handleBiomarkerClick = (
+    biomarkerDef: BiomarkerDefinition | undefined,
+    result: BiomarkerResult | null,
+    panelBiomarker?: BloodPanelBiomarker
+  ) => {
     if (biomarkerDef) {
       setSelectedBiomarker({ biomarker: biomarkerDef, result, panelBiomarker });
     }
@@ -361,8 +293,8 @@ function BiomarkersPageContent() {
 
   const hasActiveFilters = searchQuery || selectedCategory || statusFilter !== "all";
 
-  // Loading state (history tab loads its own data)
-  if (isLoading && viewMode !== "history") {
+  // Loading state
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -374,7 +306,7 @@ function BiomarkersPageContent() {
   }
 
   // Error state
-  if (error && viewMode !== "history") {
+  if (error) {
     return (
       <Card className="border-red-200 bg-red-50/50">
         <CardContent className="py-12 text-center">
@@ -390,15 +322,20 @@ function BiomarkersPageContent() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
+          <Link
+            href="/dashboard"
+            className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Categories
+          </Link>
           <h1 className="text-2xl sm:text-3xl font-serif text-foreground">
             Biomarkers
           </h1>
           <p className="text-muted-foreground mt-1">
             {viewMode === "program"
               ? "Essential monitoring panels by clinical program, toggle Weight, Hair, Men's or Women's"
-              : viewMode === "history"
-                ? "View your test history and generate AI-powered health reports"
-                : `View and explore ${counts.totalInPanel} biomarkers across ${visibleCategories.length} health categories`}
+              : `View and explore ${counts.totalInPanel} biomarkers across ${visibleCategories.length} health categories`}
           </p>
         </div>
         <Link
@@ -424,7 +361,7 @@ function BiomarkersPageContent() {
         value={viewMode}
         onValueChange={(v) => setViewMode(v as BiomarkerViewMode)}
       >
-        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1">
           <TabsTrigger value="categories" className="gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm">
             <LayoutGrid className="h-4 w-4 shrink-0" />
             <span className="truncate">Categories</span>
@@ -433,10 +370,6 @@ function BiomarkersPageContent() {
             <Stethoscope className="h-4 w-4 shrink-0" />
             <span className="truncate sm:hidden">Program</span>
             <span className="hidden truncate sm:inline">By program</span>
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm">
-            <History className="h-4 w-4 shrink-0" />
-            History
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -452,17 +385,8 @@ function BiomarkersPageContent() {
           }
           onBiomarkerClick={handleBiomarkerClick}
         />
-      ) : viewMode === "history" ? (
-        <BiomarkerHistoryView embedded />
       ) : (
         <>
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
-        <HealthScoreCard healthScore={healthScore} insightState={healthScoreInsightState} />
-        <BiologicalAgeCard healthScore={healthScore} insightState={biologicalAgeInsightState} />
-      </div>
-
-      <OrganMetabolicHealthPanels organCareEntitled={organCareEntitled} />
-
       {/* Summary Stats - Based on Your Test Results */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Card className="bg-primary/5 border-primary/20">
@@ -496,7 +420,8 @@ function BiomarkersPageContent() {
           </CardContent>
         </Card>
       </div>
-      {/* Panel coverage info */}
+      {/* Panel coverage + filters — deep-linked from dashboard category cards */}
+      <div id="biomarker-results" ref={resultsFilterRef} className="scroll-mt-24 space-y-4">
       <p className="text-xs text-muted-foreground">
         Your results: {counts.tested} of {counts.totalInPanel} biomarkers tested ({Math.round((counts.tested / counts.totalInPanel) * 100)}% coverage)
       </p>
@@ -509,6 +434,7 @@ function BiomarkersPageContent() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
+                ref={searchInputRef}
                 placeholder="Search biomarkers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -614,6 +540,7 @@ function BiomarkersPageContent() {
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Results Count with Gender Indicator */}
       <div className="flex items-center justify-between">
@@ -633,10 +560,10 @@ function BiomarkersPageContent() {
       </div>
 
       {/* Biomarkers Grid - Grouped by Category */}
-      {Object.entries(groupedBiomarkers).length > 0 ? (
+      {groupedBiomarkers.length > 0 ? (
         <div className="space-y-8">
-          {Object.entries(groupedBiomarkers).map(([category, items]) => {
-            const catKey = category as BloodPanelCategoryKey;
+          {groupedBiomarkers.map(({ category, items }) => {
+            const catKey = category;
             const config = bloodPanelConfig[catKey];
             const Icon = config.icon;
             const testedCount = items.filter(i => i.result !== null).length;

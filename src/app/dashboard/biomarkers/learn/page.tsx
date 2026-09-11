@@ -106,7 +106,7 @@ const biomarkers: Biomarker[] = [
     }
   },
 
-  // Metabolism
+  // Metabolic
   {
     id: "HbA1c", name: "HbA1c", fullName: "Glycated Haemoglobin",
     description: "Shows your average blood sugar levels over the past 2-3 months. Key marker for diabetes risk.",
@@ -588,7 +588,7 @@ const biomarkers: Biomarker[] = [
 const categories = [
   { id: "all", name: "All Biomarkers", color: "bg-primary" },
   { id: "heart", name: "Heart", color: "bg-red-500" },
-  { id: "metabolism", name: "Metabolism", color: "bg-amber-500" },
+  { id: "metabolism", name: "Metabolic", color: "bg-amber-500" },
   { id: "hormones", name: "Hormones", color: "bg-pink-500" },
   { id: "thyroid", name: "Thyroid", color: "bg-purple-500" },
   { id: "nutrients", name: "Nutrients", color: "bg-teal-500" },

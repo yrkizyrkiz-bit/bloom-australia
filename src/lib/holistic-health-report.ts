@@ -18,6 +18,7 @@ import { markerMeaning, patientFacingMarkerName } from "@/lib/holistic-patient-l
 import {
   AU_REGULATORY_NOTICE,
   sanitizeHolisticHealthReport,
+  type HolisticAskItem,
   type HolisticCrossPattern,
   type HolisticHealthReport,
   type HolisticMarkerItem,
@@ -26,6 +27,7 @@ import {
   type HolisticPriorityBand,
   type HolisticProgramContribution,
 } from "@/lib/holistic-health-report-types";
+import { buildReportAskItems } from "@/lib/holistic-report-ask";
 
 export const HOLISTIC_HEALTH_ANALYSIS_TYPE = "holistic_health_v1";
 const CLAUDE_MODEL =
@@ -35,7 +37,7 @@ const CLAUDE_MODEL =
   "claude-sonnet-4-6";
 // Background Netlify functions allow up to ~15 minutes; Claude usually finishes in 1–2.
 const CLAUDE_TIMEOUT_MS = Number(process.env.HOLISTIC_HEALTH_AI_TIMEOUT_MS || 180_000);
-const CLAUDE_MAX_TOKENS = 5000;
+const CLAUDE_MAX_TOKENS = 7000;
 
 export type HolisticGenerationPending = {
   status: "generating";
@@ -357,11 +359,12 @@ const REPORT_TOOL = {
       "overallRisk",
       "executiveSummary",
       "clinicalContext",
-      "careTeamHandoffSummary",
       "organSystems",
       "crossSystemPatterns",
       "recommendations",
+      "careTeamHandoffSummary",
       "questionsForCareTeam",
+      "askItems",
       "retestingGuidance",
       "urgentActions",
       "limitations",
@@ -377,14 +380,47 @@ const REPORT_TOOL = {
       },
       clinicalContext: {
         type: "string",
-        description:
-          "Must be an empty string. Do not write a second member summary here — put clinician detail in careTeamHandoffSummary.",
+        description: "Must be an empty string. Do not write a second member summary here.",
       },
-      careTeamHandoffSummary: { type: "string" },
       organSystems: { type: "array", items: { type: "object" } },
       crossSystemPatterns: { type: "array", items: { type: "object" } },
       recommendations: { type: "array", items: { type: "object" } },
+      careTeamHandoffSummary: { type: "string" },
       questionsForCareTeam: { type: "array", items: { type: "string" } },
+      askItems: {
+        type: "array",
+        description:
+          "Prebaked Ask Q&A for the member chat chips. Answer EVERY seeded question id exactly once. Keep each answer short (~90 words total).",
+        items: {
+          type: "object",
+          required: ["id", "question", "intro", "bullets", "insight"],
+          properties: {
+            id: { type: "string" },
+            question: { type: "string" },
+            intro: { type: "string", description: "ONE warm sentence only." },
+            bullets: {
+              type: "array",
+              description: "Prefer exactly 1 bullet. Title = Marker: value unit. Body = one short sentence without repeating the title numbers.",
+              items: {
+                type: "object",
+                required: ["title", "body"],
+                properties: {
+                  title: { type: "string" },
+                  body: { type: "string" },
+                },
+              },
+            },
+            insight: {
+              type: "string",
+              description: "1–2 sentences of everyday clinical context. Not a diagnosis.",
+            },
+            closing: {
+              type: "string",
+              description: "Optional one short follow-up line, or empty string.",
+            },
+          },
+        },
+      },
       retestingGuidance: { type: "string" },
       urgentActions: { type: "array", items: { type: "string" } },
       limitations: { type: "array", items: { type: "string" } },
@@ -811,11 +847,119 @@ function buildDeterministicHolisticReport(context: HolisticContext): HolisticHea
       "Missing markers limit certainty for some organ systems.",
       "Reference intervals and clinical decisions remain with your treating clinician.",
     ],
+    askItems: [],
     analysisTimestamp: new Date().toISOString(),
   };
 }
 
+function attachSeedAskItems(seed: HolisticHealthReport): HolisticHealthReport {
+  return {
+    ...seed,
+    askItems: buildReportAskItems(seed),
+  };
+}
+
+function mergeAskItems(
+  seedItems: HolisticAskItem[],
+  rawItems: unknown
+): HolisticAskItem[] {
+  let parsedRaw: unknown = rawItems;
+  if (typeof rawItems === "string") {
+    try {
+      parsedRaw = JSON.parse(rawItems);
+    } catch (error) {
+      console.warn(
+        "[holistic-health-report] askItems string JSON parse failed:",
+        error instanceof Error ? error.message : error,
+        "length=",
+        rawItems.length
+      );
+      parsedRaw = null;
+    }
+  } else if (rawItems != null && !Array.isArray(rawItems)) {
+    console.warn(
+      "[holistic-health-report] askItems unexpected type:",
+      typeof rawItems
+    );
+  }
+
+  const byId = new Map<string, HolisticAskItem>();
+  const byQuestion = new Map<string, HolisticAskItem>();
+  if (Array.isArray(parsedRaw)) {
+    for (const item of parsedRaw) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const id = typeof row.id === "string" ? row.id.trim() : "";
+      const question = typeof row.question === "string" ? row.question.trim() : "";
+      const intro = typeof row.intro === "string" ? row.intro.trim() : "";
+      const insight = typeof row.insight === "string" ? row.insight.trim() : undefined;
+      const closing = typeof row.closing === "string" ? row.closing.trim() : undefined;
+      let bulletsRaw: unknown = row.bullets;
+      if (typeof bulletsRaw === "string") {
+        try {
+          bulletsRaw = JSON.parse(bulletsRaw);
+        } catch {
+          bulletsRaw = [];
+        }
+      }
+      const bullets = Array.isArray(bulletsRaw)
+        ? bulletsRaw
+            .filter(
+              (b): b is { title: string; body: string } =>
+                Boolean(b) &&
+                typeof b === "object" &&
+                typeof (b as { title?: unknown }).title === "string" &&
+                typeof (b as { body?: unknown }).body === "string"
+            )
+            .map((b) => ({ title: b.title.trim(), body: b.body.trim() }))
+            .filter((b) => b.title && b.body)
+            .slice(0, 1)
+        : [];
+      if (!intro || bullets.length === 0) continue;
+      const parsed: HolisticAskItem = {
+        id: id || `ask-${byId.size}`,
+        question,
+        intro,
+        bullets,
+        insight: insight || undefined,
+        closing: closing || undefined,
+      };
+      if (id) byId.set(id, parsed);
+      if (question) byQuestion.set(question.toLowerCase(), parsed);
+    }
+  }
+
+  if (byId.size === 0 && byQuestion.size === 0 && rawItems != null) {
+    console.warn(
+      "[holistic-health-report] askItems produced 0 usable answers; falling back to seed templates",
+      {
+        rawType: typeof rawItems,
+        isArray: Array.isArray(parsedRaw),
+        arrayLen: Array.isArray(parsedRaw) ? parsedRaw.length : null,
+      }
+    );
+  }
+
+  return seedItems.map((seedItem) => {
+    const fromAi = byId.get(seedItem.id) || byQuestion.get(seedItem.question.toLowerCase());
+    if (!fromAi) return seedItem;
+    return {
+      ...seedItem,
+      question: seedItem.question,
+      intro: fromAi.intro || seedItem.intro,
+      bullets: fromAi.bullets.length ? fromAi.bullets : seedItem.bullets,
+      insight: fromAi.insight || seedItem.insight,
+      closing: fromAi.closing || seedItem.closing,
+    };
+  });
+}
+
 function buildHolisticPrompt(context: HolisticContext, seed: HolisticHealthReport) {
+  const askSeeds = (seed.askItems || []).map((item) => ({
+    id: item.id,
+    question: item.question,
+  }));
+
   return `You are writing a Holistic Health Report for a Sanative member who is NOT a clinician.
 
 Audience (critical):
@@ -827,7 +971,6 @@ Audience (critical):
   "kidney filter rate (eGFR)", "liver enzyme (ALT)", "blood fats (triglycerides)", "inflammation marker (CRP)".
 - First say what the marker means for the body, then what their number suggests in plain words.
 - Avoid unexplained jargon: lipids, glycaemic, filtration, enzyme elevation, pathology, cardiovascular risk stratification.
-- careTeamHandoffSummary is the ONLY place that may use concise clinical shorthand for doctors.
 
 Hard rules (AU-aligned):
 - Educational only. Do NOT diagnose, prescribe, or claim disease certainty.
@@ -837,6 +980,7 @@ Hard rules (AU-aligned):
 - Keep urgentActions limited to genuine laboratory red flags from the data.
 - CRITICAL: If IMMEDIATE MARKERS is non-empty, the executiveSummary MUST lead with those markers (especially iron stores, iron, iron saturation, haemoglobin, or other critical labs). Never omit CRITICAL/OUT_OF_RANGE iron or blood-count findings that appear in IMMEDIATE or ATTENTION lists.
 - Do not focus only on organ-care scores when blood & iron markers are flagged.
+- careTeamHandoffSummary is the ONLY place that may use concise clinical shorthand for doctors.
 
 PATIENT: ${context.user.firstName || "Member"}, ${context.user.gender}, age ${context.age ?? "unknown"}
 OVERALL SCORE: ${context.healthScores.overall}/100
@@ -848,13 +992,15 @@ IMMEDIATE MARKERS: ${JSON.stringify(seed.priorityBands.immediate.slice(0, 8))}
 ATTENTION MARKERS: ${JSON.stringify(seed.priorityBands.needsAttention.slice(0, 10))}
 LOOK OUT: ${JSON.stringify(seed.priorityBands.lookOut.slice(0, 8))}
 CROSS PATTERNS SEED: ${JSON.stringify(seed.crossSystemPatterns)}
+ASK QUESTION SEEDS (answer each id exactly once in askItems): ${JSON.stringify(askSeeds)}
 
 Submit via submit_holistic_health_report:
 - reportTitle, overallRisk
 - executiveSummary: ONE short patient-facing summary only (max 5–6 sentences). Fold score, key concerns, and the most important numbers into this single block. Do NOT repeat the same points twice. Do NOT write a separate "clinical overview" for the member.
 - clinicalContext: MUST be "" (empty). Never duplicate the member summary here.
 - careTeamHandoffSummary (clinician-facing, 4-6 sentences max — put age/sex and clinical detail here, not in member fields)
-- organSystems: refine summaries/highlights in patient language for liver, heart, kidney and any other systems with data (keep scores aligned to seed)
+- askItems (REQUIRED, do these early): for EACH seeded question, return {id, question, intro, bullets[1], insight, optional closing}. Speak as George — warm, short, educational. Intro one sentence; one bullet with Marker: value unit; insight 1–2 sentences of everyday context. Keep the seeded id and question text exactly. Do not invent extra questions.
+- organSystems: refine summaries/highlights in patient language for liver, heart, kidney, blood/iron and any other systems with data (keep scores aligned to seed)
 - crossSystemPatterns: 2-5 patterns spanning systems, titles and explanations in plain English
 - recommendations (max 8, patient actions in plain English), questionsForCareTeam (3-5), retestingGuidance, urgentActions, limitations, analysisTimestamp (ISO)`;
 }
@@ -900,7 +1046,7 @@ async function generateHolisticClaudeReport(
     throw new Error("Claude did not return the holistic report tool payload");
   }
 
-  const raw = toolUse.input as Partial<HolisticHealthReport>;
+  const raw = toolUse.input as Partial<HolisticHealthReport> & { askItems?: unknown };
   return {
     ...seed,
     ...raw,
@@ -908,6 +1054,16 @@ async function generateHolisticClaudeReport(
     aiModel: CLAUDE_MODEL,
     overallHealthScore: seed.overallHealthScore,
     regulatoryNotice: AU_REGULATORY_NOTICE,
+    careTeamHandoffSummary:
+      typeof raw.careTeamHandoffSummary === "string" && raw.careTeamHandoffSummary.trim()
+        ? raw.careTeamHandoffSummary.trim()
+        : seed.careTeamHandoffSummary || "",
+    questionsForCareTeam:
+      Array.isArray(raw.questionsForCareTeam) && raw.questionsForCareTeam.length
+        ? raw.questionsForCareTeam.filter(
+            (q): q is string => typeof q === "string" && q.trim().length > 0
+          )
+        : seed.questionsForCareTeam || [],
     priorityBands: seed.priorityBands,
     programContributions: seed.programContributions,
     organSystems: Array.isArray(raw.organSystems) && raw.organSystems.length
@@ -916,6 +1072,7 @@ async function generateHolisticClaudeReport(
     crossSystemPatterns: Array.isArray(raw.crossSystemPatterns) && raw.crossSystemPatterns.length
       ? (raw.crossSystemPatterns as HolisticCrossPattern[])
       : seed.crossSystemPatterns,
+    askItems: mergeAskItems(seed.askItems || [], raw.askItems),
   };
 }
 
@@ -923,13 +1080,20 @@ export function enrichHolisticHealthReport(
   report: HolisticHealthReport,
   context: HolisticContext
 ): HolisticHealthReport {
-  const seed = buildDeterministicHolisticReport(context);
+  const seed = attachSeedAskItems(buildDeterministicHolisticReport(context));
+  const sanitized = sanitizeHolisticHealthReport(report)!;
   return {
-    ...sanitizeHolisticHealthReport(report)!,
+    ...sanitized,
     aiProvider: report.aiProvider || seed.aiProvider,
     aiModel: report.aiModel || seed.aiModel,
     overallHealthScore: context.healthScores.overall,
     regulatoryNotice: AU_REGULATORY_NOTICE,
+    careTeamHandoffSummary:
+      sanitized.careTeamHandoffSummary || seed.careTeamHandoffSummary || "",
+    questionsForCareTeam:
+      sanitized.questionsForCareTeam && sanitized.questionsForCareTeam.length
+        ? sanitized.questionsForCareTeam
+        : seed.questionsForCareTeam || [],
     priorityBands: seed.priorityBands,
     programContributions: context.programs.length
       ? context.programs
@@ -943,6 +1107,10 @@ export function enrichHolisticHealthReport(
         highlights: seedOrgan.highlights,
       };
     }),
+    askItems:
+      Array.isArray(report.askItems) && report.askItems.length > 0
+        ? mergeAskItems(seed.askItems || [], report.askItems)
+        : seed.askItems,
   };
 }
 
@@ -953,7 +1121,7 @@ export async function generateHolisticHealthReport(
   report: HolisticHealthReport;
   usedFallback: boolean;
 }> {
-  const seed = buildDeterministicHolisticReport(context);
+  const seed = attachSeedAskItems(buildDeterministicHolisticReport(context));
   // Default: Claude only. Opt into clinical seed with HOLISTIC_HEALTH_ALLOW_FALLBACK=1.
   const allowFallback =
     options?.requireClaude === false ||

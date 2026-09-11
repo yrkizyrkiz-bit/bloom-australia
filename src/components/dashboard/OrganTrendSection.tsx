@@ -149,7 +149,7 @@ function OrganTrendMilestoneCards({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Biggest Improvements</CardTitle>
+          <CardTitle className="text-lg">Category changes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {milestones.categoryImprovements.slice(0, 4).map((item) => (

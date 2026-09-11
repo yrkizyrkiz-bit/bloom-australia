@@ -25,17 +25,25 @@ export async function GET() {
     }
     const userId = session.user.id;
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        journeyStatus: true,
-        approvalStatus: true,
-        passwordHash: true,
-        subscriptionTier: true,
-        memberStatus: true,
-        gender: true,
-      },
-    });
+    // Overlap user + entitlements + biomarker coverage queries on the critical path.
+    const [user, initialEntitlements, biomarkerIds, pendingLabCount] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          journeyStatus: true,
+          approvalStatus: true,
+          passwordHash: true,
+          subscriptionTier: true,
+          memberStatus: true,
+          gender: true,
+        },
+      }),
+      getAllEntitlements(userId),
+      getDistinctBiomarkerIdsForUser(userId),
+      prisma.labReport.count({
+        where: { userId, status: { in: ["PENDING", "PROCESSING"] } },
+      }),
+    ]);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -50,18 +58,11 @@ export async function GET() {
     // otherwise use persisted rows for a fast read path.
     let membership;
     try {
-      let entitlements = await getAllEntitlements(userId);
+      let entitlements = initialEntitlements;
       if (entitlements.length === 0) {
         await syncEntitlementsFromSignals(userId);
         entitlements = await getAllEntitlements(userId);
       }
-
-      const [biomarkerIds, pendingLabCount] = await Promise.all([
-        getDistinctBiomarkerIdsForUser(userId),
-        prisma.labReport.count({
-          where: { userId, status: { in: ["PENDING", "PROCESSING"] } },
-        }),
-      ]);
 
       membership = deriveMembershipEntitlements({
         entitlements: entitlements.map(

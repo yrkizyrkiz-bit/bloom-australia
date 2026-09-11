@@ -134,7 +134,7 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
     ]
   },
   metabolism: {
-    name: "Metabolism",
+    name: "Metabolic",
     description: "Blood sugar & metabolic health",
     icon: Flame,
     color: "#f97316",
@@ -729,7 +729,7 @@ export const bloodPanelConfig: Record<BloodPanelCategoryKey, BloodPanelCategory>
 // Category info for styling (matches the config above)
 export const bloodPanelCategoryInfo: Record<BloodPanelCategoryKey, { name: string; color: string }> = {
   heart: { name: "Heart Health", color: "#ef4444" },
-  metabolism: { name: "Metabolism", color: "#f97316" },
+  metabolism: { name: "Metabolic", color: "#f97316" },
   thyroid: { name: "Thyroid Function", color: "#3b82f6" },
   hormones: { name: "Hormones", color: "#a855f7" },
   nutrients: { name: "Nutrients", color: "#eab308" },

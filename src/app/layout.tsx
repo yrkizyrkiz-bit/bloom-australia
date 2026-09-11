@@ -1,6 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Inter, Cormorant_Garamond, Outfit } from "next/font/google";
 import "./globals.css";
+
+/** Match Netlify production viewport — do not add maximumScale/userScalable overrides. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",

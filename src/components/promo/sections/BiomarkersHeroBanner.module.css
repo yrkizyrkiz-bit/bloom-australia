@@ -7,7 +7,9 @@
   position: relative;
   min-height: clamp(580px, 58vw, 900px);
   overflow: hidden;
+  overflow-x: clip;
   background: #c8d4ce;
+  max-width: 100%;
 }
 
 .heroBackground {

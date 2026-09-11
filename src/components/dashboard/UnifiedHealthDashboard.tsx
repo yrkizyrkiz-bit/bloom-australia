@@ -125,6 +125,15 @@ export function UnifiedHealthDashboard({
   const totalBiomarkers = totalOptimal + totalNormal + totalOutOfRange;
 
   const sortedTests = [...testScores].sort((a, b) => b.score - a.score);
+  // Keep Heart Health above Thyroid Function (swap if score order puts thyroid first)
+  const thyroidIdx = sortedTests.findIndex((t) => t.id === "thyroid");
+  const heartIdx = sortedTests.findIndex((t) => t.id === "heart");
+  if (thyroidIdx !== -1 && heartIdx !== -1 && thyroidIdx < heartIdx) {
+    [sortedTests[thyroidIdx], sortedTests[heartIdx]] = [
+      sortedTests[heartIdx],
+      sortedTests[thyroidIdx],
+    ];
+  }
   const needsAttention = testScores.filter(t => t.hasData && t.score < 70);
 
   // Show empty state if no data

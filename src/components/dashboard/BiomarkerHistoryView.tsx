@@ -19,13 +19,14 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Sparkles,
   ArrowUpRight,
   ArrowDownRight,
   ArrowLeftRight,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface BiomarkerTrendData {
   biomarkerId: string;
@@ -253,13 +254,6 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
             <ArrowLeftRight className="w-4 h-4" />
             Compare Tests
           </Button>
-          <Button
-            onClick={() => setActiveTab("reports")}
-            className="w-full gap-2 sm:w-auto bg-[#1D9E75] hover:bg-[#178a64]"
-          >
-            <Sparkles className="w-4 h-4" />
-            AI Report
-          </Button>
         </div>
       </div>
 
@@ -364,13 +358,28 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="overflow-x-auto pb-1">
-          <TabsList className="inline-flex h-auto w-max min-w-full sm:min-w-0">
-            <TabsTrigger value="history" className="text-xs sm:text-sm">Test History</TabsTrigger>
-            <TabsTrigger value="trends" className="text-xs sm:text-sm">Biomarker Trends</TabsTrigger>
-            <TabsTrigger value="reports" className="text-xs sm:text-sm">Generated Reports</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1">
+          <TabsTrigger value="history" className="px-1.5 py-2 text-[11px] leading-tight sm:px-3 sm:text-sm">
+            Test History
+          </TabsTrigger>
+          <TabsTrigger value="trends" className="px-1.5 py-2 text-[11px] leading-tight sm:px-3 sm:text-sm">
+            <span className="sm:hidden">Trends</span>
+            <span className="hidden sm:inline">Biomarker Trends</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="reports"
+            className={cn(
+              "gap-1 px-1.5 py-2 text-[11px] leading-tight sm:gap-1.5 sm:px-3 sm:text-sm",
+              "data-[state=active]:text-[#3a4c2c]"
+            )}
+          >
+            <span className="animate-ai-sparkle" aria-hidden>
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#5c7a52]" />
+            </span>
+            <span className="sm:hidden">AI Reports</span>
+            <span className="hidden sm:inline">AI Powered Reports</span>
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="history" className="space-y-6">
           {testDates.every((testDate) => getResultsForDate(testDate.date).length === 0) && (

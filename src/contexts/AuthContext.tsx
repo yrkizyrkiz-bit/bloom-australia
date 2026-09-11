@@ -1,14 +1,19 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { getSession, signIn, signOut, useSession } from "next-auth/react";
 import type { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithPasskey: (webauthnToken: string) => Promise<{ success: boolean; error?: string }>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string; role?: string }>;
+  loginWithPasskey: (
+    webauthnToken: string
+  ) => Promise<{ success: boolean; error?: string; role?: string }>;
   logout: () => void;
   register: (userData: Partial<User> & { password: string }) => Promise<{ success: boolean; error?: string }>;
 }
@@ -30,8 +35,20 @@ function mapSessionUser(sessionUser: NonNullable<ReturnType<typeof useSession>["
   };
 }
 
+async function hydrateSessionAfterSignIn(): Promise<
+  { success: true; role?: string } | { success: false; error: string }
+> {
+  // Read the JWT cookie into the client session — do NOT call update(), which
+  // forces a redundant DB round-trip via the JWT "update" trigger.
+  const session = await getSession();
+  if (!session?.user?.id) {
+    return { success: false, error: "Session could not be established. Please try again." };
+  }
+  return { success: true, role: session.user.role };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const user = session?.user ? mapSessionUser(session.user) : null;
   const isLoading = status === "loading";
 
@@ -47,9 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: result.error };
       }
 
-      await update();
-      return { success: true };
-    } catch (error) {
+      return hydrateSessionAfterSignIn();
+    } catch {
       return { success: false, error: "An unexpected error occurred" };
     }
   };
@@ -65,8 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: result.error };
       }
 
-      await update();
-      return { success: true };
+      return hydrateSessionAfterSignIn();
     } catch {
       return { success: false, error: "An unexpected error occurred" };
     }
@@ -104,10 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: data.error || "Registration failed" };
       }
 
-      // Auto-login after registration
       const loginResult = await login(userData.email || "", userData.password);
       return loginResult;
-    } catch (error) {
+    } catch {
       return { success: false, error: "An unexpected error occurred" };
     }
   };

@@ -34,7 +34,7 @@ type Options = {
 
 /**
  * Shared load / generate / poll for holistic Claude reports.
- * Used by the dashboard AI Health Report dialog and Generated Reports tab.
+ * Used by the dashboard AI Health Report dialog and AI Powered Reports tab.
  */
 export function useHolisticHealthReport({ userId, enabled = true, onReady }: Options) {
   const [state, setState] = useState<HolisticReportState | null>(null);

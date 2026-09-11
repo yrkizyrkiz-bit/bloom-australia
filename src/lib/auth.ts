@@ -43,6 +43,17 @@ export const authOptions: NextAuthOptions = {
             const payload = verifyWebAuthnLoginToken(credentials.webauthnToken);
             const user = await prisma.user.findUnique({
               where: { id: payload.userId },
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+                gender: true,
+                image: true,
+                dateOfBirth: true,
+                passkeysEnabled: true,
+              },
             });
             if (
               user &&
@@ -63,6 +74,16 @@ export const authOptions: NextAuthOptions = {
             const payload = verifyMagicLoginToken(credentials.magicToken);
             const user = await prisma.user.findUnique({
               where: { id: payload.userId },
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+                gender: true,
+                image: true,
+                dateOfBirth: true,
+              },
             });
 
             if (
@@ -85,10 +106,31 @@ export const authOptions: NextAuthOptions = {
 
         const email = credentials.email.toLowerCase().trim();
 
-        // First, try to find a User (case-insensitive for legacy mixed-case records)
-        const user = await prisma.user.findFirst({
-          where: { email: { equals: email, mode: "insensitive" } },
+        // Prefer unique lookup on normalised email; fall back for legacy mixed-case rows.
+        const authSelect = {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          gender: true,
+          image: true,
+          dateOfBirth: true,
+          passwordHash: true,
+          password: true,
+          passkeysEnabled: true,
+        } as const;
+
+        let user = await prisma.user.findUnique({
+          where: { email },
+          select: authSelect,
         });
+        if (!user) {
+          user = await prisma.user.findFirst({
+            where: { email: { equals: email, mode: "insensitive" } },
+            select: authSelect,
+          });
+        }
 
         const storedHash = user?.passwordHash || user?.password;
 
@@ -100,11 +142,23 @@ export const authOptions: NextAuthOptions = {
             authDebug("[Auth] User password valid, returning user");
             return authUserFromRecord(user);
           }
+
+          // Member exists but password is wrong — do not fall through to clinic lookup.
+          authDebug("[Auth] User password invalid");
+          throw new Error("Invalid email or password");
         }
 
         // If not a user, try to find a Clinic (GP)
         const clinic = await prisma.clinic.findUnique({
           where: { leadGpEmail: email },
+          select: {
+            id: true,
+            name: true,
+            leadGpEmail: true,
+            leadGpName: true,
+            passwordHash: true,
+            status: true,
+          },
         });
 
         if (clinic && clinic.passwordHash) {

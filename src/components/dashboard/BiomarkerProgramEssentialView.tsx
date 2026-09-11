@@ -27,7 +27,6 @@ import {
   type WomensHealthSubcategory,
 } from "@/lib/womens-health-biomarker-subcategories";
 import { shouldShowPortalMarkerCard } from "@/lib/biomarkers/panel-biomarker-display";
-import { MedicareEligibilityLegend } from "@/components/dashboard/MedicareEligibilityLegend";
 import { Info, User } from "lucide-react";
 
 type BiomarkerRow = {
@@ -200,8 +199,6 @@ export function BiomarkerProgramEssentialView({
           )}
         </CardContent>
       </Card>
-
-      <MedicareEligibilityLegend />
 
       {/* Coverage bar */}
       <p className="text-xs text-muted-foreground">

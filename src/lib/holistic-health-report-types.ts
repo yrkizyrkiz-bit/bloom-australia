@@ -54,6 +54,16 @@ export type HolisticProgramContribution = {
   monitoringFocus: string;
 };
 
+/** Prebaked George Ask chip — generated with the main Claude report. */
+export type HolisticAskItem = {
+  id: string;
+  question: string;
+  intro: string;
+  bullets: Array<{ title: string; body: string }>;
+  insight?: string;
+  closing?: string;
+};
+
 export type HolisticHealthReport = {
   aiProvider?: "claude" | "deterministic";
   aiModel?: string;
@@ -63,7 +73,8 @@ export type HolisticHealthReport = {
   executiveSummary: string;
   clinicalContext: string;
   regulatoryNotice: string;
-  careTeamHandoffSummary: string;
+  /** Clinician handoff summary (shown in Actions). */
+  careTeamHandoffSummary?: string;
   priorityBands: {
     good: HolisticMarkerItem[];
     lookOut: HolisticMarkerItem[];
@@ -79,10 +90,13 @@ export type HolisticHealthReport = {
     action: string;
     rationale: string;
   }>;
-  questionsForCareTeam: string[];
+  /** Suggested questions for the care team (shown in Actions). */
+  questionsForCareTeam?: string[];
   retestingGuidance: string;
   urgentActions: string[];
   limitations: string[];
+  /** Prebaked Ask Q&A from the main Claude job (instant chip answers). */
+  askItems?: HolisticAskItem[];
   analysisTimestamp: string;
 };
 
@@ -208,7 +222,10 @@ export function sanitizeHolisticHealthReport(
     // Member narrative lives only in executiveSummary — avoid a second repeated block.
     clinicalContext: "",
     regulatoryNotice: AU_REGULATORY_NOTICE,
-    careTeamHandoffSummary: report.careTeamHandoffSummary || "",
+    careTeamHandoffSummary:
+      typeof report.careTeamHandoffSummary === "string"
+        ? report.careTeamHandoffSummary
+        : "",
     priorityBands: {
       good: Array.isArray(report.priorityBands?.good) ? report.priorityBands!.good : [],
       lookOut: Array.isArray(report.priorityBands?.lookOut) ? report.priorityBands!.lookOut : [],
@@ -233,6 +250,60 @@ export function sanitizeHolisticHealthReport(
     retestingGuidance: report.retestingGuidance || "",
     urgentActions: Array.isArray(report.urgentActions) ? report.urgentActions : [],
     limitations: Array.isArray(report.limitations) ? report.limitations : [],
+    askItems: sanitizeAskItems(report.askItems),
     analysisTimestamp: report.analysisTimestamp || new Date().toISOString(),
   };
+}
+
+function sanitizeAskItems(raw: unknown): HolisticAskItem[] {
+  let parsed: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map((item, index) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const question = typeof row.question === "string" ? row.question.trim() : "";
+      const intro = typeof row.intro === "string" ? row.intro.trim() : "";
+      const insight = typeof row.insight === "string" ? row.insight.trim() : undefined;
+      const closing = typeof row.closing === "string" ? row.closing.trim() : undefined;
+      let bulletsRaw: unknown = row.bullets;
+      if (typeof bulletsRaw === "string") {
+        try {
+          bulletsRaw = JSON.parse(bulletsRaw);
+        } catch {
+          bulletsRaw = [];
+        }
+      }
+      const bullets = Array.isArray(bulletsRaw)
+        ? bulletsRaw
+            .filter(
+              (b): b is { title: string; body: string } =>
+                Boolean(b) &&
+                typeof b === "object" &&
+                typeof (b as { title?: unknown }).title === "string" &&
+                typeof (b as { body?: unknown }).body === "string"
+            )
+            .map((b) => ({ title: b.title.trim(), body: b.body.trim() }))
+            .filter((b) => b.title && b.body)
+            .slice(0, 2)
+        : [];
+      if (!question || !intro || bullets.length === 0) return null;
+      return {
+        id: typeof row.id === "string" && row.id.trim() ? row.id.trim() : `ask-${index}`,
+        question,
+        intro,
+        bullets,
+        insight: insight || undefined,
+        closing: closing || undefined,
+      } satisfies HolisticAskItem;
+    })
+    .filter((item): item is HolisticAskItem => Boolean(item))
+    .slice(0, 6);
 }

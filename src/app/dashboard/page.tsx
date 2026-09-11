@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardHomeRedirect } from "@/components/dashboard/DashboardHomeRedirect";
 import { useDashboardStats } from "@/hooks/useApi";
+import { usePortalContext } from "@/hooks/usePortalContext";
 import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
 import { BiologicalAgeCard } from "@/components/dashboard/BiologicalAgeCard";
 import { BiomarkerSummaryCard } from "@/components/dashboard/BiomarkerSummaryCard";
@@ -14,8 +15,14 @@ import { UnifiedHealthDashboard } from "@/components/dashboard/UnifiedHealthDash
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { biomarkerDefinitions, getBiomarkerById } from "@/data/biomarkers";
+import {
+  bloodPanelConfig,
+  getBiomarkerStatus,
+  type BloodPanelCategoryKey,
+} from "@/data/bloodPanelConfig";
 import { calculateAllHealthTestScores } from "@/lib/healthTestScoring";
-// Mock data imports removed - using real API data only
+import { shouldShowPortalMarkerCard, CATEGORY_ORDER } from "@/lib/biomarkers/panel-biomarker-display";
+import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 import type { BiomarkerDefinition, BiomarkerResult, HealthScore } from "@/types";
 import { AlertTriangle, ArrowRight, Sparkles, LayoutGrid, List, Loader2, Zap } from "lucide-react";
 import Link from "next/link";
@@ -60,6 +67,8 @@ function DashboardPageContent({
   const [viewMode, setViewMode] = useState<"tests" | "categories">("categories");
 
   const gender = user?.gender === "female" ? "female" : "male";
+  const { data: portal } = usePortalContext();
+  const organCareEntitled = isOrganCareEntitled(portal?.membership);
 
   // Map API data to component format - NO mock data fallback for real users
   const biomarkerResults: BiomarkerResult[] = useMemo(() => {
@@ -166,6 +175,55 @@ function DashboardPageContent({
       );
   }, [biomarkerResults]);
 
+  // Same blood-panel categories as /dashboard/biomarkers (not just the 6 organ tests).
+  const bloodPanelCategories = useMemo(() => {
+    const resultsById = new Map(
+      biomarkerResults.map((result) => [result.biomarkerId, result] as const)
+    );
+
+    return CATEGORY_ORDER.flatMap((key) => {
+      const config = bloodPanelConfig[key];
+      let optimal = 0;
+      let normal = 0;
+      let outOfRange = 0;
+      let visible = 0;
+
+      for (const marker of config.biomarkers) {
+        const result = resultsById.get(marker.id) ?? null;
+        if (!shouldShowPortalMarkerCard(marker.id, result !== null)) continue;
+        visible += 1;
+        if (!result) continue;
+        const status = getBiomarkerStatus(result.value, marker, gender).status;
+        if (status === "Optimal") optimal += 1;
+        else if (status === "Normal") normal += 1;
+        else if (["Low", "High", "Critical Low", "Critical High"].includes(status)) {
+          outOfRange += 1;
+        }
+      }
+
+      if (visible === 0) return [];
+
+      const tested = optimal + normal + outOfRange;
+      const score =
+        tested === 0
+          ? 0
+          : Math.round((optimal * 100 + normal * 70 + outOfRange * 25) / tested);
+
+      return [
+        {
+          key,
+          name: config.name,
+          color: config.color,
+          icon: config.icon,
+          score,
+          optimal,
+          normal,
+          outOfRange,
+        },
+      ];
+    });
+  }, [biomarkerResults, gender]);
+
   const handleBiomarkerClick = (biomarker: BiomarkerDefinition, result: BiomarkerResult) => {
     setSelectedBiomarker({ biomarker, result });
   };
@@ -190,7 +248,7 @@ function DashboardPageContent({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-[#04342C] to-[#065f46] rounded-3xl p-6 md:p-8 text-white relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
@@ -199,58 +257,79 @@ function DashboardPageContent({
         </div>
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-serif mb-1">
+            <div className="min-w-0">
+              <h1 className="text-2xl md:text-3xl font-serif mb-1" suppressHydrationWarning>
                 {getGreeting()}, {user?.firstName || dashboardData?.user?.firstName || "Member"}
               </h1>
-              <p className="text-white/70">
+              <p className="text-white/70" suppressHydrationWarning>
                 Here&apos;s your health overview for {new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" })}
                 {error && <span className="text-yellow-300 text-xs ml-2">(Using cached data)</span>}
               </p>
             </div>
             <Button
               onClick={() => setShowAIReport(true)}
-              className="bg-white text-[#04342C] hover:bg-white/90 gap-2 rounded-full px-6 shadow-lg"
+              className="bg-white text-[#04342C] hover:bg-white/90 gap-2 rounded-full px-6 shadow-lg shrink-0"
             >
               <Sparkles className="w-4 h-4" />
-              AI Health Report
+              AI-Powered Health Report
             </Button>
           </div>
         </div>
       </div>
 
       {/* View Toggle */}
-      <div className="flex items-center gap-2">
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "tests" | "categories")} className="w-full">
-          <div className="flex items-center justify-between mb-4">
-            <TabsList>
-              <TabsTrigger value="tests" className="gap-2">
-                <LayoutGrid className="w-4 h-4" />
-                Organ & Metabolic Health
-              </TabsTrigger>
-              <TabsTrigger value="categories" className="gap-2">
+      <div className="min-w-0">
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "tests" | "categories")} className="w-full min-w-0">
+          <div className="mb-4 min-w-0 overflow-x-auto overscroll-x-contain pb-1">
+            <TabsList className="dashboard-view-tabs">
+              <TabsTrigger
+                value="categories"
+                className="dashboard-view-tab dashboard-view-tab-categories"
+                style={
+                  viewMode === "categories"
+                    ? { backgroundColor: "#5c7a52", color: "#ffffff" }
+                    : { backgroundColor: "#d7e3d0", color: "#3d4f38" }
+                }
+              >
                 <List className="w-4 h-4" />
                 Categories
+              </TabsTrigger>
+              <TabsTrigger
+                value="tests"
+                className="dashboard-view-tab dashboard-view-tab-organ"
+                style={
+                  viewMode === "tests"
+                    ? { backgroundColor: "#c45c5c", color: "#ffffff" }
+                    : { backgroundColor: "#f5e0e0", color: "#8a3d3d" }
+                }
+              >
+                <LayoutGrid className="w-4 h-4" />
+                Organ & Metabolic Health
               </TabsTrigger>
             </TabsList>
           </div>
 
           {/* Health Tests View - Unified Dashboard */}
-          <TabsContent value="tests" className="mt-0">
+          <TabsContent value="tests" className="mt-0 min-w-0">
             <UnifiedHealthDashboard gender={gender} />
           </TabsContent>
 
           {/* Categories View - Classic Dashboard */}
-          <TabsContent value="categories" className="mt-0 space-y-6">
+          <TabsContent value="categories" className="mt-0 min-w-0 space-y-6">
             {/* Main Stats Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <HealthScoreCard healthScore={healthScore} />
-              <BiologicalAgeCard healthScore={healthScore} />
+            <div className="grid min-w-0 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="min-w-0">
+                <HealthScoreCard healthScore={healthScore} />
+              </div>
+              <div className="min-w-0">
+                <BiologicalAgeCard healthScore={healthScore} />
+              </div>
               <BiomarkerSummaryCard
                 optimal={totals.optimal}
                 normal={totals.normal}
                 outOfRange={totals.outOfRange}
                 lastUpdated={healthScore.lastUpdated}
+                organCareEntitled={organCareEntitled}
               />
             </div>
 
@@ -279,22 +358,27 @@ function DashboardPageContent({
               </Card>
             )}
 
-            {/* Categories Overview */}
+            {/* Categories Overview — same set as /dashboard/biomarkers */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-serif text-foreground">Categories</h2>
                 <Link href="/dashboard/biomarkers">
-                  <Button variant="ghost" size="sm" className="gap-2">
+                  <Button
+                    size="sm"
+                    className="h-8 gap-1.5 rounded-full bg-green-600 px-3 text-xs font-medium text-white hover:bg-green-700"
+                  >
                     View all
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </Link>
               </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {healthScore.categories.slice(0, 8).map((cat) => (
-                  <Link key={cat.category} href={`/dashboard/biomarkers?category=${cat.category}`}>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {bloodPanelCategories.map((cat) => (
+                  <Link key={cat.key} href={`/dashboard/biomarkers?category=${cat.key}#biomarker-results`}>
                     <CategoryCard
-                      category={cat.category}
+                      name={cat.name}
+                      color={cat.color}
+                      icon={cat.icon}
                       score={cat.score}
                       optimal={cat.optimal}
                       normal={cat.normal}

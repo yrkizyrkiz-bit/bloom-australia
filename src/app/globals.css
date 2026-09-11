@@ -89,9 +89,17 @@
   * {
     @apply border-border;
   }
+  html {
+    /* Prevent mobile browsers from shrink-to-fitting wide children (marquees, w-max rows). */
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   body {
     @apply bg-white text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: clip;
+    min-width: 0;
   }
 }
 
@@ -398,6 +406,166 @@
   animation: shimmer 3s ease-in-out infinite;
 }
 
+@keyframes ai-sparkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.75;
+    filter: drop-shadow(0 0 0 rgb(92 122 82 / 0));
+  }
+  25% {
+    transform: scale(1.25) rotate(-12deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgb(92 122 82 / 0.85));
+  }
+  50% {
+    transform: scale(1.1) rotate(10deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 10px rgb(204 234 131 / 0.95));
+  }
+  75% {
+    transform: scale(1.2) rotate(-6deg);
+    opacity: 0.95;
+    filter: drop-shadow(0 0 6px rgb(92 122 82 / 0.7));
+  }
+}
+
+.animate-ai-sparkle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
+  animation: ai-sparkle 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ai-sparkle {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Dashboard Categories / Organ Care view tabs */
+.dashboard-view-tabs {
+  display: inline-flex !important;
+  height: auto !important;
+  width: max-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(180deg, #dce4d8 0%, #e6ebe3 100%) !important;
+  padding: 0.4rem !important;
+  box-shadow:
+    inset 0 2px 4px rgb(44 54 40 / 0.12),
+    inset 0 -1px 0 rgb(255 255 255 / 0.55) !important;
+}
+
+button.dashboard-view-tab,
+.dashboard-view-tab {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.55rem !important;
+  padding: 0.55rem 0.95rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  line-height: 1.25;
+  border: none !important;
+  transform: translateY(0);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+button.dashboard-view-tab:active,
+.dashboard-view-tab:active {
+  transform: translateY(2px) !important;
+}
+
+button.dashboard-view-tab-categories,
+.dashboard-view-tab-categories {
+  background: linear-gradient(180deg, #e4ecdf 0%, #d7e3d0 100%) !important;
+  color: #3d4f38 !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 2px 0 #a8bb9e,
+    0 3px 6px rgb(44 54 40 / 0.14) !important;
+}
+
+button.dashboard-view-tab-categories:hover,
+.dashboard-view-tab-categories:hover {
+  background: linear-gradient(180deg, #d7e3d0 0%, #c5d6bb 100%) !important;
+}
+
+button.dashboard-view-tab-categories:active,
+.dashboard-view-tab-categories:active {
+  box-shadow:
+    inset 0 2px 4px rgb(44 54 40 / 0.22),
+    0 0 0 transparent !important;
+}
+
+button.dashboard-view-tab-categories[data-state="active"],
+.dashboard-view-tab-categories[data-state="active"] {
+  background: linear-gradient(180deg, #6b8a60 0%, #5c7a52 55%, #4a6243 100%) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    0 3px 0 #3d4f38,
+    0 5px 10px rgb(44 54 40 / 0.28) !important;
+}
+
+button.dashboard-view-tab-categories[data-state="active"]:active,
+.dashboard-view-tab-categories[data-state="active"]:active {
+  box-shadow:
+    inset 0 3px 6px rgb(21 28 19 / 0.35),
+    0 1px 0 #3d4f38 !important;
+}
+
+button.dashboard-view-tab-organ,
+.dashboard-view-tab-organ {
+  background: linear-gradient(180deg, #f9e8e8 0%, #f5e0e0 100%) !important;
+  color: #8a3d3d !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.75),
+    0 2px 0 #d4a0a0,
+    0 3px 6px rgb(138 61 61 / 0.14) !important;
+}
+
+button.dashboard-view-tab-organ:hover,
+.dashboard-view-tab-organ:hover {
+  background: linear-gradient(180deg, #f5e0e0 0%, #e8c8c8 100%) !important;
+}
+
+button.dashboard-view-tab-organ:active,
+.dashboard-view-tab-organ:active {
+  box-shadow:
+    inset 0 2px 4px rgb(138 61 61 / 0.22),
+    0 0 0 transparent !important;
+}
+
+button.dashboard-view-tab-organ[data-state="active"],
+.dashboard-view-tab-organ[data-state="active"] {
+  background: linear-gradient(180deg, #d47070 0%, #c45c5c 55%, #a84848 100%) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 3px 0 #8a3d3d,
+    0 5px 10px rgb(138 61 61 / 0.3) !important;
+}
+
+button.dashboard-view-tab-organ[data-state="active"]:active,
+.dashboard-view-tab-organ[data-state="active"]:active {
+  box-shadow:
+    inset 0 3px 6px rgb(90 40 40 / 0.4),
+    0 1px 0 #8a3d3d !important;
+}
+
 /* Bounce once animation for confirmation */
 .animate-bounce-once {
   animation: bounce-once 0.6s ease-out;
@@ -427,6 +595,7 @@
 /* Smooth scroll */
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 /* Selection for promo pages */

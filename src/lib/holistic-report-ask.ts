@@ -1,4 +1,5 @@
 import {
+  type HolisticAskItem,
   type HolisticHealthReport,
   type HolisticMarkerItem,
   type HolisticPriorityBand,
@@ -10,15 +11,7 @@ export type ReportAskBullet = {
   body: string;
 };
 
-export type ReportAskItem = {
-  id: string;
-  question: string;
-  intro: string;
-  bullets: ReportAskBullet[];
-  /** Educational clinical context — possible explanations, not a diagnosis. */
-  insight?: string;
-  closing?: string;
-};
+export type ReportAskItem = HolisticAskItem;
 
 function markerLabel(item: HolisticMarkerItem) {
   return patientFacingMarkerName(item.biomarkerId, item.name);
@@ -95,7 +88,7 @@ function clinicalInsightForMarker(item: HolisticMarkerItem): string | null {
     return "Low vitamin D is common with less sun or indoor lifestyles and is usually straightforward to correct with clinician guidance.";
   }
 
-  if (id === "ferritin" || id === "iron" || id === "haemoglobin") {
+  if (id === "ferritin" || id === "iron" || id === "haemoglobin" || id === "hemoglobin" || id === "transferrin_saturation" || id === "mcv" || id === "mch") {
     return "Iron markers change with diet, blood loss, absorption, and inflammation — ferritin can also rise when you are infected.";
   }
 
@@ -282,8 +275,14 @@ export function buildReportAskItems(report: HolisticHealthReport): ReportAskItem
     items.push(item);
   };
 
+  const ironFirst = (a: HolisticMarkerItem, b: HolisticMarkerItem) => {
+    const rank = (id: string) =>
+      /^(ferritin|iron|transferrin_saturation|hemoglobin|mcv|mch)$/.test(id) ? 0 : 1;
+    return rank(a.biomarkerId) - rank(b.biomarkerId);
+  };
+
   const priorityMarkers = [
-    ...report.priorityBands.immediate,
+    ...[...report.priorityBands.immediate].sort(ironFirst),
     ...report.priorityBands.needsAttention,
     ...report.priorityBands.lookOut,
   ];

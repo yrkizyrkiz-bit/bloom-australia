@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -16,7 +15,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bell,
   BellRing,
-  Check,
   CheckCheck,
   Trash2,
   Info,
@@ -70,11 +68,6 @@ export function RealTimeNotificationBell() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [animate, setAnimate] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Animate bell when new notification arrives
   useEffect(() => {
@@ -92,36 +85,30 @@ export function RealTimeNotificationBell() {
     }
   };
 
-  const triggerButton = (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="relative"
-      aria-label="Notifications"
-    >
-      {animate ? (
-        <BellRing className="w-5 h-5 animate-pulse" />
-      ) : (
-        <Bell className="w-5 h-5" />
-      )}
-      {unreadCount > 0 && (
-        <Badge
-          className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 animate-pulse"
-        >
-          {unreadCount > 9 ? "9+" : unreadCount}
-        </Badge>
-      )}
-    </Button>
-  );
-
-  if (!mounted) {
-    return triggerButton;
-  }
-
+  // Always render DropdownMenu (even when closed) so Radix useId slots stay
+  // stable next to the user menu — gating on mount shifted IDs and caused hydration mismatches.
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        {triggerButton}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label="Notifications"
+        >
+          {animate ? (
+            <BellRing className="w-5 h-5 animate-pulse" />
+          ) : (
+            <Bell className="w-5 h-5" />
+          )}
+          {unreadCount > 0 && (
+            <Badge
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 animate-pulse"
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </Badge>
+          )}
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel className="flex items-center justify-between">

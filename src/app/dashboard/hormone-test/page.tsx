@@ -73,7 +73,7 @@ const hormoneTestConfig = {
   },
   thyroidHormones: {
     name: "Thyroid Hormones",
-    subtitle: "Metabolism",
+    subtitle: "Metabolic",
     icon: Sun,
     color: "#3b82f6",
     bgColor: "bg-blue-500/10",

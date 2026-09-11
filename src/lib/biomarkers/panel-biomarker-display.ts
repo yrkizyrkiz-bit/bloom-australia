@@ -85,12 +85,12 @@ const DERIVED_IDS = new Set([
 
 const CATEGORY_ORDER: BloodPanelCategoryKey[] = [
   "heart",
+  "liver",
+  "kidney",
   "metabolism",
   "thyroid",
   "hormones",
   "nutrients",
-  "liver",
-  "kidney",
   "blood",
   "inflammation",
 ];

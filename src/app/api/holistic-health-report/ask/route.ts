@@ -8,9 +8,12 @@ import {
   isHolisticGenerationPending,
 } from "@/lib/holistic-health-report";
 import { sanitizeHolisticHealthReport } from "@/lib/holistic-health-report-types";
-import { generateHolisticAskAnswerWithClaude } from "@/lib/holistic-report-ask-claude";
+import {
+  answerReportAskQuestion,
+  buildReportAskItems,
+} from "@/lib/holistic-report-ask";
 
-export const maxDuration = 60;
+export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
@@ -63,21 +66,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { firstName: true },
-    });
+    const catalog =
+      Array.isArray(report.askItems) && report.askItems.length > 0
+        ? report.askItems
+        : buildReportAskItems(report);
 
-    const answer = await generateHolisticAskAnswerWithClaude({
-      question,
-      userName: user?.firstName || "Member",
-      report,
-    });
-
+    const answer = answerReportAskQuestion(report, question, catalog);
     return NextResponse.json({ answer });
   } catch (error) {
     console.error("[holistic-health-report/ask] POST", error);
     return NextResponse.json({ error: "Failed to answer question" }, { status: 500 });
   }
 }
-

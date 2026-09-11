@@ -95,17 +95,17 @@ export default function LoginPage() {
     };
   }, [email]);
 
-  // Handle redirect when user is authenticated
+  // Handle redirect when user is already authenticated (e.g. revisit /login)
   useEffect(() => {
-    if (user && !isAuthLoading) {
+    if (user && !isAuthLoading && !isLoading) {
       setIsRedirecting(true);
       const targetPath =
         user.role === "DOCTOR" || ["admin", "ADMIN", "CARE_PARTNER"].includes(user.role)
           ? resolveStaffPortalHome(user.role)
           : MEMBER_PROGRAMS_HOME;
-      router.push(targetPath);
+      router.replace(targetPath);
     }
-  }, [user, isAuthLoading, router]);
+  }, [user, isAuthLoading, isLoading, router]);
 
   // Show loading while checking auth or redirecting
   if (isAuthLoading || isRedirecting) {
@@ -150,6 +150,15 @@ export default function LoginPage() {
     return error || "An unexpected error occurred. Please try again.";
   };
 
+  const redirectAfterLogin = (role?: string) => {
+    setIsRedirecting(true);
+    const targetPath =
+      role === "DOCTOR" || ["admin", "ADMIN", "CARE_PARTNER"].includes(role || "")
+        ? resolveStaffPortalHome(role || "")
+        : MEMBER_PROGRAMS_HOME;
+    router.replace(targetPath);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -180,7 +189,7 @@ export default function LoginPage() {
       toast.success("Welcome back!", {
         description: "You're being redirected to your dashboard."
       });
-      router.refresh();
+      redirectAfterLogin(result.role);
     } else {
       const readableError = getReadableError(result.error || "Login failed");
       setLoginError(readableError);
@@ -213,7 +222,7 @@ export default function LoginPage() {
         toast.success("Welcome back!", {
           description: "You're being redirected to your dashboard.",
         });
-        router.refresh();
+        redirectAfterLogin(result.role);
         return;
       }
       if ((result.error || "").toLowerCase().includes("not set up")) {

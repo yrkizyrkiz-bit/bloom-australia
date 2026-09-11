@@ -16,6 +16,7 @@ import {
 } from "@/lib/holistic-report-ask";
 import { cn } from "@/lib/utils";
 import "@/components/promo/sage-atmosphere.css";
+import "@/components/dashboard/holistic-report.css";
 import {
   Sparkles,
   AlertTriangle,
@@ -92,13 +93,13 @@ const SECTION_CARDS: Array<{
 export function riskBadgeClass(risk: string) {
   switch (risk) {
     case "high":
-      return "bg-red-700/90 text-white border-0";
+      return "hhr-risk-high";
     case "elevated":
-      return "bg-orange-600/90 text-white border-0";
+      return "hhr-risk-elevated";
     case "moderate":
-      return "bg-[#c9a227] text-[#173c32] border-0";
+      return "hhr-risk-moderate";
     default:
-      return "bg-[#ccea83] text-[#173c32] border-0";
+      return "hhr-risk-low";
   }
 }
 
@@ -107,34 +108,22 @@ function bandMeta(band: HolisticPriorityBand) {
     case "immediate":
       return {
         label: "Immediate",
-        shell: "border-red-500/25 bg-white/80",
-        badge: "bg-red-600 text-white",
-        icon: <AlertTriangle className="h-4 w-4 text-red-600" />,
-        iconWrap: "bg-red-500/10",
+        icon: <AlertTriangle className="h-4 w-4" />,
       };
     case "needs_attention":
       return {
         label: "Needs attention",
-        shell: "border-orange-500/25 bg-white/80",
-        badge: "bg-orange-600 text-white",
-        icon: <Eye className="h-4 w-4 text-orange-600" />,
-        iconWrap: "bg-orange-500/10",
+        icon: <Eye className="h-4 w-4" />,
       };
     case "look_out":
       return {
         label: "Look out",
-        shell: "border-amber-500/25 bg-white/85",
-        badge: "bg-amber-500 text-white",
-        icon: <Activity className="h-4 w-4 text-amber-600" />,
-        iconWrap: "bg-amber-500/10",
+        icon: <Activity className="h-4 w-4" />,
       };
     default:
       return {
         label: "Looking good",
-        shell: "border-[#9fc48f]/40 bg-white/90",
-        badge: "bg-[#3a4c2c] text-[#eaf6c8]",
-        icon: <CheckCircle2 className="h-4 w-4 text-[#3a4c2c]" />,
-        iconWrap: "bg-[#ccea83]/35",
+        icon: <CheckCircle2 className="h-4 w-4" />,
       };
   }
 }
@@ -174,7 +163,7 @@ function MarkerList({ items, band }: { items: HolisticMarkerItem[]; band: Holist
   const meta = bandMeta(band);
   if (!items.length) {
     return (
-      <p className="rounded-2xl border border-[#bcd3bd]/60 bg-white/55 px-4 py-6 text-center text-sm text-[#3a4c2c]/70">
+      <p className="hhr-marker-empty">
         Nothing in “{meta.label}” from your latest panel.
       </p>
     );
@@ -185,30 +174,26 @@ function MarkerList({ items, band }: { items: HolisticMarkerItem[]; band: Holist
       {items.map((item) => (
         <div
           key={`${band}-${item.biomarkerId}`}
-          className={cn(
-            "rounded-2xl border p-3.5 shadow-sm backdrop-blur-sm transition-shadow hover:shadow-md",
-            meta.shell
-          )}
+          className={cn("hhr-marker-card", `hhr-marker-card--${band}`)}
         >
           <div className="flex items-start gap-2.5">
-            <div
-              className={cn(
-                "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                meta.iconWrap
-              )}
-            >
+            <div className={cn("hhr-marker-icon", `hhr-marker-icon--${band}`)}>
               {meta.icon}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <p className="text-sm font-medium text-[#173c32]">
+                <p className="text-sm font-medium hhr-ink">
                   {patientFacingMarkerName(item.biomarkerId, item.name)}
                 </p>
-                <Badge className={cn("text-[10px] px-1.5 py-0", meta.badge)}>{meta.label}</Badge>
+                <Badge
+                  className={cn("text-[10px] px-1.5 py-0", `hhr-badge--${band}`)}
+                >
+                  {meta.label}
+                </Badge>
                 <TrendIcon trend={item.trend} />
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-[#3a4c2c]/80">{item.plainEnglish}</p>
-              <p className="mt-1.5 text-[11px] font-medium text-[#5c7a52]">
+              <p className="mt-1 text-xs leading-relaxed hhr-body">{item.plainEnglish}</p>
+              <p className="mt-1.5 text-[11px] font-medium hhr-muted">
                 {item.value} {item.unit}
                 {item.previousValue != null ? ` · was ${item.previousValue}` : ""}
               </p>
@@ -234,14 +219,18 @@ function formatReportDate(iso: string | null | undefined) {
 function SoftPanel({
   children,
   className,
+  variant = "default",
 }: {
   children: ReactNode;
   className?: string;
+  variant?: "default" | "hero" | "ask";
 }) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-[#bcd3bd]/50 bg-white/75 p-4 shadow-sm backdrop-blur-sm sm:p-5",
+        "hhr-soft-panel",
+        variant === "hero" && "hhr-soft-panel--hero",
+        variant === "ask" && "hhr-soft-panel--ask",
         className
       )}
     >
@@ -262,12 +251,16 @@ function formatAskAnswerText(item: ReportAskItem): string {
 
 function ReportAskPanel({
   report,
-  userId,
 }: {
   report: HolisticHealthReport;
   userId: string;
 }) {
-  const catalog = useMemo(() => buildReportAskItems(report), [report]);
+  const catalog = useMemo(() => {
+    if (Array.isArray(report.askItems) && report.askItems.length > 0) {
+      return report.askItems;
+    }
+    return buildReportAskItems(report);
+  }, [report]);
   const [active, setActive] = useState<ReportAskItem | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -275,7 +268,7 @@ function ReportAskPanel({
   const [isTyping, setIsTyping] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
-  const ask = async (question: string) => {
+  const ask = (question: string) => {
     const trimmed = question.trim();
     if (!trimmed || pendingQuestion) return;
     setActive(null);
@@ -283,36 +276,17 @@ function ReportAskPanel({
     setIsTyping(false);
     setPendingQuestion(trimmed);
     setDraft("");
-    try {
-      const res = await fetch("/api/holistic-health-report/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, question: trimmed, report }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(
-          typeof data.error === "string" ? data.error : "Could not get an answer"
-        );
-      }
-      const answer = data.answer as ReportAskItem | undefined;
-      if (!answer?.intro || !Array.isArray(answer.bullets)) {
-        throw new Error("Incomplete answer from George");
-      }
-      setActive({
-        id: answer.id || `ask-${Date.now()}`,
-        question: answer.question || trimmed,
-        intro: answer.intro,
-        bullets: answer.bullets.slice(0, 1),
-        insight: answer.insight,
-        closing: answer.closing,
-      });
-    } catch {
-      const fallback = answerReportAskQuestion(report, trimmed, catalog);
-      setActive(fallback);
-    } finally {
-      setPendingQuestion(null);
-    }
+    // Prebaked / local answers only — no second Claude trip on Netlify sync routes.
+    const answer = answerReportAskQuestion(report, trimmed, catalog);
+    setActive({
+      id: answer.id || `ask-${Date.now()}`,
+      question: answer.question || trimmed,
+      intro: answer.intro,
+      bullets: answer.bullets.slice(0, 1),
+      insight: answer.insight,
+      closing: answer.closing,
+    });
+    setPendingQuestion(null);
   };
 
   useEffect(() => {
@@ -585,12 +559,12 @@ export function HolisticHealthReportView({
 
       <div className="sage-atmosphere__inner space-y-5 p-4 sm:p-6">
         {dateNav && (
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#bcd3bd]/55 bg-white/55 px-2 py-2 backdrop-blur-sm">
+          <div className="hhr-date-nav">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-9 w-9 shrink-0 text-[#173c32] hover:bg-[#ccea83]/35"
+              className="h-9 w-9 shrink-0 hhr-ink hover:bg-[rgb(204_234_131_/_0.35)]"
               disabled={!dateNav.canGoOlder}
               onClick={dateNav.onOlder}
               aria-label="Older report"
@@ -598,16 +572,16 @@ export function HolisticHealthReportView({
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <div className="min-w-0 text-center">
-              <p className="truncate text-sm font-medium text-[#173c32]">{dateNav.label}</p>
+              <p className="truncate text-sm font-medium hhr-ink">{dateNav.label}</p>
               {dateNav.positionLabel && (
-                <p className="text-xs text-[#5c7a52]">{dateNav.positionLabel}</p>
+                <p className="text-xs hhr-muted">{dateNav.positionLabel}</p>
               )}
             </div>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-9 w-9 shrink-0 text-[#173c32] hover:bg-[#ccea83]/35"
+              className="h-9 w-9 shrink-0 hhr-ink hover:bg-[rgb(204_234_131_/_0.35)]"
               disabled={!dateNav.canGoNewer}
               onClick={dateNav.onNewer}
               aria-label="Newer report"
@@ -618,11 +592,8 @@ export function HolisticHealthReportView({
         )}
 
         {/* Summary hero */}
-        <SoftPanel className="relative overflow-hidden border-[#ccea83]/40 bg-gradient-to-br from-white/90 via-[#eaf6c8]/50 to-white/70">
-          <div
-            className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-[#ccea83]/35 blur-2xl"
-            aria-hidden
-          />
+        <SoftPanel variant="hero">
+          <div className="hhr-soft-panel__glow" aria-hidden />
           {canGenerate && onGenerate && (
             <div className="absolute right-3 top-3 z-10">
               <Button
@@ -630,7 +601,7 @@ export function HolisticHealthReportView({
                 size="sm"
                 onClick={onGenerate}
                 disabled={waitingForClaude}
-                className="rounded-full border-[#3a4c2c]/25 bg-white/70 text-[#173c32] hover:bg-[#ccea83]/40"
+                className="rounded-full border-[rgb(58_76_44_/_0.25)] bg-white/70 hhr-ink hover:bg-[rgb(204_234_131_/_0.4)]"
               >
                 {waitingForClaude ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -644,13 +615,13 @@ export function HolisticHealthReportView({
           )}
           <div className="relative mx-auto max-w-3xl text-center">
             <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
-              <h3 className="font-serif text-xl text-[#173c32]">{report.reportTitle}</h3>
+              <h3 className="font-serif text-xl hhr-ink">{report.reportTitle}</h3>
               <Badge className={riskBadgeClass(report.overallRisk)}>
                 {report.overallRisk} risk
               </Badge>
             </div>
-            <p className="text-sm leading-relaxed text-[#3a4c2c]/90">{report.executiveSummary}</p>
-            <p className="mt-2 text-xs text-[#5c7a52]">
+            <p className="text-sm leading-relaxed hhr-body">{report.executiveSummary}</p>
+            <p className="mt-2 text-xs hhr-muted">
               For {userName}
               {panelLabel ? ` · Panel ${panelLabel}` : ""}
             </p>
@@ -667,12 +638,7 @@ export function HolisticHealthReportView({
                 key={card.id}
                 type="button"
                 onClick={() => setSection(card.id)}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 text-center transition-all",
-                  active
-                    ? "border-transparent text-white shadow-md"
-                    : "border-[#bcd3bd]/60 bg-white/60 text-[#173c32] hover:border-[#9fc48f] hover:bg-white/85 hover:shadow-sm"
-                )}
+                className={cn("hhr-section-btn", active && "hhr-section-btn--active")}
                 style={
                   active
                     ? {
@@ -683,58 +649,43 @@ export function HolisticHealthReportView({
                 }
               >
                 <div
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg",
-                    active ? "text-[#eaf6c8]" : "text-[#3a4c2c]"
-                  )}
+                  className="hhr-section-btn__icon"
                   style={{ backgroundColor: active ? card.iconBg : "rgba(188, 211, 189, 0.45)" }}
                 >
                   <Icon className="h-4 w-4" />
                 </div>
-                <span
-                  className={cn(
-                    "text-center text-[11px] leading-tight",
-                    active ? "font-medium text-[#eaf6c8]" : "text-[#3a4c2c]/80"
-                  )}
-                >
-                  {card.label}
-                </span>
+                <span className="hhr-section-btn__label">{card.label}</span>
               </button>
             );
           })}
         </div>
 
         {/* Section body */}
-        <SoftPanel
-          className={cn(
-            "min-h-[220px]",
-            section === "ask" && "overflow-hidden border-[#e6ebe3]/80 bg-transparent p-0 shadow-none"
-          )}
-        >
+        <SoftPanel variant={section === "ask" ? "ask" : "default"} className="min-h-[220px]">
           {section === "priorities" && (
             <div className="space-y-6">
               <div>
-                <h4 className="mb-2 flex items-center gap-2 text-sm font-medium text-[#173c32]">
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-medium hhr-ink">
                   <AlertTriangle className="h-4 w-4 text-red-600" /> Immediate attention
                 </h4>
                 <MarkerList items={report.priorityBands.immediate} band="immediate" />
               </div>
               {report.priorityBands.needsAttention.length > 0 && (
                 <div>
-                  <h4 className="mb-2 flex items-center gap-2 text-sm font-medium text-[#173c32]">
+                  <h4 className="mb-2 flex items-center gap-2 text-sm font-medium hhr-ink">
                     <Eye className="h-4 w-4 text-orange-600" /> Needs attention
                   </h4>
                   <MarkerList items={report.priorityBands.needsAttention} band="needs_attention" />
                 </div>
               )}
               <div>
-                <h4 className="mb-2 flex items-center gap-2 text-sm font-medium text-[#173c32]">
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-medium hhr-ink">
                   <Activity className="h-4 w-4 text-amber-600" /> Look out for
                 </h4>
                 <MarkerList items={report.priorityBands.lookOut} band="look_out" />
               </div>
               <div>
-                <h4 className="mb-2 flex items-center gap-2 text-sm font-medium text-[#173c32]">
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-medium hhr-ink">
                   <CheckCircle2 className="h-4 w-4 text-[#3a4c2c]" /> Looking good
                 </h4>
                 <MarkerList items={report.priorityBands.good} band="good" />
@@ -747,10 +698,7 @@ export function HolisticHealthReportView({
               {report.organSystems.map((organ) => {
                 const visual = organVisual(organ.id);
                 return (
-                  <div
-                    key={organ.id}
-                    className="rounded-2xl border border-[#bcd3bd]/55 bg-gradient-to-b from-white/95 to-[#eaf6c8]/35 p-3.5 shadow-sm"
-                  >
+                  <div key={organ.id} className="hhr-organ-card">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <div
@@ -763,11 +711,11 @@ export function HolisticHealthReportView({
                           {visual.icon}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-[#173c32]">{organ.label}</p>
+                          <p className="text-sm font-medium hhr-ink">{organ.label}</p>
                           <div className="mt-0.5 flex items-center gap-1.5">
                             <Badge
                               variant="outline"
-                              className="border-[#bcd3bd] bg-white/70 text-[10px] text-[#3a4c2c]"
+                              className="border-[rgb(188_211_189)] bg-white/70 text-[10px] text-[#3a4c2c]"
                             >
                               {organ.status.replace("_", " ")}
                             </Badge>
@@ -777,9 +725,9 @@ export function HolisticHealthReportView({
                       </div>
                       <span className="font-serif text-xl text-[#3a4c2c]">{organ.score}</span>
                     </div>
-                    <p className="mt-2.5 text-xs leading-relaxed text-[#3a4c2c]/85">{organ.summary}</p>
+                    <p className="mt-2.5 text-xs leading-relaxed hhr-body">{organ.summary}</p>
                     {organ.highlights.length > 0 && (
-                      <ul className="mt-2 space-y-1 border-t border-[#bcd3bd]/40 pt-2 text-[11px] text-[#5c7a52]">
+                      <ul className="mt-2 space-y-1 border-t border-[rgb(188_211_189_/_0.4)] pt-2 text-[11px] hhr-muted">
                         {organ.highlights.slice(0, 3).map((line) => (
                           <li key={line} className="flex gap-1.5">
                             <span className="text-[#9fc48f]">•</span>
@@ -796,32 +744,29 @@ export function HolisticHealthReportView({
 
           {section === "patterns" &&
             (report.crossSystemPatterns.length === 0 ? (
-              <p className="py-8 text-center text-sm text-[#5c7a52]">
+              <p className="py-8 text-center text-sm hhr-muted">
                 No strong cross-system patterns flagged from this panel.
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {report.crossSystemPatterns.map((pattern) => (
-                  <div
-                    key={pattern.title}
-                    className="rounded-2xl border border-[#bcd3bd]/55 bg-white/85 p-3.5 shadow-sm"
-                  >
+                  <div key={pattern.title} className="hhr-pattern-card">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-[#173c32]">{pattern.title}</p>
+                      <p className="text-sm font-medium hhr-ink">{pattern.title}</p>
                       <Badge
                         variant="outline"
-                        className="border-[#bcd3bd] text-[10px] text-[#3a4c2c]"
+                        className="border-[rgb(188_211_189)] text-[10px] text-[#3a4c2c]"
                       >
                         {pattern.severity}
                       </Badge>
                     </div>
-                    <p className="mt-1.5 text-xs leading-relaxed text-[#3a4c2c]/85">
+                    <p className="mt-1.5 text-xs leading-relaxed hhr-body">
                       {pattern.explanation}
                     </p>
-                    <p className="mt-2 text-[11px] text-[#5c7a52]">
+                    <p className="mt-2 text-[11px] hhr-muted">
                       Systems: {pattern.involvedSystems.join(", ")}
                     </p>
-                    <p className="mt-1 text-xs text-[#173c32]">{pattern.monitoringAdvice}</p>
+                    <p className="mt-1 text-xs hhr-ink">{pattern.monitoringAdvice}</p>
                   </div>
                 ))}
               </div>
@@ -830,7 +775,7 @@ export function HolisticHealthReportView({
           {section === "actions" && (
             <div className="space-y-4">
               {report.urgentActions.length > 0 && (
-                <div className="rounded-2xl border border-red-500/25 bg-red-50/80 p-3.5">
+                <div className="hhr-urgent-box">
                   <p className="text-sm font-medium text-red-700">Urgent educational actions</p>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-900/80">
                     {report.urgentActions.map((action) => (
@@ -844,43 +789,43 @@ export function HolisticHealthReportView({
                 {report.recommendations.map((rec) => (
                   <div
                     key={`${rec.category}-${rec.action}`}
-                    className="rounded-2xl border border-[#bcd3bd]/55 bg-white/85 p-3.5 shadow-sm"
+                    className="hhr-rec-card"
                   >
                     <div className="mb-1.5 flex items-center gap-1.5">
                       <Badge
                         variant="outline"
-                        className="border-[#bcd3bd] text-[10px] text-[#3a4c2c]"
+                        className="border-[rgb(188_211_189)] text-[10px] text-[#3a4c2c]"
                       >
                         {rec.priority}
                       </Badge>
-                      <Badge className="bg-[#ccea83]/50 text-[10px] text-[#173c32] hover:bg-[#ccea83]/50">
+                      <Badge className="bg-[rgb(204_234_131_/_0.5)] text-[10px] hhr-ink hover:bg-[rgb(204_234_131_/_0.5)]">
                         {rec.category}
                       </Badge>
                     </div>
-                    <p className="text-sm font-medium text-[#173c32]">{rec.action}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-[#3a4c2c]/80">{rec.rationale}</p>
+                    <p className="text-sm font-medium hhr-ink">{rec.action}</p>
+                    <p className="mt-1 text-xs leading-relaxed hhr-body">{rec.rationale}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="rounded-2xl border border-[#bcd3bd]/55 bg-gradient-to-br from-white/90 to-[#eaf6c8]/40 p-3.5">
-                <p className="flex items-center gap-2 text-sm font-medium text-[#173c32]">
+              <div className="hhr-care-team-box">
+                <p className="flex items-center gap-2 text-sm font-medium hhr-ink">
                   <Stethoscope className="h-4 w-4 text-[#5c7a52]" /> Ask your care team
                 </p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[#3a4c2c]/85">
-                  {report.questionsForCareTeam.map((q) => (
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs hhr-body">
+                  {(report.questionsForCareTeam ?? []).map((q) => (
                     <li key={q}>{q}</li>
                   ))}
                 </ul>
-                <p className="mt-3 text-xs text-[#173c32]">
+                <p className="mt-3 text-xs hhr-ink">
                   <span className="font-medium">Retesting: </span>
                   {report.retestingGuidance}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-[#3a4c2c]/15 bg-[#3a4c2c]/08 p-3.5">
-                <p className="text-sm font-medium text-[#173c32]">Care team handoff</p>
-                <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-[#3a4c2c]/85">
+              <div className="hhr-handoff-box">
+                <p className="text-sm font-medium hhr-ink">Care team handoff</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed hhr-body">
                   {report.careTeamHandoffSummary}
                 </p>
               </div>
@@ -896,7 +841,7 @@ export function HolisticHealthReportView({
           )}
         </SoftPanel>
 
-        <p className="px-1 pb-1 text-[11px] leading-relaxed text-[#5c7a52]/90">
+        <p className="px-1 pb-1 text-[11px] leading-relaxed hhr-muted">
           Report is a draft pending Sanative health practitioner review.
         </p>
       </div>

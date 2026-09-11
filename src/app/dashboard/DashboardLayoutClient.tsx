@@ -65,7 +65,7 @@ export default function DashboardLayoutClient({
       <NotificationProvider>
         <div className="min-h-screen bg-gradient-to-br from-[#fdfbf7] via-white to-[#f0f7f4]">
           <DashboardNav />
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-8">
+          <main className="mx-auto min-w-0 max-w-7xl overflow-x-hidden px-4 py-6 pb-24 sm:px-6 md:pb-8 lg:px-8">
             {children}
           </main>
           <MobileNav />

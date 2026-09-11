@@ -7,6 +7,19 @@ export default {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  // Keep report SoftPanel / priority card opacities in the CSS bundle even if JIT cache is stale.
+  safelist: [
+    "bg-white/55",
+    "bg-white/60",
+    "bg-white/70",
+    "bg-white/75",
+    "bg-white/80",
+    "bg-white/85",
+    "bg-white/90",
+    "bg-white/95",
+    "hover:bg-white/85",
+    "hover:bg-white/90",
+  ],
   theme: {
     extend: {
       colors: {

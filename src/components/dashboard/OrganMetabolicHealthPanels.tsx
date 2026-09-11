@@ -27,10 +27,10 @@ export type OrganMetabolicPanel = {
 };
 
 export const ORGAN_METABOLIC_HEALTH_PANELS: OrganMetabolicPanel[] = [
-  { href: "/dashboard/blood-panel", label: "Full Blood", icon: TestTubes, color: "#1D9E75" },
+  { href: "/dashboard/heart-test", label: "Heart", icon: Heart, color: "#ef4444" },
   { href: "/dashboard/liver-test", label: "Liver", icon: Bean, color: "#65a30d" },
   { href: "/dashboard/kidney-test", label: "Kidney", icon: Droplets, color: "#0891b2" },
-  { href: "/dashboard/heart-test", label: "Heart", icon: Heart, color: "#ef4444" },
+  { href: "/dashboard/blood-panel", label: "Full Blood", icon: TestTubes, color: "#1D9E75" },
   { href: "/dashboard/thyroid-test", label: "Thyroid", icon: Activity, color: "#2563eb" },
   { href: "/dashboard/hormone-test", label: "Hormones", icon: Sparkles, color: "#a855f7" },
   { href: "/dashboard/metabolic-panel", label: "Metabolic", icon: Flame, color: "#f97316" },
