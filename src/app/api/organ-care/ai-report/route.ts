@@ -37,21 +37,26 @@ export async function GET(request: NextRequest) {
       context.biomarkerCount > 0 &&
       (!cachedReport || cachedReport.biomarkerHash !== context.biomarkerHash);
 
-    const report = normalizeOrganCareReport(
-      cachedReport?.analysisData as Record<string, unknown> | null,
-      cachedReport ? context : undefined
+    const hashMatches = Boolean(
+      cachedReport && cachedReport.biomarkerHash === context.biomarkerHash
     );
+    const report = hashMatches
+      ? normalizeOrganCareReport(
+          cachedReport?.analysisData as Record<string, unknown> | null,
+          cachedReport ? context : undefined
+        )
+      : null;
 
     return NextResponse.json({
       report,
-      cached: Boolean(cachedReport),
+      cached: hashMatches && Boolean(report),
       canGenerate,
-      requiresNewBloodTest: Boolean(cachedReport && !canGenerate),
+      requiresNewBloodTest: hashMatches && !canGenerate,
       biomarkerCount: context.biomarkerCount,
       overallHealthScore: context.healthScores.overall,
       dataDate: context.dataDate,
       resultsStale: context.resultsStale,
-      generatedAt: cachedReport?.updatedAt?.toISOString() || null,
+      generatedAt: hashMatches ? cachedReport?.updatedAt?.toISOString() || null : null,
     });
   } catch (error) {
     console.error("[organ-care/ai-report] GET", error);

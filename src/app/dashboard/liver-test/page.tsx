@@ -51,6 +51,8 @@ import { LiverTestScheduler } from "@/components/dashboard/LiverTestScheduler";
 import { LiverGoalSetting } from "@/components/dashboard/LiverGoalSetting";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
 import { PredictiveHealthRisk } from "@/components/dashboard/PredictiveHealthRisk";
+import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
+import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
 import {
   calculateTestScore,
   healthTestsConfig,
@@ -92,6 +94,10 @@ const liverTestConfig = {
     biomarkerIds: ["glucose", "crp", "ferritin", "platelets"]
   }
 };
+
+const LIVER_BIOMARKER_IDS = Object.values(liverTestConfig).flatMap(
+  (cat) => cat.biomarkerIds
+);
 
 // ============================================================================
 // SCIENTIFIC LIVER SCORING SYSTEMS
@@ -583,13 +589,21 @@ export default function LiverTestPage() {
   const [showScoreDetails, setShowScoreDetails] = useState(false);
 
   // Fetch real biomarker data from API
-  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, { latest: true });
+  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
+    latest: true,
+    biomarkerIds: LIVER_BIOMARKER_IDS,
+  });
 
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
     result: BiomarkerResult | null;
     panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
+
+  const fromPriorPanel = Boolean(biomarkerData?.fromPriorPanel && biomarkerData?.panelDate);
+  const priorPanelDateLabel = biomarkerData?.panelDate
+    ? formatUtcPanelDayLabel(biomarkerData.panelDate, "full")
+    : null;
 
   // Transform API data to BiomarkerResult format
   const allBiomarkerResults: BiomarkerResult[] = useMemo(
@@ -599,10 +613,8 @@ export default function LiverTestPage() {
 
   // Get biomarkers with their results for liver test
   const liverTestResults = useMemo(() => {
-    const allLiverBiomarkerIds = Object.values(liverTestConfig).flatMap(cat => cat.biomarkerIds);
-
     return allBiomarkerResults
-      .filter(result => allLiverBiomarkerIds.includes(result.biomarkerId))
+      .filter((result) => LIVER_BIOMARKER_IDS.includes(result.biomarkerId))
       .map(result => ({
         result,
         biomarker: getBiomarkerById(result.biomarkerId),
@@ -800,6 +812,10 @@ export default function LiverTestPage() {
           </div>
         </div>
       </div>
+
+      {fromPriorPanel && priorPanelDateLabel && (
+        <PriorOrganPanelNote organLabel="liver" dateLabel={priorPanelDateLabel} />
+      )}
 
       {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1358,6 +1374,7 @@ export default function LiverTestPage() {
           <PopulationComparison
             results={liverTestResults.map(r => r.result)}
             gender={gender}
+            dateOfBirth={user?.dateOfBirth}
           />
         </TabsContent>
 

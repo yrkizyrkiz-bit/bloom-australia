@@ -441,7 +441,7 @@ export function ThyroidPredictiveHealthRisk() {
                         <div>
                           <p className="text-xs font-medium text-slate-500 mb-2">Contributing Biomarkers</p>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {risk.contributingBiomarkers.map(bio => (
+                            {(risk.contributingBiomarkers ?? []).map(bio => (
                               <div key={bio.name} className="p-3 rounded-lg bg-white border border-slate-100">
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-xs font-medium text-slate-700">{bio.name}</span>
@@ -493,7 +493,7 @@ export function ThyroidPredictiveHealthRisk() {
                       </div>
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-1">
-                          {pred.keyFactors.slice(0, 2).map((f, j) => (
+                          {(pred.keyFactors ?? []).slice(0, 2).map((f, j) => (
                             <Badge key={j} variant="secondary" className="text-xs">{f}</Badge>
                           ))}
                         </div>

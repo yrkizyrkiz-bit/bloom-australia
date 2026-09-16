@@ -23,6 +23,15 @@ function authDebug(...args: unknown[]) {
   }
 }
 
+function isDatabaseUnreachableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    /Can.?t reach database server/i.test(message) ||
+    /P1001|P1017|Timed out fetching a new connection from the connection pool/i.test(message)
+  );
+}
+
+
 export const authOptions: NextAuthOptions = {
   // Note: Don't use adapter with credentials provider - it causes session issues
   // adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
@@ -106,89 +115,106 @@ export const authOptions: NextAuthOptions = {
 
         const email = credentials.email.toLowerCase().trim();
 
-        // Prefer unique lookup on normalised email; fall back for legacy mixed-case rows.
-        const authSelect = {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          gender: true,
-          image: true,
-          dateOfBirth: true,
-          passwordHash: true,
-          password: true,
-          passkeysEnabled: true,
-        } as const;
+        try {
+          // Prefer unique lookup on normalised email; fall back for legacy mixed-case rows.
+          const authSelect = {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            gender: true,
+            image: true,
+            dateOfBirth: true,
+            passwordHash: true,
+            password: true,
+            passkeysEnabled: true,
+          } as const;
 
-        let user = await prisma.user.findUnique({
-          where: { email },
-          select: authSelect,
-        });
-        if (!user) {
-          user = await prisma.user.findFirst({
-            where: { email: { equals: email, mode: "insensitive" } },
+          let user = await prisma.user.findUnique({
+            where: { email },
             select: authSelect,
           });
-        }
-
-        const storedHash = user?.passwordHash || user?.password;
-
-        if (user && storedHash) {
-          authDebug("[Auth] User found:", user.email, user.role);
-          const isValid = await bcrypt.compare(credentials.password, storedHash);
-
-          if (isValid) {
-            authDebug("[Auth] User password valid, returning user");
-            return authUserFromRecord(user);
+          if (!user) {
+            user = await prisma.user.findFirst({
+              where: { email: { equals: email, mode: "insensitive" } },
+              select: authSelect,
+            });
           }
 
-          // Member exists but password is wrong — do not fall through to clinic lookup.
-          authDebug("[Auth] User password invalid");
-          throw new Error("Invalid email or password");
-        }
+          const storedHash = user?.passwordHash || user?.password;
 
-        // If not a user, try to find a Clinic (GP)
-        const clinic = await prisma.clinic.findUnique({
-          where: { leadGpEmail: email },
-          select: {
-            id: true,
-            name: true,
-            leadGpEmail: true,
-            leadGpName: true,
-            passwordHash: true,
-            status: true,
-          },
-        });
+          if (user && storedHash) {
+            authDebug("[Auth] User found:", user.email, user.role);
+            const isValid = await bcrypt.compare(credentials.password, storedHash);
 
-        if (clinic && clinic.passwordHash) {
-          authDebug("[Auth] Clinic found:", clinic.name, clinic.leadGpName);
-          const isValid = await bcrypt.compare(credentials.password, clinic.passwordHash);
-
-          if (isValid) {
-            if (clinic.status !== "ACTIVE") {
-              throw new Error("This clinic account is not active");
+            if (isValid) {
+              authDebug("[Auth] User password valid, returning user");
+              return authUserFromRecord(user);
             }
 
-            authDebug("[Auth] Clinic password valid, returning GP user");
-            return {
-              id: clinic.id,
-              email: clinic.leadGpEmail,
-              name: clinic.leadGpName,
-              firstName: clinic.leadGpName.split(" ")[0] || clinic.leadGpName,
-              lastName: clinic.leadGpName.split(" ").slice(1).join(" ") || "",
-              role: "GP",
-              gender: "OTHER",
-              image: null,
-              dateOfBirth: null,
-              clinicName: clinic.name,
-              clinicId: clinic.id,
-            };
+            // Member exists but password is wrong — do not fall through to clinic lookup.
+            authDebug("[Auth] User password invalid");
+            throw new Error("Invalid email or password");
           }
-        }
 
-        authDebug("[Auth] No valid user or clinic found");
-        throw new Error("Invalid email or password");
+          // If not a user, try to find a Clinic (GP)
+          const clinic = await prisma.clinic.findUnique({
+            where: { leadGpEmail: email },
+            select: {
+              id: true,
+              name: true,
+              leadGpEmail: true,
+              leadGpName: true,
+              passwordHash: true,
+              status: true,
+            },
+          });
+
+          if (clinic && clinic.passwordHash) {
+            authDebug("[Auth] Clinic found:", clinic.name, clinic.leadGpName);
+            const isValid = await bcrypt.compare(credentials.password, clinic.passwordHash);
+
+            if (isValid) {
+              if (clinic.status !== "ACTIVE") {
+                throw new Error("This clinic account is not active");
+              }
+
+              authDebug("[Auth] Clinic password valid, returning GP user");
+              return {
+                id: clinic.id,
+                email: clinic.leadGpEmail,
+                name: clinic.leadGpName,
+                firstName: clinic.leadGpName.split(" ")[0] || clinic.leadGpName,
+                lastName: clinic.leadGpName.split(" ").slice(1).join(" ") || "",
+                role: "GP",
+                gender: "OTHER",
+                image: null,
+                dateOfBirth: null,
+                clinicName: clinic.name,
+                clinicId: clinic.id,
+              };
+            }
+          }
+
+          authDebug("[Auth] No valid user or clinic found");
+          throw new Error("Invalid email or password");
+        } catch (error) {
+          if (error instanceof Error && (
+            error.message === "Invalid email or password" ||
+            error.message === "This clinic account is not active" ||
+            error.message === "Email and password are required"
+          )) {
+            throw error;
+          }
+          if (isDatabaseUnreachableError(error)) {
+            console.error("[Auth] Database unreachable during sign-in:", error);
+            throw new Error(
+              "Database is temporarily unavailable. If using Neon free tier, open the Neon console to resume the project, then try again."
+            );
+          }
+          throw error;
+        }
       },
     }),
   ],

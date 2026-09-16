@@ -70,6 +70,8 @@ import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
 import { MemberFaceIdPanel } from "@/components/admin/MemberFaceIdPanel";
 import { MemberWeightPlanPanel } from "@/components/admin/MemberWeightPlanPanel";
 import { ageFromDateOfBirth } from "@/lib/weight-management/calorie-calculator";
+import { HolisticReportReviewDialog } from "@/components/admin/HolisticReportReviewDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CustomerData {
   id: string;
@@ -258,6 +260,7 @@ function getRecommendedPanels(assessment: AssessmentData | null): typeof BIOMARK
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params.id as string;
+  const { user } = useAuth();
 
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [assessmentData, setAssessmentData] = useState<Record<string, unknown> | null>(null);
@@ -285,6 +288,21 @@ export default function CustomerDetailPage() {
   const [changePlanLoading, setChangePlanLoading] = useState(false);
   const [selectedCadenceId, setSelectedCadenceId] = useState("");
   const [portalLoading, setPortalLoading] = useState(false);
+  const [holisticReports, setHolisticReports] = useState<
+    Array<{
+      id: string;
+      panelDate: string | null;
+      createdAt: string;
+      approvalStatus: string;
+      assignedDoctorName: string | null;
+      lastEditedByName: string | null;
+      reviewedByName: string | null;
+      reviewedAt: string | null;
+      overallHealthScore: number;
+      isCurrent: boolean;
+    }>
+  >([]);
+  const [reportView, setReportView] = useState<{ historyId: string | null; mode: "view" | "edit" } | null>(null);
   const [tierUpgradeLoading, setTierUpgradeLoading] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -355,6 +373,23 @@ export default function CustomerDetailPage() {
   useEffect(() => {
     if (customerId) fetchData();
   }, [customerId, fetchData]);
+
+  const fetchHolisticReports = useCallback(async () => {
+    if (!customerId) return;
+    try {
+      const res = await fetch(`/api/admin/holistic-reports?userId=${customerId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHolisticReports(data.reports ?? []);
+      }
+    } catch {
+      // ignore
+    }
+  }, [customerId]);
+
+  useEffect(() => {
+    void fetchHolisticReports();
+  }, [fetchHolisticReports]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -887,7 +922,7 @@ export default function CustomerDetailPage() {
 
           {/* Tabs */}
           <Tabs defaultValue="quiz-assessment">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+            <TabsList className="flex h-auto w-full flex-wrap justify-start">
               <TabsTrigger value="quiz-assessment">
                 Quiz Assessment
                 {quizAssessmentProgramCount > 0 && (
@@ -901,6 +936,7 @@ export default function CustomerDetailPage() {
               <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="biomarkers">Lab Results</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="billing">Billing</TabsTrigger>
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
             </TabsList>
@@ -1798,6 +1834,82 @@ export default function CustomerDetailPage() {
               )}
             </TabsContent>
 
+            <TabsContent value="reports" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Holistic reports
+                  </CardTitle>
+                  <CardDescription>
+                    Current and historical holistic health reports for this member.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {holisticReports.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      No Claude holistic reports yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {holisticReports.map((row) => (
+                        <div
+                          key={row.id}
+                          className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              Holistic
+                              {row.isCurrent ? (
+                                <Badge className="ml-2" variant="secondary">Current</Badge>
+                              ) : null}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Panel{" "}
+                              {row.panelDate
+                                ? new Date(row.panelDate).toLocaleDateString("en-AU")
+                                : "—"}
+                              {" · "}Generated {new Date(row.createdAt).toLocaleDateString("en-AU")}
+                              {" · "}
+                              <span className="capitalize">{row.approvalStatus.replaceAll("_", " ")}</span>
+                              {row.assignedDoctorName ? ` · ${row.assignedDoctorName}` : " · Unassigned"}
+                              {row.reviewedByName
+                                ? ` · Reviewed ${row.reviewedAt ? new Date(row.reviewedAt).toLocaleDateString("en-AU") : ""}`
+                                : ""}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setReportView({
+                                  historyId: row.isCurrent ? null : row.id,
+                                  mode: "view",
+                                })
+                              }
+                            >
+                              View
+                            </Button>
+                            {row.isCurrent &&
+                              (row.approvalStatus === "pending_approval" ||
+                                row.approvalStatus === "held") && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => setReportView({ historyId: null, mode: "edit" })}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* Billing / Payment History Tab */}
             <TabsContent value="billing" className="space-y-4 mt-4">
               {programSubscriptions.length > 0 && (
@@ -2120,6 +2232,18 @@ export default function CustomerDetailPage() {
                   })}
                 </>
               )}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  const current = holisticReports.find((row) => row.isCurrent) || holisticReports[0];
+                  if (current) {
+                    setReportView({ historyId: current.isCurrent ? null : current.id, mode: "view" });
+                  } else toast.error("No holistic report on file yet");
+                }}
+              >
+                View holistic reports
+              </Button>
             </CardContent>
           </Card>
 
@@ -2356,6 +2480,19 @@ export default function CustomerDetailPage() {
           }}
         />
       )}
+
+      <HolisticReportReviewDialog
+        open={Boolean(reportView)}
+        onOpenChange={(open) => {
+          if (!open) setReportView(null);
+        }}
+        userId={customer.id}
+        historyId={reportView?.mode === "view" ? reportView.historyId : null}
+        mode={reportView?.mode || "view"}
+        role={user?.role || "ADMIN"}
+        doctors={[]}
+        onChanged={fetchHolisticReports}
+      />
     </div>
   );
 }

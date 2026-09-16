@@ -105,16 +105,18 @@ export async function GET(request: NextRequest) {
     // Dead pending rows (gateway killed enqueue / job never started) — surface as retryable.
     // Fresh jobs (member mid-run) stay generating until Claude finishes or this threshold passes.
     if (generating && isHolisticGenerationPendingStale(cachedData)) {
-      await markHolisticHealthReportError({
-        userId,
-        biomarkerHash: context.biomarkerHash,
-        message: "Report timed out on the server. Please try again.",
-      });
+      if (context.biomarkerHash) {
+        await markHolisticHealthReportError({
+          userId,
+          biomarkerHash: context.biomarkerHash,
+          message: "Report timed out on the server. Please try again.",
+        });
+      }
       cachedData = {
         status: "error",
         message: "Report timed out on the server. Please try again.",
         failedAt: new Date().toISOString(),
-        biomarkerHash: context.biomarkerHash,
+        biomarkerHash: context.biomarkerHash ?? "",
       };
       generating = false;
     }
@@ -130,9 +132,12 @@ export async function GET(request: NextRequest) {
     );
 
     // Never serve the deterministic failover seed as the member-facing report.
-    const report = normalized?.aiProvider === "claude" ? normalized : null;
-    const hasReadyReport =
-      Boolean(report) && cachedReport?.biomarkerHash === context.biomarkerHash;
+    // Also never serve a Claude narrative whose biomarker hash no longer matches
+    // the current panel (stale after a new / partial upload).
+    const hashMatches = cachedReport?.biomarkerHash === context.biomarkerHash;
+    const report =
+      normalized?.aiProvider === "claude" && hashMatches ? normalized : null;
+    const hasReadyReport = Boolean(report);
     const canGenerate =
       context.biomarkerCount > 0 &&
       !generating &&
@@ -274,14 +279,16 @@ export async function POST(request: NextRequest) {
         await enqueueHolisticReportJob(userId, origin);
       } catch (error) {
         console.error("[holistic-health-report] enqueue failed", error);
-        await markHolisticHealthReportError({
-          userId,
-          biomarkerHash: context.biomarkerHash,
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to start Claude report job. Please try again.",
-        });
+        if (context.biomarkerHash) {
+          await markHolisticHealthReportError({
+            userId,
+            biomarkerHash: context.biomarkerHash,
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to start Claude report job. Please try again.",
+          });
+        }
       }
     });
 

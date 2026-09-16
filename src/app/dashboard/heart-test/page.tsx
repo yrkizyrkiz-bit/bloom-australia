@@ -48,6 +48,8 @@ import { HeartPredictiveHealthRisk } from "@/components/dashboard/HeartPredictiv
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
 import { BloodPressureHistory } from "@/components/dashboard/BloodPressureHistory";
 import { HeartPulse } from "lucide-react";
+import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
+import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
 
 const heartTestConfig = {
   lipidPanel: {
@@ -75,6 +77,10 @@ const heartTestConfig = {
     biomarkerIds: ["glucose", "hba1c", "insulin"]
   }
 };
+
+const HEART_BIOMARKER_IDS = Object.values(heartTestConfig).flatMap(
+  (cat) => cat.biomarkerIds
+);
 
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-green-600";
@@ -105,14 +111,22 @@ export default function HeartTestPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showScoreDetails, setShowScoreDetails] = useState(false);
 
-  // Fetch real biomarker data from API
-  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, { latest: true });
+  // Fetch latest panel that includes heart markers (may fall back to a prior draw)
+  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
+    latest: true,
+    biomarkerIds: HEART_BIOMARKER_IDS,
+  });
 
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
     result: BiomarkerResult | null;
     panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
+
+  const fromPriorPanel = Boolean(biomarkerData?.fromPriorPanel && biomarkerData?.panelDate);
+  const priorPanelDateLabel = biomarkerData?.panelDate
+    ? formatUtcPanelDayLabel(biomarkerData.panelDate, "full")
+    : null;
 
   // Transform API data to BiomarkerResult format
   const allBiomarkerResults: BiomarkerResult[] = useMemo(
@@ -122,16 +136,15 @@ export default function HeartTestPage() {
 
   // Get biomarkers with their results for heart test
   const heartTestResults = useMemo(() => {
-    const allHeartBiomarkerIds = Object.values(heartTestConfig).flatMap(cat => cat.biomarkerIds);
-
     return allBiomarkerResults
-      .filter(result => allHeartBiomarkerIds.includes(result.biomarkerId))
-      .map(result => ({
+      .filter((result) => HEART_BIOMARKER_IDS.includes(result.biomarkerId))
+      .map((result) => ({
         result,
         biomarker: getBiomarkerById(result.biomarkerId),
       }))
-      .filter((item): item is { result: BiomarkerResult; biomarker: BiomarkerDefinition } =>
-        item.biomarker !== undefined
+      .filter(
+        (item): item is { result: BiomarkerResult; biomarker: BiomarkerDefinition } =>
+          item.biomarker !== undefined
       );
   }, [allBiomarkerResults]);
 
@@ -238,6 +251,10 @@ export default function HeartTestPage() {
           </div>
         </div>
       </div>
+
+      {fromPriorPanel && priorPanelDateLabel && (
+        <PriorOrganPanelNote organLabel="heart" dateLabel={priorPanelDateLabel} />
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap h-auto gap-1 p-1">
@@ -455,7 +472,7 @@ export default function HeartTestPage() {
         </TabsContent>
         <TabsContent value="goals" className="mt-6"><HeartGoalSetting currentResults={heartTestResults.map(r => r.result)} /></TabsContent>
         <TabsContent value="insights" className="mt-6"><HeartAIRecommendations /></TabsContent>
-        <TabsContent value="compare" className="mt-6"><HeartPopulationComparison results={heartTestResults.map(r => r.result)} gender={gender} /></TabsContent>
+        <TabsContent value="compare" className="mt-6"><HeartPopulationComparison results={heartTestResults.map(r => r.result)} gender={gender} dateOfBirth={user?.dateOfBirth} /></TabsContent>
         <TabsContent value="schedule" className="space-y-6 mt-6">
           <HeartTestScheduler />
           <EmailReminderService userEmail={user?.email || ""} userPhone="" />

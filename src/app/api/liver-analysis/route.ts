@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import crypto from "crypto";
 import { getDataDate, isResultsStale } from "@/lib/ai-report-cache";
+import { normalizeLiverAnalysis } from "@/lib/liver-analysis-normalize";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -141,23 +142,27 @@ function createBiomarkerHash(biomarkers: BiomarkerData[]): string {
 function asLiverAnalysis(
   raw: Record<string, unknown>
 ): Omit<LiverAnalysisResult, "analyzedAt"> {
-  const overallRiskScore = Number(raw.overallRiskScore);
-  if (!Number.isFinite(overallRiskScore)) {
-    throw new Error("Missing overallRiskScore in response");
-  }
+  const normalized = normalizeLiverAnalysis(raw);
   return {
-    overallRiskScore,
-    previousOverallRisk: Number(raw.previousOverallRisk) || overallRiskScore,
-    summary: String(raw.summary || ""),
-    riskFactors: Array.isArray(raw.riskFactors) ? (raw.riskFactors as RiskFactor[]) : [],
-    predictions: Array.isArray(raw.predictions) ? (raw.predictions as HealthPrediction[]) : [],
-    personalizedInsights: Array.isArray(raw.personalizedInsights)
-      ? (raw.personalizedInsights as string[])
-      : [],
-    urgentActions: Array.isArray(raw.urgentActions) ? (raw.urgentActions as string[]) : [],
-    lifestyleRecommendations: Array.isArray(raw.lifestyleRecommendations)
-      ? (raw.lifestyleRecommendations as string[])
-      : [],
+    overallRiskScore: normalized.overallRiskScore,
+    previousOverallRisk: normalized.previousOverallRisk,
+    summary: normalized.summary,
+    riskFactors: normalized.riskFactors,
+    predictions: normalized.predictions,
+    personalizedInsights: normalized.personalizedInsights,
+    urgentActions: normalized.urgentActions,
+    lifestyleRecommendations: normalized.lifestyleRecommendations,
+  };
+}
+
+function payloadFromCache(raw: unknown): LiverAnalysisResult {
+  const normalized = normalizeLiverAnalysis(raw);
+  const row = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    ...normalized,
+    analyzedAt:
+      normalized.analyzedAt ||
+      (typeof row.analyzedAt === "string" ? row.analyzedAt : new Date().toISOString()),
   };
 }
 
@@ -302,9 +307,8 @@ export async function GET() {
       if (cachedAnalysis && cachedAnalysis.biomarkerHash === biomarkerHash) {
         console.log("[Liver Analysis] Returning saved analysis for unchanged data");
 
-        const cachedData = cachedAnalysis.analysisData as unknown as LiverAnalysisResult;
         return NextResponse.json({
-          ...cachedData,
+          ...payloadFromCache(cachedAnalysis.analysisData),
           cached: true,
           dataDate,
           resultsStale,
@@ -343,7 +347,7 @@ export async function GET() {
       if (raced && raced.biomarkerHash === biomarkerHash) {
         console.log("[Liver Analysis] Using concurrent sibling cache after AI error");
         return NextResponse.json({
-          ...(raced.analysisData as unknown as LiverAnalysisResult),
+          ...payloadFromCache(raced.analysisData),
           cached: true,
           dataDate,
           resultsStale,
@@ -366,7 +370,7 @@ export async function GET() {
     if (sibling && sibling.biomarkerHash === biomarkerHash) {
       console.log("[Liver Analysis] Concurrent request already cached this hash");
       return NextResponse.json({
-        ...(sibling.analysisData as unknown as LiverAnalysisResult),
+        ...payloadFromCache(sibling.analysisData),
         cached: true,
         dataDate,
         resultsStale,

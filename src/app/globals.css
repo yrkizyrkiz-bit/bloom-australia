@@ -529,41 +529,41 @@ button.dashboard-view-tab-categories[data-state="active"]:active,
 
 button.dashboard-view-tab-organ,
 .dashboard-view-tab-organ {
-  background: linear-gradient(180deg, #f9e8e8 0%, #f5e0e0 100%) !important;
-  color: #8a3d3d !important;
+  background: linear-gradient(180deg, #f3f9dc 0%, #eaf6c8 100%) !important;
+  color: #173c32 !important;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.75),
-    0 2px 0 #d4a0a0,
-    0 3px 6px rgb(138 61 61 / 0.14) !important;
+    0 2px 0 #b8d96a,
+    0 3px 6px rgb(23 60 50 / 0.12) !important;
 }
 
 button.dashboard-view-tab-organ:hover,
 .dashboard-view-tab-organ:hover {
-  background: linear-gradient(180deg, #f5e0e0 0%, #e8c8c8 100%) !important;
+  background: linear-gradient(180deg, #eaf6c8 0%, #d6f08f 100%) !important;
 }
 
 button.dashboard-view-tab-organ:active,
 .dashboard-view-tab-organ:active {
   box-shadow:
-    inset 0 2px 4px rgb(138 61 61 / 0.22),
+    inset 0 2px 4px rgb(23 60 50 / 0.18),
     0 0 0 transparent !important;
 }
 
 button.dashboard-view-tab-organ[data-state="active"],
 .dashboard-view-tab-organ[data-state="active"] {
-  background: linear-gradient(180deg, #d47070 0%, #c45c5c 55%, #a84848 100%) !important;
-  color: #ffffff !important;
+  background: linear-gradient(180deg, #d6f08f 0%, #ccea83 55%, #b8d96a 100%) !important;
+  color: #173c32 !important;
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.3),
-    0 3px 0 #8a3d3d,
-    0 5px 10px rgb(138 61 61 / 0.3) !important;
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 3px 0 #8aa34a,
+    0 5px 10px rgb(23 60 50 / 0.18) !important;
 }
 
 button.dashboard-view-tab-organ[data-state="active"]:active,
 .dashboard-view-tab-organ[data-state="active"]:active {
   box-shadow:
-    inset 0 3px 6px rgb(90 40 40 / 0.4),
-    0 1px 0 #8a3d3d !important;
+    inset 0 3px 6px rgb(23 60 50 / 0.22),
+    0 1px 0 #8aa34a !important;
 }
 
 /* Bounce once animation for confirmation */

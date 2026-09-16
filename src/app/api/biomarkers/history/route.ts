@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
+import {
+  getLatestPanelDateKey,
+  testedAtUtcDayKey,
+} from "@/lib/biomarkers/panel-scoped";
 
 interface HistoricalDataPoint {
   date: string;
@@ -98,8 +102,10 @@ export async function GET(request: Request) {
       biomarkerGroups.set(result.biomarkerId, existing);
     }
 
-    // Calculate trends for each biomarker
+    // Calculate trends for each biomarker — “current” is the newest panel only.
+    // Markers absent from the latest panel are omitted (no backfill from older draws).
     const biomarkerTrends: BiomarkerTrend[] = [];
+    const latestPanelDate = getLatestPanelDateKey(filteredResults);
 
     for (const [biomarkerId, bioResults] of biomarkerGroups.entries()) {
       if (bioResults.length === 0) continue;
@@ -121,10 +127,22 @@ export async function GET(request: Request) {
           status: r.status?.toLowerCase() || "normal"
         }));
 
-      // Get latest and previous values (previous = reading immediately before latest)
-      const latest = sortedResults[sortedResults.length - 1];
-      const previous =
-        sortedResults.length >= 2 ? sortedResults[sortedResults.length - 2] : null;
+      // Current = reading on newest panel date only; previous = last before that day
+      const onLatestPanel = latestPanelDate
+        ? sortedResults.filter((r) => testedAtUtcDayKey(r.testedAt) === latestPanelDate)
+        : [];
+      if (onLatestPanel.length === 0) continue;
+
+      const latest = onLatestPanel[onLatestPanel.length - 1];
+      let previous: (typeof sortedResults)[number] | null = null;
+      if (latestPanelDate) {
+        for (let i = sortedResults.length - 1; i >= 0; i--) {
+          if (testedAtUtcDayKey(sortedResults[i].testedAt) < latestPanelDate) {
+            previous = sortedResults[i];
+            break;
+          }
+        }
+      }
       const latestValue = latest.value;
       const previousValue = previous?.value ?? null;
 

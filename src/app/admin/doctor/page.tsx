@@ -63,6 +63,8 @@ import {
 import { format, isToday, isTomorrow, isPast, formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { MemberWeightPlanPanel } from "@/components/admin/MemberWeightPlanPanel";
+import { HolisticReportReviewDialog } from "@/components/admin/HolisticReportReviewDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Types
 interface Consultation {
@@ -273,8 +275,9 @@ interface CareCommunication {
 }
 
 export default function DoctorDashboardPage() {
+  const { user } = useAuth();
   // Main view state
-  const [mainView, setMainView] = useState<"consultations" | "patients" | "care-comms">("consultations");
+  const [mainView, setMainView] = useState<"consultations" | "patients" | "care-comms" | "reports">("consultations");
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
@@ -308,6 +311,20 @@ export default function DoctorDashboardPage() {
   // Care Communications state
   const [careCommunications, setCareCommunications] = useState<CareCommunication[]>([]);
   const [loadingCareComs, setLoadingCareComs] = useState(false);
+  const [pendingReports, setPendingReports] = useState<
+    Array<{
+      userId: string;
+      memberName: string;
+      email: string;
+      panelDate: string | null;
+      generatedAt: string;
+      assignedDoctorName: string | null;
+      approvalStatus: string;
+      overallHealthScore: number;
+    }>
+  >([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [reportDialogUserId, setReportDialogUserId] = useState<string | null>(null);
 
   // Decision form state
   const [decisionType, setDecisionType] = useState<"APPROVED" | "DECLINED" | "APPROVED_PENDING_TESTS" | "APPROVED_NO_TREATMENT" | null>(null);
@@ -367,13 +384,33 @@ export default function DoctorDashboardPage() {
   useEffect(() => {
     fetchConsultations();
     fetchDecisionOptions();
+    fetchPendingReports();
   }, []);
 
   useEffect(() => {
     if (mainView === "patients" || mainView === "care-comms") {
       fetchPatientsAndCareComs();
     }
+    if (mainView === "reports") {
+      fetchPendingReports();
+    }
   }, [mainView]);
+
+  const fetchPendingReports = async () => {
+    try {
+      setLoadingReports(true);
+      const res = await fetch("/api/admin/holistic-reports");
+      if (res.ok) {
+        const data = await res.json();
+        setPendingReports(data.items ?? []);
+      }
+    } catch (error) {
+      console.error("Error fetching pending reports:", error);
+      toast.error("Failed to load pending reports");
+    } finally {
+      setLoadingReports(false);
+    }
+  };
 
   const fetchPatientsAndCareComs = async () => {
     try {
@@ -729,10 +766,14 @@ export default function DoctorDashboardPage() {
 
         {/* Main navigation tabs */}
         <Tabs value={mainView} onValueChange={(v) => setMainView(v as typeof mainView)}>
-          <TabsList className="grid h-auto w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid h-auto w-full grid-cols-2 lg:w-auto lg:inline-grid lg:grid-cols-4">
             <TabsTrigger value="consultations" className="flex items-center gap-2">
               <Stethoscope className="w-4 h-4" /><span className="hidden sm:inline">Consultations</span><span className="sm:hidden">Consults</span>
               {counts.pending > 0 && <Badge className="ml-1 bg-amber-500 text-white text-xs">{counts.pending}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" /><span className="hidden sm:inline">Reports pending approval</span><span className="sm:hidden">Reports</span>
+              {pendingReports.length > 0 && <Badge className="ml-1 bg-emerald-600 text-white text-xs">{pendingReports.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="patients" className="flex items-center gap-2">
               <Users className="w-4 h-4" /><span className="hidden sm:inline">My Patients</span><span className="sm:hidden">Patients</span>
@@ -1179,6 +1220,50 @@ export default function DoctorDashboardPage() {
             </div>
           </TabsContent>
 
+          <TabsContent value="reports" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Reports pending approval</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingReports ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                  </div>
+                ) : pendingReports.length === 0 ? (
+                  <p className="py-12 text-center text-slate-500">
+                    No holistic reports assigned to you yet.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {pendingReports.map((item) => (
+                      <div key={item.userId} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-medium">{item.memberName}</p>
+                          <p className="text-sm text-slate-500">{item.email}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Panel {item.panelDate ? new Date(item.panelDate).toLocaleDateString("en-AU") : "—"}
+                            {" · "}Score {item.overallHealthScore}
+                            {" · "}
+                            <span className="capitalize">{item.approvalStatus.replaceAll("_", " ")}</span>
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/admin/crm/customers/${item.userId}`}>Member</Link>
+                          </Button>
+                          <Button size="sm" onClick={() => setReportDialogUserId(item.userId)}>
+                            Review / release
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Care Communications Tab */}
           <TabsContent value="care-comms" className="mt-6">
             <div className="space-y-6">
@@ -1518,6 +1603,18 @@ export default function DoctorDashboardPage() {
           consultationId={selectedConsultation.id}
         />
       )}
+
+      <HolisticReportReviewDialog
+        open={Boolean(reportDialogUserId)}
+        onOpenChange={(open) => {
+          if (!open) setReportDialogUserId(null);
+        }}
+        userId={reportDialogUserId}
+        mode="doctor"
+        role={user?.role || "DOCTOR"}
+        doctors={[]}
+        onChanged={fetchPendingReports}
+      />
     </div>
   );
 }

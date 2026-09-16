@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getHigherIsBetter, isClinicallyImproved } from "@/lib/biomarker-clinical-trend";
 
 interface BiomarkerTrendData {
   biomarkerId: string;
@@ -65,6 +66,30 @@ interface BiomarkerHistoryViewProps {
   /** When true, omits the page-level heading (e.g. embedded in Biomarkers tabs). */
   embedded?: boolean;
   pageTitle?: string;
+}
+
+function isLatestStillOptimal(
+  latestValue: number,
+  historyStatus: string | undefined,
+  def: BiomarkerDefinition | undefined,
+  gender: "male" | "female"
+): boolean {
+  if (historyStatus === "optimal") return true;
+  const range = def?.ranges[gender];
+  if (!range) return false;
+  return latestValue >= range.optimal_low && latestValue <= range.optimal_high;
+}
+
+function declinedWithinOptimal(
+  latestValue: number,
+  previousValue: number | null,
+  def: BiomarkerDefinition | undefined,
+  gender: "male" | "female"
+): boolean {
+  if (previousValue == null || !def) return false;
+  const range = def.ranges[gender];
+  const higherIsBetter = getHigherIsBetter(def.id, range);
+  return isClinicallyImproved(latestValue, previousValue, range, higherIsBetter) === false;
 }
 
 export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }: BiomarkerHistoryViewProps) {
@@ -521,6 +546,23 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
                   const category = biomarkerDef?.category || biomarkerTrend.category;
                   const categoryColor =
                     categoryInfo[category as keyof typeof categoryInfo]?.color || "#6b7280";
+                  const latestHistory = biomarkerTrend.history[biomarkerTrend.history.length - 1];
+                  const stillOptimal = isLatestStillOptimal(
+                    biomarkerTrend.latestValue,
+                    latestHistory?.status,
+                    biomarkerDef,
+                    gender
+                  );
+                  const declineStillOptimal =
+                    stillOptimal &&
+                    biomarkerTrend.trend !== "improving" &&
+                    (biomarkerTrend.trend === "worsening" ||
+                      declinedWithinOptimal(
+                        biomarkerTrend.latestValue,
+                        biomarkerTrend.previousValue,
+                        biomarkerDef,
+                        gender
+                      ));
 
                   return (
                     <div
@@ -558,36 +600,53 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
                               color={
                                 biomarkerTrend.trend === "improving"
                                   ? "#22c55e"
-                                  : biomarkerTrend.trend === "worsening"
-                                    ? "#f97316"
-                                    : categoryColor
+                                  : declineStillOptimal
+                                    ? "#5f7f68"
+                                    : biomarkerTrend.trend === "worsening"
+                                      ? "#f97316"
+                                      : categoryColor
                               }
                             />
                           </div>
                         )}
-                        <Badge
-                          variant="outline"
-                          className={`${
-                            biomarkerTrend.trend === "improving"
-                              ? "border-green-500 text-green-600 bg-green-500/10"
+                        {declineStillOptimal ? (
+                          <div className="flex max-w-[11rem] flex-col items-end gap-0.5 text-right">
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-400/70 text-emerald-800 bg-emerald-500/10 font-normal"
+                            >
+                              <TrendingDown className="w-3 h-3 mr-1" />
+                              Still optimal
+                            </Badge>
+                            <p className="text-[10px] leading-tight text-muted-foreground">
+                              Small decline but still optimal
+                            </p>
+                          </div>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className={`${
+                              biomarkerTrend.trend === "improving"
+                                ? "border-green-500 text-green-600 bg-green-500/10"
+                                : biomarkerTrend.trend === "worsening"
+                                  ? "border-orange-500 text-orange-600 bg-orange-500/10"
+                                  : "border-muted-foreground"
+                            }`}
+                          >
+                            {biomarkerTrend.trend === "improving" ? (
+                              <TrendingUp className="w-3 h-3 mr-1" />
+                            ) : biomarkerTrend.trend === "worsening" ? (
+                              <TrendingDown className="w-3 h-3 mr-1" />
+                            ) : (
+                              <Minus className="w-3 h-3 mr-1" />
+                            )}
+                            {biomarkerTrend.trend === "improving"
+                              ? "Improved"
                               : biomarkerTrend.trend === "worsening"
-                                ? "border-orange-500 text-orange-600 bg-orange-500/10"
-                                : "border-muted-foreground"
-                          }`}
-                        >
-                          {biomarkerTrend.trend === "improving" ? (
-                            <TrendingUp className="w-3 h-3 mr-1" />
-                          ) : biomarkerTrend.trend === "worsening" ? (
-                            <TrendingDown className="w-3 h-3 mr-1" />
-                          ) : (
-                            <Minus className="w-3 h-3 mr-1" />
-                          )}
-                          {biomarkerTrend.trend === "improving"
-                            ? "Improved"
-                            : biomarkerTrend.trend === "worsening"
-                              ? "Needs Attention"
-                              : "Stable"}
-                        </Badge>
+                                ? "Needs Attention"
+                                : "Stable"}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   );

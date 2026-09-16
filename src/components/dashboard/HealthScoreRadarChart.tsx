@@ -52,7 +52,7 @@ export function HealthScoreRadarChart({
 
   return (
     <div style={{ width: "100%", height }}>
-      <ResponsiveContainer>
+      <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
           <PolarGrid stroke="hsl(var(--border))" />
           <PolarAngleAxis

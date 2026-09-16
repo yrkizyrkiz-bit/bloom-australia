@@ -18,7 +18,6 @@ import {
 import {
   LayoutDashboard,
   Users,
-  Upload,
   ChevronDown,
   FlaskConical,
   Shield,
@@ -26,7 +25,6 @@ import {
   CreditCard,
   MessageSquare,
   Building2,
-  Home,
   Scale,
   Pill,
   Mail,
@@ -37,9 +35,12 @@ import {
   Bell,
   UserCog,
   Sparkles,
+  BarChart3,
   Menu,
   KeyRound,
   DollarSign,
+  LogOut,
+  MoreHorizontal,
 } from "lucide-react";
 import { FaceIdEnrollPrompt } from "@/components/account/FaceIdEnrollPrompt";
 import { DOCTOR_PORTAL_HOME } from "@/lib/portal/staff-home";
@@ -65,12 +66,12 @@ const clinicalAdminNavItems: AdminNavItem[] = [
   { href: "/admin/triage", label: "Triage", icon: ClipboardList },
   { href: "/admin/prescriptions", label: "Prescriptions", icon: Pill },
   { href: "/admin/welcome-calls", label: "Welcome Calls", icon: Sparkles },
+  { href: "/admin/population-references", label: "Population comparison", icon: BarChart3 },
 ];
 
 const doctorPrimaryNavItems: AdminNavItem[] = [
   { href: "/admin/bookings", label: "Bookings", icon: Calendar },
   { href: "/admin/doctor", label: "Doctor", icon: Stethoscope },
-  { href: "/admin/upload", label: "Upload Results", icon: Upload },
 ];
 
 const doctorCareCommsNavItems: AdminNavItem[] = [
@@ -86,13 +87,11 @@ const adminUtilityNavItems: AdminNavItem[] = [
   { href: "/admin/crm/billing", label: "Billing", icon: CreditCard },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/email-preview", label: "Emails", icon: Mail },
-  { href: "/admin/upload", label: "Upload", icon: Upload },
 ];
 
 const doctorMobileNavItems: AdminNavItem[] = [
   { href: "/admin/bookings", label: "Bookings", icon: Calendar },
   { href: "/admin/doctor", label: "Doctor", icon: Stethoscope },
-  { href: "/admin/upload", label: "Upload", icon: Upload },
   { href: "/admin/notifications", label: "Care Comms", icon: MessageSquare },
 ];
 
@@ -157,9 +156,9 @@ export default function AdminLayout({
       {/* Admin Nav */}
       <nav className="border-b border-border bg-slate-900 text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-16 gap-2">
             {/* Logo */}
-            <Link href={portalHomeHref} className="flex items-center gap-2 cursor-pointer">
+            <Link href={portalHomeHref} className="flex shrink-0 items-center gap-2 cursor-pointer">
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <FlaskConical className="w-5 h-5 text-white" />
               </div>
@@ -172,7 +171,7 @@ export default function AdminLayout({
             </Link>
 
             {/* Desktop Nav Items */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden flex-1 md:flex items-center justify-end gap-1">
               {isDoctor ? (
                 <>
                   {doctorPrimaryNavItems.map((item) => {
@@ -282,26 +281,36 @@ export default function AdminLayout({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {adminUtilityNavItems.map((item) => {
-                const isActive = isNavActive(item);
-                return (
-                  <Link key={item.href} href={item.href}>
-                    <Button
-                      variant={isActive ? "secondary" : "ghost"}
-                      size="sm"
-                      className={`gap-2 ${!isActive && "text-slate-300 hover:text-white hover:bg-slate-800"}`}
-                    >
-                      <item.icon className="w-4 h-4" />
-                      {item.label}
-                    </Button>
-                  </Link>
-                );
-              })}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={isGroupActive(adminUtilityNavItems) ? "secondary" : "ghost"}
+                    size="sm"
+                    className={`gap-2 ${!isGroupActive(adminUtilityNavItems) && "text-slate-300 hover:text-white hover:bg-slate-800"}`}
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                    Tools
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Tools</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {adminUtilityNavItems.map((item) => (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link href={item.href} className="cursor-pointer">
+                        <item.icon className="w-4 h-4" />
+                        {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
                 </>
               )}
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               {/* Mobile Nav */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -423,7 +432,6 @@ export default function AdminLayout({
                           Face ID
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                     </>
                   )}
                   {!isDoctor && (
@@ -434,12 +442,13 @@ export default function AdminLayout({
                       </Link>
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={logout}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                   >
-                    <Home className="w-4 h-4 mr-2" />
-                    Back to Main Website
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -455,7 +464,7 @@ export default function AdminLayout({
       <FaceIdEnrollPrompt staffCopy />
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
-        <div className="mx-auto grid h-16 max-w-md grid-cols-4 px-1">
+        <div className={`mx-auto grid h-16 max-w-md px-1 ${bottomNavItems.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
           {bottomNavItems.map((item) => {
             const isActive =
               isDoctor && item.href === "/admin/notifications"

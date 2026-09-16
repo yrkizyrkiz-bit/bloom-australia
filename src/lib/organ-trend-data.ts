@@ -5,6 +5,7 @@ import {
   type BiomarkerResultInput,
   type HealthTestId,
 } from "@/lib/healthTestScoring";
+import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
 
 export const ORGAN_TREND_ILLUSTRATION_MESSAGE =
   "This data is for illustration and will be updated once you complete your blood tests.";
@@ -35,20 +36,21 @@ interface OrganTrendConfig {
   mockData: OrganTrendPoint[];
 }
 
-const MOCK_DATES = [
-  { dateKey: "2023-06-01", date: "Jun '23", fullDate: "June 2023" },
-  { dateKey: "2023-09-01", date: "Sep '23", fullDate: "September 2023" },
-  { dateKey: "2023-12-01", date: "Dec '23", fullDate: "December 2023" },
-  { dateKey: "2024-03-01", date: "Mar '24", fullDate: "March 2024" },
-];
+const MOCK_DATE_KEYS = ["2023-06-01", "2023-09-01", "2023-12-01", "2024-03-01"] as const;
 
 function mockPoint(
   index: number,
   overall: number,
   categories: Record<string, number>
 ): OrganTrendPoint {
-  const d = MOCK_DATES[index];
-  return { ...d, overall, categories };
+  const dateKey = MOCK_DATE_KEYS[index];
+  return {
+    dateKey,
+    date: formatUtcPanelDayLabel(dateKey, "axis"),
+    fullDate: formatUtcPanelDayLabel(dateKey, "full"),
+    overall,
+    categories,
+  };
 }
 
 export const ORGAN_TREND_CONFIGS: Record<OrganTrendId, OrganTrendConfig> = {
@@ -205,11 +207,11 @@ function toInput(result: RawBiomarkerResult): BiomarkerResultInput {
 }
 
 function formatTrendDate(dateKey: string): { date: string; fullDate: string } {
-  const d = new Date(`${dateKey}T12:00:00`);
-  const month = d.toLocaleDateString("en-US", { month: "short" });
-  const year = d.toLocaleDateString("en-US", { year: "2-digit" });
-  const fullDate = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  return { date: `${month} '${year}`, fullDate };
+  // Include calendar day so two draws in the same month are not both "Sep '26".
+  return {
+    date: formatUtcPanelDayLabel(dateKey, "axis"),
+    fullDate: formatUtcPanelDayLabel(dateKey, "full"),
+  };
 }
 
 export function getOrganMockTrend(organId: OrganTrendId): OrganTrendPoint[] {

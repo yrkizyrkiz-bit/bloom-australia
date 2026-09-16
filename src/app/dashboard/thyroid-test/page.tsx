@@ -42,6 +42,8 @@ import { ThyroidPredictiveHealthRisk } from "@/components/dashboard/ThyroidPredi
 import { OrganAIInsights } from "@/components/dashboard/OrganAIInsights";
 import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
 import { OrganGoalSetting } from "@/components/dashboard/OrganGoalSetting";
+import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
+import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
 
 const thyroidTestConfig = {
   thyroidFunction: {
@@ -53,6 +55,10 @@ const thyroidTestConfig = {
     biomarkerIds: ["tsh", "free_t4"]
   }
 };
+
+const THYROID_BIOMARKER_IDS = Object.values(thyroidTestConfig).flatMap(
+  (cat) => cat.biomarkerIds
+);
 
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-blue-600";
@@ -82,14 +88,22 @@ export default function ThyroidTestPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showScoreDetails, setShowScoreDetails] = useState(false);
 
-  // Fetch real biomarker data from API
-  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, { latest: true });
+  // Fetch latest panel that includes thyroid markers (may fall back to a prior draw)
+  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
+    latest: true,
+    biomarkerIds: THYROID_BIOMARKER_IDS,
+  });
 
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
     result: BiomarkerResult | null;
     panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
+
+  const fromPriorPanel = Boolean(biomarkerData?.fromPriorPanel && biomarkerData?.panelDate);
+  const priorPanelDateLabel = biomarkerData?.panelDate
+    ? formatUtcPanelDayLabel(biomarkerData.panelDate, "full")
+    : null;
 
   // Transform API data to BiomarkerResult format
   const allBiomarkerResults: BiomarkerResult[] = useMemo(
@@ -99,10 +113,8 @@ export default function ThyroidTestPage() {
 
   // Get biomarkers with their results for thyroid test
   const thyroidTestResults = useMemo(() => {
-    const allThyroidBiomarkerIds = Object.values(thyroidTestConfig).flatMap(cat => cat.biomarkerIds);
-
     return allBiomarkerResults
-      .filter(result => allThyroidBiomarkerIds.includes(result.biomarkerId))
+      .filter((result) => THYROID_BIOMARKER_IDS.includes(result.biomarkerId))
       .map(result => ({
         result,
         biomarker: getBiomarkerById(result.biomarkerId),
@@ -215,6 +227,10 @@ export default function ThyroidTestPage() {
           </div>
         </div>
       </div>
+
+      {fromPriorPanel && priorPanelDateLabel && (
+        <PriorOrganPanelNote organLabel="thyroid" dateLabel={priorPanelDateLabel} />
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap h-auto gap-1 p-1">

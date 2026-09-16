@@ -6,6 +6,11 @@ import { getDataDate, isResultsStale } from "@/lib/ai-report-cache";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 import { DERIVED_BIOMARKER_IDS } from "@/lib/derived-biomarkers";
 import {
+  getLatestPanelDateKey,
+  pairCurrentPanelWithPrevious,
+  testedAtUtcDayKey,
+} from "@/lib/biomarkers/panel-scoped";
+import {
   loadOrganCareReportContext,
 } from "@/lib/organ-care-ai-report";
 import { getGlycemicFlag,
@@ -194,18 +199,23 @@ function summarizeBiomarkerGroup(
       maleRanges?: unknown;
     } | null;
   }>,
-  gender: "male" | "female"
-): BiomarkerSummary {
+  gender: "male" | "female",
+  panelDate?: string | null
+): BiomarkerSummary | null {
+  const pairs = pairCurrentPanelWithPrevious(bioResults, panelDate);
+  const pair = pairs.find((p) => p.biomarkerId === biomarkerId);
+  if (!pair) return null;
+
+  const { current: latest, previous } = pair;
   const sorted = [...bioResults].sort(
     (a, b) => new Date(a.testedAt).getTime() - new Date(b.testedAt).getTime()
   );
-  const latest = sorted[sorted.length - 1];
-  const previous = sorted.length > 1 ? sorted[sorted.length - 2] : null;
   const ranges = latest.biomarker ? parseRanges(latest.biomarker, gender) : {};
   const trendData = computeTrend(
     sorted.map((r) => r.value),
     ranges
   );
+  const hasPrevious = previous != null;
 
   return {
     biomarkerId,
@@ -218,20 +228,24 @@ function summarizeBiomarkerGroup(
     testedAt: latest.testedAt.toISOString(),
     previousValue: previous?.value ?? null,
     previousTestedAt: previous?.testedAt.toISOString() ?? null,
-    trend: sorted.length >= 2 ? trendData.trend : ("unknown" as const),
-    changePercent: sorted.length >= 2 ? Math.round(trendData.changePercent * 10) / 10 : null,
+    trend: hasPrevious ? trendData.trend : ("unknown" as const),
+    changePercent: hasPrevious ? Math.round(trendData.changePercent * 10) / 10 : null,
   };
 }
 
 /**
  * Load iron/FBC (+ nutrients) and any other catalog markers whose latest status is
  * CRITICAL or OUT_OF_RANGE — organ-care context alone omits these.
+ * Only markers present on the member's newest panel date are included.
  */
 async function loadHolisticPriorityBiomarkerSummaries(
   userId: string,
   gender: "male" | "female",
-  alreadyHave: Set<string>
+  alreadyHave: Set<string>,
+  panelDate: string | null
 ): Promise<BiomarkerSummary[]> {
+  if (!panelDate) return [];
+
   const allResults = await prisma.biomarkerResult.findMany({
     where: { userId },
     select: { biomarkerId: true, status: true, testedAt: true },
@@ -246,6 +260,8 @@ async function loadHolisticPriorityBiomarkerSummaries(
     if (alreadyHave.has(row.biomarkerId)) continue;
     if (!isCatalogBiomarker(row.biomarkerId)) continue;
     if (DERIVED_BIOMARKER_ID_SET.has(row.biomarkerId)) continue;
+    // Only flag markers that were actually tested on the current panel.
+    if (testedAtUtcDayKey(row.testedAt) !== panelDate) continue;
     const status = String(row.status).toLowerCase();
     if (status === "critical" || status === "out_of_range") {
       flaggedIds.push(row.biomarkerId);
@@ -274,9 +290,11 @@ async function loadHolisticPriorityBiomarkerSummaries(
     grouped.set(result.biomarkerId, existing);
   }
 
-  return Array.from(grouped.entries()).map(([biomarkerId, bioResults]) =>
-    summarizeBiomarkerGroup(biomarkerId, bioResults, gender)
-  );
+  return Array.from(grouped.entries())
+    .map(([biomarkerId, bioResults]) =>
+      summarizeBiomarkerGroup(biomarkerId, bioResults, gender, panelDate)
+    )
+    .filter((item): item is BiomarkerSummary => item != null);
 }
 
 const PROGRAM_IMPACT: Record<
@@ -717,8 +735,20 @@ export async function loadHolisticHealthReportContext(userId: string): Promise<H
   const base = await loadOrganCareReportContext(userId);
   if (!base) return null;
 
+  const panelDate =
+    base.dataDate != null
+      ? testedAtUtcDayKey(base.dataDate)
+      : getLatestPanelDateKey(
+          base.biomarkerSummaries.map((item) => ({ testedAt: item.testedAt }))
+        );
+
   const alreadyHave = new Set(base.biomarkerSummaries.map((item) => item.biomarkerId));
-  const extras = await loadHolisticPriorityBiomarkerSummaries(userId, base.gender, alreadyHave);
+  const extras = await loadHolisticPriorityBiomarkerSummaries(
+    userId,
+    base.gender,
+    alreadyHave,
+    panelDate
+  );
   const biomarkerSummaries = [...base.biomarkerSummaries, ...extras];
 
   const latestResults = biomarkerSummaries.map((item) => ({
@@ -1053,6 +1083,7 @@ async function generateHolisticClaudeReport(
     aiProvider: "claude",
     aiModel: CLAUDE_MODEL,
     overallHealthScore: seed.overallHealthScore,
+    approvalStatus: "pending_approval",
     regulatoryNotice: AU_REGULATORY_NOTICE,
     careTeamHandoffSummary:
       typeof raw.careTeamHandoffSummary === "string" && raw.careTeamHandoffSummary.trim()
@@ -1157,7 +1188,59 @@ export async function persistHolisticHealthReport(input: {
   biomarkerCount: number;
   report: HolisticHealthReport;
 }) {
-  const analysisData = JSON.parse(JSON.stringify(input.report));
+  const existingCache = await prisma.aIAnalysisCache.findUnique({
+    where: {
+      userId_analysisType: {
+        userId: input.userId,
+        analysisType: HOLISTIC_HEALTH_ANALYSIS_TYPE,
+      },
+    },
+  });
+  const previous = sanitizeHolisticHealthReport(
+    existingCache?.analysisData as Partial<HolisticHealthReport> | undefined
+  );
+  const keepAssignment =
+    previous &&
+    (previous.approvalStatus === "pending_approval" || previous.approvalStatus === "held")
+      ? {
+          assignedDoctorId: previous.assignedDoctorId || null,
+          assignedDoctorName: previous.assignedDoctorName || null,
+        }
+      : { assignedDoctorId: null, assignedDoctorName: null };
+
+  if (existingCache && existingCache.biomarkerHash !== input.biomarkerHash) {
+    const previousPendingHistory = await prisma.aIAnalysisHistory.findMany({
+      where: { userId: input.userId, analysisType: HOLISTIC_HEALTH_ANALYSIS_TYPE },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    });
+    for (const row of previousPendingHistory) {
+      const rowReport = sanitizeHolisticHealthReport(row.analysisData as Partial<HolisticHealthReport>);
+      if (
+        rowReport &&
+        (rowReport.approvalStatus === "pending_approval" || rowReport.approvalStatus === "held")
+      ) {
+        await prisma.aIAnalysisHistory.update({
+          where: { id: row.id },
+          data: {
+            analysisData: JSON.parse(JSON.stringify({ ...rowReport, approvalStatus: "superseded" })),
+          },
+        });
+      }
+    }
+  }
+
+  const analysisData = JSON.parse(
+    JSON.stringify({
+      ...input.report,
+      approvalStatus: "pending_approval",
+      reviewedById: null,
+      reviewedByName: null,
+      reviewedAt: null,
+      biomarkerHash: input.biomarkerHash,
+      ...keepAssignment,
+    })
+  );
   const expiresAt = new Date();
   expiresAt.setFullYear(expiresAt.getFullYear() + 100);
 

@@ -219,11 +219,15 @@ export function UnifiedHealthDashboard({
             <CardDescription>Visual comparison across all health categories</CardDescription>
           </CardHeader>
           <CardContent>
-            <HealthScoreRadarChart
-              scores={testScores.map(t => ({ category: t.name, score: t.score }))}
-              height={250}
-              color="#10b981"
-            />
+            {isLoading ? (
+              <div className="h-[250px] animate-pulse rounded-md bg-muted/40" />
+            ) : (
+              <HealthScoreRadarChart
+                scores={testScores.map(t => ({ category: t.name, score: t.score }))}
+                height={250}
+                color="#10b981"
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -369,11 +373,11 @@ export function UnifiedHealthDashboard({
                   <p className="text-xs text-muted-foreground">Get personalized recommendations</p>
                 </div>
               </div>
-              <Link href="/dashboard/reports">
-                <Button variant="outline" size="sm" className="w-full">
+              <Button variant="outline" size="sm" className="w-full" asChild>
+                <Link href="/dashboard/reports">
                   View AI Report <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -389,11 +393,11 @@ export function UnifiedHealthDashboard({
                 <p className="text-xs text-muted-foreground">Track your progress</p>
               </div>
             </div>
-            <Link href="/dashboard/goals">
-              <Button variant="outline" size="sm" className="w-full">
+            <Button variant="outline" size="sm" className="w-full" asChild>
+              <Link href="/dashboard/goals">
                 View Goals <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 

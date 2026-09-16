@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { BiomarkerChart } from "@/components/dashboard/BiomarkerChart";
+import { getHigherIsBetter, isClinicallyImproved } from "@/lib/biomarker-clinical-trend";
 import type { BiomarkerDefinition, BiomarkerResult } from "@/types";
 import {
   TrendingUp,
@@ -68,20 +69,19 @@ export function BiomarkerHistoryDialog({
     };
   };
 
-  const isImproved = (current: number, previous: number) => {
-    const currOptimal = current >= range.optimal_low && current <= range.optimal_high;
-    const prevOptimal = previous >= range.optimal_low && previous <= range.optimal_high;
-    if (currOptimal && !prevOptimal) return true;
-    if (!currOptimal && prevOptimal) return false;
-    const currDist = Math.min(Math.abs(current - range.optimal_low), Math.abs(current - range.optimal_high));
-    const prevDist = Math.min(Math.abs(previous - range.optimal_low), Math.abs(previous - range.optimal_high));
-    return currDist < prevDist;
-  };
+  const higherIsBetter = getHigherIsBetter(biomarker.id, range);
+  const isImproved = (current: number, previous: number): boolean | null =>
+    isClinicallyImproved(current, previous, range, higherIsBetter);
 
   const latestResult = sortedHistory[sortedHistory.length - 1];
   const firstResult = sortedHistory[0];
   const overallChange = sortedHistory.length > 1 ? calculateChange(latestResult.value, firstResult.value) : null;
   const overallImproved = sortedHistory.length > 1 ? isImproved(latestResult.value, firstResult.value) : null;
+  const latestInOptimal =
+    latestResult.value >= range.optimal_low && latestResult.value <= range.optimal_high;
+  const declineStillOptimal = Boolean(latestInOptimal && overallImproved === false);
+  const improvedBecauseLower =
+    Boolean(overallImproved && overallChange?.direction === "down" && higherIsBetter === false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,8 +99,8 @@ export function BiomarkerHistoryDialog({
           <div className="space-y-6 pr-4">
             {/* Overall Progress Summary */}
             {sortedHistory.length > 1 && (
-              <div className={`p-4 rounded-xl border ${overallImproved ? 'border-green-200 bg-green-50' : overallImproved === false ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
-                <div className="flex items-center justify-between">
+              <div className={`p-4 rounded-xl border ${declineStillOptimal ? 'border-emerald-200 bg-emerald-50/80' : overallImproved ? 'border-green-200 bg-green-50' : overallImproved === false ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm text-muted-foreground">Overall Progress</p>
                     <div className="flex items-center gap-2 mt-1">
@@ -110,14 +110,33 @@ export function BiomarkerHistoryDialog({
                       <span className="text-sm text-muted-foreground">{range.unit}</span>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     {overallChange && (
-                      <Badge className={`${overallImproved ? 'bg-green-500/10 text-green-600' : overallImproved === false ? 'bg-orange-500/10 text-orange-600' : 'bg-gray-500/10 text-gray-600'}`}>
-                        {overallChange.direction === "up" ? <TrendingUp className="w-3 h-3 mr-1 inline" /> :
-                         overallChange.direction === "down" ? <TrendingDown className="w-3 h-3 mr-1 inline" /> :
-                         <Minus className="w-3 h-3 mr-1 inline" />}
-                        {overallChange.percent}% {overallImproved ? "improved" : overallImproved === false ? "declined" : "stable"}
-                      </Badge>
+                      declineStillOptimal ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <Badge className="bg-emerald-500/10 text-emerald-800 font-normal">
+                            <TrendingDown className="w-3 h-3 mr-1 inline" />
+                            Still optimal
+                          </Badge>
+                          <p className="text-[10px] leading-tight text-muted-foreground max-w-[9.5rem]">
+                            Small decline but still optimal
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <Badge className={`${overallImproved ? 'bg-green-500/10 text-green-600' : overallImproved === false ? 'bg-orange-500/10 text-orange-600' : 'bg-gray-500/10 text-gray-600'}`}>
+                            {overallImproved ? <TrendingUp className="w-3 h-3 mr-1 inline" /> :
+                             overallImproved === false ? <TrendingDown className="w-3 h-3 mr-1 inline" /> :
+                             <Minus className="w-3 h-3 mr-1 inline" />}
+                            {overallChange.percent}% {overallImproved ? "improved" : overallImproved === false ? "declined" : "stable"}
+                          </Badge>
+                          {improvedBecauseLower && (
+                            <p className="text-[10px] leading-tight text-muted-foreground max-w-[9.5rem]">
+                              Lower is better for this marker
+                            </p>
+                          )}
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
@@ -201,7 +220,9 @@ export function BiomarkerHistoryDialog({
                             {change && (
                               <div className="text-right">
                                 <div className={`flex items-center gap-1 text-sm ${
-                                  improved ? 'text-green-600' : improved === false ? 'text-red-600' : 'text-muted-foreground'
+                                  result.value >= range.optimal_low && result.value <= range.optimal_high && improved === false
+                                    ? 'text-muted-foreground'
+                                    : improved ? 'text-green-600' : improved === false ? 'text-red-600' : 'text-muted-foreground'
                                 }`}>
                                   {change.direction === "up" ? <TrendingUp className="w-4 h-4" /> :
                                    change.direction === "down" ? <TrendingDown className="w-4 h-4" /> :

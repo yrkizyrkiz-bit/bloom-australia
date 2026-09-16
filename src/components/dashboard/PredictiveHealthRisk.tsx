@@ -37,6 +37,7 @@ import {
   FileText
 } from "lucide-react";
 import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotice";
+import { normalizeLiverAnalysis } from "@/lib/liver-analysis-normalize";
 
 interface RiskFactor {
   id: string;
@@ -138,7 +139,14 @@ export function PredictiveHealthRisk() {
       } catch {
         throw new Error("Could not read the liver analysis response. Please try again.");
       }
-      setAnalysis(data);
+      setAnalysis({
+        ...normalizeLiverAnalysis(data),
+        analyzedAt: data.analyzedAt,
+        cached: data.cached,
+        cacheExpiresAt: data.cacheExpiresAt,
+        dataDate: data.dataDate,
+        resultsStale: data.resultsStale,
+      });
       fetchHistory();
     } catch (err) {
       console.error("Error fetching liver analysis:", err);
@@ -499,7 +507,7 @@ export function PredictiveHealthRisk() {
                         <div>
                           <p className="text-xs font-medium text-slate-500 mb-2">Contributing Biomarkers</p>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {risk.contributingBiomarkers.map(bio => (
+                            {(risk.contributingBiomarkers ?? []).map(bio => (
                               <div key={bio.name} className="p-3 rounded-lg bg-white border border-slate-100">
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-xs font-medium text-slate-700">{bio.name}</span>
@@ -561,7 +569,7 @@ export function PredictiveHealthRisk() {
                         </div>
                         <div className="space-y-2">
                           <div className="flex flex-wrap gap-1">
-                            {pred.keyFactors.slice(0, 2).map((f, j) => (
+                            {(pred.keyFactors ?? []).slice(0, 2).map((f, j) => (
                               <Badge key={j} variant="secondary" className="text-xs">{f}</Badge>
                             ))}
                           </div>

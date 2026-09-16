@@ -9,6 +9,10 @@ import {
 } from "@/lib/healthTestScoring";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 import {
+  getLatestPanelDateKey,
+  pairCurrentPanelWithPrevious,
+} from "@/lib/biomarkers/panel-scoped";
+import {
   type OrganCareAIReport,
   type OrganCareCategoryKey,
   sanitizeOrganCareReport,
@@ -201,35 +205,36 @@ export async function loadOrganCareReportContext(userId: string) {
   const gender: "male" | "female" =
     user.gender?.toUpperCase() === "FEMALE" ? "female" : "male";
 
-  const results = await prisma.biomarkerResult.findMany({
-    where: {
-      userId,
-      biomarkerId: { in: ORGAN_CARE_BIOMARKER_IDS },
-    },
-    include: { biomarker: true },
-    orderBy: { testedAt: "desc" },
-  });
+  const [results, latestAny] = await Promise.all([
+    prisma.biomarkerResult.findMany({
+      where: {
+        userId,
+        biomarkerId: { in: ORGAN_CARE_BIOMARKER_IDS },
+      },
+      include: { biomarker: true },
+      orderBy: { testedAt: "desc" },
+    }),
+    prisma.biomarkerResult.findFirst({
+      where: { userId },
+      orderBy: { testedAt: "desc" },
+      select: { testedAt: true },
+    }),
+  ]);
 
   const catalogResults = results.filter((r) => isCatalogBiomarker(r.biomarkerId));
-  const grouped = new Map<string, typeof catalogResults>();
+  const panelDate = latestAny ? getLatestPanelDateKey([latestAny]) : getLatestPanelDateKey(catalogResults);
+  const panelPairs = pairCurrentPanelWithPrevious(catalogResults, panelDate);
 
-  for (const result of catalogResults) {
-    const existing = grouped.get(result.biomarkerId) || [];
-    existing.push(result);
-    grouped.set(result.biomarkerId, existing);
-  }
-
-  const biomarkerSummaries = Array.from(grouped.entries()).map(([biomarkerId, bioResults]) => {
-    const sorted = [...bioResults].sort(
-      (a, b) => new Date(a.testedAt).getTime() - new Date(b.testedAt).getTime()
-    );
-    const latest = sorted[sorted.length - 1];
-    const previous = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+  const biomarkerSummaries = panelPairs.map(({ biomarkerId, current: latest, previous }) => {
+    const historyForTrend = catalogResults
+      .filter((r) => r.biomarkerId === biomarkerId)
+      .sort((a, b) => new Date(a.testedAt).getTime() - new Date(b.testedAt).getTime());
     const ranges = latest.biomarker ? parseRanges(latest.biomarker, gender) : {};
     const trendData = computeTrend(
-      sorted.map((r) => r.value),
+      historyForTrend.map((r) => r.value),
       ranges
     );
+    const hasPrevious = previous != null;
 
     return {
       biomarkerId,
@@ -242,8 +247,8 @@ export async function loadOrganCareReportContext(userId: string) {
       testedAt: latest.testedAt.toISOString(),
       previousValue: previous?.value ?? null,
       previousTestedAt: previous?.testedAt.toISOString() ?? null,
-      trend: sorted.length >= 2 ? trendData.trend : ("unknown" as const),
-      changePercent: sorted.length >= 2 ? Math.round(trendData.changePercent * 10) / 10 : null,
+      trend: hasPrevious ? trendData.trend : ("unknown" as const),
+      changePercent: hasPrevious ? Math.round(trendData.changePercent * 10) / 10 : null,
     } satisfies BiomarkerSummary;
   });
 

@@ -298,3 +298,56 @@
   background-color: #ccea83 !important;
   color: #173c32 !important;
 }
+
+.hhr-report-lock {
+  position: relative;
+  min-height: 20rem;
+}
+
+.hhr-report-lock__body--pending {
+  filter: blur(7px);
+  opacity: 0.28;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hhr-pending-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3.5rem 1.5rem 1.5rem;
+  background-color: rgb(23 60 50 / 0.88);
+}
+
+.hhr-pending-overlay__card {
+  max-width: 24rem;
+  text-align: center;
+  color: #f5f4eb;
+}
+
+.hhr-pending-overlay__kicker {
+  margin: 0.75rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(204 234 131 / 0.95);
+}
+
+.hhr-pending-overlay__title {
+  margin: 0.35rem 0 0;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 1.35rem;
+  line-height: 1.3;
+  color: #f5f4eb;
+}
+
+.hhr-pending-overlay__body {
+  margin: 0.6rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgb(245 244 235 / 0.82);
+}

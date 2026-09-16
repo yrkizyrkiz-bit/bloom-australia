@@ -48,6 +48,8 @@ import { KidneyTestScheduler } from "@/components/dashboard/KidneyTestScheduler"
 import { KidneyGoalSetting } from "@/components/dashboard/KidneyGoalSetting";
 import { KidneyPredictiveHealthRisk } from "@/components/dashboard/KidneyPredictiveHealthRisk";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
+import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
+import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
 
 // Define kidney test biomarkers grouped by category
 const kidneyTestConfig = {
@@ -85,6 +87,10 @@ const kidneyTestConfig = {
   }
 };
 
+const KIDNEY_BIOMARKER_IDS = Object.values(kidneyTestConfig).flatMap(
+  (cat) => cat.biomarkerIds
+);
+
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-cyan-600";
   if (score >= 70) return "text-yellow-600";
@@ -114,14 +120,22 @@ export default function KidneyTestPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showScoreDetails, setShowScoreDetails] = useState(false);
 
-  // Fetch real biomarker data from API
-  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, { latest: true });
+  // Fetch latest panel that includes kidney markers (may fall back to a prior draw)
+  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
+    latest: true,
+    biomarkerIds: KIDNEY_BIOMARKER_IDS,
+  });
 
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
     result: BiomarkerResult | null;
     panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
+
+  const fromPriorPanel = Boolean(biomarkerData?.fromPriorPanel && biomarkerData?.panelDate);
+  const priorPanelDateLabel = biomarkerData?.panelDate
+    ? formatUtcPanelDayLabel(biomarkerData.panelDate, "full")
+    : null;
 
   // Transform API data to BiomarkerResult format
   const allBiomarkerResults: BiomarkerResult[] = useMemo(
@@ -131,10 +145,8 @@ export default function KidneyTestPage() {
 
   // Get biomarkers with their results for kidney test
   const kidneyTestResults = useMemo(() => {
-    const allKidneyBiomarkerIds = Object.values(kidneyTestConfig).flatMap(cat => cat.biomarkerIds);
-
     return allBiomarkerResults
-      .filter(result => allKidneyBiomarkerIds.includes(result.biomarkerId))
+      .filter((result) => KIDNEY_BIOMARKER_IDS.includes(result.biomarkerId))
       .map(result => ({
         result,
         biomarker: getBiomarkerById(result.biomarkerId),
@@ -252,6 +264,10 @@ export default function KidneyTestPage() {
           </div>
         </div>
       </div>
+
+      {fromPriorPanel && priorPanelDateLabel && (
+        <PriorOrganPanelNote organLabel="kidney" dateLabel={priorPanelDateLabel} />
+      )}
 
       {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -576,6 +592,7 @@ export default function KidneyTestPage() {
           <KidneyPopulationComparison
             results={kidneyTestResults.map(r => r.result)}
             gender={gender}
+            dateOfBirth={user?.dateOfBirth}
           />
         </TabsContent>
 

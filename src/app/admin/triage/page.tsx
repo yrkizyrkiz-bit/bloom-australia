@@ -40,6 +40,8 @@ import {
   enrolledProgramBadgeClass,
   type EnrolledProgram,
 } from "@/lib/triage/enrolled-programs";
+import { useAuth } from "@/contexts/AuthContext";
+import { HolisticReportReviewDialog } from "@/components/admin/HolisticReportReviewDialog";
 
 interface MedicalCondition {
   id: string;
@@ -204,6 +206,7 @@ function clinicalRiskLabel(level?: ClinicalRisk["level"]) {
 }
 
 export default function TriageQueuePage() {
+  const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [carePartners, setCarePartners] = useState<CarePartner[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -234,6 +237,25 @@ export default function TriageQueuePage() {
       purchase: { label?: string; source?: string; priceLabel?: string; programKey?: string; panelTier?: string };
     }>
   >([]);
+  const [pendingReports, setPendingReports] = useState<
+    Array<{
+      userId: string;
+      memberName: string;
+      email: string;
+      panelDate: string | null;
+      generatedAt: string;
+      lastEditedByName: string | null;
+      assignedDoctorId: string | null;
+      assignedDoctorName: string | null;
+      approvalStatus: string;
+      overallHealthScore: number;
+    }>
+  >([]);
+  const [reportDoctors, setReportDoctors] = useState<Doctor[]>([]);
+  const [reportDialog, setReportDialog] = useState<{
+    userId: string;
+    mode: "view" | "edit" | "assign";
+  } | null>(null);
 
   // Dialog states
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -268,6 +290,24 @@ export default function TriageQueuePage() {
       return;
     }
 
+    if (activeTab === "reports_pending") {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/admin/holistic-reports");
+        if (res.ok) {
+          const data = await res.json();
+          setPendingReports(data.items ?? []);
+          setReportDoctors(data.doctors ?? []);
+        }
+      } catch (error) {
+        console.error("Error fetching pending reports:", error);
+        toast.error("Failed to load pending reports");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       // GAP-007: Using valid JourneyStatus values
       const status = activeTab === "pending" ? "PRE_TRIAGE_PENDING" :
@@ -296,6 +336,18 @@ export default function TriageQueuePage() {
   useEffect(() => {
     fetchTriageQueue();
   }, [fetchTriageQueue]);
+
+  useEffect(() => {
+    fetch("/api/admin/holistic-reports")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.items) {
+          setPendingReports(data.items);
+          if (data.doctors) setReportDoctors(data.doctors);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const filteredPatients = patients.filter((p) =>
     `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -664,6 +716,13 @@ export default function TriageQueuePage() {
               <UserCheck className="w-4 h-4" />
               Awaiting Doctor
             </TabsTrigger>
+            <TabsTrigger value="reports_pending" className="flex items-center gap-1">
+              <FileText className="w-4 h-4" />
+              Reports pending approval
+              {pendingReports.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{pendingReports.length}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="pending_tests" className="flex items-center gap-1">
               <FlaskConical className="w-4 h-4" />
               Pending Tests
@@ -735,6 +794,76 @@ export default function TriageQueuePage() {
             getTriageScoreColor={getTriageScoreColor}
             viewOnly
           />
+        </TabsContent>
+
+        <TabsContent value="reports_pending" className="mt-4">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : pendingReports.filter((item) =>
+              `${item.memberName} ${item.email}`.toLowerCase().includes(searchTerm.toLowerCase())
+            ).length === 0 ? (
+            <Card>
+              <CardContent className="py-16 text-center text-muted-foreground">
+                No holistic reports waiting for doctor approval.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {pendingReports
+                .filter((item) =>
+                  `${item.memberName} ${item.email}`.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map((item) => (
+                  <Card key={item.userId}>
+                    <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-medium">{item.memberName}</p>
+                        <p className="text-sm text-muted-foreground">{item.email}</p>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <span>
+                            Panel{" "}
+                            {item.panelDate
+                              ? new Date(item.panelDate).toLocaleDateString("en-AU")
+                              : "—"}
+                          </span>
+                          <span>Score {item.overallHealthScore}</span>
+                          <span className="capitalize">{item.approvalStatus.replaceAll("_", " ")}</span>
+                          <span>{item.assignedDoctorName || "Unassigned"}</span>
+                          {item.lastEditedByName ? <span>Edited by {item.lastEditedByName}</span> : null}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReportDialog({ userId: item.userId, mode: "view" })}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReportDialog({ userId: item.userId, mode: "edit" })}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setReportDialog({ userId: item.userId, mode: "assign" })}
+                        >
+                          Assign doctor
+                        </Button>
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/admin/crm/customers/${item.userId}`}>Member</Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="pending_tests" className="mt-4">
@@ -1350,6 +1479,18 @@ export default function TriageQueuePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <HolisticReportReviewDialog
+        open={Boolean(reportDialog)}
+        onOpenChange={(open) => {
+          if (!open) setReportDialog(null);
+        }}
+        userId={reportDialog?.userId || null}
+        mode={reportDialog?.mode || "view"}
+        role={user?.role || "ADMIN"}
+        doctors={reportDoctors}
+        onChanged={fetchTriageQueue}
+      />
     </div>
   );
 }

@@ -2534,3 +2534,11 @@ model WebAuthnChallenge {
   @@index([email])
   @@index([expiresAt])
 }
+
+// Admin-edited overlay of Australian population comparison stats (annual review).
+model PopulationReferenceOverride {
+  id        String   @id @default("default")
+  data      Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}

@@ -16,6 +16,10 @@ import {
 } from "recharts";
 import type { BiomarkerResult, BiomarkerDefinition } from "@/types";
 import { categoryInfo } from "@/data/biomarkers";
+import {
+  formatUtcPanelDayLabel,
+  testedAtUtcDayKey,
+} from "@/lib/biomarkers/panel-scoped";
 
 interface BiomarkerChartProps {
   biomarker: BiomarkerDefinition;
@@ -36,30 +40,36 @@ export function BiomarkerChart({
   const color = categoryInfo[biomarker.category].color;
 
   const chartData = useMemo(() => {
-    return history.map(h => ({
-      date: new Date(h.testedAt).toLocaleDateString('en-AU', {
-        month: 'short',
-        year: '2-digit'
-      }),
-      value: h.value,
-      fullDate: new Date(h.testedAt).toLocaleDateString('en-AU', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }),
-      isOptimal: h.value >= range.optimal_low && h.value <= range.optimal_high,
-      status: h.status
-    }));
+    // One point per UTC panel day (keep latest reading that day).
+    const byDay = new Map<string, BiomarkerResult>();
+    for (const h of history) {
+      byDay.set(testedAtUtcDayKey(h.testedAt), h);
+    }
+    return Array.from(byDay.values())
+      .sort(
+        (a, b) =>
+          new Date(a.testedAt).getTime() - new Date(b.testedAt).getTime()
+      )
+      .map((h) => ({
+        date: formatUtcPanelDayLabel(h.testedAt, "axis"),
+        value: h.value,
+        fullDate: formatUtcPanelDayLabel(h.testedAt, "full"),
+        isOptimal: h.value >= range.optimal_low && h.value <= range.optimal_high,
+        status: h.status,
+      }));
   }, [history, range]);
 
   // Calculate Y-axis domain with some padding
   const yDomain = useMemo(() => {
-    const values = history.map(h => h.value);
+    const values = chartData.map((d) => d.value);
+    if (values.length === 0) {
+      return [range.optimal_low, range.optimal_high] as [number, number];
+    }
     const min = Math.min(...values, range.optimal_low);
     const max = Math.max(...values, range.optimal_high);
-    const padding = (max - min) * 0.15;
-    return [Math.max(0, min - padding), max + padding];
-  }, [history, range]);
+    const padding = (max - min) * 0.15 || 1;
+    return [Math.max(0, min - padding), max + padding] as [number, number];
+  }, [chartData, range]);
 
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: { fullDate: string; value: number; isOptimal: boolean } }> }) => {
     if (active && payload && payload.length) {

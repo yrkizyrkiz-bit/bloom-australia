@@ -64,9 +64,21 @@ export type HolisticAskItem = {
   closing?: string;
 };
 
+export type HolisticApprovalStatus = "pending_approval" | "approved" | "held" | "superseded";
+
 export type HolisticHealthReport = {
   aiProvider?: "claude" | "deterministic";
   aiModel?: string;
+  /** Missing on older cached reports — treated as pending until a doctor releases. */
+  approvalStatus?: HolisticApprovalStatus;
+  assignedDoctorId?: string | null;
+  assignedDoctorName?: string | null;
+  lastEditedById?: string | null;
+  lastEditedByName?: string | null;
+  lastEditedAt?: string | null;
+  reviewedById?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
   reportTitle: string;
   overallHealthScore: number;
   overallRisk: "low" | "moderate" | "elevated" | "high";
@@ -102,6 +114,28 @@ export type HolisticHealthReport = {
 
 export const AU_REGULATORY_NOTICE =
   "Report is a draft pending Sanative health practitioner review.";
+
+export function normalizeHolisticApprovalStatus(
+  value: unknown
+): HolisticApprovalStatus {
+  if (
+    value === "approved" ||
+    value === "held" ||
+    value === "pending_approval" ||
+    value === "superseded"
+  ) {
+    return value;
+  }
+  return "pending_approval";
+}
+
+export function holisticReportShowsPendingOverlay(
+  report: Pick<HolisticHealthReport, "approvalStatus"> | null | undefined
+): boolean {
+  if (!report) return false;
+  const status = normalizeHolisticApprovalStatus(report.approvalStatus);
+  return status === "pending_approval" || status === "held";
+}
 
 function overallRiskFromScore(score: number): HolisticHealthReport["overallRisk"] {
   if (score >= 75) return "low";
@@ -202,6 +236,12 @@ export function coalesceMemberFacingSummary(
   return ranked.join(" ") || exec;
 }
 
+function optionalTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export function sanitizeHolisticHealthReport(
   report: Partial<HolisticHealthReport> | null | undefined
 ): HolisticHealthReport | null {
@@ -215,6 +255,15 @@ export function sanitizeHolisticHealthReport(
   return {
     aiProvider: report.aiProvider,
     aiModel: report.aiModel,
+    approvalStatus: normalizeHolisticApprovalStatus(report.approvalStatus),
+    assignedDoctorId: optionalTrimmedString(report.assignedDoctorId),
+    assignedDoctorName: optionalTrimmedString(report.assignedDoctorName),
+    lastEditedById: optionalTrimmedString(report.lastEditedById),
+    lastEditedByName: optionalTrimmedString(report.lastEditedByName),
+    lastEditedAt: optionalTrimmedString(report.lastEditedAt),
+    reviewedById: optionalTrimmedString(report.reviewedById),
+    reviewedByName: optionalTrimmedString(report.reviewedByName),
+    reviewedAt: optionalTrimmedString(report.reviewedAt),
     reportTitle: report.reportTitle || "Holistic Health Report",
     overallHealthScore: score,
     overallRisk: report.overallRisk || overallRiskFromScore(score),

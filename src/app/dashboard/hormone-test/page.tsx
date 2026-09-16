@@ -45,6 +45,8 @@ import { HormonePredictiveHealthRisk } from "@/components/dashboard/HormonePredi
 import { OrganAIInsights } from "@/components/dashboard/OrganAIInsights";
 import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
 import { OrganGoalSetting } from "@/components/dashboard/OrganGoalSetting";
+import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
+import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
 
 const hormoneTestConfig = {
   sexHormones: {
@@ -81,6 +83,10 @@ const hormoneTestConfig = {
   }
 };
 
+const HORMONE_BIOMARKER_IDS = Object.values(hormoneTestConfig).flatMap(
+  (cat) => cat.biomarkerIds
+);
+
 function getScoreColor(score: number): string {
   if (score >= 85) return "text-purple-600";
   if (score >= 70) return "text-yellow-600";
@@ -109,14 +115,22 @@ export default function HormoneTestPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showScoreDetails, setShowScoreDetails] = useState(false);
 
-  // Fetch real biomarker data from API
-  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, { latest: true });
+  // Fetch latest panel that includes hormone markers (may fall back to a prior draw)
+  const { data: biomarkerData, isLoading, error } = useBiomarkerResults(undefined, {
+    latest: true,
+    biomarkerIds: HORMONE_BIOMARKER_IDS,
+  });
 
   const [selectedBiomarker, setSelectedBiomarker] = useState<{
     biomarker: BiomarkerDefinition;
     result: BiomarkerResult | null;
     panelBiomarker?: BloodPanelBiomarker;
   } | null>(null);
+
+  const fromPriorPanel = Boolean(biomarkerData?.fromPriorPanel && biomarkerData?.panelDate);
+  const priorPanelDateLabel = biomarkerData?.panelDate
+    ? formatUtcPanelDayLabel(biomarkerData.panelDate, "full")
+    : null;
 
   // Transform API data to BiomarkerResult format
   const allBiomarkerResults: BiomarkerResult[] = useMemo(
@@ -126,10 +140,8 @@ export default function HormoneTestPage() {
 
   // Get biomarkers with their results for hormone test
   const hormoneTestResults = useMemo(() => {
-    const allHormoneBiomarkerIds = Object.values(hormoneTestConfig).flatMap(cat => cat.biomarkerIds);
-
     return allBiomarkerResults
-      .filter(result => allHormoneBiomarkerIds.includes(result.biomarkerId))
+      .filter((result) => HORMONE_BIOMARKER_IDS.includes(result.biomarkerId))
       .map(result => ({
         result,
         biomarker: getBiomarkerById(result.biomarkerId),
@@ -242,6 +254,10 @@ export default function HormoneTestPage() {
           </div>
         </div>
       </div>
+
+      {fromPriorPanel && priorPanelDateLabel && (
+        <PriorOrganPanelNote organLabel="hormone" dateLabel={priorPanelDateLabel} />
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap h-auto gap-1 p-1">

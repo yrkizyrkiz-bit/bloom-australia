@@ -10,7 +10,12 @@ import {
   HolisticHealthReportEmpty,
   HolisticHealthReportView,
 } from "@/components/dashboard/HolisticHealthReportView";
+import {
+  GeorgeReportLoader,
+  preloadGeorgeLoaderFrames,
+} from "@/components/dashboard/GeorgeReportLoader";
 import { useHolisticHealthReport } from "@/hooks/useHolisticHealthReport";
+import { useGeorgeLoaderPhase } from "@/hooks/useGeorgeLoaderPhase";
 import { Loader2 } from "lucide-react";
 
 type HistoryItem = {
@@ -47,7 +52,6 @@ export function GeneratedAIReportPanel() {
 
   const loadHistory = useCallback(async () => {
     if (!userId) return;
-    setHistoryLoading(true);
     setHistoryError(null);
     try {
       const [currentRes, historyRes] = await Promise.all([
@@ -115,6 +119,15 @@ export function GeneratedAIReportPanel() {
     enabled: Boolean(userId),
     onReady,
   });
+  const generationError = generateError || state?.generationError || null;
+  const { showLoader, complete } = useGeorgeLoaderPhase(
+    waitingForClaude,
+    Boolean(generationError)
+  );
+
+  useEffect(() => {
+    preloadGeorgeLoaderFrames();
+  }, []);
 
   useEffect(() => {
     void loadHistory();
@@ -139,6 +152,10 @@ export function GeneratedAIReportPanel() {
     };
   }, [history, index]);
 
+  if (showLoader) {
+    return <GeorgeReportLoader complete={complete} />;
+  }
+
   if (reportLoading || historyLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
@@ -152,9 +169,9 @@ export function GeneratedAIReportPanel() {
     return (
       <HolisticHealthReportEmpty
         biomarkerCount={state?.biomarkerCount || 0}
-        canGenerate={canGenerate || Boolean(generateError || state?.generationError)}
+        canGenerate={canGenerate || Boolean(generationError)}
         waitingForClaude={waitingForClaude}
-        generateError={generateError || state?.generationError || historyError}
+        generateError={generationError || historyError}
         onGenerate={generateReport}
       />
     );

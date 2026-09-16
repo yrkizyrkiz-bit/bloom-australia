@@ -14,21 +14,7 @@ import {
 } from "@/lib/ensure-catalog-biomarker-definitions";
 import { normalizeHba1cValueToPercent } from "@/lib/blood-test/normalize-hba1c";
 import type { BiomarkerStatus, Prisma } from "@prisma/client";
-
-type BiomarkerResultWithDef = Prisma.BiomarkerResultGetPayload<{
-  include: {
-    biomarker: {
-      select: {
-        name: true;
-        shortName: true;
-        category: true;
-        unit: true;
-        maleRanges: true;
-        femaleRanges: true;
-      };
-    };
-  };
-}>;
+import { filterToLatestPanelDate, filterToLatestPanelForMarkers } from "@/lib/biomarkers/panel-scoped";
 
 interface BiomarkerResultInput {
   biomarkerId: string;
@@ -54,6 +40,13 @@ export async function GET(request: NextRequest) {
     const toDate = searchParams.get("to");
     const latest = searchParams.get("latest") === "true";
     const ensureDerived = searchParams.get("ensureDerived") === "true";
+    const biomarkerIdsParam = searchParams.get("biomarkerIds");
+    const biomarkerIdFilter = biomarkerIdsParam
+      ? biomarkerIdsParam
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : [];
 
     // Non-staff can only view their own results
     const staffRoles = ["ADMIN", "CARE_PARTNER", "DOCTOR"];
@@ -82,7 +75,10 @@ export async function GET(request: NextRequest) {
     let results;
 
     if (latest) {
-      // Get only the latest result for each biomarker
+      // Latest panel only: markers actually tested on the newest UTC day.
+      // Do not backfill missing markers from older panels.
+      // When biomarkerIds is set (organ pages), use the newest day that includes
+      // any of those markers — may be a prior draw if the overall latest lacked them.
       const allResults = await prisma.biomarkerResult.findMany({
         where,
         include: {
@@ -100,42 +96,65 @@ export async function GET(request: NextRequest) {
         orderBy: { testedAt: "desc" },
       });
 
-      // Group by biomarkerId and take the latest
-      const latestMap = new Map<string, BiomarkerResultWithDef>();
-      for (const result of allResults) {
-        if (!latestMap.has(result.biomarkerId)) {
-          latestMap.set(result.biomarkerId, result);
-        }
-      }
-      results = Array.from(latestMap.values());
+      let panelMeta: {
+        panelDate: string | null;
+        overallLatestPanelDate: string | null;
+        fromPriorPanel: boolean;
+      } | null = null;
 
-      // Filter by category if specified
-      if (category) {
-        results = results.filter((r: { biomarker: { category: string } }) => r.biomarker.category === category.toUpperCase());
+      if (biomarkerIdFilter.length > 0) {
+        const resolved = filterToLatestPanelForMarkers(allResults, biomarkerIdFilter);
+        results = resolved.results;
+        panelMeta = {
+          panelDate: resolved.panelDate,
+          overallLatestPanelDate: resolved.overallLatestPanelDate,
+          fromPriorPanel: resolved.fromPriorPanel,
+        };
+      } else {
+        results = filterToLatestPanelDate(allResults);
       }
-    } else {
-      results = await prisma.biomarkerResult.findMany({
-        where,
-        include: {
-          biomarker: {
-            select: {
-              name: true,
-              shortName: true,
-              category: true,
-              unit: true,
-              maleRanges: true,
-              femaleRanges: true,
-            },
+
+      if (category) {
+        results = results.filter(
+          (r: { biomarker: { category: string } }) =>
+            r.biomarker.category === category.toUpperCase()
+        );
+      }
+
+      results = results.filter((r) => isCatalogBiomarker(r.biomarkerId));
+
+      return NextResponse.json({
+        results,
+        ...(panelMeta
+          ? {
+              panelDate: panelMeta.panelDate,
+              overallLatestPanelDate: panelMeta.overallLatestPanelDate,
+              fromPriorPanel: panelMeta.fromPriorPanel,
+            }
+          : {}),
+      });
+    }
+
+    results = await prisma.biomarkerResult.findMany({
+      where,
+      include: {
+        biomarker: {
+          select: {
+            name: true,
+            shortName: true,
+            category: true,
+            unit: true,
+            maleRanges: true,
+            femaleRanges: true,
           },
         },
-        orderBy: { testedAt: "desc" },
-        take: 1000,
-      });
+      },
+      orderBy: { testedAt: "desc" },
+      take: 1000,
+    });
 
-      // Filter by category if specified
-      if (category) {
-        results = results.filter(r => r.biomarker.category === category.toUpperCase());
-      }
+    if (category) {
+      results = results.filter((r) => r.biomarker.category === category.toUpperCase());
     }
 
     results = results.filter((r) => isCatalogBiomarker(r.biomarkerId));

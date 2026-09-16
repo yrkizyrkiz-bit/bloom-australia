@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import type { BiomarkerResult, BiomarkerDefinition } from "@/types";
 import { getBiomarkerById, categoryInfo } from "@/data/biomarkers";
+import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
 import {
   ArrowRight,
   TrendingUp,
@@ -137,7 +138,7 @@ export function TestComparisonDialog({
                 <SelectContent>
                   {testDates.map(date => (
                     <SelectItem key={date} value={date} disabled={date === date2}>
-                      {new Date(date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {formatUtcPanelDayLabel(date, "full")}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -152,7 +153,7 @@ export function TestComparisonDialog({
                 <SelectContent>
                   {testDates.map(date => (
                     <SelectItem key={date} value={date} disabled={date === date1}>
-                      {new Date(date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {formatUtcPanelDayLabel(date, "full")}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -188,11 +189,11 @@ export function TestComparisonDialog({
               <div className="grid grid-cols-12 gap-2 p-3 bg-muted rounded-lg text-sm font-medium sticky top-0 z-10">
                 <div className="col-span-4">Biomarker</div>
                 <div className="col-span-3 text-center">
-                  {new Date(date1).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })}
+                  {formatUtcPanelDayLabel(date1, "full")}
                 </div>
                 <div className="col-span-2 text-center">Change</div>
                 <div className="col-span-3 text-center">
-                  {new Date(date2).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })}
+                  {formatUtcPanelDayLabel(date2, "full")}
                 </div>
               </div>
 

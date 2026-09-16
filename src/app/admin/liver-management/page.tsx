@@ -17,7 +17,6 @@ import {
   History,
   Activity
 } from "lucide-react";
-import { PopulationDataManager } from "@/components/admin/PopulationDataManager";
 import { TestSchedulingManager } from "@/components/admin/TestSchedulingManager";
 import { MemberGoalsManager } from "@/components/admin/MemberGoalsManager";
 import { NotificationManager } from "@/components/admin/NotificationManager";

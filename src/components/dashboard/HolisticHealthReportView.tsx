@@ -7,6 +7,7 @@ import {
   type HolisticHealthReport,
   type HolisticMarkerItem,
   type HolisticPriorityBand,
+  holisticReportShowsPendingOverlay,
 } from "@/lib/holistic-health-report-types";
 import { patientFacingMarkerName } from "@/lib/holistic-patient-language";
 import {
@@ -17,6 +18,10 @@ import {
 import { cn } from "@/lib/utils";
 import "@/components/promo/sage-atmosphere.css";
 import "@/components/dashboard/holistic-report.css";
+import {
+  GeorgeReportLoader,
+  preloadGeorgeLoaderFrames,
+} from "@/components/dashboard/GeorgeReportLoader";
 import {
   Sparkles,
   AlertTriangle,
@@ -44,6 +49,72 @@ import {
 } from "lucide-react";
 
 type ReportSection = "priorities" | "organs" | "patterns" | "actions" | "ask";
+
+function DraftPendingWatermarkLabel() {
+  return (
+    <span
+      style={{
+        transform: "rotate(-28deg)",
+        whiteSpace: "nowrap",
+        fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+        fontSize: "clamp(1.75rem, 5.5vw, 3.5rem)",
+        fontWeight: 600,
+        letterSpacing: "0.14em",
+        textTransform: "uppercase",
+        color: "rgba(204, 234, 131, 0.9)",
+        textShadow: "0 1px 0 rgba(23, 60, 50, 0.15)",
+        userSelect: "none",
+      }}
+    >
+      Draft pending doctor approval
+    </span>
+  );
+}
+
+function DraftPendingWatermark() {
+  return (
+    <div
+      role="status"
+      aria-label="Draft pending doctor approval"
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 50,
+        pointerEvents: "auto",
+        cursor: "default",
+        background: "rgba(245, 244, 235, 0.45)",
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: "6.5rem",
+          left: 0,
+          right: 0,
+          display: "flex",
+          justifyContent: "center",
+          pointerEvents: "none",
+        }}
+      >
+        <DraftPendingWatermarkLabel />
+      </div>
+      <div
+        aria-hidden
+        style={{
+          position: "sticky",
+          top: "32%",
+          display: "flex",
+          justifyContent: "center",
+          padding: "4.5rem 1rem",
+          pointerEvents: "none",
+        }}
+      >
+        <DraftPendingWatermarkLabel />
+      </div>
+    </div>
+  );
+}
 
 const SECTION_CARDS: Array<{
   id: ReportSection;
@@ -475,6 +546,14 @@ export function HolisticHealthReportEmpty({
   generateError: string | null;
   onGenerate: () => void;
 }) {
+  useEffect(() => {
+    preloadGeorgeLoaderFrames();
+  }, []);
+
+  if (waitingForClaude) {
+    return <GeorgeReportLoader />;
+  }
+
   return (
     <div className="sage-atmosphere overflow-hidden rounded-3xl">
       <div className="sage-atmosphere__bg" aria-hidden />
@@ -484,11 +563,11 @@ export function HolisticHealthReportEmpty({
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#3a4c2c]/15">
           <Brain className="h-8 w-8 text-[#3a4c2c]" />
         </div>
-        <h3 className="font-serif text-2xl text-[#173c32]">Your Holistic Health Report</h3>
+        <h3 className="font-serif text-2xl text-[#173c32]">Doctor-Assisted AI-Powered Report</h3>
         <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#3a4c2c]/85">
-          We analyse liver, heart, kidney, metabolic, thyroid and hormone markers together,
-          compare with previous results, and explain what looks good, what to watch, and what
-          needs attention — including how your Sanative programs may support future results.
+          A blended, doctor-led model using AI technology that brings together your biomarkers,
+          health history, previous results and questionnaire answers to prepare your personalised
+          health report.
         </p>
         {biomarkerCount === 0 ? (
           <p className="mt-4 text-sm text-orange-800">
@@ -497,28 +576,13 @@ export function HolisticHealthReportEmpty({
         ) : (
           <Button
             onClick={onGenerate}
-            disabled={waitingForClaude || !canGenerate}
+            disabled={!canGenerate}
             size="lg"
             className="mt-6 gap-2 rounded-full bg-[#3a4c2c] text-[#eaf6c8] hover:bg-[#2f3f28]"
           >
-            {waitingForClaude ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Claude is writing your report...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5" />
-                Generate Holistic Report
-              </>
-            )}
+            <Sparkles className="h-5 w-5" />
+            Generate Holistic Report
           </Button>
-        )}
-        {waitingForClaude && (
-          <p className="mx-auto mt-3 max-w-md text-sm text-[#3a4c2c]/75">
-            Full Claude analysis usually takes 1–2 minutes. Keep this open — we&apos;ll refresh
-            automatically.
-          </p>
         )}
         {generateError && <p className="mt-3 text-sm text-red-700">{generateError}</p>}
         <p className="mx-auto mt-4 max-w-md text-xs text-[#5c7a52]">
@@ -538,6 +602,7 @@ export function HolisticHealthReportView({
   waitingForClaude,
   onGenerate,
   dateNav,
+  staffPreview = false,
 }: {
   report: HolisticHealthReport;
   userId: string;
@@ -547,17 +612,30 @@ export function HolisticHealthReportView({
   waitingForClaude?: boolean;
   onGenerate?: () => void;
   dateNav?: HolisticReportDateNav | null;
+  staffPreview?: boolean;
 }) {
   const [section, setSection] = useState<ReportSection>("priorities");
   const panelLabel = formatReportDate(dataDate) || formatReportDate(report.analysisTimestamp);
+  const pendingApproval = !staffPreview && holisticReportShowsPendingOverlay(report);
+  const reviewedLabel =
+    report.approvalStatus === "approved" && report.reviewedByName
+      ? `Reviewed by ${report.reviewedByName}${
+          report.reviewedAt ? ` · ${formatReportDate(report.reviewedAt)}` : ""
+        }`
+      : null;
 
   return (
-    <div className="sage-atmosphere overflow-hidden rounded-3xl">
+    <div className="sage-atmosphere relative overflow-hidden rounded-3xl">
       <div className="sage-atmosphere__bg" aria-hidden />
       <div className="sage-atmosphere__glow" aria-hidden />
       <div className="sage-atmosphere__noise" aria-hidden />
 
-      <div className="sage-atmosphere__inner space-y-5 p-4 sm:p-6">
+      <div
+        className={cn(
+          "sage-atmosphere__inner space-y-5 p-4 sm:p-6",
+          pendingApproval && "pointer-events-none select-none opacity-40 saturate-50"
+        )}
+      >
         {dateNav && (
           <div className="hhr-date-nav">
             <Button
@@ -625,6 +703,9 @@ export function HolisticHealthReportView({
               For {userName}
               {panelLabel ? ` · Panel ${panelLabel}` : ""}
             </p>
+            {reviewedLabel && (
+              <p className="mt-1 text-xs font-medium hhr-ink">{reviewedLabel}</p>
+            )}
           </div>
         </SoftPanel>
 
@@ -841,10 +922,13 @@ export function HolisticHealthReportView({
           )}
         </SoftPanel>
 
-        <p className="px-1 pb-1 text-[11px] leading-relaxed hhr-muted">
-          Report is a draft pending Sanative health practitioner review.
-        </p>
+        {!pendingApproval && (
+          <p className="px-1 pb-1 text-[11px] leading-relaxed hhr-muted">
+            {reviewedLabel || "This report was reviewed and released by a Sanative doctor."}
+          </p>
+        )}
       </div>
+      {pendingApproval && <DraftPendingWatermark />}
     </div>
   );
 }

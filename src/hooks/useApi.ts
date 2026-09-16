@@ -69,16 +69,30 @@ export function useDashboardStats(userId?: string) {
 // Biomarker results hook
 export function useBiomarkerResults(
   userId?: string,
-  options?: { latest?: boolean; category?: string; ensureDerived?: boolean }
+  options?: {
+    latest?: boolean;
+    category?: string;
+    ensureDerived?: boolean;
+    /** When set with latest=true, resolve to newest panel that includes these markers. */
+    biomarkerIds?: string[];
+  }
 ) {
   const params = new URLSearchParams();
   if (userId) params.append("userId", userId);
   if (options?.latest) params.append("latest", "true");
   if (options?.category) params.append("category", options.category);
   if (options?.ensureDerived) params.append("ensureDerived", "true");
+  if (options?.biomarkerIds?.length) {
+    params.append("biomarkerIds", options.biomarkerIds.join(","));
+  }
 
   const url = `/api/biomarkers/results?${params.toString()}`;
-  return useApi<{ results: ApiBiomarkerResultRow[] }>(url);
+  return useApi<{
+    results: ApiBiomarkerResultRow[];
+    panelDate?: string | null;
+    overallLatestPanelDate?: string | null;
+    fromPriorPanel?: boolean;
+  }>(url);
 }
 
 // Health goals hook

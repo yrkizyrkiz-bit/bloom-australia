@@ -271,7 +271,7 @@ function DashboardPageContent({
               className="bg-white text-[#04342C] hover:bg-white/90 gap-2 rounded-full px-6 shadow-lg shrink-0"
             >
               <Sparkles className="w-4 h-4" />
-              AI-Powered Health Report
+              Doctor-Assisted AI-Powered Report
             </Button>
           </div>
         </div>
@@ -299,8 +299,8 @@ function DashboardPageContent({
                 className="dashboard-view-tab dashboard-view-tab-organ"
                 style={
                   viewMode === "tests"
-                    ? { backgroundColor: "#c45c5c", color: "#ffffff" }
-                    : { backgroundColor: "#f5e0e0", color: "#8a3d3d" }
+                    ? { backgroundColor: "#ccea83", backgroundImage: "none", color: "#173c32" }
+                    : { backgroundColor: "#eaf6c8", backgroundImage: "none", color: "#173c32" }
                 }
               >
                 <LayoutGrid className="w-4 h-4" />

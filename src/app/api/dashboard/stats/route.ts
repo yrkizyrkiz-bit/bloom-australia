@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { calculateBiologicalAge, mapBiomarkerResultsToInput } from "@/lib/biological-age";
-import { getLatestCatalogBiomarkerResults } from "@/lib/biomarkers/latest-results";
+import { getLatestPanelCatalogBiomarkerResults } from "@/lib/biomarkers/latest-results";
 
 // GET /api/dashboard/stats - Get dashboard statistics for a user
 export async function GET(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           createdAt: true,
         },
       }),
-      getLatestCatalogBiomarkerResults(userId),
+      getLatestPanelCatalogBiomarkerResults(userId),
       prisma.healthScore.findFirst({ where: { userId }, orderBy: { calculatedAt: "desc" } }),
       prisma.healthGoal.findMany({
         where: { userId },
