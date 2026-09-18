@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Lock } from "lucide-react";
 import Link from "next/link";
-import { ORGAN_METABOLIC_HEALTH_PANELS } from "@/components/dashboard/OrganMetabolicHealthPanels";
+import { VISIBLE_ORGAN_METABOLIC_HEALTH_PANELS } from "@/components/dashboard/OrganMetabolicHealthPanels";
 import { cn } from "@/lib/utils";
 import { ORGAN_CARE_CARD } from "@/lib/programs/catalog";
 
@@ -93,7 +93,7 @@ export function BiomarkerSummaryCard({
 
           <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain pb-1">
             <div className="flex w-max gap-2">
-              {ORGAN_METABOLIC_HEALTH_PANELS.map((panel) => {
+              {VISIBLE_ORGAN_METABOLIC_HEALTH_PANELS.map((panel) => {
                 const Icon = panel.icon;
                 const unlocked = organCareEntitled || panel.alwaysAvailable;
                 const href = unlocked ? panel.href : ORGAN_CARE_CARD.quizRoute;

@@ -13,6 +13,7 @@ import {
   HeartPulse, Calculator, Info, User, Stethoscope
 } from "lucide-react";
 import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotice";
+import { combinedTrendStatusLabel, worstRangeStatus } from "@/lib/holistic-patient-language";
 import { AscvdSetupForm } from "@/components/dashboard/AscvdSetupForm";
 import type { AscvdLabInputs, AscvdProfileInputs } from "@/lib/ascvd-inputs";
 
@@ -797,9 +798,10 @@ export function HeartPredictiveHealthRisk() {
                         <div>
                           <h4 className="font-medium text-slate-800">{risk.name}</h4>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            {risk.trend === "improving" && "↓ Improving"}
-                            {risk.trend === "stable" && "→ Stable"}
-                            {risk.trend === "worsening" && "↑ Worsening"}
+                            {combinedTrendStatusLabel({
+                              trend: risk.trend,
+                              status: worstRangeStatus(risk.contributingBiomarkers.map((bio) => bio.status)),
+                            })}
                             {risk.timeToRisk && ` • Risk horizon: ${risk.timeToRisk}`}
                           </p>
                         </div>

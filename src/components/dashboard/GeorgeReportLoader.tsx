@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import "./george-report-loader.css";
 
 export type GeorgeReportLoaderStage =
@@ -21,14 +21,13 @@ type GeorgeReportLoaderProps = {
   className?: string;
 };
 
-const FRAME_COUNT = 4;
-const LOOP_MS = 12000;
+const MESSAGE_MS = 3000;
 
-const STAGE_COPY: Record<GeorgeReportLoaderStage, { label: string; frame: number }> = {
-  collecting: { label: "Gathering your health information", frame: 0 },
-  analysing: { label: "Analysing your biomarkers", frame: 1 },
-  synthesising: { label: "Bringing your results together", frame: 2 },
-  finalising: { label: "Preparing your personalised report", frame: 3 },
+const STAGE_COPY: Record<GeorgeReportLoaderStage, string> = {
+  collecting: "Gathering your health information",
+  analysing: "Analysing your biomarkers",
+  synthesising: "Bringing your results together",
+  finalising: "Preparing your personalised report",
 };
 
 const AUTO_MESSAGES = [
@@ -40,15 +39,14 @@ const AUTO_MESSAGES = [
 
 export function preloadGeorgeLoaderFrames(assetBase = "/sanative-report-loader") {
   if (typeof document === "undefined") return;
-  for (let index = 1; index <= FRAME_COUNT; index += 1) {
-    const href = `${assetBase}/george-frame-${index}.webp`;
-    if (document.querySelector(`link[rel="preload"][href="${href}"]`)) continue;
-    const link = document.createElement("link");
-    link.rel = "preload";
-    link.as = "image";
-    link.href = href;
-    document.head.appendChild(link);
-  }
+  const href = `${assetBase}/george-cooking.mp4`;
+  if (document.querySelector(`link[rel="preload"][href="${href}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "preload";
+  link.as = "video";
+  link.href = href;
+  link.type = "video/mp4";
+  document.head.appendChild(link);
 }
 
 export function GeorgeReportLoader({
@@ -64,10 +62,12 @@ export function GeorgeReportLoader({
 }: GeorgeReportLoaderProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [messageIndex, setMessageIndex] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const controlledStage = stage ? STAGE_COPY[stage] : null;
-  const autoCycle = active && !complete && !controlledStage && !reduceMotion;
+  const videoSrc = `${assetBase}/george-cooking.mp4`;
+  const posterSrc = `${assetBase}/george-loader-poster.webp`;
+  const shouldPlay = active && !complete && !reduceMotion;
 
   useEffect(() => {
     preloadGeorgeLoaderFrames(assetBase);
@@ -82,29 +82,29 @@ export function GeorgeReportLoader({
   }, []);
 
   useEffect(() => {
-    if (!autoCycle) return;
+    if (!shouldPlay) return;
     const id = window.setInterval(() => {
       setMessageIndex((current) => (current + 1) % AUTO_MESSAGES.length);
-    }, LOOP_MS / FRAME_COUNT);
+    }, MESSAGE_MS);
     return () => window.clearInterval(id);
-  }, [autoCycle]);
+  }, [shouldPlay]);
 
-  const visibleFrame = complete ? 3 : controlledStage ? controlledStage.frame : 0;
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (shouldPlay) {
+      video.currentTime = 0;
+      void video.play().catch(() => {});
+      return;
+    }
+    video.pause();
+  }, [shouldPlay]);
 
   const currentMessage = complete
     ? "Your report is ready"
-    : controlledStage
-      ? controlledStage.label
+    : stage
+      ? STAGE_COPY[stage]
       : AUTO_MESSAGES[messageIndex];
-
-  const frames = useMemo(
-    () =>
-      Array.from(
-        { length: FRAME_COUNT },
-        (_, index) => `${assetBase}/george-frame-${index + 1}.webp`
-      ),
-    [assetBase]
-  );
 
   if (!active) return null;
 
@@ -116,31 +116,27 @@ export function GeorgeReportLoader({
     >
       <div className="george-loader__glow" aria-hidden="true" />
 
-      <div
-        className={`george-loader__art ${autoCycle ? "is-auto" : ""}`.trim()}
-        aria-hidden="true"
-      >
-        <div className="george-loader__art-motion">
-          {frames.map((src, index) => (
-            <img
-              key={src}
-              src={src}
-              className={`george-loader__frame ${!autoCycle && index === visibleFrame ? "is-visible" : ""}`}
-              alt=""
-              draggable={false}
-              decoding="async"
-              fetchPriority={index < 2 ? "high" : "low"}
-            />
-          ))}
-          {autoCycle && (
-            <div className="george-loader__fx">
-              <span className="george-loader__steam" />
-              <span className="george-loader__spark" />
-              <span className="george-loader__spark" />
-              <span className="george-loader__spark" />
-            </div>
-          )}
-        </div>
+      <div className="george-loader__art" aria-hidden="true">
+        {reduceMotion ? (
+          <img
+            src={posterSrc}
+            className="george-loader__video"
+            alt=""
+            draggable={false}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            className="george-loader__video"
+            src={videoSrc}
+            poster={posterSrc}
+            muted
+            loop
+            playsInline
+            preload="auto"
+            autoPlay={shouldPlay}
+          />
+        )}
       </div>
 
       <div className="george-loader__content">

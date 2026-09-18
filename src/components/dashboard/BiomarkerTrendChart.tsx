@@ -257,7 +257,7 @@ export function BiomarkerTrendChart({ category, biomarkerId }: BiomarkerTrendCha
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Worsening</p>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Changed</p>
                 <p className="text-3xl font-bold text-red-600">{data.statistics.worsening}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
@@ -703,7 +703,7 @@ export function BiomarkerTrendChart({ category, biomarkerId }: BiomarkerTrendCha
               <p className="font-medium mb-1">Understanding Trends</p>
               <p className="text-slate-500">
                 Trends are calculated based on how your values are moving towards or away from the optimal range.
-                "Improving" means values are getting closer to optimal, while "Worsening" means they&apos;re moving further away.
+                &quot;Improving&quot; means values are getting closer to optimal. A change inside the optimal or normal range is labelled as declined or elevated but still in range — not as needing attention.
               </p>
             </div>
           </div>

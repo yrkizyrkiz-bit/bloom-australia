@@ -26,7 +26,6 @@ import {
   AlertTriangle,
   AlertCircle,
   BarChart3,
-  Sparkles,
   Users,
   Calendar,
   Target,
@@ -40,13 +39,15 @@ import {
   ChevronUp
 } from "lucide-react";
 import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
-import { HeartAIRecommendations } from "@/components/dashboard/HeartAIRecommendations";
 import { HeartPopulationComparison } from "@/components/dashboard/HeartPopulationComparison";
 import { HeartTestScheduler } from "@/components/dashboard/HeartTestScheduler";
-import { HeartGoalSetting } from "@/components/dashboard/HeartGoalSetting";
-import { HeartPredictiveHealthRisk } from "@/components/dashboard/HeartPredictiveHealthRisk";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
 import { BloodPressureHistory } from "@/components/dashboard/BloodPressureHistory";
+import {
+  OrganHolisticGoals,
+  OrganHolisticRiskAssessment,
+} from "@/components/dashboard/OrganHolisticReportPanels";
+import { OrganPageBackButton } from "@/components/dashboard/OrganPageBackButton";
 import { HeartPulse } from "lucide-react";
 import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
 import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
@@ -184,10 +185,13 @@ export default function HeartTestPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-red-600" />
-          <p className="text-muted-foreground">Loading heart health data...</p>
+      <div className="space-y-4">
+        <OrganPageBackButton />
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-red-600" />
+            <p className="text-muted-foreground">Loading heart health data...</p>
+          </div>
         </div>
       </div>
     );
@@ -196,12 +200,15 @@ export default function HeartTestPage() {
   // Error state
   if (error) {
     return (
-      <Card className="border-red-200 bg-red-50/50">
-        <CardContent className="py-12 text-center">
-          <p className="text-red-600 mb-2">Error loading heart health data</p>
-          <p className="text-muted-foreground text-sm">{error}</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <OrganPageBackButton />
+        <Card className="border-red-200 bg-red-50/50">
+          <CardContent className="py-12 text-center">
+            <p className="text-red-600 mb-2">Error loading heart health data</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -210,6 +217,7 @@ export default function HeartTestPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
+          <OrganPageBackButton />
           <div className="w-10 h-10 rounded-xl bg-red-600/10 flex items-center justify-center">
             <Heart className="w-5 h-5 text-red-600" />
           </div>
@@ -242,6 +250,7 @@ export default function HeartTestPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <OrganPageBackButton />
           <div className="w-10 h-10 rounded-xl bg-red-600/10 flex items-center justify-center">
             <Heart className="w-5 h-5 text-red-600" />
           </div>
@@ -263,7 +272,6 @@ export default function HeartTestPage() {
           <TabsTrigger value="trends" className="gap-1.5"><BarChart3 className="w-4 h-4" /><span className="hidden sm:inline">Trends</span></TabsTrigger>
           <TabsTrigger value="risk" className="gap-1.5"><Brain className="w-4 h-4" /><span className="hidden sm:inline">Risk Assessment</span></TabsTrigger>
           <TabsTrigger value="goals" className="gap-1.5"><Target className="w-4 h-4" /><span className="hidden sm:inline">Goals</span></TabsTrigger>
-          <TabsTrigger value="insights" className="gap-1.5"><Sparkles className="w-4 h-4" /><span className="hidden sm:inline">AI Insights</span></TabsTrigger>
           <TabsTrigger value="compare" className="gap-1.5"><Users className="w-4 h-4" /><span className="hidden sm:inline">Compare</span></TabsTrigger>
           <TabsTrigger value="schedule" className="gap-1.5"><Calendar className="w-4 h-4" /><span className="hidden sm:inline">Schedule</span></TabsTrigger>
         </TabsList>
@@ -431,30 +439,6 @@ export default function HeartTestPage() {
               );
             })}
           </div>
-
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Activity className="w-5 h-5 text-primary" />Key Insights</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200/50">
-                  <h4 className="font-medium text-green-700 dark:text-green-400 mb-2">Strengths</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" /><span>Total cholesterol and LDL in optimal range</span></li>
-                    <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" /><span>CRP indicates low systemic inflammation</span></li>
-                    <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" /><span>Blood sugar markers show good metabolic control</span></li>
-                  </ul>
-                </div>
-                <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50">
-                  <h4 className="font-medium text-amber-700 dark:text-amber-400 mb-2">Areas for Improvement</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2"><AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" /><span>Triglycerides slightly elevated - reduce refined carbs</span></li>
-                    <li className="flex items-start gap-2"><AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" /><span>HDL could be higher for better cardiovascular protection</span></li>
-                    <li className="flex items-start gap-2"><AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" /><span>Consider increasing omega-3 fatty acid intake</span></li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="trends" className="mt-6">
@@ -468,10 +452,13 @@ export default function HeartTestPage() {
 
         <TabsContent value="bp" className="mt-6"><BloodPressureHistory /></TabsContent>
         <TabsContent value="risk" className="mt-6">
-          {activeTab === "risk" && <HeartPredictiveHealthRisk />}
+          {activeTab === "risk" && <OrganHolisticRiskAssessment organ="heart" />}
         </TabsContent>
-        <TabsContent value="goals" className="mt-6"><HeartGoalSetting currentResults={heartTestResults.map(r => r.result)} /></TabsContent>
-        <TabsContent value="insights" className="mt-6"><HeartAIRecommendations /></TabsContent>
+        <TabsContent value="goals" className="mt-6">
+          {activeTab === "goals" && (
+            <OrganHolisticGoals organ="heart" currentResults={allBiomarkerResults} gender={gender} />
+          )}
+        </TabsContent>
         <TabsContent value="compare" className="mt-6"><HeartPopulationComparison results={heartTestResults.map(r => r.result)} gender={gender} dateOfBirth={user?.dateOfBirth} /></TabsContent>
         <TabsContent value="schedule" className="space-y-6 mt-6">
           <HeartTestScheduler />

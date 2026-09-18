@@ -9,7 +9,7 @@ import {
   type HolisticPriorityBand,
   holisticReportShowsPendingOverlay,
 } from "@/lib/holistic-health-report-types";
-import { patientFacingMarkerName } from "@/lib/holistic-patient-language";
+import { patientFacingMarkerName, combinedTrendStatusLabel, combinedTrendStatusTone, stripAskEducationalGpClosing } from "@/lib/holistic-patient-language";
 import {
   answerReportAskQuestion,
   buildReportAskItems,
@@ -32,7 +32,6 @@ import {
   Minus,
   CheckCircle2,
   Eye,
-  Stethoscope,
   Activity,
   Heart,
   Bean,
@@ -45,6 +44,7 @@ import {
   ArrowUp,
   Plus,
   Check,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -199,12 +199,70 @@ function bandMeta(band: HolisticPriorityBand) {
   }
 }
 
-function TrendIcon({ trend }: { trend?: string }) {
-  if (trend === "improving") return <TrendingUp className="h-3.5 w-3.5 text-green-700" />;
-  if (trend === "worsening" || trend === "declining") {
-    return <TrendingDown className="h-3.5 w-3.5 text-red-600" />;
+function uniqueOrganNotes(organ: {
+  riskFactor?: string;
+  gaps?: string[];
+  highlights: string[];
+}) {
+  const seen = new Set(
+    [organ.riskFactor || ""]
+      .map((line) => line.toLowerCase().replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+  );
+  const uniqueGaps: string[] = [];
+  for (const gap of organ.gaps || []) {
+    const key = gap.toLowerCase().replace(/\s+/g, " ").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    uniqueGaps.push(gap);
   }
-  if (trend === "stable") return <Minus className="h-3.5 w-3.5 text-[#5c7a52]/70" />;
+  const uniqueHighlights: string[] = [];
+  for (const line of organ.highlights) {
+    const key = line.toLowerCase().replace(/\s+/g, " ").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    uniqueHighlights.push(line);
+  }
+  return { uniqueGaps, uniqueHighlights };
+}
+
+function TrendCaption({
+  trend,
+  status,
+  band,
+  value,
+  previousValue,
+}: {
+  trend?: string;
+  status?: string;
+  band?: string;
+  value?: number;
+  previousValue?: number | null;
+}) {
+  const input = { trend, status, band, value, previousValue };
+  const tone = combinedTrendStatusTone(input);
+  const color =
+    tone === "alert"
+      ? "text-red-600"
+      : tone === "watch"
+        ? "text-amber-700"
+        : tone === "positive"
+          ? "text-green-700"
+          : "text-[#5c7a52]/70";
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium", color)}>
+      <TrendIcon trend={trend} className={color} />
+      {combinedTrendStatusLabel(input)}
+    </span>
+  );
+}
+
+function TrendIcon({ trend, className }: { trend?: string; className?: string }) {
+  if (trend === "improving") return <TrendingUp className={cn("h-3.5 w-3.5 text-green-700", className)} />;
+  if (trend === "worsening" || trend === "declining") {
+    return <TrendingDown className={cn("h-3.5 w-3.5 text-amber-700", className)} />;
+  }
+  if (trend === "stable") return <Minus className={cn("h-3.5 w-3.5 text-[#5c7a52]/70", className)} />;
   return null;
 }
 
@@ -261,7 +319,13 @@ function MarkerList({ items, band }: { items: HolisticMarkerItem[]; band: Holist
                 >
                   {meta.label}
                 </Badge>
-                <TrendIcon trend={item.trend} />
+                <TrendCaption
+                  trend={item.trend}
+                  status={item.status}
+                  band={item.band}
+                  value={item.value}
+                  previousValue={item.previousValue}
+                />
               </div>
               <p className="mt-1 text-xs leading-relaxed hhr-body">{item.plainEnglish}</p>
               <p className="mt-1.5 text-[11px] font-medium hhr-muted">
@@ -316,7 +380,8 @@ function formatAskAnswerText(item: ReportAskItem): string {
     parts.push(`• ${bullet.title} — ${bullet.body}`);
   }
   if (item.insight) parts.push(item.insight);
-  if (item.closing && item.closing.length < 100) parts.push(item.closing);
+  const closing = stripAskEducationalGpClosing(item.closing);
+  if (closing && closing.length < 100) parts.push(closing);
   return parts.join("\n\n");
 }
 
@@ -800,23 +865,49 @@ export function HolisticHealthReportView({
                             >
                               {organ.status.replace("_", " ")}
                             </Badge>
-                            <TrendIcon trend={organ.trend} />
+                            <TrendCaption trend={organ.trend} status={organ.status} />
                           </div>
                         </div>
                       </div>
                       <span className="font-serif text-xl text-[#3a4c2c]">{organ.score}</span>
                     </div>
                     <p className="mt-2.5 text-xs leading-relaxed hhr-body">{organ.summary}</p>
-                    {organ.highlights.length > 0 && (
-                      <ul className="mt-2 space-y-1 border-t border-[rgb(188_211_189_/_0.4)] pt-2 text-[11px] hhr-muted">
-                        {organ.highlights.slice(0, 3).map((line) => (
-                          <li key={line} className="flex gap-1.5">
-                            <span className="text-[#9fc48f]">•</span>
-                            <span>{line}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    {organ.riskFactor ? (
+                      <p className="mt-2 text-[11px] leading-relaxed hhr-ink">
+                        <span className="font-medium">Risk factor: </span>
+                        {organ.riskFactor}
+                      </p>
+                    ) : null}
+                    {(() => {
+                      const { uniqueGaps, uniqueHighlights } = uniqueOrganNotes(organ);
+                      return (
+                        <>
+                          {uniqueGaps.length > 0 ? (
+                            <ul className="mt-2 space-y-1 text-[11px] hhr-muted">
+                              {uniqueGaps.slice(0, 3).map((gap) => (
+                                <li key={gap} className="flex gap-1.5">
+                                  <span className="text-[#9fc48f]">•</span>
+                                  <span>
+                                    <span className="font-medium hhr-ink">Gap: </span>
+                                    {gap}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {uniqueHighlights.length > 0 && (
+                            <ul className="mt-2 space-y-1 border-t border-[rgb(188_211_189_/_0.4)] pt-2 text-[11px] hhr-muted">
+                              {uniqueHighlights.slice(0, 3).map((line) => (
+                                <li key={line} className="flex gap-1.5">
+                                  <span className="text-[#9fc48f]">•</span>
+                                  <span>{line}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -855,6 +946,23 @@ export function HolisticHealthReportView({
 
           {section === "actions" && (
             <div className="space-y-4">
+              {report.organSystems.some((organ) => organ.goal) && (
+                <div className="hhr-care-team-box">
+                  <p className="flex items-center gap-2 text-sm font-medium hhr-ink">
+                    <Target className="h-4 w-4 text-[#5c7a52]" /> Goals
+                  </p>
+                  <ul className="mt-2 space-y-2">
+                    {report.organSystems
+                      .filter((organ) => organ.goal)
+                      .map((organ) => (
+                        <li key={organ.id} className="text-xs leading-relaxed hhr-body">
+                          <span className="font-medium hhr-ink">{organ.label}: </span>
+                          {organ.goal}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
               {report.urgentActions.length > 0 && (
                 <div className="hhr-urgent-box">
                   <p className="text-sm font-medium text-red-700">Urgent educational actions</p>
@@ -889,27 +997,14 @@ export function HolisticHealthReportView({
                 ))}
               </div>
 
-              <div className="hhr-care-team-box">
-                <p className="flex items-center gap-2 text-sm font-medium hhr-ink">
-                  <Stethoscope className="h-4 w-4 text-[#5c7a52]" /> Ask your care team
-                </p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs hhr-body">
-                  {(report.questionsForCareTeam ?? []).map((q) => (
-                    <li key={q}>{q}</li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-xs hhr-ink">
-                  <span className="font-medium">Retesting: </span>
-                  {report.retestingGuidance}
-                </p>
-              </div>
-
-              <div className="hhr-handoff-box">
-                <p className="text-sm font-medium hhr-ink">Care team handoff</p>
-                <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed hhr-body">
-                  {report.careTeamHandoffSummary}
-                </p>
-              </div>
+              {report.retestingGuidance ? (
+                <div className="hhr-care-team-box">
+                  <p className="text-xs hhr-ink">
+                    <span className="font-medium">Retesting: </span>
+                    {report.retestingGuidance}
+                  </p>
+                </div>
+              ) : null}
             </div>
           )}
 

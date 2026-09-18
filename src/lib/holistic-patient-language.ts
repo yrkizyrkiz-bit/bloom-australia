@@ -71,3 +71,236 @@ export function markerMeaning(biomarkerId: string): string {
   if (def?.description) return def.description.replace(/\s+/g, " ").trim();
   return "This is one of the markers from your blood test.";
 }
+
+export type CombinedTrendInput = {
+  trend?: string | null;
+  status?: string | null;
+  band?: string | null;
+  value?: number | string | null;
+  previousValue?: number | string | null;
+};
+
+export type CombinedTrendTone = "positive" | "watch" | "alert" | "neutral";
+
+function asFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function sentenceCase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+/** Current band in everyday words — not a trend. */
+export function rangeWordFromStatus(
+  status?: string | null,
+  band?: string | null
+): "optimal" | "normal" | "out of range" {
+  const statusKey = String(status || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .trim();
+  const bandKey = String(band || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .trim();
+
+  if (
+    statusKey === "optimal" ||
+    statusKey === "good" ||
+    statusKey.includes("optimal")
+  ) {
+    return "optimal";
+  }
+  if (
+    statusKey === "normal" ||
+    statusKey === "in range" ||
+    statusKey === "borderline" ||
+    statusKey === "watch" ||
+    statusKey === "look out"
+  ) {
+    return "normal";
+  }
+  if (
+    statusKey.includes("out of range") ||
+    statusKey === "critical" ||
+    statusKey === "high" ||
+    statusKey === "low" ||
+    statusKey === "elevated" ||
+    statusKey === "needs attention" ||
+    bandKey === "needs attention" ||
+    bandKey === "immediate"
+  ) {
+    return "out of range";
+  }
+  if (bandKey === "good") return "optimal";
+  if (bandKey === "look out") return "normal";
+  if (statusKey) return "normal";
+  return "normal";
+}
+
+function movementWord(input: CombinedTrendInput): "improved" | "declined" | "elevated" | "stable" {
+  const trend = String(input.trend || "").toLowerCase();
+  const value = asFiniteNumber(input.value);
+  const previous = asFiniteNumber(input.previousValue);
+
+  if (trend === "improving") return "improved";
+
+  if (trend === "worsening" || trend === "declining") {
+    if (value != null && previous != null) {
+      if (value > previous) return "elevated";
+      if (value < previous) return "declined";
+    }
+    return "declined";
+  }
+
+  return "stable";
+}
+
+/**
+ * Pair direction with the current range, e.g. "Declined but still optimal".
+ * A change inside optimal/normal is never labelled "needs attention".
+ */
+export function combinedTrendStatusLabel(input: CombinedTrendInput): string {
+  const movement = movementWord(input);
+  const range = rangeWordFromStatus(input.status, input.band);
+  const inRange = range === "optimal" || range === "normal";
+
+  if (movement === "stable") {
+    if (inRange) return `Still ${range}`;
+    return "Out of range";
+  }
+  if (movement === "improved") {
+    if (inRange) return `Improved and still ${range}`;
+    return "Improved but still out of range";
+  }
+  if (inRange) return sentenceCase(`${movement} but still ${range}`);
+  return sentenceCase(`${movement} and out of range`);
+}
+
+export function worstRangeStatus(statuses: Array<string | null | undefined>): string {
+  let worst: "optimal" | "normal" | "out of range" = "optimal";
+  let sawStatus = false;
+  for (const status of statuses) {
+    if (status == null || String(status).trim() === "") continue;
+    sawStatus = true;
+    const range = rangeWordFromStatus(status);
+    if (range === "out of range") return "out of range";
+    if (range === "normal") worst = "normal";
+  }
+  return sawStatus ? worst : "normal";
+}
+
+export function combinedTrendStatusTone(input: CombinedTrendInput): CombinedTrendTone {
+  const movement = movementWord(input);
+  const range = rangeWordFromStatus(input.status, input.band);
+  const inRange = range === "optimal" || range === "normal";
+
+  if (!inRange) return movement === "improved" ? "watch" : "alert";
+  if (movement === "declined" || movement === "elevated") return "watch";
+  if (movement === "improved") return "positive";
+  return "neutral";
+}
+
+export function trendDisplayLabel(
+  trend?: string | null,
+  status?: string | null,
+  extra?: Omit<CombinedTrendInput, "trend" | "status">
+): string {
+  return combinedTrendStatusLabel({ trend, status, ...extra });
+}
+
+export function trendArrowLabel(
+  trend?: string | null,
+  status?: string | null,
+  extra?: Omit<CombinedTrendInput, "trend" | "status">
+): string {
+  return combinedTrendStatusLabel({ trend, status, ...extra });
+}
+
+const GP_NOUN = String.raw`(?:GP|doctor|physician)`;
+const GP_HANDOFF_LEAD =
+  /^(?:please\s+)?(?:ask|talk(?:\s+with)?|speak(?:\s+with|\s+to)?|see|visit|contact|call|mention|discuss|tell|flag|bring)\b/i;
+
+function mentionsClinician(text: string): boolean {
+  return new RegExp(`\\b${GP_NOUN}\\b`, "i").test(text);
+}
+
+/** True when copy is mainly telling the member to involve their GP or doctor. */
+export function isGpHandoffCopy(text: string): boolean {
+  const value = text.trim();
+  if (!value || !mentionsClinician(value)) return false;
+  if (GP_HANDOFF_LEAD.test(value)) return true;
+  return new RegExp(
+    `(?:ask|talk(?:\\s+with)?|speak(?:\\s+with|\\s+to)?|see|visit|contact|call|mention|discuss|tell|flag|bring(?:\\s+\\w+){0,6}\\s+up).{0,80}\\b(?:your\\s+)?${GP_NOUN}\\b|\\b(?:with|to)\\s+your\\s+${GP_NOUN}\\b`,
+    "i"
+  ).test(value);
+}
+
+/**
+ * Remove GP/doctor handoff phrasing from member-facing assessment copy.
+ * The approved report is already GP-reviewed, so the member does not need to be told to ask their GP.
+ */
+export function stripGpHandoffLanguage(text: string): string {
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => {
+      const original = sentence.trim();
+      if (!original) return "";
+      // Do not salvage leftover topics from "Talk with your GP about X" — drop the whole sentence.
+      if (isGpHandoffCopy(original)) return "";
+
+      let next = original
+        .replace(
+          /\b(?:please\s+)?(?:ask|talk with|speak with|speak to|see|visit|contact|call)\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?(?:\s+about)?/gi,
+          ""
+        )
+        .replace(/\bmention(?:\s+\w+){0,8}\s+to\s+your\s+(?:GP|doctor|physician)\b/gi, "")
+        .replace(
+          /\bdiscuss(?:\s+\w+){0,10}\s+with\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi,
+          ""
+        )
+        .replace(
+          /\b(?:reviewed?|confirm(?:ed)?|check(?:ed)?)\s+with\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi,
+          ""
+        )
+        .replace(/\bwith your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi, "")
+        .replace(/\bto your\s+(?:GP|doctor|physician)\b/gi, "")
+        .replace(/\byour\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi, "")
+        .replace(/\s+(?:and|or)\s*$/i, "")
+        .replace(/\s{2,}/g, " ")
+        .replace(/\s+([,.;:])/g, "$1")
+        .replace(/^[,.;:\s]+/, "")
+        .replace(/\s+\./g, ".")
+        .trim();
+      if (!next) return "";
+      if (/^(?:about|and|or|to|with|for)\b/i.test(next)) return "";
+      if (isGpHandoffCopy(next)) return "";
+      return next.charAt(0).toUpperCase() + next.slice(1);
+    })
+    .filter(Boolean);
+
+  return sentences.join(" ").replace(/\s{2,}/g, " ").trim();
+}
+
+/** Drop the canned Ask footer that tells the member to check with their GP. */
+export function stripAskEducationalGpClosing(closing?: string | null): string | undefined {
+  const value = (closing || "").trim();
+  if (!value) return undefined;
+  const normalized = value.replace(/[—–]/g, "-").replace(/\s+/g, " ").toLowerCase();
+  if (
+    normalized.includes("educational only") &&
+    (normalized.includes("your gp") ||
+      normalized.includes("your doctor") ||
+      normalized.includes("care team"))
+  ) {
+    return undefined;
+  }
+  return value;
+}

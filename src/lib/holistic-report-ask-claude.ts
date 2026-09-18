@@ -8,6 +8,7 @@ import {
   buildReportAskItems,
   type ReportAskItem,
 } from "@/lib/holistic-report-ask";
+import { stripAskEducationalGpClosing } from "@/lib/holistic-patient-language";
 
 const CLAUDE_MODEL =
   process.env.HOLISTIC_HEALTH_AI_MODEL ||
@@ -103,9 +104,9 @@ function sanitizeAskAnswer(
 
   if (!intro || bullets.length === 0 || !insight) return null;
 
-  // Drop closing when it mostly repeats the insight / GP line.
+  // Drop canned GP/care-team educational closings.
   const keepClosing =
-    closing &&
+    Boolean(stripAskEducationalGpClosing(closing)) &&
     !insight.toLowerCase().includes(closing.toLowerCase().slice(0, 40)) &&
     closing.length < 120;
 
@@ -151,7 +152,7 @@ Style rules:
 - Intro: ONE sentence.
 - Bullets: prefer exactly 1 (never more than 2). Title = "Common name: value unit". Body = one short sentence with no repeated numbers or "Your result is…".
 - Insight: 1–2 sentences on everyday clinical context (e.g. CRP often jumps after a cold/flu/infection). Do not restate the bullet.
-- Closing: omit unless essential; if used, one short line only.
+- Closing: omit. Do not tell the member to check with their GP or Sanative care team.
 - Stay on-topic. Do NOT pad with unrelated markers.
 - Speak as George in a warm, clear voice.
 

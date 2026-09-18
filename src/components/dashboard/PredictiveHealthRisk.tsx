@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotice";
 import { normalizeLiverAnalysis } from "@/lib/liver-analysis-normalize";
+import { combinedTrendStatusLabel, worstRangeStatus } from "@/lib/holistic-patient-language";
 
 interface RiskFactor {
   id: string;
@@ -476,9 +477,10 @@ export function PredictiveHealthRisk() {
                         <div>
                           <h4 className="font-medium text-slate-800">{risk.name}</h4>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            {risk.trend === "improving" && "↓ Improving"}
-                            {risk.trend === "stable" && "→ Stable"}
-                            {risk.trend === "worsening" && "↑ Worsening"}
+                            {combinedTrendStatusLabel({
+                              trend: risk.trend,
+                              status: worstRangeStatus(risk.contributingBiomarkers.map((bio) => bio.status)),
+                            })}
                             {risk.timeToRisk && ` • Risk horizon: ${risk.timeToRisk}`}
                           </p>
                         </div>

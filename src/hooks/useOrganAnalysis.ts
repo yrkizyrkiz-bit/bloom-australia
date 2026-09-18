@@ -8,7 +8,8 @@ import {
   type OrganType,
 } from "@/lib/organ-ai-recommendations";
 
-export function useOrganAnalysis(organ: OrganType) {
+export function useOrganAnalysis(organ: OrganType, options?: { enabled?: boolean }) {
+  const enabled = options?.enabled !== false;
   const [analysis, setAnalysis] = useState<NormalizedOrganAnalysis | null>(null);
   const [rawAnalysis, setRawAnalysis] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,6 +18,11 @@ export function useOrganAnalysis(organ: OrganType) {
   const [resultsStale, setResultsStale] = useState(false);
 
   const fetchAnalysis = useCallback(async () => {
+    if (!enabled) {
+      setIsLoading(false);
+      setAnalysis(null);
+      return;
+    }
     const config = ORGAN_CONFIG[organ];
     setIsLoading(true);
     setError(null);
@@ -63,7 +69,7 @@ export function useOrganAnalysis(organ: OrganType) {
     } finally {
       setIsLoading(false);
     }
-  }, [organ]);
+  }, [organ, enabled]);
 
   useEffect(() => {
     fetchAnalysis();

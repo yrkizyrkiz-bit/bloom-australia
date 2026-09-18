@@ -1,4 +1,10 @@
 import { biomarkerDefinitions, getBiomarkerById } from "@/data/biomarkers";
+import {
+  normalizeHolisticGoalKey,
+  type HolisticHealthReport,
+  type HolisticOrganSystem,
+} from "@/lib/holistic-health-report-types";
+import { ORGAN_BIOMARKER_IDS, type OrganPanelId } from "@/lib/organ-holistic-risk-view";
 
 export type OrganType = "liver" | "heart" | "kidney" | "thyroid" | "hormone";
 
@@ -371,12 +377,28 @@ export function recommendationToGoalPayload(
   notes: string;
 } | null {
   const config = ORGAN_CONFIG[organ];
-  const biomarkerId =
-    recommendation.relatedBiomarkers[0] ||
-    currentResults[0]?.biomarkerId ||
-    config.defaultBiomarkerId;
+  const organIds = new Set(
+    organ === "thyroid" || organ === "hormone"
+      ? []
+      : ORGAN_BIOMARKER_IDS[organ as OrganPanelId] || []
+  );
+  const candidates = [
+    ...recommendation.relatedBiomarkers,
+    currentResults.find((row) => organIds.has(row.biomarkerId))?.biomarkerId,
+    currentResults[0]?.biomarkerId,
+    config.defaultBiomarkerId,
+  ].filter((id): id is string => Boolean(id));
 
-  const current = currentResults.find(r => r.biomarkerId === biomarkerId);
+  let biomarkerId = config.defaultBiomarkerId;
+  let current = currentResults.find((row) => row.biomarkerId === biomarkerId) || null;
+  for (const id of candidates) {
+    const match = currentResults.find((row) => row.biomarkerId === id);
+    if (match) {
+      biomarkerId = id;
+      current = match;
+      break;
+    }
+  }
   if (!current) return null;
 
   const targetValue = suggestedTargetForBiomarker(biomarkerId, current.value, gender);
@@ -387,5 +409,49 @@ export function recommendationToGoalPayload(
     currentValue: current.value,
     startValue: current.value,
     notes: `[AI:${recommendation.id}] ${recommendation.title}: ${recommendation.description}`,
+  };
+}
+
+export function normalizeHolisticOrganForGoals(
+  report: HolisticHealthReport,
+  organ: HolisticOrganSystem,
+  organId: OrganPanelId,
+  currentResults: Array<{ biomarkerId: string; value: number }>,
+  gender: "male" | "female" = "male"
+): NormalizedOrganAnalysis {
+  const goal = organ.goal?.trim() || "";
+  const goalKey = normalizeHolisticGoalKey(goal);
+  const empty: NormalizedOrganAnalysis = {
+    summary: organ.summary,
+    insights: organ.highlights || [],
+    recommendations: [],
+    biomarkerGoals: [],
+  };
+  if (!goal || !goalKey) return empty;
+
+  const duplicatedOnAnotherOrgan = report.organSystems.some((other) => {
+    if (other.id === organ.id) return false;
+    return normalizeHolisticGoalKey(other.goal || "") === goalKey;
+  });
+  if (duplicatedOnAnotherOrgan) return empty;
+
+  const organIds = ORGAN_BIOMARKER_IDS[organId];
+  const relatedId =
+    organIds.find((id) => currentResults.some((row) => row.biomarkerId === id)) ||
+    ORGAN_CONFIG[organId].defaultBiomarkerId;
+
+  return {
+    ...empty,
+    recommendations: [
+      {
+        id: `${organId}-goal`,
+        title: `${organ.label} goal`,
+        description: goal,
+        category: inferCategory(goal),
+        priority: "high",
+        actionItems: [goal],
+        relatedBiomarkers: [relatedId],
+      },
+    ],
   };
 }

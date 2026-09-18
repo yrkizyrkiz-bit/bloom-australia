@@ -19,10 +19,11 @@ import { getGlycemicFlag,
   getThyroidStatusLabel,
   healthTestsConfig,
 } from "@/lib/healthTestScoring";
-import { markerMeaning, patientFacingMarkerName } from "@/lib/holistic-patient-language";
+import { markerMeaning, patientFacingMarkerName, stripAskEducationalGpClosing } from "@/lib/holistic-patient-language";
 import {
   AU_REGULATORY_NOTICE,
   sanitizeHolisticHealthReport,
+  uniqueOrganGoals,
   type HolisticAskItem,
   type HolisticCrossPattern,
   type HolisticHealthReport,
@@ -400,7 +401,40 @@ const REPORT_TOOL = {
         type: "string",
         description: "Must be an empty string. Do not write a second member summary here.",
       },
-      organSystems: { type: "array", items: { type: "object" } },
+      organSystems: {
+        type: "array",
+        description:
+          "One entry per organ/system with data. Each MUST include riskFactor, gaps, and one unique goal. Never repeat the same goal on two organs.",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            label: { type: "string" },
+            score: { type: "number" },
+            status: { type: "string" },
+            trend: { type: "string" },
+            summary: { type: "string" },
+            biomarkersTracked: { type: "number" },
+            highlights: { type: "array", items: { type: "string" } },
+            riskFactor: {
+              type: "string",
+              description:
+                "The main risk factor for this organ from THIS blood test, in plain English (what is driving risk for this system).",
+            },
+            gaps: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "1–3 gaps unique to this organ (missing markers, lagging results, or lifestyle gaps). Do not copy gaps onto other organs.",
+            },
+            goal: {
+              type: "string",
+              description:
+                "ONE unique goal for this organ only. Will appear under Actions. Must not be repeated on any other organ.",
+            },
+          },
+        },
+      },
       crossSystemPatterns: { type: "array", items: { type: "object" } },
       recommendations: { type: "array", items: { type: "object" } },
       careTeamHandoffSummary: { type: "string" },
@@ -541,6 +575,50 @@ function organStatusFromScore(score: number): HolisticOrganSystem["status"] {
   return "needs_attention";
 }
 
+function seedOrganNarrative(
+  id: string,
+  label: string,
+  flagged: HolisticMarkerItem[]
+): { riskFactor: string; gaps: string[]; goal: string } {
+  const top = flagged[0];
+  if (!top) {
+    const keepGoal: Record<string, string> = {
+      liver: "Keep liver enzymes in range on your next blood test",
+      kidney: "Keep kidney filter rate and waste markers in range on your next blood test",
+      heart: "Keep cholesterol and heart-inflammation markers in range on your next blood test",
+      metabolic: "Keep blood-sugar and metabolic markers in range on your next blood test",
+      thyroid: "Keep thyroid markers in range on your next blood test",
+      hormones: "Keep hormone markers in range on your next blood test",
+      blood: "Keep iron stores and blood-count markers in range on your next blood test",
+    };
+    return {
+      riskFactor: `No major ${label.toLowerCase()} risk factor stood out on this blood test.`,
+      gaps: [`No material ${label.toLowerCase()} gaps flagged on this panel.`],
+      goal: keepGoal[id] || `Keep ${label.toLowerCase()} markers in range on your next blood test`,
+    };
+  }
+
+  const improveGoal: Record<string, string> = {
+    liver: `Bring ${top.name} into a healthier liver range by your next blood test`,
+    kidney: `Improve ${top.name} for kidney health by your next blood test`,
+    heart: `Improve ${top.name} for heart health by your next blood test`,
+    metabolic: `Improve ${top.name} for metabolic health by your next blood test`,
+    thyroid: `Bring ${top.name} into a healthier thyroid range by your next blood test`,
+    hormones: `Bring ${top.name} into a healthier hormone range by your next blood test`,
+    blood: `Bring ${top.name} into a healthier blood and iron range by your next blood test`,
+  };
+
+  const extraGaps = flagged.slice(1).map((m) => m.plainEnglish);
+  return {
+    riskFactor: top.plainEnglish,
+    gaps:
+      extraGaps.length > 0
+        ? extraGaps
+        : [`Confirm ${top.name} is moving the right way on your next ${label.toLowerCase()} blood test.`],
+    goal: improveGoal[id] || `Improve ${top.name} for ${label.toLowerCase()} by your next blood test`,
+  };
+}
+
 function buildOrganSystems(context: OrganCareContext, markers: HolisticMarkerItem[]): HolisticOrganSystem[] {
   const byCategory = new Map(markers.map((m) => [m.biomarkerId, m]));
   const systems: HolisticOrganSystem[] = [];
@@ -549,11 +627,11 @@ function buildOrganSystems(context: OrganCareContext, markers: HolisticMarkerIte
     const scoreRow = context.healthScores.categories.find((c) => c.id === test.id);
     if (!scoreRow?.hasData) continue;
 
-    const highlights = test.biomarkerIds
+    const flagged = test.biomarkerIds
       .map((id) => byCategory.get(id))
       .filter((m): m is HolisticMarkerItem => Boolean(m && m.band !== "good"))
-      .slice(0, 3)
-      .map((m) => m.plainEnglish);
+      .slice(0, 3);
+    const highlights = flagged.map((m) => m.plainEnglish);
 
     const label =
       test.id === "liver"
@@ -563,6 +641,7 @@ function buildOrganSystems(context: OrganCareContext, markers: HolisticMarkerIte
           : test.id === "heart"
             ? "Heart"
             : test.name;
+    const narrative = seedOrganNarrative(test.id, label, flagged);
 
     systems.push({
       id: test.id as HolisticOrganSystemId,
@@ -575,6 +654,7 @@ function buildOrganSystems(context: OrganCareContext, markers: HolisticMarkerIte
         `${label} score is ${scoreRow.score}/100 based on your latest markers.`,
       biomarkersTracked: scoreRow.optimal + scoreRow.normal + scoreRow.outOfRange,
       highlights,
+      ...narrative,
     });
   }
 
@@ -590,6 +670,7 @@ function buildOrganSystems(context: OrganCareContext, markers: HolisticMarkerIte
       Math.round((goodCount / bloodMarkers.length) * 100) -
         (hasImmediate ? 40 : hasAttention ? 20 : 0)
     );
+    const narrative = seedOrganNarrative("blood", "Blood & iron", flagged.slice(0, 3));
 
     systems.push({
       id: "blood",
@@ -606,6 +687,7 @@ function buildOrganSystems(context: OrganCareContext, markers: HolisticMarkerIte
         "Iron stores and red-blood-cell markers from your full blood count are included here.",
       biomarkersTracked: bloodMarkers.length,
       highlights,
+      ...narrative,
     });
   }
 
@@ -952,7 +1034,7 @@ function mergeAskItems(
         intro,
         bullets,
         insight: insight || undefined,
-        closing: closing || undefined,
+        closing: stripAskEducationalGpClosing(closing),
       };
       if (id) byId.set(id, parsed);
       if (question) byQuestion.set(question.toLowerCase(), parsed);
@@ -972,14 +1054,16 @@ function mergeAskItems(
 
   return seedItems.map((seedItem) => {
     const fromAi = byId.get(seedItem.id) || byQuestion.get(seedItem.question.toLowerCase());
-    if (!fromAi) return seedItem;
+    if (!fromAi) {
+      return { ...seedItem, closing: stripAskEducationalGpClosing(seedItem.closing) };
+    }
     return {
       ...seedItem,
       question: seedItem.question,
       intro: fromAi.intro || seedItem.intro,
       bullets: fromAi.bullets.length ? fromAi.bullets : seedItem.bullets,
       insight: fromAi.insight || seedItem.insight,
-      closing: fromAi.closing || seedItem.closing,
+      closing: stripAskEducationalGpClosing(fromAi.closing || seedItem.closing),
     };
   });
 }
@@ -1001,6 +1085,7 @@ Audience (critical):
   "kidney filter rate (eGFR)", "liver enzyme (ALT)", "blood fats (triglycerides)", "inflammation marker (CRP)".
 - First say what the marker means for the body, then what their number suggests in plain words.
 - Avoid unexplained jargon: lipids, glycaemic, filtration, enzyme elevation, pathology, cardiovascular risk stratification.
+- Never use "worsening", "deteriorating", or "getting worse" in member-facing text. Say the result has moved further from the preferred range, or that it needs watching.
 
 Hard rules (AU-aligned):
 - Educational only. Do NOT diagnose, prescribe, or claim disease certainty.
@@ -1011,6 +1096,7 @@ Hard rules (AU-aligned):
 - CRITICAL: If IMMEDIATE MARKERS is non-empty, the executiveSummary MUST lead with those markers (especially iron stores, iron, iron saturation, haemoglobin, or other critical labs). Never omit CRITICAL/OUT_OF_RANGE iron or blood-count findings that appear in IMMEDIATE or ATTENTION lists.
 - Do not focus only on organ-care scores when blood & iron markers are flagged.
 - careTeamHandoffSummary is the ONLY place that may use concise clinical shorthand for doctors.
+- Organ goals MUST be unique: never repeat the same goal (or a near-paraphrase) on two different organs. If two systems share a driver, keep the goal on the primary organ only.
 
 PATIENT: ${context.user.firstName || "Member"}, ${context.user.gender}, age ${context.age ?? "unknown"}
 OVERALL SCORE: ${context.healthScores.overall}/100
@@ -1030,7 +1116,7 @@ Submit via submit_holistic_health_report:
 - clinicalContext: MUST be "" (empty). Never duplicate the member summary here.
 - careTeamHandoffSummary (clinician-facing, 4-6 sentences max — put age/sex and clinical detail here, not in member fields)
 - askItems (REQUIRED, do these early): for EACH seeded question, return {id, question, intro, bullets[1], insight, optional closing}. Speak as George — warm, short, educational. Intro one sentence; one bullet with Marker: value unit; insight 1–2 sentences of everyday context. Keep the seeded id and question text exactly. Do not invent extra questions.
-- organSystems: refine summaries/highlights in patient language for liver, heart, kidney, blood/iron and any other systems with data (keep scores aligned to seed)
+- organSystems: refine summaries/highlights in patient language for liver, heart, kidney, blood/iron and any other systems with data (keep scores aligned to seed). For EACH organ include: riskFactor (the main risk from THIS blood test), gaps (1–3 unique gaps for that organ only), and goal (ONE unique goal for that organ). Goals appear under Actions — do not copy the same goal across organs.
 - crossSystemPatterns: 2-5 patterns spanning systems, titles and explanations in plain English
 - recommendations (max 8, patient actions in plain English), questionsForCareTeam (3-5), retestingGuidance, urgentActions, limitations, analysisTimestamp (ISO)`;
 }
@@ -1129,15 +1215,23 @@ export function enrichHolisticHealthReport(
     programContributions: context.programs.length
       ? context.programs
       : report.programContributions,
-    organSystems: seed.organSystems.map((seedOrgan) => {
-      const fromAi = report.organSystems.find((o) => o.id === seedOrgan.id);
-      return {
-        ...seedOrgan,
-        // Keep AI narrative when present, but always use patient-facing seed highlights.
-        summary: fromAi?.summary || seedOrgan.summary,
-        highlights: seedOrgan.highlights,
-      };
-    }),
+    organSystems: uniqueOrganGoals(
+      seed.organSystems.map((seedOrgan) => {
+        const fromAi = report.organSystems.find((o) => o.id === seedOrgan.id);
+        return {
+          ...seedOrgan,
+          // Keep AI narrative when present, but always use patient-facing seed highlights.
+          summary: fromAi?.summary || seedOrgan.summary,
+          highlights: seedOrgan.highlights,
+          riskFactor: fromAi?.riskFactor || seedOrgan.riskFactor,
+          gaps:
+            Array.isArray(fromAi?.gaps) && fromAi.gaps.length > 0
+              ? fromAi.gaps
+              : seedOrgan.gaps,
+          goal: fromAi?.goal || seedOrgan.goal,
+        };
+      })
+    ),
     askItems:
       Array.isArray(report.askItems) && report.askItems.length > 0
         ? mergeAskItems(seed.askItems || [], report.askItems)

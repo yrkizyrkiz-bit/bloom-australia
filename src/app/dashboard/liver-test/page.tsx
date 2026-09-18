@@ -28,7 +28,6 @@ import {
   AlertCircle,
   Activity,
   BarChart3,
-  Sparkles,
   Users,
   Calendar,
   Target,
@@ -45,14 +44,16 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
-import { LiverAIRecommendations } from "@/components/dashboard/LiverAIRecommendations";
 import { PopulationComparison } from "@/components/dashboard/PopulationComparison";
 import { LiverTestScheduler } from "@/components/dashboard/LiverTestScheduler";
-import { LiverGoalSetting } from "@/components/dashboard/LiverGoalSetting";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
-import { PredictiveHealthRisk } from "@/components/dashboard/PredictiveHealthRisk";
+import {
+  OrganHolisticGoals,
+  OrganHolisticRiskAssessment,
+} from "@/components/dashboard/OrganHolisticReportPanels";
 import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
 import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
+import { OrganPageBackButton } from "@/components/dashboard/OrganPageBackButton";
 import {
   calculateTestScore,
   healthTestsConfig,
@@ -740,10 +741,13 @@ export default function LiverTestPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-green-600" />
-          <p className="text-muted-foreground">Loading liver function data...</p>
+      <div className="space-y-4">
+        <OrganPageBackButton />
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-green-600" />
+            <p className="text-muted-foreground">Loading liver function data...</p>
+          </div>
         </div>
       </div>
     );
@@ -752,12 +756,15 @@ export default function LiverTestPage() {
   // Error state
   if (error) {
     return (
-      <Card className="border-red-200 bg-red-50/50">
-        <CardContent className="py-12 text-center">
-          <p className="text-red-600 mb-2">Error loading liver function data</p>
-          <p className="text-muted-foreground text-sm">{error}</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <OrganPageBackButton />
+        <Card className="border-red-200 bg-red-50/50">
+          <CardContent className="py-12 text-center">
+            <p className="text-red-600 mb-2">Error loading liver function data</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -766,6 +773,7 @@ export default function LiverTestPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
+          <OrganPageBackButton />
           <div className="w-10 h-10 rounded-xl bg-green-600/10 flex items-center justify-center">
             <Bean className="w-5 h-5 text-green-600" />
           </div>
@@ -799,6 +807,7 @@ export default function LiverTestPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <OrganPageBackButton />
           <div className="w-10 h-10 rounded-xl bg-green-600/10 flex items-center justify-center">
             <Bean className="w-5 h-5 text-green-600" />
           </div>
@@ -835,10 +844,6 @@ export default function LiverTestPage() {
           <TabsTrigger value="goals" className="gap-1.5">
             <Target className="w-4 h-4" />
             <span className="hidden sm:inline">Goals</span>
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="gap-1.5">
-            <Sparkles className="w-4 h-4" />
-            <span className="hidden sm:inline">AI Insights</span>
           </TabsTrigger>
           <TabsTrigger value="compare" className="gap-1.5">
             <Users className="w-4 h-4" />
@@ -1293,54 +1298,6 @@ export default function LiverTestPage() {
               );
             })}
           </div>
-
-          {/* Key Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
-                Key Insights
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200/50">
-                  <h4 className="font-medium text-green-700 dark:text-green-400 mb-2">Strengths</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <span>Liver enzymes (ALT, AST, GGT) are all within optimal range</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <span>Blood sugar markers show excellent metabolic control</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <span>CRP and uric acid at optimal levels - low inflammation</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50">
-                  <h4 className="font-medium text-amber-700 dark:text-amber-400 mb-2">Areas for Improvement</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>Triglycerides slightly elevated - reduce refined carbs</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>HDL could be higher for better cardiovascular protection</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>Monitor fasting insulin for insulin sensitivity</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Trends Tab */}
@@ -1356,17 +1313,14 @@ export default function LiverTestPage() {
 
         {/* Risk Assessment Tab */}
         <TabsContent value="risk" className="mt-6">
-          {activeTab === "risk" && <PredictiveHealthRisk />}
+          {activeTab === "risk" && <OrganHolisticRiskAssessment organ="liver" />}
         </TabsContent>
 
         {/* Goals Tab */}
         <TabsContent value="goals" className="mt-6">
-          <LiverGoalSetting currentResults={liverTestResults.map(r => r.result)} />
-        </TabsContent>
-
-        {/* AI Insights Tab */}
-        <TabsContent value="insights" className="mt-6">
-          <LiverAIRecommendations />
+          {activeTab === "goals" && (
+            <OrganHolisticGoals organ="liver" currentResults={allBiomarkerResults} gender={gender} />
+          )}
         </TabsContent>
 
         {/* Compare Tab */}

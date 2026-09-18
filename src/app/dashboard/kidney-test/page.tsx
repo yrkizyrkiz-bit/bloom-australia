@@ -27,7 +27,6 @@ import {
   AlertCircle,
   Activity,
   BarChart3,
-  Sparkles,
   Users,
   Calendar,
   Target,
@@ -42,12 +41,14 @@ import {
   ChevronUp
 } from "lucide-react";
 import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
-import { KidneyAIRecommendations } from "@/components/dashboard/KidneyAIRecommendations";
 import { KidneyPopulationComparison } from "@/components/dashboard/KidneyPopulationComparison";
 import { KidneyTestScheduler } from "@/components/dashboard/KidneyTestScheduler";
-import { KidneyGoalSetting } from "@/components/dashboard/KidneyGoalSetting";
-import { KidneyPredictiveHealthRisk } from "@/components/dashboard/KidneyPredictiveHealthRisk";
 import { EmailReminderService } from "@/components/dashboard/EmailReminderService";
+import {
+  OrganHolisticGoals,
+  OrganHolisticRiskAssessment,
+} from "@/components/dashboard/OrganHolisticReportPanels";
+import { OrganPageBackButton } from "@/components/dashboard/OrganPageBackButton";
 import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
 import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
 
@@ -192,10 +193,13 @@ export default function KidneyTestPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-cyan-600" />
-          <p className="text-muted-foreground">Loading kidney function data...</p>
+      <div className="space-y-4">
+        <OrganPageBackButton />
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-cyan-600" />
+            <p className="text-muted-foreground">Loading kidney function data...</p>
+          </div>
         </div>
       </div>
     );
@@ -204,12 +208,15 @@ export default function KidneyTestPage() {
   // Error state
   if (error) {
     return (
-      <Card className="border-red-200 bg-red-50/50">
-        <CardContent className="py-12 text-center">
-          <p className="text-red-600 mb-2">Error loading kidney function data</p>
-          <p className="text-muted-foreground text-sm">{error}</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <OrganPageBackButton />
+        <Card className="border-red-200 bg-red-50/50">
+          <CardContent className="py-12 text-center">
+            <p className="text-red-600 mb-2">Error loading kidney function data</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -218,6 +225,7 @@ export default function KidneyTestPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
+          <OrganPageBackButton />
           <div className="w-10 h-10 rounded-xl bg-cyan-600/10 flex items-center justify-center">
             <Droplets className="w-5 h-5 text-cyan-600" />
           </div>
@@ -251,6 +259,7 @@ export default function KidneyTestPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <OrganPageBackButton />
           <div className="w-10 h-10 rounded-xl bg-cyan-600/10 flex items-center justify-center">
             <Droplets className="w-5 h-5 text-cyan-600" />
           </div>
@@ -287,10 +296,6 @@ export default function KidneyTestPage() {
           <TabsTrigger value="goals" className="gap-1.5">
             <Target className="w-4 h-4" />
             <span className="hidden sm:inline">Goals</span>
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="gap-1.5">
-            <Sparkles className="w-4 h-4" />
-            <span className="hidden sm:inline">AI Insights</span>
           </TabsTrigger>
           <TabsTrigger value="compare" className="gap-1.5">
             <Users className="w-4 h-4" />
@@ -511,54 +516,6 @@ export default function KidneyTestPage() {
               );
             })}
           </div>
-
-          {/* Key Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
-                Key Insights
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-lg bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200/50">
-                  <h4 className="font-medium text-cyan-700 dark:text-cyan-400 mb-2">Strengths</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-cyan-600 mt-0.5 flex-shrink-0" />
-                      <span>eGFR at 98 mL/min indicates excellent kidney filtration capacity</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-cyan-600 mt-0.5 flex-shrink-0" />
-                      <span>Electrolyte balance (Na, K, HCO3) within optimal ranges</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-cyan-600 mt-0.5 flex-shrink-0" />
-                      <span>Calcium-phosphorus metabolism well balanced</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50">
-                  <h4 className="font-medium text-amber-700 dark:text-amber-400 mb-2">Recommendations</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>Continue hydration to maintain optimal kidney function</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>Monitor blood pressure regularly to protect kidney health</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>Retest UACR in 6 months to ensure protein levels stay optimal</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Trends Tab */}
@@ -574,17 +531,14 @@ export default function KidneyTestPage() {
 
         {/* Risk Assessment Tab */}
         <TabsContent value="risk" className="mt-6">
-          {activeTab === "risk" && <KidneyPredictiveHealthRisk />}
+          {activeTab === "risk" && <OrganHolisticRiskAssessment organ="kidney" />}
         </TabsContent>
 
         {/* Goals Tab */}
         <TabsContent value="goals" className="mt-6">
-          <KidneyGoalSetting currentResults={kidneyTestResults.map(r => r.result)} />
-        </TabsContent>
-
-        {/* AI Insights Tab */}
-        <TabsContent value="insights" className="mt-6">
-          <KidneyAIRecommendations />
+          {activeTab === "goals" && (
+            <OrganHolisticGoals organ="kidney" currentResults={allBiomarkerResults} gender={gender} />
+          )}
         </TabsContent>
 
         {/* Compare Tab */}

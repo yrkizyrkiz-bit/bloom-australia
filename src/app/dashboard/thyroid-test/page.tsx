@@ -44,6 +44,7 @@ import { OrganTrendSection } from "@/components/dashboard/OrganTrendSection";
 import { OrganGoalSetting } from "@/components/dashboard/OrganGoalSetting";
 import { formatUtcPanelDayLabel } from "@/lib/biomarkers/panel-scoped";
 import { PriorOrganPanelNote } from "@/components/dashboard/PriorOrganPanelNote";
+import { OrganPageBackButton } from "@/components/dashboard/OrganPageBackButton";
 
 const thyroidTestConfig = {
   thyroidFunction: {
@@ -160,10 +161,13 @@ export default function ThyroidTestPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-muted-foreground">Loading thyroid function data...</p>
+      <div className="space-y-4">
+        <OrganPageBackButton />
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-muted-foreground">Loading thyroid function data...</p>
+          </div>
         </div>
       </div>
     );
@@ -172,12 +176,15 @@ export default function ThyroidTestPage() {
   // Error state
   if (error) {
     return (
-      <Card className="border-red-200 bg-red-50/50">
-        <CardContent className="py-12 text-center">
-          <p className="text-red-600 mb-2">Error loading thyroid function data</p>
-          <p className="text-muted-foreground text-sm">{error}</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <OrganPageBackButton />
+        <Card className="border-red-200 bg-red-50/50">
+          <CardContent className="py-12 text-center">
+            <p className="text-red-600 mb-2">Error loading thyroid function data</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -186,6 +193,7 @@ export default function ThyroidTestPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
+          <OrganPageBackButton />
           <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center">
             <Activity className="w-5 h-5 text-blue-600" />
           </div>
@@ -218,6 +226,7 @@ export default function ThyroidTestPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <OrganPageBackButton />
           <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center">
             <Activity className="w-5 h-5 text-blue-600" />
           </div>

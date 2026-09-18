@@ -488,7 +488,7 @@ function detectOrganCareRiskPatterns(
       severity: cardiovascular.length >= 3 ? "high" : "medium",
       involvedBiomarkers: cardiovascular.map((s) => s.biomarkerId),
       explanation:
-        "Multiple heart-health markers are out of range or worsening, suggesting increased cardiometabolic strain.",
+        "Multiple heart-health markers are out of range or moving further from the preferred range, suggesting increased cardiometabolic strain.",
       monitoringAdvice:
         "Discuss lipid management, blood pressure and inflammatory markers with your GP; repeat lipids in 3–6 months.",
     });

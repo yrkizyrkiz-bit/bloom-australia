@@ -38,10 +38,12 @@ import { ReportDataDateNotice } from "@/components/dashboard/ReportDataDateNotic
 import { GoalReviewDialog } from "@/components/dashboard/GoalReviewDialog";
 import { HealthGoalCard } from "@/components/dashboard/HealthGoalCard";
 import { defaultNextReviewDate } from "@/lib/goal-review";
+import { normalizeHolisticGoalKey } from "@/lib/holistic-health-report-types";
 import {
   ORGAN_CONFIG,
   recommendationToGoalPayload,
   type NormalizedBiomarkerGoal,
+  type NormalizedOrganAnalysis,
   type NormalizedRecommendation,
   type OrganType,
 } from "@/lib/organ-ai-recommendations";
@@ -80,6 +82,13 @@ interface OrganGoalSettingProps {
   organ: OrganType;
   currentResults: BiomarkerResult[];
   gender?: "male" | "female";
+  analysisOverride?: NormalizedOrganAnalysis | null;
+  analysisLoadingOverride?: boolean;
+  dataDateOverride?: string | null;
+  resultsStaleOverride?: boolean;
+  suggestionsTitle?: string;
+  suggestionsDescription?: string;
+  uniqueReportActionsOnly?: boolean;
 }
 
 const DATA_CATEGORY: Record<OrganType, string> = {
@@ -103,13 +112,40 @@ function isGoalForOrgan(
   return false;
 }
 
+function actionAlreadySaved(goals: ApiGoal[], rec: NormalizedRecommendation): boolean {
+  const prefix = `[AI:${rec.id}]`;
+  const key = normalizeHolisticGoalKey(rec.description);
+  return goals.some((goal) => {
+    const notes = goal.notes || "";
+    if (notes.includes(prefix)) return true;
+    if (key && normalizeHolisticGoalKey(notes).includes(key)) return true;
+    return false;
+  });
+}
+
 export function OrganGoalSetting({
   organ,
   currentResults,
   gender = "male",
+  analysisOverride,
+  analysisLoadingOverride,
+  dataDateOverride,
+  resultsStaleOverride,
+  suggestionsTitle,
+  suggestionsDescription,
+  uniqueReportActionsOnly = false,
 }: OrganGoalSettingProps) {
   const config = ORGAN_CONFIG[organ];
-  const { analysis, isLoading: analysisLoading, dataDate, resultsStale } = useOrganAnalysis(organ);
+  const useExternalAnalysis = analysisOverride !== undefined;
+  const organApi = useOrganAnalysis(organ, { enabled: !useExternalAnalysis });
+  const analysis = useExternalAnalysis ? analysisOverride : organApi.analysis;
+  const analysisLoading = useExternalAnalysis
+    ? Boolean(analysisLoadingOverride)
+    : organApi.isLoading;
+  const dataDate = useExternalAnalysis ? dataDateOverride ?? null : organApi.dataDate;
+  const resultsStale = useExternalAnalysis
+    ? Boolean(resultsStaleOverride)
+    : organApi.resultsStale;
 
   const [goals, setGoals] = useState<ApiGoal[]>([]);
   const [allGoals, setAllGoals] = useState<ApiGoal[]>([]);
@@ -285,10 +321,17 @@ export function OrganGoalSetting({
       return;
     }
 
-    const existing = findBlockingGoalForBiomarker(allGoals, payload.biomarkerId);
-    if (existing) {
-      toast.info(duplicateGoalMessage(payload.biomarkerId, existing));
+    if (actionAlreadySaved(allGoals, rec)) {
+      toast.info("This goal is already in your overall goals");
       return;
+    }
+
+    if (!uniqueReportActionsOnly) {
+      const existing = findBlockingGoalForBiomarker(allGoals, payload.biomarkerId);
+      if (existing) {
+        toast.info(duplicateGoalMessage(payload.biomarkerId, existing));
+        return;
+      }
     }
 
     setAddingAiId(rec.id);
@@ -308,17 +351,18 @@ export function OrganGoalSetting({
   };
 
   const biomarkerSuggestions = useMemo(() => {
-    if (!analysis) return [];
+    if (!analysis || uniqueReportActionsOnly) return [];
     return analysis.biomarkerGoals.filter(
       s => !hasBlockingGoalForBiomarker(allGoals, s.biomarkerId)
     );
-  }, [analysis, allGoals]);
+  }, [analysis, allGoals, uniqueReportActionsOnly]);
 
   const recommendationSuggestions = useMemo(() => {
     if (!analysis) return [];
     return analysis.recommendations
       .filter(r => r.priority !== "low")
       .filter(r => {
+        if (actionAlreadySaved(allGoals, r)) return false;
         const payload = recommendationToGoalPayload(
           r,
           organ,
@@ -329,10 +373,11 @@ export function OrganGoalSetting({
           gender
         );
         if (!payload) return false;
+        if (uniqueReportActionsOnly) return true;
         return !hasBlockingGoalForBiomarker(allGoals, payload.biomarkerId);
       })
-      .slice(0, 6);
-  }, [analysis, allGoals, organ, currentResults, gender]);
+      .slice(0, uniqueReportActionsOnly ? 1 : 6);
+  }, [analysis, allGoals, organ, currentResults, gender, uniqueReportActionsOnly]);
 
   const achievedCount = goals.filter(g => g.status === "ACHIEVED").length;
   const inProgressCount = goals.filter(g => g.status === "IN_PROGRESS").length;
@@ -361,7 +406,8 @@ export function OrganGoalSetting({
                 {config.label} Health Goals
               </CardTitle>
               <CardDescription>
-                Set and track goals from your AI analysis or create your own
+                {suggestionsDescription ||
+                  "Set and track goals from your AI analysis or create your own"}
               </CardDescription>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -492,7 +538,7 @@ export function OrganGoalSetting({
             <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-4">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary" />
-                AI-Suggested Goals
+                {suggestionsTitle || "AI-Suggested Goals"}
               </h4>
 
               {biomarkerSuggestions.length > 0 && (
@@ -513,13 +559,18 @@ export function OrganGoalSetting({
                       <Button
                         size="sm"
                         variant="outline"
+                        className="shrink-0 gap-1"
                         disabled={addingAiId === suggestion.id || isSaving}
                         onClick={() => handleAddBiomarkerGoal(suggestion)}
+                        aria-label={`Add ${suggestion.biomarkerName} to your goals`}
                       >
                         {addingAiId === suggestion.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          "Add Goal"
+                          <>
+                            <Plus className="w-4 h-4" />
+                            Add
+                          </>
                         )}
                       </Button>
                     </div>
@@ -529,7 +580,9 @@ export function OrganGoalSetting({
 
               {recommendationSuggestions.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground font-medium">Lifestyle actions</p>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {uniqueReportActionsOnly ? "From this report" : "Lifestyle actions"}
+                  </p>
                   {recommendationSuggestions.map(rec => (
                     <div
                       key={rec.id}
@@ -545,13 +598,18 @@ export function OrganGoalSetting({
                       <Button
                         size="sm"
                         variant="outline"
+                        className="shrink-0 gap-1"
                         disabled={addingAiId === rec.id || isSaving}
                         onClick={() => handleAddRecommendationGoal(rec)}
+                        aria-label={`Add ${rec.title} to your goals`}
                       >
                         {addingAiId === rec.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          "Add Goal"
+                          <>
+                            <Plus className="w-4 h-4" />
+                            Add
+                          </>
                         )}
                       </Button>
                     </div>
@@ -571,7 +629,7 @@ export function OrganGoalSetting({
           {!analysisLoading && !analysis && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground p-4 rounded-lg bg-muted/40">
               <AlertCircle className="w-4 h-4" />
-              AI suggestions unavailable, create a manual goal or check the Risk Assessment tab
+              AI suggestions unavailable. Create a manual goal with + New Goal.
             </div>
           )}
 
@@ -580,7 +638,7 @@ export function OrganGoalSetting({
               <Target className="w-10 h-10 mx-auto mb-3 opacity-40" />
               <p className="font-medium">No goals yet</p>
               <p className="text-sm mt-1">
-                Add AI-suggested goals above or create your own biomarker target
+                Tap + Add on a suggested goal above, or create your own biomarker target
               </p>
             </div>
           ) : (

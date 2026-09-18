@@ -23,6 +23,8 @@ export type OrganMetabolicPanel = {
   color: string;
   /** When true, tile stays available even without Organ Care entitlement. */
   alwaysAvailable?: boolean;
+  /** Hidden from member shortcut rows until the next release. */
+  hiddenUntilNextVersion?: boolean;
 };
 
 export const ORGAN_METABOLIC_HEALTH_PANELS: OrganMetabolicPanel[] = [
@@ -30,17 +32,22 @@ export const ORGAN_METABOLIC_HEALTH_PANELS: OrganMetabolicPanel[] = [
   { href: "/dashboard/liver-test", label: "Liver", icon: Bean, color: "#65a30d" },
   { href: "/dashboard/kidney-test", label: "Kidney", icon: Droplets, color: "#0891b2" },
   { href: "/dashboard/blood-panel", label: "Full Blood", icon: TestTubes, color: "#1D9E75" },
-  { href: "/dashboard/thyroid-test", label: "Thyroid", icon: Activity, color: "#2563eb" },
-  { href: "/dashboard/hormone-test", label: "Hormones", icon: Sparkles, color: "#a855f7" },
-  { href: "/dashboard/metabolic-panel", label: "Metabolic", icon: Flame, color: "#f97316" },
+  { href: "/dashboard/thyroid-test", label: "Thyroid", icon: Activity, color: "#2563eb", hiddenUntilNextVersion: true },
+  { href: "/dashboard/hormone-test", label: "Hormones", icon: Sparkles, color: "#a855f7", hiddenUntilNextVersion: true },
+  { href: "/dashboard/metabolic-panel", label: "Metabolic", icon: Flame, color: "#f97316", hiddenUntilNextVersion: true },
   {
     href: "/dashboard/biological-age",
     label: "Bio Age",
     icon: Hourglass,
     color: "#0284c7",
     alwaysAvailable: true,
+    hiddenUntilNextVersion: true,
   },
 ];
+
+export const VISIBLE_ORGAN_METABOLIC_HEALTH_PANELS = ORGAN_METABOLIC_HEALTH_PANELS.filter(
+  (panel) => !panel.hiddenUntilNextVersion
+);
 
 type OrganMetabolicHealthPanelsProps = {
   organCareEntitled: boolean;
@@ -69,7 +76,7 @@ export function OrganMetabolicHealthPanels({
       </div>
       <div className="overflow-x-auto pb-1">
         <div className="flex w-max gap-2">
-          {ORGAN_METABOLIC_HEALTH_PANELS.map((panel) => {
+          {VISIBLE_ORGAN_METABOLIC_HEALTH_PANELS.map((panel) => {
             const unlocked = organCareEntitled || panel.alwaysAvailable;
             const content = (
               <div

@@ -23,6 +23,30 @@ import {
   formatAverageDailyLoss,
 } from "@/lib/weight-management/journey-projection";
 import type { RingWeekScore } from "@/lib/weight-management/score-ring-week";
+
+const RING_WEEK_CACHE_KEY = "sanative_wm_ring_week_v1";
+const RING_WEEK_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function readRingWeekCache(): RingWeekScore | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(RING_WEEK_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at: number; week: RingWeekScore };
+    if (!parsed?.week || Date.now() - parsed.at > RING_WEEK_CACHE_TTL_MS) return null;
+    return parsed.week;
+  } catch {
+    return null;
+  }
+}
+
+function writeRingWeekCache(week: RingWeekScore) {
+  try {
+    sessionStorage.setItem(RING_WEEK_CACHE_KEY, JSON.stringify({ at: Date.now(), week }));
+  } catch {
+    /* ignore quota */
+  }
+}
 import { ProgramTodayCard } from "@/components/program/ProgramTodayCard";
 import { ProgramBiomarkerStrip } from "@/components/program/ProgramBiomarkerStrip";
 import {
@@ -113,7 +137,6 @@ export default function WeightManagementPage() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [checkInStatus, setCheckInStatus] = useState<CheckInStatus | null>(null);
   const [journeyStatus, setJourneyStatus] = useState<JourneyStatusData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [clinicalStatus, setClinicalStatus] = useState<"needed" | "deferred" | "complete" | null>(
     null
@@ -133,9 +156,13 @@ export default function WeightManagementPage() {
       }
     } catch (error) {
       console.error("Error fetching progress:", error);
-    } finally {
-      setLoading(false);
     }
+  }, []);
+
+  const applyRingWeek = useCallback((week: RingWeekScore | null | undefined) => {
+    if (!week) return;
+    setRingWeek(week);
+    writeRingWeekCache(week);
   }, []);
 
   const fetchRings = useCallback(async () => {
@@ -143,21 +170,23 @@ export default function WeightManagementPage() {
       const ringsRes = await fetch("/api/weight-management/rings", { cache: "no-store" });
       if (ringsRes.ok) {
         const rings = await ringsRes.json();
-        if (rings.ringWeek) {
-          setRingWeek(rings.ringWeek);
-        }
+        applyRingWeek(rings.ringWeek);
       }
     } catch (error) {
       console.error("Error fetching rings:", error);
     }
-  }, []);
+  }, [applyRingWeek]);
 
   useEffect(() => {
     setMotivation(getRandomMotivation("greeting"));
     setDailyTip(getDailyTip());
     setDailyQuote(getDailyQuote());
 
+    const cached = readRingWeekCache();
+    if (cached) setRingWeek(cached);
+
     const init = async () => {
+      void fetchRings();
       try {
         const homeRes = await fetch("/api/weight-management/home");
 
@@ -176,20 +205,15 @@ export default function WeightManagementPage() {
           if (data.progress) {
             setProgress(data.progress);
           }
-          if (data.ringWeek) {
-            setRingWeek(data.ringWeek);
-          }
+          applyRingWeek(data.ringWeek);
         }
       } catch (error) {
         console.error("Error initializing:", error);
-      } finally {
-        // Unlock as soon as home returns — rings are already included in that payload.
-        setLoading(false);
       }
     };
 
     void init();
-  }, []);
+  }, [applyRingWeek, fetchRings]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -323,7 +347,7 @@ export default function WeightManagementPage() {
     },
   ];
 
-  if (loading && !journeyStatus) {
+  if (!journeyStatus) {
     if (isPostCheckout) {
       return (
         <ProgramJourneyShell
@@ -340,11 +364,24 @@ export default function WeightManagementPage() {
     }
 
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#4a6243] border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground">Preparing your journey...</p>
+      <div className="space-y-6 pb-8">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4a6243] via-[#3d4f38] to-[#34412f] p-6 text-white">
+          <div className="relative z-10">
+            <div className="mb-1 flex items-center gap-2">
+              <Sun className="h-4 w-4 text-[#cdd8c6]" />
+              <p className="text-sm text-[#cdd8c6]">{getGreeting()}</p>
+            </div>
+            <h1 className="mb-2 font-serif text-2xl font-semibold md:text-3xl">
+              {user?.firstName}
+            </h1>
+            {motivation ? <p className="text-sm text-[#a8bb9e]">{motivation}</p> : null}
+          </div>
         </div>
+        {ringWeek ? (
+          <GoalRings week={ringWeek} />
+        ) : (
+          <div className="h-[28rem] animate-pulse rounded-2xl border border-[#cdd8c6] bg-[#f8f4ec]" />
+        )}
       </div>
     );
   }

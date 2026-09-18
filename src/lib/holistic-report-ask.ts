@@ -4,7 +4,7 @@ import {
   type HolisticMarkerItem,
   type HolisticPriorityBand,
 } from "@/lib/holistic-health-report-types";
-import { patientFacingMarkerName } from "@/lib/holistic-patient-language";
+import { patientFacingMarkerName, stripAskEducationalGpClosing } from "@/lib/holistic-patient-language";
 
 export type ReportAskBullet = {
   title: string;
@@ -163,7 +163,7 @@ function answerForMarker(report: HolisticHealthReport, item: HolisticMarkerItem)
       : `Great question — here’s a quick read on your ${name}.`,
     bullets: [markerBullet(item)],
     insight: insight || undefined,
-    closing: "Educational only — check next steps with your GP or Sanative care team.",
+    closing: undefined,
   };
 }
 
@@ -308,6 +308,10 @@ export function buildReportAskItems(report: HolisticHealthReport): ReportAskItem
   return items.slice(0, 6);
 }
 
+function withoutGpEducationalClosing(item: ReportAskItem): ReportAskItem {
+  return { ...item, closing: stripAskEducationalGpClosing(item.closing) };
+}
+
 /** Match free-text to a prepared ask item, or synthesise from report markers. */
 export function answerReportAskQuestion(
   report: HolisticHealthReport,
@@ -315,10 +319,10 @@ export function answerReportAskQuestion(
   catalog: ReportAskItem[]
 ): ReportAskItem {
   const q = question.trim().toLowerCase();
-  if (!q) return overallActionsAnswer(report);
+  if (!q) return withoutGpEducationalClosing(overallActionsAnswer(report));
 
   const exact = catalog.find((item) => item.question.toLowerCase() === q);
-  if (exact) return exact;
+  if (exact) return withoutGpEducationalClosing(exact);
 
   const scored = catalog
     .map((item) => {
@@ -331,7 +335,7 @@ export function answerReportAskQuestion(
     })
     .sort((a, b) => b.hits - a.hits);
 
-  if (scored[0] && scored[0].hits >= 2) return scored[0].item;
+  if (scored[0] && scored[0].hits >= 2) return withoutGpEducationalClosing(scored[0].item);
 
   const all = [
     ...report.priorityBands.immediate,
@@ -348,6 +352,6 @@ export function answerReportAskQuestion(
     );
   });
 
-  if (matched[0]) return answerForMarker(report, matched[0]);
-  return overallActionsAnswer(report);
+  if (matched[0]) return withoutGpEducationalClosing(answerForMarker(report, matched[0]));
+  return withoutGpEducationalClosing(overallActionsAnswer(report));
 }

@@ -34,6 +34,12 @@ export type HolisticOrganSystem = {
   summary: string;
   biomarkersTracked: number;
   highlights: string[];
+  /** Main risk factor for this organ from this blood test. */
+  riskFactor?: string;
+  /** What’s missing or lagging for this organ — unique to this system. */
+  gaps?: string[];
+  /** One unique goal for this organ (never repeated on another organ). Shown under Actions. */
+  goal?: string;
 };
 
 export type HolisticCrossPattern = {
@@ -135,6 +141,99 @@ export function holisticReportShowsPendingOverlay(
   if (!report) return false;
   const status = normalizeHolisticApprovalStatus(report.approvalStatus);
   return status === "pending_approval" || status === "held";
+}
+
+export function isHolisticReportApproved(
+  report: Pick<HolisticHealthReport, "approvalStatus"> | null | undefined
+): boolean {
+  if (!report) return false;
+  return normalizeHolisticApprovalStatus(report.approvalStatus) === "approved";
+}
+
+export function getApprovedOrganSystem(
+  report: HolisticHealthReport | null | undefined,
+  organId: HolisticOrganSystemId
+): HolisticOrganSystem | null {
+  if (!report || !isHolisticReportApproved(report)) return null;
+  return report.organSystems.find((organ) => organ.id === organId) ?? null;
+}
+
+function trimOptionalString(value: unknown, max = 400): string {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.length > max ? trimmed.slice(0, max).trim() : trimmed;
+}
+
+function trimStringList(value: unknown, maxItems = 6, maxLen = 280): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    const text = trimOptionalString(item, maxLen);
+    if (!text) continue;
+    out.push(text);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
+export function normalizeHolisticGoalKey(goal: string): string {
+  return goal
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Keep the first organ that owns a goal; blank duplicates so goals never repeat across systems. */
+export function uniqueOrganGoals(organs: HolisticOrganSystem[]): HolisticOrganSystem[] {
+  const seen = new Set<string>();
+  return organs.map((organ) => {
+    const goal = trimOptionalString(organ.goal);
+    if (!goal) return { ...organ, goal: "" };
+    const key = normalizeHolisticGoalKey(goal);
+    if (!key || seen.has(key)) return { ...organ, goal: "" };
+    seen.add(key);
+    return { ...organ, goal };
+  });
+}
+
+function sanitizeOrganSystem(raw: unknown): HolisticOrganSystem | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Partial<HolisticOrganSystem> & { id?: unknown };
+  const id = typeof row.id === "string" ? row.id.trim() : "";
+  if (!id) return null;
+  return {
+    id: id as HolisticOrganSystemId,
+    label: trimOptionalString(row.label) || id,
+    score: Number(row.score) || 0,
+    status:
+      row.status === "watch" || row.status === "needs_attention" || row.status === "optimal"
+        ? row.status
+        : "watch",
+    trend:
+      row.trend === "improving" ||
+      row.trend === "declining" ||
+      row.trend === "stable" ||
+      row.trend === "unknown"
+        ? row.trend
+        : "unknown",
+    summary: trimOptionalString(row.summary, 600),
+    biomarkersTracked: Number(row.biomarkersTracked) || 0,
+    highlights: trimStringList(row.highlights),
+    riskFactor: trimOptionalString(row.riskFactor, 320),
+    gaps: trimStringList(row.gaps),
+    goal: trimOptionalString(row.goal, 280),
+  };
+}
+
+export function sanitizeOrganSystems(value: unknown): HolisticOrganSystem[] {
+  if (!Array.isArray(value)) return [];
+  return uniqueOrganGoals(
+    value
+      .map((item) => sanitizeOrganSystem(item))
+      .filter((item): item is HolisticOrganSystem => Boolean(item))
+  );
 }
 
 function overallRiskFromScore(score: number): HolisticHealthReport["overallRisk"] {
@@ -285,7 +384,7 @@ export function sanitizeHolisticHealthReport(
         ? report.priorityBands!.immediate
         : [],
     },
-    organSystems: Array.isArray(report.organSystems) ? report.organSystems : [],
+    organSystems: sanitizeOrganSystems(report.organSystems),
     crossSystemPatterns: Array.isArray(report.crossSystemPatterns)
       ? report.crossSystemPatterns
       : [],
@@ -350,7 +449,12 @@ function sanitizeAskItems(raw: unknown): HolisticAskItem[] {
         intro,
         bullets,
         insight: insight || undefined,
-        closing: closing || undefined,
+        closing:
+          closing &&
+          /educational only/i.test(closing) &&
+          /(?:your gp|your doctor|care team)/i.test(closing)
+            ? undefined
+            : closing || undefined,
       } satisfies HolisticAskItem;
     })
     .filter((item): item is HolisticAskItem => Boolean(item))

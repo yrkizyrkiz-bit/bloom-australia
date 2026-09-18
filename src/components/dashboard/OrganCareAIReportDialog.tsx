@@ -22,7 +22,6 @@ import {
   Activity,
   Clock,
   FileText,
-  Stethoscope,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
@@ -274,7 +273,6 @@ export function OrganCareAIReportDialog({
   const riskPatterns = report?.riskPatterns ?? [];
   const recommendations = report?.recommendations ?? [];
   const urgentActions = report?.urgentActions ?? [];
-  const questionsForCareTeam = report?.questionsForCareTeam ?? [];
   const limitations = report?.limitations ?? [];
 
   return (
@@ -562,17 +560,6 @@ export function OrganCareAIReportDialog({
                   )}
 
                   <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
-                    <div className="flex items-start gap-2">
-                      <Stethoscope className="h-4 w-4 mt-0.5 text-[#1D9E75]" />
-                      <div>
-                        <p className="text-sm font-medium">Questions for your care team</p>
-                        <ul className="mt-1 list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                          {questionsForCareTeam.map((q) => (
-                            <li key={q}>{q}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
                     <div className="flex items-start gap-2">
                       <Clock className="h-4 w-4 mt-0.5 text-[#1D9E75]" />
                       <div>
