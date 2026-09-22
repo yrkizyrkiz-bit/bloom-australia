@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,13 +13,15 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, X, Heart, Clock, Flame, ChevronLeft, Loader2, Users, ListChecks, ChefHat,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   RECIPE_CATALOG,
   RECIPE_TO_DIARY_MEAL_TYPE,
+  recipeToFavoriteMeal,
   type CatalogRecipe,
   type RecipeCategory,
 } from "@/lib/weight-management/recipe-catalog";
-import { useRecipeFavourites } from "@/hooks/useRecipeFavourites";
+import { useFavoriteMeals } from "@/hooks/useFavoriteMeals";
 
 const GALLERY_MEAL_TYPES: { value: string; label: string }[] = [
   { value: "BREAKFAST", label: "Breakfast" },
@@ -50,8 +53,12 @@ function getDifficultyColor(difficulty: string) {
 export type GalleryMealSelection = {
   name: string;
   calories: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
   category?: string;
   mealType: string;
+  saveAsFavourite?: boolean;
 };
 
 interface MealGalleryProps {
@@ -61,17 +68,19 @@ interface MealGalleryProps {
 }
 
 export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryProps) {
-  const { savedRecipes, toggleFavourite, loadFavourites, userId } = useRecipeFavourites();
+  const { favorites, isFavourite, addFavourite, removeFavourite, reload } = useFavoriteMeals();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [showFavourites, setShowFavourites] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<CatalogRecipe | null>(null);
   const [galleryMealType, setGalleryMealType] = useState("LUNCH");
+  const [saveAsFavourite, setSaveAsFavourite] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open && userId) loadFavourites(userId);
-  }, [open, userId, loadFavourites]);
+    if (open) void reload();
+  }, [open, reload]);
 
   const query = search.toLowerCase().trim();
   const filteredMeals = RECIPE_CATALOG.filter((meal) => {
@@ -81,7 +90,7 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
       meal.description.toLowerCase().includes(query) ||
       meal.dietaryTags.some((tag) => tag.toLowerCase().includes(query));
     const matchesCategory = category === "All" || meal.category === category;
-    const matchesFavourites = !showFavourites || savedRecipes.has(meal.id);
+    const matchesFavourites = !showFavourites || isFavourite(meal.title);
     return matchesSearch && matchesCategory && matchesFavourites;
   });
 
@@ -95,8 +104,26 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
       setSelectedMeal(null);
       setSaving(false);
       setShowFavourites(false);
+      setSaveAsFavourite(false);
     }
     onOpenChange(next);
+  };
+
+  const handleToggleFavourite = async (meal: CatalogRecipe, mealType?: string) => {
+    setTogglingId(meal.id);
+    try {
+      const alreadySaved = isFavourite(meal.title);
+      const ok = alreadySaved
+        ? await removeFavourite(meal.title)
+        : await addFavourite(recipeToFavoriteMeal(meal, mealType));
+      if (!ok) {
+        toast.error("Could not update favourites");
+        return;
+      }
+      toast.success(alreadySaved ? "Removed from favourites" : "Added to favourites");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   const handleSaveMeal = async (meal: CatalogRecipe) => {
@@ -105,11 +132,16 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
       const result = await onSelectMeal?.({
         name: meal.title,
         calories: meal.calories,
+        protein: meal.protein,
+        carbs: meal.carbs,
+        fat: meal.fat,
         category: meal.category,
         mealType: galleryMealType,
+        saveAsFavourite,
       });
       if (result === false) return;
       setSelectedMeal(null);
+      setSaveAsFavourite(false);
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -161,8 +193,8 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
               className={`cursor-pointer transition-all ${showFavourites ? "bg-rose-500 hover:bg-rose-600" : "hover:bg-muted"}`}
               onClick={() => setShowFavourites((current) => !current)}
             >
-              <Heart className={`w-3 h-3 mr-1 inline ${showFavourites || savedRecipes.size > 0 ? "fill-current" : ""}`} />
-              Favourites{savedRecipes.size > 0 ? ` (${savedRecipes.size})` : ""}
+              <Heart className={`w-3 h-3 mr-1 inline ${showFavourites || favorites.length > 0 ? "fill-current" : ""}`} />
+              Favourites{favorites.length > 0 ? ` (${favorites.length})` : ""}
             </Badge>
           </div>
 
@@ -189,14 +221,21 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
                     <button
-                      className="absolute bottom-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white transition-colors z-10"
+                      type="button"
+                      className="absolute bottom-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white transition-colors z-10 disabled:opacity-60"
+                      disabled={togglingId === meal.id}
+                      aria-label={
+                        isFavourite(meal.title)
+                          ? `Remove ${meal.title} from favourites`
+                          : `Add ${meal.title} to favourites`
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleFavourite(meal.id);
+                        void handleToggleFavourite(meal);
                       }}
                     >
                       <Heart
-                        className={`w-4 h-4 ${savedRecipes.has(meal.id) ? "fill-rose-500 text-rose-500" : "text-gray-600"}`}
+                        className={`w-4 h-4 ${isFavourite(meal.title) ? "fill-rose-500 text-rose-500" : "text-gray-600"}`}
                       />
                     </button>
                     <div className="absolute bottom-0 left-0 right-10 p-3 text-white">
@@ -220,12 +259,12 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
             {filteredMeals.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <p>
-                  {showFavourites && savedRecipes.size === 0
+                  {showFavourites && !RECIPE_CATALOG.some((meal) => isFavourite(meal.title))
                     ? "No favourite meals yet"
                     : "No meals found matching your search."}
                 </p>
                 <p className="mt-1 text-sm">
-                  {showFavourites && savedRecipes.size === 0
+                  {showFavourites && !RECIPE_CATALOG.some((meal) => isFavourite(meal.title))
                     ? "Tap the heart on a meal photo to add it to Favourites."
                     : null}
                 </p>
@@ -285,11 +324,18 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                     <button
-                      className="absolute bottom-4 right-4 p-2 rounded-full bg-white/90 hover:bg-white z-10"
-                      onClick={() => toggleFavourite(selectedMeal.id)}
+                      type="button"
+                      className="absolute bottom-4 right-4 p-2 rounded-full bg-white/90 hover:bg-white z-10 disabled:opacity-60"
+                      disabled={togglingId === selectedMeal.id}
+                      aria-label={
+                        isFavourite(selectedMeal.title)
+                          ? `Remove ${selectedMeal.title} from favourites`
+                          : `Add ${selectedMeal.title} to favourites`
+                      }
+                      onClick={() => void handleToggleFavourite(selectedMeal, galleryMealType)}
                     >
                       <Heart
-                        className={`w-5 h-5 ${savedRecipes.has(selectedMeal.id) ? "fill-rose-500 text-rose-500" : "text-gray-600"}`}
+                        className={`w-5 h-5 ${isFavourite(selectedMeal.title) ? "fill-rose-500 text-rose-500" : "text-gray-600"}`}
                       />
                     </button>
                     <div className="absolute bottom-4 left-4 right-16">
@@ -404,6 +450,19 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
                     </div>
                   )}
 
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-rose-100 bg-rose-50/60 px-3 py-2 dark:border-rose-900/60 dark:bg-rose-950/20">
+                    <Checkbox
+                      checked={saveAsFavourite}
+                      onCheckedChange={(checked) => setSaveAsFavourite(checked === true)}
+                      aria-label="Save in favourites"
+                    />
+                    <Heart
+                      className={`h-4 w-4 ${
+                        saveAsFavourite ? "fill-rose-500 text-rose-500" : "text-rose-400"
+                      }`}
+                    />
+                    <span className="text-sm font-medium">Save in favourites</span>
+                  </label>
                   <Button
                     className="w-full bg-orange-500 hover:bg-orange-600"
                     disabled={saving}

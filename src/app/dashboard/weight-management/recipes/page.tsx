@@ -10,8 +10,8 @@ import { ArrowLeft, Search, Clock, Users, Flame, Heart, ChefHat, Filter, Sparkle
 import Link from "next/link";
 import { toast } from "sonner";
 import { RECIPES, Recipe } from "@/data/recipes";
-import { hydrateRecipe } from "@/lib/weight-management/recipe-catalog";
-import { useRecipeFavourites } from "@/hooks/useRecipeFavourites";
+import { hydrateRecipe, recipeToFavoriteMeal } from "@/lib/weight-management/recipe-catalog";
+import { useFavoriteMeals } from "@/hooks/useFavoriteMeals";
 
 const MEAL_TYPES = [
   { id: "all", label: "All", emoji: "🍽️" },
@@ -32,7 +32,8 @@ const DIETARY_FILTERS = [
 ];
 
 export default function RecipesPage() {
-  const { savedRecipes, toggleFavourite } = useRecipeFavourites();
+  const { favorites, isFavourite, addFavourite, removeFavourite } = useFavoriteMeals();
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMealType, setActiveMealType] = useState("all");
   const [activeDietary, setActiveDietary] = useState<string[]>([]);
@@ -46,7 +47,7 @@ export default function RecipesPage() {
       recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDietary = activeDietary.length === 0 ||
       activeDietary.every(d => recipe.dietaryTags.includes(d));
-    const matchesFavourites = !showFavourites || savedRecipes.has(recipe.id);
+    const matchesFavourites = !showFavourites || isFavourite(recipe.title);
 
     return matchesMeal && matchesSearch && matchesDietary && matchesFavourites;
   });
@@ -59,11 +60,22 @@ export default function RecipesPage() {
     );
   };
 
-  const toggleSave = (recipeId: string, e?: React.MouseEvent) => {
+  const toggleSave = async (recipe: Recipe, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    const removing = savedRecipes.has(recipeId);
-    toggleFavourite(recipeId);
-    toast.success(removing ? "Recipe removed from saved" : "Recipe saved!");
+    setTogglingId(recipe.id);
+    try {
+      const alreadySaved = isFavourite(recipe.title);
+      const ok = alreadySaved
+        ? await removeFavourite(recipe.title)
+        : await addFavourite(recipeToFavoriteMeal(recipe));
+      if (!ok) {
+        toast.error("Could not update favourites");
+        return;
+      }
+      toast.success(alreadySaved ? "Removed from favourites" : "Added to favourites");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -158,8 +170,8 @@ export default function RecipesPage() {
           className={`cursor-pointer transition-all ${showFavourites ? "bg-rose-500 hover:bg-rose-600" : "hover:bg-muted"}`}
           onClick={() => setShowFavourites((current) => !current)}
         >
-          <Heart className={`w-3 h-3 mr-1 inline ${showFavourites || savedRecipes.size > 0 ? "fill-current" : ""}`} />
-          Favourites{savedRecipes.size > 0 ? ` (${savedRecipes.size})` : ""}
+          <Heart className={`w-3 h-3 mr-1 inline ${showFavourites || favorites.length > 0 ? "fill-current" : ""}`} />
+          Favourites{favorites.length > 0 ? ` (${favorites.length})` : ""}
         </Badge>
         {DIETARY_FILTERS.map((filter) => (
           <Badge
@@ -189,10 +201,10 @@ export default function RecipesPage() {
           <CardContent>
             <ChefHat className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">
-              {showFavourites && savedRecipes.size === 0 ? "No favourite recipes yet" : "No recipes found"}
+              {showFavourites && favorites.length === 0 ? "No favourite recipes yet" : "No recipes found"}
             </h3>
             <p className="text-muted-foreground mb-4">
-              {showFavourites && savedRecipes.size === 0
+              {showFavourites && favorites.length === 0
                 ? "Tap the heart on a recipe photo to add it to Favourites"
                 : "Try adjusting your filters"}
             </p>
@@ -219,9 +231,10 @@ export default function RecipesPage() {
                   variant="ghost"
                   size="icon"
                   className="absolute bottom-2 right-2 bg-white/90 hover:bg-white shadow-sm z-10"
-                  onClick={(e) => toggleSave(recipe.id, e)}
+                  disabled={togglingId === recipe.id}
+                  onClick={(e) => void toggleSave(recipe, e)}
                 >
-                  <Heart className={`w-5 h-5 ${savedRecipes.has(recipe.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+                  <Heart className={`w-5 h-5 ${isFavourite(recipe.title) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
                 </Button>
                 <Badge className={`absolute top-2 left-2 ${getDifficultyColor(recipe.difficulty)}`}>
                   {recipe.difficulty}
@@ -286,9 +299,10 @@ export default function RecipesPage() {
                   variant="ghost"
                   size="icon"
                   className="absolute bottom-4 right-4 bg-white/90 hover:bg-white z-10"
-                  onClick={(e) => toggleSave(selectedRecipe.id, e)}
+                  disabled={togglingId === selectedRecipe.id}
+                  onClick={(e) => void toggleSave(selectedRecipe, e)}
                 >
-                  <Heart className={`w-5 h-5 ${savedRecipes.has(selectedRecipe.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+                  <Heart className={`w-5 h-5 ${isFavourite(selectedRecipe.title) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
                 </Button>
                 <div className="absolute bottom-4 left-4 right-16">
                   <Badge className={`mb-2 ${getDifficultyColor(selectedRecipe.difficulty)}`}>
@@ -415,8 +429,18 @@ export default function RecipesPage() {
                       <Calendar className="w-5 h-5 mr-2" /> Add to Meal Plan
                     </Button>
                   </Link>
-                  <Button variant="outline" size="lg" onClick={() => toast.success("Recipe saved!")}>
-                    <Heart className="w-5 h-5" />
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    disabled={togglingId === selectedRecipe.id}
+                    onClick={() => void toggleSave(selectedRecipe)}
+                    aria-label={`${isFavourite(selectedRecipe.title) ? "Remove" : "Add"} ${selectedRecipe.title} to favourites`}
+                  >
+                    <Heart
+                      className={`w-5 h-5 ${
+                        isFavourite(selectedRecipe.title) ? "fill-rose-500 text-rose-500" : ""
+                      }`}
+                    />
                   </Button>
                 </div>
               </div>

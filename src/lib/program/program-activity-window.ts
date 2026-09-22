@@ -16,6 +16,7 @@ function parseDate(value: Date | string | null | undefined): Date | null {
  * Earliest day we should judge program activity (logging, rings, AI notes).
  * Prefer the later of program commencement and doctor goal start so membership
  * days before the program begins are not treated as missed.
+ * A later ring-plan save must not move this clock — that is only a fallback.
  */
 export function resolveProgramCommencement(input: {
   programStartedAt?: Date | string | null;
@@ -23,18 +24,15 @@ export function resolveProgramCommencement(input: {
   ringPlanActivatedAt?: Date | string | null;
   membershipStartedAt?: Date | string | null;
 }): Date | null {
-  const dates = [
-    parseDate(input.programStartedAt),
-    parseDate(input.goalStartedAt),
-    parseDate(input.ringPlanActivatedAt),
-  ].filter((d): d is Date => d != null);
+  const dates = [parseDate(input.programStartedAt), parseDate(input.goalStartedAt)].filter(
+    (d): d is Date => d != null
+  );
 
-  // Membership alone can pre-date doctor approval — only use it when nothing else exists.
-  if (dates.length === 0) {
-    return parseDate(input.membershipStartedAt);
+  if (dates.length > 0) {
+    return new Date(Math.max(...dates.map((d) => d.getTime())));
   }
 
-  return new Date(Math.max(...dates.map((d) => d.getTime())));
+  return parseDate(input.ringPlanActivatedAt) ?? parseDate(input.membershipStartedAt);
 }
 
 /**

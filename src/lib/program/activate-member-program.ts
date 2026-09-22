@@ -5,6 +5,7 @@ import {
   parseDoseIntervalDays,
   startOfDayUTC,
 } from "./dose-schedule";
+import { programCalendarWeek } from "./program-week";
 
 /** Days after activation before the first scheduled dose (program week 1 is dose-free). */
 export const FIRST_DOSE_OFFSET_DAYS = 7;
@@ -141,7 +142,7 @@ export async function activateMemberProgram(
       where: { id: memberProgram.id },
       data: {
         startedAt: activationDate,
-        currentWeek: 1,
+        currentWeek: programCalendarWeek(activationDate),
         isActive: true,
         phase: "INDUCTION",
       },
@@ -153,7 +154,7 @@ export async function activateMemberProgram(
       where: { id: program.id },
       data: {
         startedAt: activationDate,
-        currentWeek: 1,
+        currentWeek: programCalendarWeek(activationDate),
       },
     });
   }

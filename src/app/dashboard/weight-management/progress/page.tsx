@@ -33,6 +33,8 @@ interface ProgressData {
   checkInTrends: Array<{ week: number; feeling: number; energy: number; sleep: number; stress: number }>;
   goalProgress: {
     targetWeight: number;
+    weeklyTargetLoss: number | null;
+    hasDoctorPlan: boolean;
     percentComplete: number;
     remainingToLose: number;
     actualLost: number;
@@ -163,6 +165,7 @@ export default function ProgressPage() {
           data={data?.weightProgress.weeklyAverages || []}
           startingWeight={data?.summary.startWeight || undefined}
           targetWeight={data?.goalProgress?.targetWeight}
+          weeklyTargetLoss={data?.goalProgress?.hasDoctorPlan ? data.goalProgress.weeklyTargetLoss : null}
         />
         {/* View Tracking History Button - Juniper Style */}
         <ViewTrackingHistoryButton onClick={() => setShowHistory(true)} />

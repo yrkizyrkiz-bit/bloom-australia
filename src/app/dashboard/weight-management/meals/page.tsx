@@ -7,16 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, Apple, Coffee, Sun, Moon, Loader2, Trash2, Flame,
-  Search, X, Sparkles, Utensils, CalendarDays, ChevronLeft, ChevronRight, ClipboardList,
+  Search, X, Sparkles, Utensils, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Heart,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import type { FoodItem } from "@/data/foodDatabase";
 import type { Recipe } from "@/data/recipes";
+import type { CombinedFoodMeal } from "@/components/weight-management/FoodSearchDialog";
 import { getMealImage, getRandomMotivation } from "@/data/mealImages";
+import { useAuth } from "@/contexts/AuthContext";
 
 const FoodSearchDialog = dynamic(
   () =>
@@ -81,17 +89,20 @@ interface MealData {
   mealsByDate: Record<string, MealLog[]>;
 }
 
-interface SelectedFood {
-  food: FoodItem;
-  portion: number;
-  nutrition: { calories: number; protein: number; carbs: number; fat: number; fiber: number };
-  mealType: string;
-}
-
 interface PlannedMeal {
   id: string;
   mealType: "breakfast" | "lunch" | "dinner" | "snack";
   recipe: Recipe;
+}
+
+interface FavoriteMeal {
+  id: string;
+  name: string;
+  mealType: string;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
 }
 
 const MEAL_ICONS: Record<string, React.ReactNode> = {
@@ -202,11 +213,11 @@ function dayTotals(meals: MealLog[]) {
 }
 
 export default function MealsPage() {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [data, setData] = useState<MealData | null>(null);
   const [listLoading, setListLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [loggingFoods, setLoggingFoods] = useState(false);
   const [loggingPlannerId, setLoggingPlannerId] = useState<string | null>(null);
   const [loggingAllPlanner, setLoggingAllPlanner] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -221,7 +232,10 @@ export default function MealsPage() {
   const [customProtein, setCustomProtein] = useState("");
   const [customCarbs, setCustomCarbs] = useState("");
   const [customFat, setCustomFat] = useState("");
-  const [selectedFoods, setSelectedFoods] = useState<SelectedFood[]>([]);
+  const [saveAsFavourite, setSaveAsFavourite] = useState(false);
+  const [showCustomMealDialog, setShowCustomMealDialog] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteMeal[]>([]);
+  const [loggingFavoriteId, setLoggingFavoriteId] = useState<string | null>(null);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
 
   const todayKey = localDateKey(new Date());
@@ -252,6 +266,30 @@ export default function MealsPage() {
       setListLoading(false);
     }
   }, []);
+
+  const fetchFavorites = useCallback(async (signal?: AbortSignal) => {
+    if (!user?.id) {
+      setFavorites([]);
+      return;
+    }
+    try {
+      const res = await fetch("/api/weight-management/favorite-meals", {
+        cache: "no-store",
+        credentials: "same-origin",
+        signal,
+      });
+      if (!res.ok) {
+        if (!signal?.aborted) setFavorites([]);
+        return;
+      }
+      const payload = await res.json();
+      if (signal?.aborted) return;
+      setFavorites(Array.isArray(payload.favorites) ? payload.favorites : []);
+    } catch (error) {
+      if ((error as { name?: string }).name === "AbortError") return;
+      setFavorites([]);
+    }
+  }, [user?.id]);
 
   const fetchPlanner = useCallback(async (dateKey: string) => {
     setPlannerLoading(true);
@@ -304,22 +342,39 @@ export default function MealsPage() {
     if (!selectedDate) return;
     setListLoading(true);
     setShowGallery(false);
-    setSelectedFoods([]);
     fetchMeals(selectedDate);
     fetchPlanner(selectedDate);
   }, [selectedDate, fetchMeals, fetchPlanner]);
 
-  const foodTotals = useMemo(() => (
-    selectedFoods.reduce(
-      (acc, item) => ({
-        calories: acc.calories + item.nutrition.calories,
-        protein: acc.protein + item.nutrition.protein,
-        carbs: acc.carbs + item.nutrition.carbs,
-        fat: acc.fat + item.nutrition.fat,
-      }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    )
-  ), [selectedFoods]);
+  useEffect(() => {
+    setFavorites([]);
+    if (!user?.id) return;
+    const controller = new AbortController();
+    void fetchFavorites(controller.signal);
+    return () => controller.abort();
+  }, [user?.id, fetchFavorites]);
+
+  const saveFavouriteMeal = async (payload: {
+    mealType: string;
+    name: string;
+    calories?: number | null;
+    protein?: number | null;
+    carbs?: number | null;
+    fat?: number | null;
+  }) => {
+    const favRes = await fetch("/api/weight-management/favorite-meals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(payload),
+    });
+    if (favRes.ok) {
+      await fetchFavorites();
+      return true;
+    }
+    toast.error("Meal logged, but it could not be saved to favourites");
+    return false;
+  };
 
   const logMeal = async (
     payload: {
@@ -364,70 +419,46 @@ export default function MealsPage() {
     }
     setSubmitting(true);
     try {
-      const saved = await logMeal({
+      const payload = {
         mealType,
         name: customName.trim(),
         calories: customCalories ? parseInt(customCalories, 10) : null,
         protein: customProtein ? parseFloat(customProtein) : null,
         carbs: customCarbs ? parseFloat(customCarbs) : null,
         fat: customFat ? parseFloat(customFat) : null,
-      });
+      };
+      const saved = await logMeal(payload);
       if (saved) {
+        if (saveAsFavourite) {
+          await saveFavouriteMeal(payload);
+        }
         setCustomName("");
         setCustomCalories("");
         setCustomProtein("");
         setCustomCarbs("");
         setCustomFat("");
+        setSaveAsFavourite(false);
+        setShowCustomMealDialog(false);
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleSaveFoods = async () => {
-    if (selectedFoods.length === 0) return;
-    setLoggingFoods(true);
-    try {
-      const byType = new Map<string, SelectedFood[]>();
-      for (const item of selectedFoods) {
-        const type = item.mealType || "LUNCH";
-        const group = byType.get(type) ?? [];
-        group.push(item);
-        byType.set(type, group);
-      }
-      let added = 0;
-      for (const [type, items] of byType) {
-        const groupTotals = items.reduce(
-          (acc, item) => ({
-            calories: acc.calories + item.nutrition.calories,
-            protein: acc.protein + item.nutrition.protein,
-            carbs: acc.carbs + item.nutrition.carbs,
-            fat: acc.fat + item.nutrition.fat,
-          }),
-          { calories: 0, protein: 0, carbs: 0, fat: 0 }
-        );
-        const saved = await logMeal(
-          {
-            mealType: type,
-            name: items.map((item) => `${item.food.name} (${item.portion}x)`).join(", "),
-            calories: groupTotals.calories || null,
-            protein: groupTotals.protein || null,
-            carbs: groupTotals.carbs || null,
-            fat: groupTotals.fat || null,
-          },
-          { silent: true }
-        );
-        if (saved) added += 1;
-      }
-      if (added > 0) {
-        setSuccessMessage(getRandomMotivation("mealLogging"));
-        setShowSuccess(true);
-        fetchMeals(selectedDate);
-        setSelectedFoods([]);
-      }
-    } finally {
-      setLoggingFoods(false);
+  const handleSaveDatabaseMeal = async (meal: CombinedFoodMeal) => {
+    const payload = {
+      mealType: meal.mealType,
+      name: meal.name,
+      calories: meal.calories || null,
+      protein: meal.protein || null,
+      carbs: meal.carbs || null,
+      fat: meal.fat || null,
+    };
+    const saved = await logMeal(payload);
+    if (saved && meal.saveAsFavourite) {
+      await saveFavouriteMeal(payload);
     }
+    return saved;
   };
 
   const plannerPayload = (meal: PlannedMeal) => ({
@@ -438,6 +469,38 @@ export default function MealsPage() {
     carbs: meal.recipe.carbs ?? null,
     fat: meal.recipe.fat ?? null,
   });
+
+  const handleFavoriteAdd = async (meal: FavoriteMeal) => {
+    setLoggingFavoriteId(meal.id);
+    try {
+      await logMeal({
+        mealType,
+        name: meal.name,
+        calories: meal.calories,
+        protein: meal.protein,
+        carbs: meal.carbs,
+        fat: meal.fat,
+      });
+    } finally {
+      setLoggingFavoriteId(null);
+    }
+  };
+
+  const handleFavoriteRemove = async (id: string) => {
+    try {
+      const res = await fetch(`/api/weight-management/favorite-meals?id=${id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        toast.error("Could not remove favourite");
+        return;
+      }
+      setFavorites((current) => current.filter((meal) => meal.id !== id));
+    } catch {
+      toast.error("Could not remove favourite");
+    }
+  };
 
   const handlePlannerAdd = async (meal: PlannedMeal) => {
     setLoggingPlannerId(meal.id);
@@ -470,13 +533,25 @@ export default function MealsPage() {
   const handleSelectFromGallery = async (meal: {
     name: string;
     calories: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
     mealType: string;
+    saveAsFavourite?: boolean;
   }) => {
-    return logMeal({
+    const payload = {
       mealType: meal.mealType,
       name: meal.name,
       calories: meal.calories,
-    });
+      protein: meal.protein ?? null,
+      carbs: meal.carbs ?? null,
+      fat: meal.fat ?? null,
+    };
+    const saved = await logMeal(payload);
+    if (saved && meal.saveAsFavourite) {
+      await saveFavouriteMeal(payload);
+    }
+    return saved;
   };
 
   const handleDelete = async (id: string) => {
@@ -508,7 +583,10 @@ export default function MealsPage() {
 
       <MealGallery
         open={showGallery}
-        onOpenChange={setShowGallery}
+        onOpenChange={(open) => {
+          setShowGallery(open);
+          if (!open) void fetchFavorites();
+        }}
         onSelectMeal={handleSelectFromGallery}
       />
 
@@ -600,8 +678,8 @@ export default function MealsPage() {
       </Card>
 
       {isToday ? (
-      <div className="grid items-stretch gap-4 lg:grid-cols-3">
-        <Card className="flex flex-col">
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <Card className="flex h-full flex-col overflow-hidden">
           <CardHeader className="space-y-1 pb-3 lg:min-h-[4.75rem]">
             <CardTitle className="flex items-center gap-2 text-base">
               <Utensils className="h-4 w-4 text-orange-500" />
@@ -609,25 +687,92 @@ export default function MealsPage() {
             </CardTitle>
             <p className="text-sm text-muted-foreground lg:invisible">Already in planner</p>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col">
-            <form onSubmit={handleCustomSubmit} className="flex flex-1 flex-col space-y-3">
-              <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Meal type</Label>
-                <Select value={mealType} onValueChange={setMealType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(MEAL_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        <span className="flex items-center gap-2">
-                          {MEAL_ICONS[key]}
-                          {label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <CardContent className="flex min-h-0 flex-1 flex-col space-y-3">
+            <div className="space-y-1.5">
+              <Label>Meal type</Label>
+              <Select value={mealType} onValueChange={setMealType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(MEAL_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      <span className="flex items-center gap-2">
+                        {MEAL_ICONS[key]}
+                        {label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Favourites
+              </p>
+              {favorites.length === 0 ? (
+                <div className="flex flex-1 flex-col justify-center rounded-lg border border-dashed px-4 py-8 text-center">
+                  <Heart className="mx-auto mb-2 h-6 w-6 text-rose-300" />
+                  <p className="text-sm text-muted-foreground">No favourite meals yet</p>
+                </div>
+              ) : (
+                <div className="max-h-72 min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5 lg:max-h-none">
+                  {favorites.map((meal) => (
+                    <div
+                      key={meal.id}
+                      className="flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-2"
+                    >
+                      <Heart className="h-3.5 w-3.5 shrink-0 fill-rose-500 text-rose-500" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{meal.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {meal.calories != null ? `${meal.calories} cal` : "Calories not set"}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-500"
+                        onClick={() => handleFavoriteRemove(meal.id)}
+                        aria-label={`Remove ${meal.name} from favourites`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8 shrink-0"
+                        disabled={loggingFavoriteId === meal.id}
+                        onClick={() => handleFavoriteAdd(meal)}
+                        aria-label={`Add ${meal.name} to today`}
+                      >
+                        {loggingFavoriteId === meal.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Button
+              type="button"
+              className="mt-auto w-full bg-orange-500 hover:bg-orange-600"
+              onClick={() => setShowCustomMealDialog(true)}
+            >
+              Add custom meal
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Dialog open={showCustomMealDialog} onOpenChange={setShowCustomMealDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Add custom meal</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCustomSubmit} className="space-y-3">
               <div className="space-y-1.5">
                 <Label>Meal name</Label>
                 <Input
@@ -640,9 +785,15 @@ export default function MealsPage() {
                 <Label>Estimated calories</Label>
                 <Input
                   type="number"
+                  inputMode="numeric"
+                  max={9999}
                   placeholder="450"
+                  className="h-9 w-[4.5rem] px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   value={customCalories}
-                  onChange={(e) => setCustomCalories(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    setCustomCalories(next);
+                  }}
                 />
               </div>
               <div className="space-y-1.5">
@@ -682,20 +833,33 @@ export default function MealsPage() {
                   />
                 </div>
               </div>
-              </div>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-rose-100 bg-rose-50/60 px-3 py-2 dark:border-rose-900/60 dark:bg-rose-950/20">
+                <Checkbox
+                  checked={saveAsFavourite}
+                  onCheckedChange={(checked) => setSaveAsFavourite(checked === true)}
+                  aria-label="Save in favourites"
+                />
+                <Heart
+                  className={`h-4 w-4 ${
+                    saveAsFavourite ? "fill-rose-500 text-rose-500" : "text-rose-400"
+                  }`}
+                />
+                <span className="text-sm font-medium">Save in favourites</span>
+              </label>
               <Button
                 type="submit"
                 disabled={submitting || !customName.trim()}
-                className="mt-auto w-full bg-orange-500 hover:bg-orange-600"
+                className="w-full bg-orange-500 hover:bg-orange-600"
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save meal
               </Button>
             </form>
-          </CardContent>
-        </Card>
+          </DialogContent>
+        </Dialog>
 
-        <Card className="flex flex-col">
+        <div className="flex h-full flex-col gap-4">
+        <Card className="flex flex-1 flex-col">
           <CardHeader className="space-y-1 pb-3 lg:min-h-[4.75rem]">
             <CardTitle className="flex items-center gap-2 text-base">
               <ClipboardList className="h-4 w-4 text-teal-600" />
@@ -769,67 +933,24 @@ export default function MealsPage() {
               <Sparkles className="h-4 w-4 text-amber-500" />
               Add from our meals collection
             </CardTitle>
-            <p className="text-sm text-muted-foreground lg:invisible">Already in planner</p>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col space-y-4">
             <MealGalleryPreview onViewAll={() => setShowGallery(true)} />
             <p className="text-center text-sm font-medium text-muted-foreground">or</p>
             <div className="mt-auto space-y-2">
             <FoodSearchDialog
-              onSelectFood={(food, portion, nutrition, foodMealType) => {
-                setSelectedFoods((current) => [
-                  ...current,
-                  { food, portion, nutrition, mealType: foodMealType },
-                ]);
-              }}
+              defaultMealType={mealType}
+              onSaveMeal={handleSaveDatabaseMeal}
               trigger={
                 <Button type="button" variant="outline" className="w-full gap-2">
                   <Search className="h-4 w-4" /> Search our food database
                 </Button>
               }
             />
-            {selectedFoods.length > 0 ? (
-              <div className="space-y-2">
-                {selectedFoods.map((item, index) => (
-                  <div key={`${item.food.name}-${index}`} className="flex items-center gap-2 rounded-lg bg-muted/50 p-2">
-                    <MealThumb name={item.food.name} className="h-10 w-10 shrink-0 rounded-md" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{item.food.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {MEAL_LABELS[item.mealType] || item.mealType}
-                        {" · "}
-                        {item.portion} serving{item.portion > 1 ? "s" : ""} · {item.nutrition.calories} cal
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setSelectedFoods((current) => current.filter((_, i) => i !== index))}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm dark:border-orange-800 dark:bg-orange-950/20">
-                  <span className="font-medium">Total</span>
-                  <Badge className="bg-orange-500">{foodTotals.calories} cal</Badge>
-                </div>
-                <Button
-                  type="button"
-                  onClick={handleSaveFoods}
-                  disabled={loggingFoods}
-                  className="w-full bg-orange-500 hover:bg-orange-600"
-                >
-                  {loggingFoods && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save selected foods
-                </Button>
-              </div>
-            ) : null}
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
       ) : null}
 

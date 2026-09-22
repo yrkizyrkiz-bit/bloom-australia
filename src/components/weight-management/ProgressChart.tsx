@@ -12,10 +12,17 @@ interface ProgressChartProps {
   data: WeeklyData[];
   startingWeight?: number;
   targetWeight?: number;
+  weeklyTargetLoss?: number | null;
   showFullStats?: boolean;
 }
 
-export function ProgressChart({ data, startingWeight, targetWeight, showFullStats = false }: ProgressChartProps) {
+export function ProgressChart({
+  data,
+  startingWeight,
+  targetWeight,
+  weeklyTargetLoss,
+  showFullStats = false,
+}: ProgressChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
@@ -28,12 +35,13 @@ export function ProgressChart({ data, startingWeight, targetWeight, showFullStat
     const range = maxWeight - minWeight || 5;
     const padding = range * 0.15;
 
-    // Generate average progress line (expected steady decline)
     const actualStart = startingWeight || weights[0];
-    const expectedWeeklyLoss = 0.5; // 0.5kg per week average
-    const averageProgress = data.map((_, i) => {
-      return actualStart - (expectedWeeklyLoss * i);
-    });
+    const expectedWeeklyLoss =
+      weeklyTargetLoss != null && weeklyTargetLoss > 0 ? weeklyTargetLoss : null;
+    const averageProgress =
+      expectedWeeklyLoss != null
+        ? data.map((_, i) => actualStart - expectedWeeklyLoss * i)
+        : [];
 
     return {
       points: data.map((d, i) => ({
@@ -51,7 +59,7 @@ export function ProgressChart({ data, startingWeight, targetWeight, showFullStat
       maxWeight: maxWeight + padding,
       range: range + padding * 2,
     };
-  }, [data, startingWeight]);
+  }, [data, startingWeight, weeklyTargetLoss]);
 
   if (!chartData || chartData.points.length === 0) {
     return (
@@ -65,7 +73,7 @@ export function ProgressChart({ data, startingWeight, targetWeight, showFullStat
   }
 
   // Calculate stats
-  const firstWeight = chartData.points[0].weight;
+  const firstWeight = startingWeight ?? chartData.points[0].weight;
   const currentWeight = chartData.points[chartData.points.length - 1].weight;
   const totalChange = currentWeight - firstWeight;
   const isLoss = totalChange <= 0;
@@ -77,7 +85,6 @@ export function ProgressChart({ data, startingWeight, targetWeight, showFullStat
 
   const areaD = `${pathD} L ${chartData.points[chartData.points.length - 1].x} 100 L 0 100 Z`;
 
-  // Average progress path (dashed line)
   const avgPathD = chartData.averagePoints
     .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
     .join(" ");
@@ -209,16 +216,17 @@ export function ProgressChart({ data, startingWeight, targetWeight, showFullStat
               </defs>
               <path d={areaD} fill="url(#juniperGradient)" />
 
-              {/* Average progress dashed line */}
-              <path
-                d={avgPathD}
-                fill="none"
-                stroke="rgba(255,255,255,0.3)"
-                strokeWidth="1.5"
-                strokeDasharray="4 3"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-              />
+              {avgPathD ? (
+                <path
+                  d={avgPathD}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.3)"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 3"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ) : null}
 
               {/* Main progress line - violet/purple */}
               <path
@@ -300,10 +308,12 @@ export function ProgressChart({ data, startingWeight, targetWeight, showFullStat
 
       {/* Legend */}
       <div className="relative z-10 flex items-center gap-4 mt-4 text-xs text-emerald-300/70">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-white/30" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 3px, #fff 3px, #fff 6px)' }} />
-          <span>Average progress</span>
-        </div>
+        {avgPathD ? (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-0.5 bg-white/30" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 3px, #fff 3px, #fff 6px)' }} />
+            <span>Doctor plan</span>
+          </div>
+        ) : null}
         <div className="flex items-center gap-2">
           <div className="w-4 h-0.5 bg-violet-400 rounded-full" />
           <span>Your progress</span>
@@ -343,10 +353,16 @@ export function ViewTrackingHistoryButton({ onClick }: { onClick?: () => void })
 }
 
 // Full-page Progress Chart Component for the Progress page
-export function FullProgressChart({ data, startingWeight, targetWeight }: ProgressChartProps) {
+export function FullProgressChart({
+  data,
+  startingWeight,
+  targetWeight,
+  weeklyTargetLoss,
+}: ProgressChartProps) {
   return (
     <ProgressChart
       data={data}
+      weeklyTargetLoss={weeklyTargetLoss}
       startingWeight={startingWeight}
       targetWeight={targetWeight}
       showFullStats={true}

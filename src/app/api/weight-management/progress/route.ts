@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { overlayGoalWithActivePlan } from "@/lib/weight-management/apply-weight-plan";
+import { weeklyAveragesFromWeightLogs } from "@/lib/program/program-week";
 
 // GET - Fetch comprehensive progress data
 export async function GET(request: NextRequest) {
@@ -57,32 +58,14 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const goal = activeGoal ? overlayGoalWithActivePlan(activeGoal, activePlan) : null;
+
     // Weight progress
     const currentWeight = weightLogs[weightLogs.length - 1]?.weight || null;
-    const startWeight = weightLogs[0]?.weight || currentWeight;
+    const startWeight = goal?.startWeight ?? weightLogs[0]?.weight ?? currentWeight;
     const weightChange = currentWeight && startWeight ? Math.round((currentWeight - startWeight) * 10) / 10 : 0;
 
-    // Weekly weight averages for chart
-    const weeklyWeights: { week: string; avgWeight: number; minWeight: number; maxWeight: number }[] = [];
-    const weightsByWeek: Record<string, number[]> = {};
-
-    weightLogs.forEach((log) => {
-      const date = new Date(log.measuredAt);
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
-      const weekKey = weekStart.toISOString().split("T")[0];
-      if (!weightsByWeek[weekKey]) weightsByWeek[weekKey] = [];
-      weightsByWeek[weekKey].push(log.weight);
-    });
-
-    Object.entries(weightsByWeek).forEach(([week, weights]) => {
-      weeklyWeights.push({
-        week,
-        avgWeight: Math.round((weights.reduce((a, b) => a + b, 0) / weights.length) * 10) / 10,
-        minWeight: Math.min(...weights),
-        maxWeight: Math.max(...weights),
-      });
-    });
+    const weeklyWeights = weeklyAveragesFromWeightLogs(weightLogs);
 
     // Exercise summary
     const totalExerciseMinutes = exerciseLogs.reduce((sum, l) => sum + l.durationMinutes, 0);
@@ -104,7 +87,6 @@ export async function GET(request: NextRequest) {
       stress: c.stressLevel,
     })).reverse();
 
-    const goal = activeGoal ? overlayGoalWithActivePlan(activeGoal, activePlan) : null;
     let goalProgress = null;
     if (goal) {
       const latest = currentWeight ?? goal.startWeight;
@@ -115,6 +97,8 @@ export async function GET(request: NextRequest) {
         currentWeight: latest,
         startDate: new Date(goal.startDate).toISOString(),
         targetDate: new Date(goal.targetDate).toISOString(),
+        weeklyTargetLoss: activePlan?.weeklyTargetLoss ?? null,
+        hasDoctorPlan: Boolean(activePlan),
         totalToLose: Math.round(totalToLose * 10) / 10,
         actualLost: Math.round(actualLost * 10) / 10,
         percentComplete:

@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
+import { programWeekLabel } from "./program-week";
+import { daysOnProgramInWindow } from "./program-activity-window";
 import { buildProgramContext, contextHash } from "./build-context";
 import { evaluateBiomarkerFlags, applyBiomarkerEscalations } from "./biomarker-rules";
 
@@ -50,6 +52,11 @@ type InsightContext = {
   doseStatus?: string;
   weightLogs: number;
   weightChangeKg: number | null;
+  startWeightKg?: number | null;
+  currentWeightKg?: number | null;
+  weightChangeFromStartKg?: number | null;
+  weightChangeThisWeekKg?: number | null;
+  weightLogsThisWeek?: number;
   mealLogs: number;
   exerciseSessions: number;
   exerciseMinutes: number;
@@ -77,6 +84,11 @@ function formatWeeklyLossGoal(weeklyTargetLossKg?: number | null): string {
   return `your goals (about ${rounded} kg average loss per week)`;
 }
 
+/** True only in week 0/1 and the first few calendar days after program start. */
+export function shouldWriteEarlyWelcome(programWeek: number, daysOnProgram: number) {
+  return programWeek <= 1 && daysOnProgram > 0 && daysOnProgram <= 3;
+}
+
 /** Welcome note for the first few days — no “missed days” language. */
 export function buildEarlyProgramWelcomeInsight(input: {
   memberName?: string | null;
@@ -89,7 +101,10 @@ export function buildEarlyProgramWelcomeInsight(input: {
 }): WeeklyInsightPayload {
   const name = input.memberName?.trim() || "there";
   const plan = formatPlanLabel(input.planTier);
-  const goalsLine = formatWeeklyLossGoal(input.weeklyTargetLossKg);
+  const weekBit =
+    input.programWeek === 0
+      ? `These are your first few days on ${plan}`
+      : `This is your first week on ${plan}`;
   const medication = input.medicationName?.trim();
   const dosage = input.dosage?.trim();
   const medBit = medication
@@ -101,9 +116,9 @@ export function buildEarlyProgramWelcomeInsight(input: {
   return {
     summary: `Welcome, ${name} — lovely to have you here. I'm George, your new friend on this journey, and I'm excited to join you.`,
     bullets: [
-      `This is your first week on ${plan}, so familiarise yourself with the program and settle in.`,
+      `${weekBit}, so familiarise yourself with the program and settle in.`,
       `Please check in and complete your rings — daily would be fantastic.`,
-      `Keep on top of your activities, calories, and ${medBit}, and we should stay right on track for ${goalsLine}.`,
+      `Keep on top of your activities, calories, and ${medBit}, and we should stay right on track for your goals.`,
     ],
     focusArea: "Complete your rings today",
     encouragement: "I'll keep track myself and update you as we go — let's do this!",
@@ -142,7 +157,19 @@ Medication rules:
 Program start rules:
 - Only judge days on or after their program start date.
 - If they started mid-week, do not mention gaps, catch-up, missed earlier weekdays, or “days before start”.
-- In the first few days, write as George — their warm companion on the journey. Welcome them by name, introduce yourself, encourage daily rings, and mention activities, calories, and meds. If a weekly loss target is known, reference it naturally.`;
+- In the first few days, write as George — their warm companion on the journey. Welcome them by name, introduce yourself, encourage daily rings, and mention activities, calories, and meds. If a weekly loss target is known, reference it naturally.
+
+Program week rules:
+- Weeks are Monday–Sunday.
+- Week 0 is a short getting-started stub (they joined with 3 or fewer days left in that week). Do not call week 0 “week 1” or “three weeks in”.
+- Week 1 is the first full-enough week. Use the week number given — never add one.
+
+Weight rules:
+- There are two different numbers. Do not mix them.
+- “Change since program start” is their total loss or gain on the program. Use only this number when you say how much they have lost, or how they are tracking across days on the program.
+- “Change this week” is only Monday–Sunday of the current week. If you mention it, label it as this week only.
+- Never describe this week’s kg change as their program loss, and never say they lost that amount “across X days”.
+- Prefer the program start weight (goal / plan) over the first weigh-in of a short lookback.`;
 
   const daysOnProgram = input.daysOnProgram ?? 0;
   const startNote = input.programStartedAt
@@ -159,18 +186,34 @@ Program start rules:
       ? `Weekly loss goal: about ${Math.round(input.weeklyTargetLossKg * 10) / 10} kg average per week.`
       : "Weekly loss goal: not set yet.";
 
-  const userPrompt = `Week ${input.programWeek + 1} note for ${input.memberName} (${input.phase.toLowerCase()}).
+  const fromStart =
+    input.weightChangeFromStartKg ?? input.weightChangeKg ?? null;
+  const thisWeek = input.weightChangeThisWeekKg ?? null;
+  const startKg = input.startWeightKg;
+  const currentKg = input.currentWeightKg;
+  const weightBlock = [
+    startKg != null ? `Program start weight: ${startKg} kg.` : "Program start weight: not set.",
+    currentKg != null ? `Latest weigh-in: ${currentKg} kg.` : "Latest weigh-in: none.",
+    fromStart != null
+      ? `Change since program start: ${fromStart} kg. This is the only number to use for total loss on the program.`
+      : "Change since program start: not enough weigh-ins.",
+    thisWeek != null
+      ? `Change this Mon–Sun week only: ${thisWeek} kg. Do not describe this as their program loss.`
+      : "Change this Mon–Sun week only: not enough weigh-ins this week.",
+  ].join("\n");
+
+  const userPrompt = `${programWeekLabel(input.programWeek)} note for ${input.memberName} (${input.phase.toLowerCase()}).
 
 ${startNote}
 Plan: ${formatPlanLabel(input.planTier)}.
 ${weeklyGoalNote}
 
+${weightBlock}
+
 Medication: ${input.medicationNote || "No medication schedule on file."}
 Dose status: ${input.doseStatus || "unknown"}
 
-Since the program started they have ${input.weightLogs} weigh-in${input.weightLogs === 1 ? "" : "s"}${
-    input.weightChangeKg != null ? ` (change ${input.weightChangeKg} kg)` : ""
-  }, ${input.mealLogs} meal${input.mealLogs === 1 ? "" : "s"}, and ${input.exerciseSessions} movement session${
+Since the program started they have ${input.weightLogs} weigh-in${input.weightLogs === 1 ? "" : "s"}, ${input.mealLogs} meal${input.mealLogs === 1 ? "" : "s"}, and ${input.exerciseSessions} movement session${
     input.exerciseSessions === 1 ? "" : "s"
   } (${input.exerciseMinutes} min).
 Side effects mentioned: ${input.sideEffectReports}.
@@ -186,8 +229,7 @@ export function buildFriendlyFallbackInsight(
   programWeek: number,
   ctx: InsightContext
 ): WeeklyInsightPayload {
-  const earlyDays = (ctx.daysOnProgram ?? 0) > 0 && (ctx.daysOnProgram ?? 0) <= 3;
-  if (earlyDays) {
+  if (shouldWriteEarlyWelcome(programWeek, ctx.daysOnProgram ?? 0)) {
     return buildEarlyProgramWelcomeInsight({
       memberName,
       programWeek,
@@ -207,14 +249,15 @@ export function buildFriendlyFallbackInsight(
         : "Your dose schedule is on track.";
 
   return {
-    summary: `Hey ${name}, you're in week ${programWeek + 1}. ${
+    summary: `Hey ${name}, you're in ${programWeek <= 0 ? "your first few days" : `week ${programWeek}`}. ${
       ctx.mealLogs > 0 || ctx.exerciseSessions > 0
         ? "You've already put some good days on the board."
         : "This week is a fresh start — no pressure, just a couple of small wins."
     }`,
     bullets: [
-      ctx.weightChangeKg != null && ctx.weightChangeKg < 0
-        ? `Nice one — you're ${Math.abs(ctx.weightChangeKg)} kg down from your recent weigh-ins.`
+      (ctx.weightChangeFromStartKg ?? ctx.weightChangeKg) != null &&
+      (ctx.weightChangeFromStartKg ?? ctx.weightChangeKg)! < 0
+        ? `Nice one — you're ${Math.abs((ctx.weightChangeFromStartKg ?? ctx.weightChangeKg)!)} kg down from your program start weight.`
         : "A weigh-in at the same time of day makes the trend much easier to trust.",
       ctx.mealLogs > 0
         ? `Those ${ctx.mealLogs} meals you added help us see what actually works for you.`
@@ -290,7 +333,8 @@ export async function generateWeeklyInsight(
     return fallback;
   }
 
-  if ((ctx.daysOnProgram ?? 0) > 0 && (ctx.daysOnProgram ?? 0) <= 3) {
+  const daysSinceStart = daysOnProgramInWindow(program?.startedAt ?? null);
+  if (shouldWriteEarlyWelcome(programWeek, daysSinceStart)) {
     const welcome = buildEarlyProgramWelcomeInsight({
       memberName: program?.user.firstName || ctx.memberName,
       programWeek,
@@ -350,6 +394,11 @@ export async function generateWeeklyInsight(
     doseStatus: ctx.doseStatus,
     weightLogs: ctx.weightLogs,
     weightChangeKg: ctx.weightChangeKg,
+    startWeightKg: ctx.startWeightKg,
+    currentWeightKg: ctx.currentWeightKg,
+    weightChangeFromStartKg: ctx.weightChangeFromStartKg,
+    weightChangeThisWeekKg: ctx.weightChangeThisWeekKg,
+    weightLogsThisWeek: ctx.weightLogsThisWeek,
     mealLogs: ctx.mealLogs,
     exerciseSessions: ctx.exerciseSessions,
     exerciseMinutes: ctx.exerciseMinutes,

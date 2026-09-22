@@ -1,7 +1,7 @@
 import type { RingWeekScore } from "@/lib/weight-management/score-ring-week";
 
 const RING_WEEK_CACHE_KEY = "sanative_wm_ring_week_v1";
-const HOME_CACHE_KEY = "sanative_wm_home_v1";
+const HOME_CACHE_KEY = "sanative_wm_home_v3";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export type WmHomeCachePayload = {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { ProgramPhase } from "@prisma/client";
 import { isWeightManagementUser } from "@/lib/wm/is-wm-user";
+import { programCalendarWeek } from "./program-week";
 
 /**
  * Advance WM program phase from adherence + time on program.
@@ -14,10 +15,7 @@ export async function evaluateProgramPhase(userId: string) {
   });
   if (!program?.isActive) return null;
 
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const weeks = Math.floor(
-    (Date.now() - new Date(program.startedAt).getTime()) / weekMs
-  );
+  const weeks = programCalendarWeek(program.startedAt);
 
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const [tasksDone, tasksTotal, openSideEffects] = await Promise.all([

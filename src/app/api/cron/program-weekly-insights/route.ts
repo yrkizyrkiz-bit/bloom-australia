@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateWeeklyInsight } from "@/lib/program/weekly-insight";
+import { programCalendarWeek } from "@/lib/program/program-week";
 import { evaluateBiomarkerFlags, applyBiomarkerEscalations } from "@/lib/program/biomarker-rules";
 import { assertCronAuthorized } from "@/lib/security/cron-auth";
 
@@ -16,14 +17,11 @@ export async function GET(request: NextRequest) {
       where: { isActive: true, user: { journeyStatus: "ACTIVE" } },
     });
 
-    const weekMs = 7 * 24 * 60 * 60 * 1000;
     let generated = 0;
     let biomarkerEscalations = 0;
 
     for (const program of programs) {
-      const programWeek = Math.floor(
-        (Date.now() - new Date(program.startedAt).getTime()) / weekMs
-      );
+      const programWeek = programCalendarWeek(program.startedAt);
 
       await generateWeeklyInsight(program.userId, program.id, programWeek);
 

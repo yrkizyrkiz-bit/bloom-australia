@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { summariseMedicationForInsight } from "@/lib/program/dose-insight";
 import {
+  buildEarlyProgramWelcomeInsight,
   buildFriendlyFallbackInsight,
   buildPreActivationInsight,
   buildWeeklyInsightPrompts,
   isProgramReadyForWeeklyInsight,
+  shouldWriteEarlyWelcome,
 } from "@/lib/program/weekly-insight";
 
 describe("weekly insight activation guard", () => {
@@ -109,8 +111,13 @@ describe("medication insight for weekly dosing", () => {
     });
     expect(systemPrompt).toMatch(/never treat medication as daily/i);
     expect(systemPrompt).not.toMatch(/adherence is low/i);
+    expect(systemPrompt).toMatch(/Change since program start/i);
+    expect(systemPrompt).toMatch(/never describe this week/i);
     expect(userPrompt).toContain("not due yet");
     expect(userPrompt).not.toMatch(/Dose adherence:/);
+    expect(userPrompt).toMatch(/Week 0 \(getting-started/);
+    expect(userPrompt).toMatch(/Change since program start: -1 kg/);
+    expect(userPrompt).toMatch(/this Mon–Sun week only/);
 
     const fallback = buildFriendlyFallbackInsight("Red", 0, {
       memberName: "Red",
@@ -118,12 +125,35 @@ describe("medication insight for weekly dosing", () => {
       doseStatus: "not_due_yet",
       weightLogs: 2,
       weightChangeKg: -1,
+      weightChangeFromStartKg: -1,
       mealLogs: 16,
       exerciseSessions: 2,
       exerciseMinutes: 45,
       sideEffectReports: 0,
     });
     expect(fallback.summary).toMatch(/Hey Red/);
+    expect(fallback.summary).toMatch(/first few days/);
+    expect(fallback.bullets.join(" ")).toMatch(/program start weight/);
     expect(fallback.focusArea).toMatch(/first dose/i);
+  });
+
+  it("does not welcome again after week 1 even if a later plan save looks like day 1", () => {
+    expect(shouldWriteEarlyWelcome(3, 1)).toBe(false);
+    const fallback = buildFriendlyFallbackInsight("Maria", 3, {
+      memberName: "Maria",
+      daysOnProgram: 1,
+      weightLogs: 6,
+      weightChangeKg: -0.4,
+      weightChangeFromStartKg: -2.1,
+      mealLogs: 10,
+      exerciseSessions: 3,
+      exerciseMinutes: 90,
+      sideEffectReports: 0,
+    });
+    expect(fallback.summary).not.toMatch(/Welcome/);
+    expect(fallback.summary).toMatch(/week 3/i);
+    expect(buildEarlyProgramWelcomeInsight({ memberName: "Maria", programWeek: 3 }).bullets.join(" ")).not.toMatch(
+      /0\.5 kg/
+    );
   });
 });

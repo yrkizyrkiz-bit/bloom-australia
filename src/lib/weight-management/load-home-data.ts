@@ -8,6 +8,7 @@ import {
   resolveQuizTargetWeightKg,
 } from "@/lib/weight-management/quiz-goal-defaults";
 import { scoreRingWeek, startOfWeekMonday, toDateKey } from "@/lib/weight-management/score-ring-week";
+import { weeklyAveragesFromWeightLogs } from "@/lib/program/program-week";
 import { isWeightManagementApproved } from "@/lib/weight-management/ring-approval";
 import { loadPortalConsultation } from "@/lib/program-journey/load-portal-consultation";
 import { shouldPromptWeeklyCheckIn } from "@/lib/weight-management/weekly-check-in-eligibility";
@@ -42,19 +43,7 @@ function stageFor(journeyStatus: string) {
 }
 
 function weeklyAveragesFromLogs(logs: Array<{ measuredAt: Date; weight: number }>) {
-  const weightsByWeek: Record<string, number[]> = {};
-  logs.forEach((log) => {
-    const date = new Date(log.measuredAt);
-    const weekStart = new Date(date);
-    weekStart.setDate(date.getDate() - date.getDay());
-    const weekKey = weekStart.toISOString().split("T")[0];
-    if (!weightsByWeek[weekKey]) weightsByWeek[weekKey] = [];
-    weightsByWeek[weekKey].push(log.weight);
-  });
-  return Object.entries(weightsByWeek).map(([week, weights]) => ({
-    week,
-    avgWeight: Math.round((weights.reduce((a, b) => a + b, 0) / weights.length) * 10) / 10,
-  }));
+  return weeklyAveragesFromWeightLogs(logs).map(({ week, avgWeight }) => ({ week, avgWeight }));
 }
 
 function goalProgressFromQuiz(
@@ -82,6 +71,8 @@ function goalProgressFromQuiz(
     targetWeight: target,
     startDate: begun.toISOString(),
     targetDate: `${defaultPlanTargetDate(begun)}T00:00:00.000Z`,
+    weeklyTargetLoss: null,
+    hasDoctorPlan: false,
     percentComplete:
       totalToLose > 0 ? Math.min(100, Math.max(0, Math.round((actualLost / totalToLose) * 100))) : 0,
     remainingToLose: Math.round(Math.max(0, latest - target) * 10) / 10,
@@ -156,7 +147,7 @@ function buildSlimProgress(input: {
     goalStart != null ? weightLogs.filter((log) => log.measuredAt >= goalStart) : recentLogs;
 
   const currentWeight = weightLogs[weightLogs.length - 1]?.weight || null;
-  const startWeight = recentLogs[0]?.weight || currentWeight;
+  const startWeight = goal?.startWeight ?? recentLogs[0]?.weight ?? currentWeight;
   const weightChange =
     currentWeight && startWeight ? Math.round((currentWeight - startWeight) * 10) / 10 : 0;
 
@@ -181,20 +172,33 @@ function buildSlimProgress(input: {
   const totalExerciseMinutes = exerciseThisWeek.reduce((sum, l) => sum + l.durationMinutes, 0);
 
   let goalProgress = null;
-  if (goal) {
-    const latest = currentWeight ?? goal.startWeight;
-    const totalToLose = goal.startWeight - goal.targetWeight;
-    const actualLost = goal.startWeight - latest;
+  const planned = goal ?? (
+    input.activePlan?.startWeight != null &&
+    input.activePlan.targetWeight != null
+      ? {
+          startWeight: input.activePlan.startWeight,
+          targetWeight: input.activePlan.targetWeight,
+          startDate: new Date(),
+          targetDate: input.activePlan.targetDate ?? new Date(),
+        }
+      : null
+  );
+  if (planned) {
+    const latest = currentWeight ?? planned.startWeight;
+    const totalToLose = planned.startWeight - planned.targetWeight;
+    const actualLost = planned.startWeight - latest;
     goalProgress = {
-      startWeight: goal.startWeight,
-      targetWeight: goal.targetWeight,
-      startDate: new Date(goal.startDate).toISOString(),
-      targetDate: new Date(goal.targetDate).toISOString(),
+      startWeight: planned.startWeight,
+      targetWeight: planned.targetWeight,
+      startDate: new Date(planned.startDate).toISOString(),
+      targetDate: new Date(planned.targetDate).toISOString(),
+      weeklyTargetLoss: input.activePlan?.weeklyTargetLoss ?? null,
+      hasDoctorPlan: Boolean(input.activePlan),
       percentComplete:
         totalToLose > 0
           ? Math.min(100, Math.max(0, Math.round((actualLost / totalToLose) * 100)))
           : 0,
-      remainingToLose: Math.round(Math.max(0, latest - goal.targetWeight) * 10) / 10,
+      remainingToLose: Math.round(Math.max(0, latest - planned.targetWeight) * 10) / 10,
       actualLost: Math.round(actualLost * 10) / 10,
     };
   }

@@ -5,6 +5,8 @@ import {
   programActivityWindowStart,
   resolveProgramCommencement,
 } from "@/lib/program/program-activity-window";
+import { programCalendarWeek, programWeekLabel } from "@/lib/program/program-week";
+import { startOfWeekMonday } from "@/lib/weight-management/score-ring-week";
 
 function auDate(d: Date | string | null | undefined): string {
   if (!d) return "n/a";
@@ -182,6 +184,15 @@ export async function buildGeorgeMemberBrief(userId: string): Promise<string> {
     startWeight != null && currentWeight != null
       ? Math.round((startWeight - currentWeight) * 10) / 10
       : null;
+  const weekStart = startOfWeekMonday();
+  const thisWeekWeights = weightsRecent.filter((log) => log.measuredAt >= weekStart);
+  const thisWeekChangeKg =
+    thisWeekWeights.length >= 2
+      ? Math.round(
+          (thisWeekWeights[thisWeekWeights.length - 1].weight - thisWeekWeights[0].weight) * 10
+        ) / 10
+      : null;
+  const calendarWeek = commencement ? programCalendarWeek(commencement) : null;
 
   const mealLines = mealsRecent.slice(0, 8).map((m) => {
     const cal = m.calories != null ? ` (${m.calories} kcal)` : "";
@@ -216,7 +227,7 @@ export async function buildGeorgeMemberBrief(userId: string): Promise<string> {
     `- Name: ${user?.firstName || "Member"}${user?.lastName ? ` ${user.lastName}` : ""}`,
     `- Journey status: ${user?.journeyStatus || "n/a"}`,
     program
-      ? `- Program: ${program.planTier} · phase ${program.phase} · active=${program.isActive} · started ${auDate(program.startedAt)} · ~${daysOnProgram} day(s) on program`
+      ? `- Program: ${program.planTier} · phase ${program.phase} · active=${program.isActive} · started ${auDate(program.startedAt)} · ${calendarWeek != null ? programWeekLabel(calendarWeek) : "week n/a"} · ~${daysOnProgram} day(s) on program`
       : `- Program: no active member program on file`,
     subscription
       ? `- Subscription: ${subscription.status} · ${subProduct}${subInterval} · period ends ${auDate(subscription.currentPeriodEnd)} · cancelAtPeriodEnd=${subscription.cancelAtPeriodEnd}`
@@ -226,7 +237,13 @@ export async function buildGeorgeMemberBrief(userId: string): Promise<string> {
       : `- Weight goal: none on file`,
     currentWeight != null
       ? `- Latest weigh-in: ${currentWeight} kg on ${auDate(latestWeight?.measuredAt ?? null)}${
-          lostKg != null ? ` · change from start ${lostKg > 0 ? "-" : "+"}${Math.abs(lostKg)} kg` : ""
+          lostKg != null
+            ? ` · change from program start ${lostKg > 0 ? "-" : "+"}${Math.abs(lostKg)} kg (use this for total loss)`
+            : ""
+        }${
+          thisWeekChangeKg != null
+            ? ` · this Mon–Sun week only ${thisWeekChangeKg > 0 ? "+" : ""}${thisWeekChangeKg} kg (do not call this program loss)`
+            : ""
         }`
       : `- Latest weigh-in: none`,
     preferences?.dailyCalorieGoal != null || preferences?.dailyExerciseMin != null

@@ -3,6 +3,7 @@ import { generateDoseDates, parseDoseIntervalDays, startOfDayUTC } from "./dose-
 import { getUserPlanTier, getPlaybookId } from "./plan-tier";
 import { getPlaybook } from "./playbooks";
 import type { ProgramTaskType } from "@prisma/client";
+import { programCalendarWeek } from "./program-week";
 
 const DEFAULT_DOSE_COUNT = 12;
 const INITIAL_TASK_DAYS = 14;
@@ -39,7 +40,7 @@ export async function ensureMemberProgram(userId: string, prescriptionId: string
       playbookId,
       planTier,
       phase: "INDUCTION",
-      currentWeek: 0,
+      currentWeek: programCalendarWeek(startDate),
       timezone: user?.timezone || "Australia/Sydney",
       startedAt: startDate,
     },

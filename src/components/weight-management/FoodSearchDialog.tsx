@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Minus, Check, Apple, Loader2, X } from "lucide-react";
+import { Search, Plus, Minus, Check, Apple, Loader2, X, Heart } from "lucide-react";
 import { FoodItem, FoodCategory, FOOD_CATEGORIES, calculateNutrition } from "@/data/foodDatabase";
+import { combineFoodSelection, formatFoodLine } from "@/lib/weight-management/combine-food-selection";
 
 const SEARCH_MEAL_TYPES: { value: string; label: string }[] = [
   { value: "BREAKFAST", label: "Breakfast" },
@@ -19,18 +21,39 @@ const SEARCH_MEAL_TYPES: { value: string; label: string }[] = [
   { value: "EVENING_SNACK", label: "Evening snack" },
 ];
 
-interface FoodSearchDialogProps {
-  onSelectFood: (food: FoodItem, portion: number, nutrition: {
+type PickedFood = {
+  food: FoodItem;
+  portion: number;
+  nutrition: {
     calories: number;
     protein: number;
     carbs: number;
     fat: number;
     fiber: number;
-  }, mealType: string) => void;
+  };
+};
+
+export type CombinedFoodMeal = {
+  mealType: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  saveAsFavourite: boolean;
+};
+
+interface FoodSearchDialogProps {
+  onSaveMeal: (meal: CombinedFoodMeal) => Promise<boolean>;
   trigger?: React.ReactNode;
+  defaultMealType?: string;
 }
 
-export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProps) {
+export function FoodSearchDialog({
+  onSaveMeal,
+  trigger,
+  defaultMealType = "LUNCH",
+}: FoodSearchDialogProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<FoodCategory | "all">("all");
@@ -38,7 +61,10 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
   const [loading, setLoading] = useState(false);
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [portion, setPortion] = useState(1);
-  const [mealType, setMealType] = useState("LUNCH");
+  const [mealType, setMealType] = useState(defaultMealType);
+  const [pickedFoods, setPickedFoods] = useState<PickedFood[]>([]);
+  const [saveAsFavourite, setSaveAsFavourite] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const searchFoods = useCallback(async () => {
     setLoading(true);
@@ -68,26 +94,83 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
 
   useEffect(() => {
     if (open) {
+      setMealType(defaultMealType);
       searchFoods();
     }
-  }, [open, searchFoods]);
+  }, [open, searchFoods, defaultMealType]);
 
-  const handleSelectFood = () => {
+  const addFood = (food: FoodItem, servings: number) => {
+    setPickedFoods((current) => {
+      const existing = current.findIndex((item) => item.food.id === food.id);
+      if (existing === -1) {
+        return [...current, { food, portion: servings, nutrition: calculateNutrition(food, servings) }];
+      }
+      const next = [...current];
+      const nextPortion = Math.round((next[existing].portion + servings) * 4) / 4;
+      next[existing] = {
+        food,
+        portion: nextPortion,
+        nutrition: calculateNutrition(food, nextPortion),
+      };
+      return next;
+    });
+  };
+
+  const removeFood = (foodId: string) => {
+    setPickedFoods((current) => current.filter((item) => item.food.id !== foodId));
+  };
+
+  const handleAddFromPortion = () => {
     if (!selectedFood) return;
-
-    const nutrition = calculateNutrition(selectedFood, portion);
-    onSelectFood(selectedFood, portion, nutrition, mealType);
-
-    // Reset state
+    addFood(selectedFood, portion);
     setSelectedFood(null);
     setPortion(1);
-    setQuery("");
-    setOpen(false);
+  };
+
+  const combined = useMemo(
+    () =>
+      combineFoodSelection(
+        pickedFoods.map((item) => ({
+          name: item.food.name,
+          portion: item.portion,
+          calories: item.nutrition.calories,
+          protein: item.nutrition.protein,
+          carbs: item.nutrition.carbs,
+          fat: item.nutrition.fat,
+        }))
+      ),
+    [pickedFoods]
+  );
+
+  const handleSaveMeal = async () => {
+    if (pickedFoods.length === 0) return;
+    setSaving(true);
+    try {
+      const saved = await onSaveMeal({
+        mealType,
+        name: combined.name,
+        calories: combined.calories,
+        protein: combined.protein,
+        carbs: combined.carbs,
+        fat: combined.fat,
+        saveAsFavourite,
+      });
+      if (saved) {
+        setPickedFoods([]);
+        setSaveAsFavourite(false);
+        setSelectedFood(null);
+        setPortion(1);
+        setQuery("");
+        setOpen(false);
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const adjustPortion = (delta: number) => {
-    const newPortion = Math.max(0.25, Math.min(10, portion + delta));
-    setPortion(Math.round(newPortion * 4) / 4); // Round to nearest 0.25
+    const next = Math.max(0.25, Math.min(10, portion + delta));
+    setPortion(Math.round(next * 4) / 4);
   };
 
   const currentNutrition = selectedFood ? calculateNutrition(selectedFood, portion) : null;
@@ -109,25 +192,68 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
           </DialogTitle>
         </DialogHeader>
 
-        <div className="shrink-0 space-y-1.5">
-          <Label>Meal type</Label>
-          <Select value={mealType} onValueChange={setMealType}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SEARCH_MEAL_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-[11rem_minmax(0,1fr)]">
+          <div className="space-y-1.5">
+            <Label>Meal type</Label>
+            <Select value={mealType} onValueChange={setMealType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEARCH_MEAL_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Get cooking</Label>
+              <label className="flex cursor-pointer items-center gap-1.5">
+                <Checkbox
+                  checked={saveAsFavourite}
+                  onCheckedChange={(checked) => setSaveAsFavourite(checked === true)}
+                  aria-label="Save in favourites"
+                />
+                <Heart
+                  className={`h-3.5 w-3.5 ${
+                    saveAsFavourite ? "fill-rose-500 text-rose-500" : "text-rose-400"
+                  }`}
+                />
+                <span className="text-xs font-medium">Save in favourites</span>
+              </label>
+            </div>
+            <div className="min-h-[4.25rem] max-h-24 overflow-y-auto rounded-md border bg-background px-2 py-1.5 text-xs">
+              {pickedFoods.length === 0 ? (
+                <p className="text-muted-foreground">Tap + to add foods here</p>
+              ) : (
+                <div className="space-y-1">
+                  {pickedFoods.map((item) => (
+                    <div key={item.food.id} className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate">
+                        {formatFoodLine(item.food.name, item.portion)}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">{item.nutrition.calories} cal</span>
+                      <button
+                        type="button"
+                        className="shrink-0 text-muted-foreground hover:text-red-500"
+                        onClick={() => removeFood(item.food.id)}
+                        aria-label={`Remove ${item.food.name}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {!selectedFood ? (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-            {/* Search Input */}
             <div className="relative shrink-0">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -139,7 +265,6 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
               />
             </div>
 
-            {/* Category Tabs — horizontal scroll */}
             <div className="shrink-0 overflow-x-auto pb-1">
               <div className="flex w-max gap-2">
                 <Button
@@ -164,7 +289,6 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
               </div>
             </div>
 
-            {/* Results — vertical scroll */}
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
@@ -178,41 +302,48 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
               ) : (
                 <div className="space-y-2 pb-2">
                   {foods.map((food) => (
-                    <button
+                    <div
                       key={food.id}
-                      type="button"
-                      onClick={() => setSelectedFood(food)}
-                      className="w-full rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/50"
+                      className="flex items-center gap-2 rounded-lg border bg-card p-3"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{food.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {food.servingUnit} • {food.calories} cal
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <div className="flex flex-wrap justify-end gap-1.5">
-                            <Badge variant="secondary" className="text-xs">
-                              P: {food.protein}g
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              C: {food.carbs}g
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              F: {food.fat}g
-                            </Badge>
-                          </div>
-                        </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFood(food)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <p className="truncate font-medium">{food.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {food.servingUnit} • {food.calories} cal
+                        </p>
+                      </button>
+                      <div className="hidden shrink-0 flex-wrap justify-end gap-1.5 sm:flex">
+                        <Badge variant="secondary" className="text-xs">
+                          P: {food.protein}g
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          C: {food.carbs}g
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          F: {food.fat}g
+                        </Badge>
                       </div>
-                    </button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => addFood(food, 1)}
+                        aria-label={`Add ${food.name}`}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
         ) : (
-          /* Selected Food - Portion Selection */
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto">
             <Button
               variant="ghost"
@@ -223,14 +354,13 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
               <X className="w-4 h-4" /> Back to search
             </Button>
 
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h3 className="font-semibold text-lg">{selectedFood.name}</h3>
+            <div className="rounded-lg bg-muted/50 p-4">
+              <h3 className="text-lg font-semibold">{selectedFood.name}</h3>
               <p className="text-sm text-muted-foreground">
                 Serving: {selectedFood.servingUnit} ({selectedFood.servingSize}g)
               </p>
             </div>
 
-            {/* Portion Selector */}
             <div className="space-y-3">
               <Label>Portion Size</Label>
               <div className="flex items-center justify-center gap-4">
@@ -242,7 +372,7 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
                 >
                   <Minus className="w-4 h-4" />
                 </Button>
-                <div className="text-center min-w-[120px]">
+                <div className="min-w-[120px] text-center">
                   <span className="text-3xl font-bold">{portion}</span>
                   <p className="text-sm text-muted-foreground">
                     {portion === 1 ? "serving" : "servings"}
@@ -260,53 +390,66 @@ export function FoodSearchDialog({ onSelectFood, trigger }: FoodSearchDialogProp
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
-
-              {/* Quick portion buttons */}
-              <div className="flex justify-center gap-2 flex-wrap">
-                {[0.5, 1, 1.5, 2].map((p) => (
+              <div className="flex flex-wrap justify-center gap-2">
+                {[0.5, 1, 1.5, 2].map((value) => (
                   <Button
-                    key={p}
-                    variant={portion === p ? "default" : "outline"}
+                    key={value}
+                    variant={portion === value ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setPortion(p)}
+                    onClick={() => setPortion(value)}
                   >
-                    {p}x
+                    {value}x
                   </Button>
                 ))}
               </div>
             </div>
 
-            {/* Nutrition Preview */}
-            {currentNutrition && (
+            {currentNutrition ? (
               <div className="grid grid-cols-5 gap-2">
-                <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg text-center">
+                <div className="rounded-lg bg-orange-50 p-3 text-center dark:bg-orange-950/30">
                   <p className="text-lg font-bold text-orange-600">{currentNutrition.calories}</p>
                   <p className="text-xs text-muted-foreground">Calories</p>
                 </div>
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-center">
+                <div className="rounded-lg bg-blue-50 p-3 text-center dark:bg-blue-950/30">
                   <p className="text-lg font-bold text-blue-600">{currentNutrition.protein}g</p>
                   <p className="text-xs text-muted-foreground">Protein</p>
                 </div>
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-center">
+                <div className="rounded-lg bg-amber-50 p-3 text-center dark:bg-amber-950/30">
                   <p className="text-lg font-bold text-amber-600">{currentNutrition.carbs}g</p>
                   <p className="text-xs text-muted-foreground">Carbs</p>
                 </div>
-                <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg text-center">
+                <div className="rounded-lg bg-purple-50 p-3 text-center dark:bg-purple-950/30">
                   <p className="text-lg font-bold text-purple-600">{currentNutrition.fat}g</p>
                   <p className="text-xs text-muted-foreground">Fat</p>
                 </div>
-                <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg text-center">
+                <div className="rounded-lg bg-green-50 p-3 text-center dark:bg-green-950/30">
                   <p className="text-lg font-bold text-green-600">{currentNutrition.fiber}g</p>
                   <p className="text-xs text-muted-foreground">Fiber</p>
                 </div>
               </div>
-            )}
+            ) : null}
 
-            <Button onClick={handleSelectFood} className="w-full" size="lg">
-              <Check className="w-4 h-4 mr-2" /> Add to Meal
+            <Button onClick={handleAddFromPortion} className="w-full" size="lg">
+              <Check className="mr-2 h-4 w-4" /> Add to meal
             </Button>
           </div>
         )}
+
+        <div className="shrink-0 space-y-2 border-t pt-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium">Meal total</span>
+            <Badge className="bg-orange-500">{combined.calories} cal</Badge>
+          </div>
+          <Button
+            type="button"
+            className="w-full bg-orange-500 hover:bg-orange-600"
+            disabled={saving || pickedFoods.length === 0}
+            onClick={handleSaveMeal}
+          >
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Save meal
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

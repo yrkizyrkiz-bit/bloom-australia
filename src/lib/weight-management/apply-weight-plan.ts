@@ -119,7 +119,6 @@ export async function applyWeightManagementPlan(input: WeightPlanInput) {
     update: {
       dailyCalorieGoal: input.dailyCalorieGoal ?? undefined,
       dailyExerciseMin: input.dailyExerciseMin ?? undefined,
-      ringPlanActivatedAt: new Date(),
     },
   });
 

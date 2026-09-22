@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { overlayGoalWithActivePlan } from "@/lib/weight-management/apply-weight-plan";
+import { startOfWeekMonday } from "@/lib/weight-management/score-ring-week";
 import { summariseMedicationForInsight } from "./dose-insight";
 import {
   daysOnProgramInWindow,
@@ -17,11 +19,18 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
     },
   });
 
-  const [goal, preferences, membership] = await Promise.all([
+  const [goal, preferences, membership, activePlan] = await Promise.all([
     prisma.weightGoal.findFirst({
       where: { userId, status: { in: ["IN_PROGRESS", "ACHIEVED"] } },
       orderBy: { createdAt: "desc" },
-      select: { startDate: true, weeklyTargetLoss: true },
+      select: {
+        startDate: true,
+        startWeight: true,
+        weeklyTargetLoss: true,
+        status: true,
+        targetWeight: true,
+        targetDate: true,
+      },
     }),
     prisma.weightManagementPreferences.findUnique({
       where: { userId },
@@ -31,6 +40,11 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
       where: { userId, status: { in: ["ACTIVE", "PAST_DUE"] } },
       orderBy: { activatedAt: "desc" },
       select: { activatedAt: true, createdAt: true },
+    }),
+    prisma.weightManagementPlan.findFirst({
+      where: { userId, status: "ACTIVE" },
+      orderBy: { version: "desc" },
+      select: { startWeight: true, targetWeight: true, targetDate: true, weeklyTargetLoss: true },
     }),
   ]);
 
@@ -48,9 +62,10 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
     membershipStartedAt: membership?.activatedAt ?? membership?.createdAt,
   });
 
+  const weekStart = startOfWeekMonday();
   const [weights, meals, exercises, checkIns, treatment, sideEffects] = await Promise.all([
     prisma.weightLog.findMany({
-      where: { userId, measuredAt: { gte: windowStart } },
+      where: { userId, measuredAt: { gte: commencement ?? windowStart } },
       orderBy: { measuredAt: "asc" },
     }),
     prisma.mealLog.findMany({
@@ -88,8 +103,21 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
     },
   });
 
-  const weightChange =
-    weights.length >= 2 ? weights[weights.length - 1].weight - weights[0].weight : null;
+  const planned = goal ? overlayGoalWithActivePlan(goal, activePlan) : null;
+  const latestWeight = weights[weights.length - 1]?.weight ?? null;
+  const startWeightKg = planned?.startWeight ?? weights[0]?.weight ?? null;
+  const weightsThisWeek = weights.filter((log) => log.measuredAt >= weekStart);
+  const weightChangeFromStartKg =
+    startWeightKg != null && latestWeight != null
+      ? Math.round((latestWeight - startWeightKg) * 10) / 10
+      : null;
+  const weightChangeThisWeekKg =
+    weightsThisWeek.length >= 2
+      ? Math.round(
+          (weightsThisWeek[weightsThisWeek.length - 1].weight - weightsThisWeek[0].weight) * 10
+        ) / 10
+      : null;
+  const weightChange = weightChangeFromStartKg;
 
   const medication = summariseMedicationForInsight({
     medicationName: treatment?.medicationName || program?.prescription?.medicationName,
@@ -112,7 +140,12 @@ export async function buildProgramContext(userId: string, memberProgramId: strin
     daysOnProgram,
     planTier: program?.planTier || "CORE",
     phase: program?.phase || "INDUCTION",
-    weeklyTargetLossKg: goal?.weeklyTargetLoss ?? null,
+    weeklyTargetLossKg: planned?.weeklyTargetLoss ?? goal?.weeklyTargetLoss ?? null,
+    startWeightKg,
+    currentWeightKg: latestWeight,
+    weightChangeFromStartKg,
+    weightChangeThisWeekKg,
+    weightLogsThisWeek: weightsThisWeek.length,
     medication: medication.name,
     medicationNote: medication.coachNote,
     doseFrequency: medication.frequency,

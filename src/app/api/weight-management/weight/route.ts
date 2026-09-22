@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { upsertDailyWeightLog } from "@/lib/weight-management/upsert-daily-weight-log";
+import { weeklyAveragesFromWeightLogs } from "@/lib/program/program-week";
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,24 +32,10 @@ export async function GET(request: NextRequest) {
     const startingWeight = weightLogs[weightLogs.length - 1]?.weight || currentWeight;
     const weightChange = currentWeight && startingWeight ? Math.round((currentWeight - startingWeight) * 10) / 10 : 0;
 
-    const weeklyData: { week: string; avgWeight: number }[] = [];
-    const groupedByWeek: Record<string, number[]> = {};
-
-    weightLogs.forEach((log) => {
-      const date = new Date(log.measuredAt);
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
-      const weekKey = weekStart.toISOString().split("T")[0];
-      if (!groupedByWeek[weekKey]) groupedByWeek[weekKey] = [];
-      groupedByWeek[weekKey].push(log.weight);
-    });
-
-    Object.entries(groupedByWeek).sort(([a], [b]) => a.localeCompare(b)).forEach(([week, weights]) => {
-      weeklyData.push({
-        week,
-        avgWeight: Math.round((weights.reduce((a, b) => a + b, 0) / weights.length) * 10) / 10,
-      });
-    });
+    const weeklyData = weeklyAveragesFromWeightLogs(weightLogs).map(({ week, avgWeight }) => ({
+      week,
+      avgWeight,
+    }));
 
     const activeGoal = await prisma.weightGoal.findFirst({
       where: { userId, status: "IN_PROGRESS" },

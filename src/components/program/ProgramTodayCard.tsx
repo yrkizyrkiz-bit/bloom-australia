@@ -139,7 +139,7 @@ export function ProgramTodayCard({ ringWeek }: { ringWeek?: RingWeekScore | null
               )}
               <Badge className="capitalize bg-[#cdd8c6] text-[#2c3628] hover:bg-[#cdd8c6]">
                 {data.program?.phase?.toLowerCase() || "induction"} · week{" "}
-                {(data.program?.currentWeek ?? 0) + 1}
+                {data.program?.currentWeek ?? 0}
               </Badge>
               <Button
                 size="sm"

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateWeeklyInsight } from "@/lib/program/weekly-insight";
+import { programCalendarWeek } from "@/lib/program/program-week";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,10 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: "No active program" }, { status: 404 });
     }
 
-    const weekMs = 7 * 24 * 60 * 60 * 1000;
-    const programWeek = Math.floor(
-      (Date.now() - new Date(program.startedAt).getTime()) / weekMs
-    );
+    const programWeek = programCalendarWeek(program.startedAt);
 
     const insight = await generateWeeklyInsight(
       session.user.id,

@@ -1,4 +1,5 @@
 import { startOfWeekMonday, toDateKey } from "@/lib/weight-management/score-ring-week";
+import { programCalendarWeek } from "@/lib/program/program-week";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -42,14 +43,9 @@ export function daysOnProgramInWeek(programStart: Date, weekStart: Date, now = n
   return inclusiveDayCount(overlapStart, overlapEnd);
 }
 
-/** 1-based program week from the Monday of the member's start week. */
+/** Monday–Sunday program week. Short Fri–Sun starts are week 0. */
 export function programWeekNumber(programStart: Date, now = new Date()) {
-  const startWeek = startOfWeekMonday(programStart);
-  const nowWeek = startOfWeekMonday(now);
-  const weeks =
-    Math.round((atLocalMidnight(nowWeek).getTime() - atLocalMidnight(startWeek).getTime()) / (7 * MS_PER_DAY)) +
-    1;
-  return Math.max(1, weeks);
+  return programCalendarWeek(programStart, now);
 }
 
 export function alreadyCheckedInThisWeek(
@@ -81,8 +77,9 @@ export function shouldPromptWeeklyCheckIn(input: {
   if (alreadyCheckedInThisWeek(input.lastCheckInAt, now)) return false;
 
   const week = programWeekNumber(programStart, now);
+  if (week <= 0) return false;
   if (week >= 2) return true;
 
-  const weekStart = startOfWeekMonday(programStart);
+  const weekStart = startOfWeekMonday(now);
   return daysOnProgramInWeek(programStart, weekStart, now) > 3;
 }

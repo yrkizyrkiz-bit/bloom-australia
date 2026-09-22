@@ -26,6 +26,20 @@ export const RECIPE_TO_DIARY_MEAL_TYPE: Record<Recipe["mealType"], string> = {
   DESSERT: "AFTERNOON_SNACK",
 };
 
+export function recipeToFavoriteMeal(
+  recipe: Pick<Recipe, "title" | "mealType" | "calories" | "protein" | "carbs" | "fat">,
+  mealType?: string
+) {
+  return {
+    name: recipe.title,
+    mealType: mealType ?? RECIPE_TO_DIARY_MEAL_TYPE[recipe.mealType],
+    calories: recipe.calories,
+    protein: recipe.protein,
+    carbs: recipe.carbs,
+    fat: recipe.fat,
+  };
+}
+
 export function normalizeRecipeTitle(title: string): string {
   return title
     .toLowerCase()

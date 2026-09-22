@@ -276,7 +276,6 @@ export function GoalRings({ week }: { week: RingWeekScore }) {
           <p className="text-sm font-semibold text-[#2c3628]">This week</p>
           <p className="text-xs text-muted-foreground">
             {week.dailyCalorieGoal} kcal · {week.dailyExerciseMin} min
-            {week.weeklyTargetLoss != null ? ` · ${week.weeklyTargetLoss} kg weekly target` : ""}
           </p>
           {locked ? (
             <p className="mt-1 text-xs text-[#7e9a72]">

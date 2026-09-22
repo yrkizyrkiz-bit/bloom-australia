@@ -9,6 +9,7 @@ import {
   type WeeklyInsightPayload,
 } from "./weekly-insight";
 import { daysOnProgramInWindow } from "./program-activity-window";
+import { programCalendarWeek } from "./program-week";
 
 const TASK_LINKS: Record<string, string> = {
   WEIGH_IN: "/dashboard/weight-management/track",
@@ -121,9 +122,7 @@ export async function getMemberProgramState(userId: string) {
     take: 3,
   });
 
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const programAge = Date.now() - new Date(program.startedAt).getTime();
-  const currentWeek = Math.floor(programAge / weekMs);
+  const currentWeek = programCalendarWeek(program.startedAt);
 
   const completedToday = tasks.filter((t) => t.status === "DONE").length;
   const adherenceScore =

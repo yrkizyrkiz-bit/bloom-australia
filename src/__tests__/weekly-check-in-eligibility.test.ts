@@ -42,19 +42,28 @@ describe("weekly check-in eligibility", () => {
     ).toBe(true);
   });
 
-  it("prompts at end of week 2 even if week 1 was short", () => {
+  it("prompts at end of week 2 even if week 0 was short", () => {
     expect(
       shouldPromptWeeklyCheckIn({
-        programStart: new Date(2026, 8, 5), // Sat week 1
-        now: new Date(2026, 8, 13, 18), // Sun week 2
+        programStart: new Date(2026, 8, 5), // Sat week 0
+        now: new Date(2026, 8, 20, 18), // Sun week 2
       })
     ).toBe(true);
   });
 
-  it("increments program week from the Monday of the start week", () => {
+  it("prompts at end of week 1 after a short week 0", () => {
+    expect(
+      shouldPromptWeeklyCheckIn({
+        programStart: new Date(2026, 8, 5),
+        now: new Date(2026, 8, 13, 18), // Sun of first full week
+      })
+    ).toBe(true);
+  });
+
+  it("counts a Saturday start as week 0 until the next Monday", () => {
     const start = new Date(2026, 8, 5); // Sat 5 Sep 2026
-    expect(programWeekNumber(start, new Date(2026, 8, 5))).toBe(1);
-    expect(programWeekNumber(start, new Date(2026, 8, 6))).toBe(1); // Sun — still week 1
-    expect(programWeekNumber(start, new Date(2026, 8, 7))).toBe(2); // Mon 7 Sep — week 2
+    expect(programWeekNumber(start, new Date(2026, 8, 5))).toBe(0);
+    expect(programWeekNumber(start, new Date(2026, 8, 6))).toBe(0); // Sun — still week 0
+    expect(programWeekNumber(start, new Date(2026, 8, 7))).toBe(1); // Mon 7 Sep — week 1
   });
 });

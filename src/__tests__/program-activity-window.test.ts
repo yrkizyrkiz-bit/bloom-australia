@@ -4,10 +4,23 @@ import {
   programActivityWindowStart,
   resolveProgramCommencement,
 } from "@/lib/program/program-activity-window";
-import { buildEarlyProgramWelcomeInsight, buildWeeklyInsightPrompts } from "@/lib/program/weekly-insight";
+import {
+  buildEarlyProgramWelcomeInsight,
+  buildWeeklyInsightPrompts,
+  shouldWriteEarlyWelcome,
+} from "@/lib/program/weekly-insight";
 import { scoreRingWeek } from "@/lib/weight-management/score-ring-week";
 
 describe("program activity window", () => {
+  it("does not move commencement when a later ring-plan save is stamped", () => {
+    const start = resolveProgramCommencement({
+      programStartedAt: "2026-09-05T00:00:00.000Z",
+      goalStartedAt: "2026-09-05T04:36:59.406Z",
+      ringPlanActivatedAt: "2026-09-22T08:44:51.680Z",
+    });
+    expect(start?.toISOString().slice(0, 10)).toBe("2026-09-05");
+  });
+
   it("uses the later of program and goal start, not an earlier membership date", () => {
     const start = resolveProgramCommencement({
       membershipStartedAt: "2026-08-01T00:00:00.000Z",
@@ -67,9 +80,12 @@ describe("early-week AI copy", () => {
     });
     expect(welcome.summary).toMatch(/Welcome, Maria/i);
     expect(welcome.summary).toMatch(/I'm George/i);
-    expect(welcome.bullets.join(" ")).toMatch(/first week/i);
+    expect(welcome.bullets.join(" ")).toMatch(/first (week|few days)/i);
     expect(welcome.bullets.join(" ")).toMatch(/rings/i);
-    expect(welcome.bullets.join(" ")).toMatch(/0\.5 kg average loss per week/i);
+    expect(welcome.bullets.join(" ")).toMatch(/your goals/i);
+    expect(welcome.bullets.join(" ")).not.toMatch(/0\.5 kg/);
+    expect(shouldWriteEarlyWelcome(0, 2)).toBe(true);
+    expect(shouldWriteEarlyWelcome(3, 1)).toBe(false);
     expect(welcome.bullets.join(" ")).not.toMatch(/missed/i);
     expect(welcome.encouragement).toMatch(/let's do this/i);
     expect(welcome.focusArea).toMatch(/rings/i);

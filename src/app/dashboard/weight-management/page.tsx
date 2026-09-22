@@ -82,6 +82,8 @@ interface ProgressData {
     targetWeight: number;
     startDate: string;
     targetDate: string;
+    weeklyTargetLoss: number | null;
+    hasDoctorPlan: boolean;
     percentComplete: number;
     remainingToLose: number;
     actualLost: number;
