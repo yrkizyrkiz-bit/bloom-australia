@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Activity } from "lucide-react";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
+import { prefetchWmHome } from "@/lib/weight-management/wm-client-cache";
 import {
   BIOMARKERS_HERO,
   ORGAN_CARE_CARD,
@@ -515,8 +517,16 @@ function SupplementsTile({ onNavigate }: { onNavigate?: () => void }) {
 
 export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { user } = useAuth();
+  const router = useRouter();
   const { data: portal, isLoading: portalLoading } = usePortalContext();
   const membership = portal?.membership;
+
+  useEffect(() => {
+    if (!hasProgramMembership(membership, "WEIGHT_MANAGEMENT")) return;
+    void router.prefetch("/dashboard/weight-management");
+    void prefetchWmHome();
+  }, [membership, router]);
+
   const entitledProgramKeys = (Object.keys(membership?.programs ?? {}) as ProgramKey[]).filter(
     (key) => membership?.programs?.[key]?.hasEntitlement
   );

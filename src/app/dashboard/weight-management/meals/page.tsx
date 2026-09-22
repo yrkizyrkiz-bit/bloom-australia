@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +14,49 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { FoodSearchDialog } from "@/components/weight-management/FoodSearchDialog";
-import { FoodItem } from "@/data/foodDatabase";
-import { Recipe } from "@/data/recipes";
+import type { FoodItem } from "@/data/foodDatabase";
+import type { Recipe } from "@/data/recipes";
 import { getMealImage, getRandomMotivation } from "@/data/mealImages";
-import { SuccessAnimation } from "@/components/weight-management/SuccessAnimation";
-import { MealGallery, MealGalleryPreview } from "@/components/weight-management/MealGallery";
+
+const FoodSearchDialog = dynamic(
+  () =>
+    import("@/components/weight-management/FoodSearchDialog").then(
+      (mod) => mod.FoodSearchDialog
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <Button type="button" variant="outline" className="w-full gap-2" disabled>
+        <Search className="h-4 w-4" /> Search our food database
+      </Button>
+    ),
+  }
+);
+
+const MealGallery = dynamic(
+  () =>
+    import("@/components/weight-management/MealGallery").then((mod) => mod.MealGallery),
+  { ssr: false }
+);
+
+const MealGalleryPreview = dynamic(
+  () =>
+    import("@/components/weight-management/MealGallery").then(
+      (mod) => mod.MealGalleryPreview
+    ),
+  {
+    ssr: false,
+    loading: () => <div className="h-[7.5rem] animate-pulse rounded-lg bg-muted/40" />,
+  }
+);
+
+const SuccessAnimation = dynamic(
+  () =>
+    import("@/components/weight-management/SuccessAnimation").then(
+      (mod) => mod.SuccessAnimation
+    ),
+  { ssr: false }
+);
 
 interface MealLog {
   id: string;
@@ -164,9 +202,9 @@ function dayTotals(meals: MealLog[]) {
 }
 
 export default function MealsPage() {
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [data, setData] = useState<MealData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [loggingFoods, setLoggingFoods] = useState(false);
   const [loggingPlannerId, setLoggingPlannerId] = useState<string | null>(null);
@@ -186,7 +224,7 @@ export default function MealsPage() {
   const [selectedFoods, setSelectedFoods] = useState<SelectedFood[]>([]);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
 
-  const todayKey = selectedDate ? localDateKey(new Date()) : "";
+  const todayKey = localDateKey(new Date());
   const isToday = Boolean(selectedDate) && selectedDate === todayKey;
   const canGoForward = Boolean(selectedDate) && selectedDate < todayKey;
   const loggedMeals = useMemo(() => {
@@ -211,7 +249,7 @@ export default function MealsPage() {
     } catch (error) {
       console.error("Error fetching meals:", error);
     } finally {
-      setLoading(false);
+      setListLoading(false);
     }
   }, []);
 
@@ -238,16 +276,9 @@ export default function MealsPage() {
   }, []);
 
   useEffect(() => {
-    setSelectedDate(localDateKey(new Date()));
-  }, []);
-
-  useEffect(() => {
     const loadCalorieGoal = async () => {
       try {
-        const [prefsRes, ringsRes] = await Promise.all([
-          fetch("/api/weight-management/preferences"),
-          fetch("/api/weight-management/rings", { cache: "no-store" }),
-        ]);
+        const prefsRes = await fetch("/api/weight-management/preferences");
         if (prefsRes.ok) {
           const prefs = await prefsRes.json();
           if (prefs.dailyCalorieGoal) {
@@ -255,6 +286,7 @@ export default function MealsPage() {
             return;
           }
         }
+        const ringsRes = await fetch("/api/weight-management/rings", { cache: "no-store" });
         if (ringsRes.ok) {
           const rings = await ringsRes.json();
           if (rings.ringWeek?.dailyCalorieGoal) {
@@ -270,8 +302,7 @@ export default function MealsPage() {
 
   useEffect(() => {
     if (!selectedDate) return;
-    setData(null);
-    setLoading(true);
+    setListLoading(true);
     setShowGallery(false);
     setSelectedFoods([]);
     fetchMeals(selectedDate);
@@ -464,22 +495,16 @@ export default function MealsPage() {
     }
   };
 
-  if (loading && !data) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 pb-20 md:pb-6">
-      <SuccessAnimation
-        show={showSuccess}
-        type="george"
-        subMessage={successMessage}
-        onComplete={() => setShowSuccess(false)}
-      />
+      {showSuccess ? (
+        <SuccessAnimation
+          show={showSuccess}
+          type="george"
+          subMessage={successMessage}
+          onComplete={() => setShowSuccess(false)}
+        />
+      ) : null}
 
       <MealGallery
         open={showGallery}
@@ -819,7 +844,11 @@ export default function MealsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loggedMeals.length === 0 ? (
+          {listLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : loggedMeals.length === 0 ? (
             <div className="py-10 text-center">
               <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/20">
                 <Utensils className="h-8 w-8 text-orange-400" />

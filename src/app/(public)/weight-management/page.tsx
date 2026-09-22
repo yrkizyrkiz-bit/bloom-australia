@@ -29,7 +29,7 @@ export default async function WeightManagementPage({
           className="relative overflow-x-clip"
           style={{
             background:
-              "linear-gradient(180deg, #46552c 0%, #3b4825 55%, #323e20 100%)",
+              "linear-gradient(180deg, #566738 0%, #46542e 55%, #3c4b28 100%)",
           }}
         >
           <WeightLossMembershipHero variant={heroVariant} />

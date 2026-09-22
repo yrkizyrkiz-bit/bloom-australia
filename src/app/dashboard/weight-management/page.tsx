@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortalContext } from "@/hooks/usePortalContext";
+import type { PortalContextPayload } from "@/lib/portal-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,30 +25,13 @@ import {
   formatAverageDailyLoss,
 } from "@/lib/weight-management/journey-projection";
 import type { RingWeekScore } from "@/lib/weight-management/score-ring-week";
-
-const RING_WEEK_CACHE_KEY = "sanative_wm_ring_week_v1";
-const RING_WEEK_CACHE_TTL_MS = 5 * 60 * 1000;
-
-function readRingWeekCache(): RingWeekScore | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(RING_WEEK_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { at: number; week: RingWeekScore };
-    if (!parsed?.week || Date.now() - parsed.at > RING_WEEK_CACHE_TTL_MS) return null;
-    return parsed.week;
-  } catch {
-    return null;
-  }
-}
-
-function writeRingWeekCache(week: RingWeekScore) {
-  try {
-    sessionStorage.setItem(RING_WEEK_CACHE_KEY, JSON.stringify({ at: Date.now(), week }));
-  } catch {
-    /* ignore quota */
-  }
-}
+import {
+  readRingWeekCache,
+  writeRingWeekCache,
+  readWmHomeCache,
+  fetchWmHome,
+  type WmHomeCachePayload,
+} from "@/lib/weight-management/wm-client-cache";
 import { ProgramTodayCard } from "@/components/program/ProgramTodayCard";
 import { ProgramBiomarkerStrip } from "@/components/program/ProgramBiomarkerStrip";
 import {
@@ -113,6 +98,33 @@ interface CheckInStatus {
   streaks: { current: number };
 }
 
+function stageFromPortal(portal: PortalContextPayload): string {
+  if (portal.isActive) return "active";
+  const status = portal.journeyStatus;
+  if (status.includes("ONBOARDING")) return "onboarding";
+  if (
+    status === "AWAITING_DOCTOR_CALL" ||
+    status === "CONSULT_COMPLETED" ||
+    status === "AWAITING_DOCTOR_DECISION"
+  ) {
+    return "consultation";
+  }
+  return "pre-consultation";
+}
+
+function journeyFromPortal(portal: PortalContextPayload): JourneyStatusData {
+  return {
+    journeyStatus: portal.journeyStatus,
+    stage: stageFromPortal(portal),
+    stageDescription: portal.stageDescription,
+    isApproved: portal.isApproved,
+    isActive: portal.isActive,
+    hasPrescription: false,
+    pendingTests: false,
+    hasTestsTracking: false,
+  };
+}
+
 // Get time-based greeting
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -132,6 +144,7 @@ const TIP_ICONS: Record<string, React.ElementType> = {
 
 export default function WeightManagementPage() {
   const { user } = useAuth();
+  const { data: portal } = usePortalContext();
   const searchParams = useSearchParams();
   const isPostCheckout = searchParams.get("onboarding") === "post-checkout";
   const [progress, setProgress] = useState<ProgressData | null>(null);
@@ -165,6 +178,25 @@ export default function WeightManagementPage() {
     writeRingWeekCache(week);
   }, []);
 
+  const applyHomePayload = useCallback((data: WmHomeCachePayload) => {
+    if (data.journeyStatus) {
+      setJourneyStatus(data.journeyStatus as unknown as JourneyStatusData);
+    }
+    if (data.showOnboarding) {
+      setShowOnboarding(true);
+    }
+    if (data.clinicalAssessment?.status) {
+      setClinicalStatus(data.clinicalAssessment.status);
+    }
+    if (data.checkInStatus) {
+      setCheckInStatus(data.checkInStatus as unknown as CheckInStatus);
+    }
+    if (data.progress) {
+      setProgress(data.progress as unknown as ProgressData);
+    }
+    applyRingWeek(data.ringWeek);
+  }, [applyRingWeek]);
+
   const fetchRings = useCallback(async () => {
     try {
       const ringsRes = await fetch("/api/weight-management/rings", { cache: "no-store" });
@@ -177,43 +209,30 @@ export default function WeightManagementPage() {
     }
   }, [applyRingWeek]);
 
+  useLayoutEffect(() => {
+    const cachedHome = readWmHomeCache();
+    if (cachedHome) {
+      applyHomePayload(cachedHome);
+      return;
+    }
+    const cachedRings = readRingWeekCache();
+    if (cachedRings) setRingWeek(cachedRings);
+    if (portal) setJourneyStatus(journeyFromPortal(portal));
+  }, [applyHomePayload, portal]);
+
   useEffect(() => {
     setMotivation(getRandomMotivation("greeting"));
     setDailyTip(getDailyTip());
     setDailyQuote(getDailyQuote());
 
-    const cached = readRingWeekCache();
-    if (cached) setRingWeek(cached);
-
-    const init = async () => {
-      void fetchRings();
-      try {
-        const homeRes = await fetch("/api/weight-management/home");
-
-        if (homeRes.ok) {
-          const data = await homeRes.json();
-          setJourneyStatus(data.journeyStatus);
-          if (data.showOnboarding) {
-            setShowOnboarding(true);
-          }
-          if (data.clinicalAssessment?.status) {
-            setClinicalStatus(data.clinicalAssessment.status);
-          }
-          if (data.checkInStatus) {
-            setCheckInStatus(data.checkInStatus);
-          }
-          if (data.progress) {
-            setProgress(data.progress);
-          }
-          applyRingWeek(data.ringWeek);
-        }
-      } catch (error) {
+    void fetchWmHome(true)
+      .then((data) => {
+        if (data) applyHomePayload(data);
+      })
+      .catch((error) => {
         console.error("Error initializing:", error);
-      }
-    };
-
-    void init();
-  }, [applyRingWeek, fetchRings]);
+      });
+  }, [applyHomePayload]);
 
   useEffect(() => {
     const onVisible = () => {

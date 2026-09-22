@@ -6,7 +6,7 @@
   -webkit-font-smoothing: antialiased;
   background:
     radial-gradient(70% 55% at 50% 0%, rgba(168, 196, 110, 0.35) 0%, transparent 60%),
-    linear-gradient(180deg, #556838 0%, #46552c 100%);
+    linear-gradient(180deg, #74894b 0%, #6a8041 100%);
   padding-bottom: clamp(60px, 8vw, 100px);
 }
 
