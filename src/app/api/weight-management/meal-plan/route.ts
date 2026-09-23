@@ -4,7 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isWeightManagementUser } from "@/lib/wm/is-wm-user";
 import { completeProgramTaskForToday } from "@/lib/program/complete-task";
-import { parseWeekStartParam } from "@/lib/weight-management/meal-plan-week";
+import {
+  parseWeekStartParam,
+  slimDayPlanMeals,
+  weekStartKeyForDate,
+} from "@/lib/weight-management/meal-plan-week";
 
 const noStore = { "Cache-Control": "no-store" };
 
@@ -15,11 +19,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const dateParam = searchParams.get("date");
+
+    // Lightweight single-day read for the food diary (session auth only — no WM flag gate).
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      const weekStart = parseWeekStartParam(weekStartKeyForDate(dateParam));
+      const row = await prisma.wmMealPlanWeek.findUnique({
+        where: {
+          userId_weekStart: {
+            userId: session.user.id,
+            weekStart,
+          },
+        },
+      });
+      const planData = (row?.planData ?? {}) as Record<string, { meals?: unknown }>;
+      const meals = slimDayPlanMeals(planData[dateParam]?.meals);
+      return NextResponse.json(
+        { success: true, date: dateParam, meals },
+        { headers: noStore }
+      );
+    }
+
     if (!(await isWeightManagementUser(session.user.id))) {
       return NextResponse.json({ error: "Not a weight management member" }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
     const weekStart = parseWeekStartParam(searchParams.get("weekStart"));
 
     const row = await prisma.wmMealPlanWeek.findUnique({

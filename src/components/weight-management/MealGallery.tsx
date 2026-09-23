@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,8 @@ import {
   type CatalogRecipe,
   type RecipeCategory,
 } from "@/lib/weight-management/recipe-catalog";
-import { useFavoriteMeals } from "@/hooks/useFavoriteMeals";
+import type { PublicFavoriteMeal } from "@/lib/weight-management/favorite-meals";
+import type { FavoriteMealWrite } from "@/lib/weight-management/favorite-meals-client";
 
 const GALLERY_MEAL_TYPES: { value: string; label: string }[] = [
   { value: "BREAKFAST", label: "Breakfast" },
@@ -65,10 +66,22 @@ interface MealGalleryProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectMeal?: (meal: GalleryMealSelection) => void | Promise<boolean | void>;
+  /** Shared favourites from the diary page — avoids a second favourite-meals fetch. */
+  favorites: PublicFavoriteMeal[];
+  isFavourite: (name: string, mealType?: string) => boolean;
+  addFavourite: (payload: FavoriteMealWrite) => Promise<boolean>;
+  removeFavourite: (name: string, mealType?: string) => Promise<boolean>;
 }
 
-export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryProps) {
-  const { favorites, isFavourite, addFavourite, removeFavourite, reload } = useFavoriteMeals();
+export function MealGallery({
+  open,
+  onOpenChange,
+  onSelectMeal,
+  favorites,
+  isFavourite,
+  addFavourite,
+  removeFavourite,
+}: MealGalleryProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
   const [showFavourites, setShowFavourites] = useState(false);
@@ -77,10 +90,6 @@ export function MealGallery({ open, onOpenChange, onSelectMeal }: MealGalleryPro
   const [saveAsFavourite, setSaveAsFavourite] = useState(false);
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (open) void reload();
-  }, [open, reload]);
 
   const query = search.toLowerCase().trim();
   const filteredMeals = RECIPE_CATALOG.filter((meal) => {

@@ -41,7 +41,12 @@ export function useFavoriteMeals() {
 
   useEffect(() => {
     if (authLoading) return;
-    setFavorites([]);
+    if (!user?.id) {
+      setFavorites([]);
+      setLoading(false);
+      return;
+    }
+    // Do not clear favourites to [] on every effect for the same user (avoids empty-list flash).
     const controller = new AbortController();
     void reload(controller.signal);
     return () => controller.abort();
@@ -92,6 +97,14 @@ export function useFavoriteMeals() {
     [favorites, reload]
   );
 
+  const removeFavouriteById = useCallback(async (id: string) => {
+    const ok = await deleteFavoriteMeal(id);
+    if (ok) {
+      setFavorites((current) => current.filter((meal) => meal.id !== id));
+    }
+    return ok;
+  }, []);
+
   const toggleFavouriteMeal = useCallback(
     async (payload: FavoriteMealWrite) => {
       if (isFavourite(payload.name, payload.mealType)) {
@@ -108,6 +121,7 @@ export function useFavoriteMeals() {
     isFavourite,
     addFavourite,
     removeFavourite,
+    removeFavouriteById,
     toggleFavouriteMeal,
     reload,
   };

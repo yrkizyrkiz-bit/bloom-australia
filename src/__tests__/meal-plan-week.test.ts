@@ -5,8 +5,10 @@ import {
   mealPlanWeekStats,
   parseWeekStartParam,
   programWeekProgress,
+  slimDayPlanMeals,
   startOfWeekSunday,
   weekDatesFromSunday,
+  weekStartKeyForDate,
 } from "@/lib/weight-management/meal-plan-week";
 
 describe("meal-plan-week", () => {
@@ -48,5 +50,53 @@ describe("meal-plan-week", () => {
     const end = new Date(2026, 9, 18);
     const week4 = startOfWeekSunday(new Date(2026, 7, 23));
     expect(programWeekProgress(week4, start, end)).toEqual({ weekNumber: 4, totalWeeks: 12 });
+  });
+
+  it("maps a date key to that week's Sunday key", () => {
+    expect(weekStartKeyForDate("2026-09-23")).toBe("2026-09-20");
+    expect(weekStartKeyForDate("2026-09-20")).toBe("2026-09-20");
+  });
+
+  it("slims embedded recipe objects for the diary day payload", () => {
+    const slim = slimDayPlanMeals([
+      {
+        id: "m1",
+        mealType: "lunch",
+        recipe: {
+          title: "Chicken bowl",
+          calories: 520,
+          protein: 40,
+          carbs: 45,
+          fat: 12,
+          imageUrl: "/meals/bowl.jpg",
+          ingredients: ["a", "b"],
+          steps: ["1", "2"],
+        },
+      },
+      { id: "skip-me", mealType: "dinner" },
+      null,
+    ]);
+    expect(slim).toEqual([
+      {
+        id: "m1",
+        mealType: "lunch",
+        title: "Chicken bowl",
+        calories: 520,
+        protein: 40,
+        carbs: 45,
+        fat: 12,
+        imageUrl: "/meals/bowl.jpg",
+      },
+      {
+        id: "skip-me",
+        mealType: "dinner",
+        title: "Meal",
+        calories: null,
+        protein: null,
+        carbs: null,
+        fat: null,
+        imageUrl: "",
+      },
+    ]);
   });
 });

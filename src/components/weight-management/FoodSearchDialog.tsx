@@ -47,14 +47,26 @@ interface FoodSearchDialogProps {
   onSaveMeal: (meal: CombinedFoodMeal) => Promise<boolean>;
   trigger?: React.ReactNode;
   defaultMealType?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultOpen?: boolean;
 }
 
 export function FoodSearchDialog({
   onSaveMeal,
   trigger,
   defaultMealType = "LUNCH",
+  open: openProp,
+  onOpenChange,
+  defaultOpen = false,
 }: FoodSearchDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<FoodCategory | "all">("all");
   const [foods, setFoods] = useState<FoodItem[]>([]);
@@ -85,19 +97,18 @@ export function FoodSearchDialog({
     }
   }, [query, category]);
 
+  // Search only while the dialog is open (debounced). Opening alone is enough — no separate open fetch.
   useEffect(() => {
+    if (!open) return;
     const timer = setTimeout(() => {
       searchFoods();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchFoods]);
+  }, [searchFoods, open]);
 
   useEffect(() => {
-    if (open) {
-      setMealType(defaultMealType);
-      searchFoods();
-    }
-  }, [open, searchFoods, defaultMealType]);
+    if (open) setMealType(defaultMealType);
+  }, [open, defaultMealType]);
 
   const addFood = (food: FoodItem, servings: number) => {
     setPickedFoods((current) => {
@@ -177,13 +188,15 @@ export function FoodSearchDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="outline" className="gap-2">
-            <Search className="w-4 h-4" /> Search Foods
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger !== null ? (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button variant="outline" className="gap-2">
+              <Search className="w-4 h-4" /> Search Foods
+            </Button>
+          )}
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="flex h-[min(90vh,720px)] max-h-[90vh] max-w-2xl flex-col gap-4 overflow-hidden p-6 sm:rounded-lg">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">

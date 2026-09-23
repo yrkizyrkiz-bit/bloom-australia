@@ -38,6 +38,65 @@ export function parseWeekStartParam(raw?: string | null): Date {
   return parseWeekStartParam(localDateKey(localSunday));
 }
 
+/** Sunday YYYY-MM-DD for the week that contains a local calendar date key. */
+export function weekStartKeyForDate(dateKey: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return localDateKey(startOfWeekSunday());
+  }
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const sunday = new Date(year, month - 1, day);
+  sunday.setDate(sunday.getDate() - sunday.getDay());
+  return localDateKey(sunday);
+}
+
+export type SlimPlannedMeal = {
+  id: string;
+  mealType: string;
+  title: string;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  imageUrl: string;
+};
+
+/** Trim embedded Recipe objects to the fields the food diary needs. */
+export function slimDayPlanMeals(meals: unknown): SlimPlannedMeal[] {
+  if (!Array.isArray(meals)) return [];
+  const result: SlimPlannedMeal[] = [];
+  for (const raw of meals) {
+    if (!raw || typeof raw !== "object") continue;
+    const meal = raw as Record<string, unknown>;
+    const recipe =
+      meal.recipe && typeof meal.recipe === "object"
+        ? (meal.recipe as Record<string, unknown>)
+        : null;
+    const id = typeof meal.id === "string" ? meal.id : null;
+    const mealType = typeof meal.mealType === "string" ? meal.mealType : null;
+    if (!id || !mealType) continue;
+    const title =
+      (typeof recipe?.title === "string" && recipe.title) ||
+      (typeof meal.title === "string" && meal.title) ||
+      "Meal";
+    const num = (value: unknown): number | null =>
+      typeof value === "number" && Number.isFinite(value) ? value : null;
+    result.push({
+      id,
+      mealType,
+      title,
+      calories: num(recipe?.calories ?? meal.calories),
+      protein: num(recipe?.protein ?? meal.protein),
+      carbs: num(recipe?.carbs ?? meal.carbs),
+      fat: num(recipe?.fat ?? meal.fat),
+      imageUrl:
+        (typeof recipe?.imageUrl === "string" && recipe.imageUrl) ||
+        (typeof meal.imageUrl === "string" && meal.imageUrl) ||
+        "",
+    });
+  }
+  return result;
+}
+
 export function mealPlanStorageKey(userId: string): string {
   return `wm-meal-plan:${userId}`;
 }
