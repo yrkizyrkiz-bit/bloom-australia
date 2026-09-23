@@ -13,7 +13,6 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { RECIPES, Recipe } from "@/data/recipes";
-import { defaultMealImages, getMealImage } from "@/data/mealImages";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavoriteMeals } from "@/hooks/useFavoriteMeals";
 import { matchesFavoriteName, type PublicFavoriteMeal } from "@/lib/weight-management/favorite-meals";
@@ -45,6 +44,7 @@ const MEAL_SLOTS = [
 ];
 
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const FAVOURITE_MEAL_IMAGE = "/images/favourite-meal.svg";
 
 function recipeMealTypeForFavourite(mealType: string): Recipe["mealType"] {
   if (mealType === "BREAKFAST" || mealType === "LUNCH" || mealType === "DINNER" || mealType === "DESSERT") {
@@ -55,16 +55,13 @@ function recipeMealTypeForFavourite(mealType: string): Recipe["mealType"] {
 
 function recipeFromFavourite(favourite: PublicFavoriteMeal): Recipe {
   const catalog = RECIPES.find((recipe) => matchesFavoriteName(recipe.title, favourite.name));
-  if (catalog) return catalog;
+  if (catalog) return { ...catalog, imageUrl: FAVOURITE_MEAL_IMAGE };
   const mealType = recipeMealTypeForFavourite(favourite.mealType);
   return {
     id: `favourite-${favourite.id}`,
     title: favourite.name,
     description: "",
-    imageUrl:
-      getMealImage(favourite.name, favourite.mealType) ||
-      defaultMealImages[favourite.mealType] ||
-      defaultMealImages.LUNCH,
+    imageUrl: FAVOURITE_MEAL_IMAGE,
     mealType,
     dietaryTags: [],
     prepTime: 0,
