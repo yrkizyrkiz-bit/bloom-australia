@@ -33,6 +33,108 @@ export function projectedWeightAt(
   return targetWeight + (startWeight - targetWeight) * Math.exp(-k * Math.max(0, tMonths));
 }
 
+export type JourneyKnot = { months: number; weight: number };
+
+function sampleExponential(
+  fromWeight: number,
+  targetWeight: number,
+  fromMonths: number,
+  toMonths: number
+): JourneyKnot[] {
+  const span = Math.max(0.25, toMonths - fromMonths);
+  const k = -Math.log(0.05) / span;
+  const steps = 48;
+  const points: JourneyKnot[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const months = fromMonths + ((toMonths - fromMonths) * i) / steps;
+    points.push({
+      months,
+      weight: projectedWeightAt(fromWeight, targetWeight, months - fromMonths, k),
+    });
+  }
+  return points;
+}
+
+/**
+ * One curve for every member: smooth through their weigh-ins up to today,
+ * then the quiz exponential from that latest weight to their target.
+ * With no weigh-ins, the original start-to-target sketch is used.
+ */
+export function buildJourneyCurve(input: {
+  startWeight: number;
+  targetWeight: number;
+  totalMonths: number;
+  elapsedMonths: number;
+  observed: JourneyKnot[];
+  latestWeight?: number | null;
+}): JourneyKnot[] {
+  const total = Math.max(1, input.totalMonths);
+  const elapsed = Math.min(total, Math.max(0, input.elapsedMonths));
+  const observed = input.observed
+    .filter(
+      (point) =>
+        Number.isFinite(point.months) &&
+        Number.isFinite(point.weight) &&
+        point.months > 0.02 &&
+        point.months <= elapsed + 0.02
+    )
+    .map((point) => ({ months: Math.min(point.months, elapsed), weight: point.weight }))
+    .sort((a, b) => a.months - b.months);
+
+  const latest =
+    input.latestWeight != null && Number.isFinite(input.latestWeight)
+      ? input.latestWeight
+      : observed.length > 0
+        ? observed[observed.length - 1]!.weight
+        : null;
+
+  const hasWeighIn =
+    observed.length > 0 || (latest != null && Math.abs(latest - input.startWeight) > 0.05);
+
+  if (!hasWeighIn || latest == null) {
+    return sampleExponential(input.startWeight, input.targetWeight, 0, total);
+  }
+
+  const knots: JourneyKnot[] = [{ months: 0, weight: input.startWeight }];
+  for (const point of observed) {
+    const prev = knots[knots.length - 1]!;
+    if (point.months - prev.months < 0.02) {
+      knots[knots.length - 1] = { months: point.months, weight: point.weight };
+      continue;
+    }
+    knots.push(point);
+  }
+
+  const tail = knots[knots.length - 1]!;
+  if (elapsed - tail.months > 0.02) {
+    knots.push({ months: elapsed, weight: latest });
+  } else if (Math.abs(tail.weight - latest) > 0.05) {
+    knots[knots.length - 1] = { months: Math.max(tail.months, elapsed), weight: latest };
+  }
+
+  const anchor = knots[knots.length - 1]!;
+  if (total - anchor.months < 0.05) return knots;
+
+  const future = sampleExponential(anchor.weight, input.targetWeight, anchor.months, total);
+  return [...knots, ...future.slice(1)];
+}
+
+export function weightOnJourneyCurve(curve: JourneyKnot[], months: number): number {
+  if (curve.length === 0) return NaN;
+  if (months <= curve[0]!.months) return curve[0]!.weight;
+  const last = curve[curve.length - 1]!;
+  if (months >= last.months) return last.weight;
+  for (let i = 1; i < curve.length; i++) {
+    const a = curve[i - 1]!;
+    const b = curve[i]!;
+    if (months > b.months) continue;
+    const span = b.months - a.months || 1;
+    const t = (months - a.months) / span;
+    return a.weight + (b.weight - a.weight) * t;
+  }
+  return last.weight;
+}
+
 export function monthsFromStart(startDate: Date, at: Date, totalMonths: number) {
   return Math.min(totalMonths, Math.max(0, monthsBetween(startDate, at)));
 }

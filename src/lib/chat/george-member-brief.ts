@@ -233,7 +233,7 @@ export async function buildGeorgeMemberBrief(userId: string): Promise<string> {
       ? `- Subscription: ${subscription.status} · ${subProduct}${subInterval} · period ends ${auDate(subscription.currentPeriodEnd)} · cancelAtPeriodEnd=${subscription.cancelAtPeriodEnd}`
       : `- Subscription: none on file`,
     goal
-      ? `- Weight goal: start ${goal.startWeight} kg → target ${goal.targetWeight} kg (weekly target ~${goal.weeklyTargetLoss} kg/week)`
+      ? `- Weight goal: start ${goal.startWeight} kg → target ${goal.targetWeight} kg. Do not quote a weekly kg target. If you mention pace, say they are within their range of weekly goals, or a little outside that range.`
       : `- Weight goal: none on file`,
     currentWeight != null
       ? `- Latest weigh-in: ${currentWeight} kg on ${auDate(latestWeight?.measuredAt ?? null)}${

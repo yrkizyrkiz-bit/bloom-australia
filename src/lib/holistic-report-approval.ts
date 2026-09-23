@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { notifyMember } from "@/lib/notifications/member-notify";
 import { HOLISTIC_HEALTH_ANALYSIS_TYPE } from "@/lib/holistic-health-report";
 import {
   normalizeHolisticApprovalStatus,
@@ -338,32 +338,17 @@ export async function approveHolisticReport(input: {
 
   const member = current.member;
   try {
-    await prisma.notification.create({
-      data: {
-        userId: member.id,
-        type: "SUCCESS",
-        title: "Holistic report approved",
-        message: `${staffDisplayName(input.doctor)} has reviewed and released your holistic health report.`,
-        category: "SYSTEM",
-        actionUrl: "/dashboard/reports",
-      },
+    await notifyMember({
+      userId: member.id,
+      intent: "RESULTS_READY",
+      title: "Holistic report approved",
+      message: `${staffDisplayName(input.doctor)} has reviewed and released your holistic health report.`,
+      actionUrl: "/dashboard/reports",
+      type: "SUCCESS",
+      category: "SYSTEM",
     });
   } catch (error) {
     console.warn("[holistic-report-approval] notification failed", error);
-  }
-
-  try {
-    await sendEmail({
-      to: member.email,
-      subject: "Your holistic health report has been reviewed",
-      body: `
-        <p>Hi ${member.firstName || "there"},</p>
-        <p>${staffDisplayName(input.doctor)} has reviewed and released your holistic health report.</p>
-        <p><a href="${(process.env.NEXTAUTH_URL || "https://app.sanative.com.au").replace(/\/$/, "")}/dashboard/reports">View your report</a></p>
-      `,
-    });
-  } catch (error) {
-    console.warn("[holistic-report-approval] email failed", error);
   }
 
   return sanitized;

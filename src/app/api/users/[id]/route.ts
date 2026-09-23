@@ -35,6 +35,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         // Other
         role: true, subscriptionStatus: true, subscriptionTier: true, image: true, createdAt: true, updatedAt: true,
         timezone: true,
+        marketingOptIn: true,
+        notificationFrequency: true,
+        dailyTrackingPing: true,
         _count: { select: { biomarkerResults: true, healthGoals: true, labReports: true, appointments: true } },
       },
     });
@@ -65,6 +68,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const {
       email, firstName, lastName, dateOfBirth, gender, phone, image, password, role, subscriptionStatus, subscriptionTier, memberStatus,
       marketingOptIn,
+      notificationFrequency,
+      dailyTrackingPing,
       // Residential address
       address, addressLine1, addressLine2, suburb, state, postcode, country,
       // Mailing address
@@ -157,6 +162,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (marketingOptIn !== undefined && id === session.user.id) {
       updateData.marketingOptIn = Boolean(marketingOptIn);
     }
+    if (notificationFrequency !== undefined && id === session.user.id) {
+      const frequency = String(notificationFrequency).toUpperCase();
+      if (frequency !== "QUIET" && frequency !== "STANDARD" && frequency !== "CLOSER") {
+        return NextResponse.json({ error: "Invalid notification frequency" }, { status: 400 });
+      }
+      updateData.notificationFrequency = frequency;
+    }
+    if (dailyTrackingPing !== undefined && id === session.user.id) {
+      updateData.dailyTrackingPing = Boolean(dailyTrackingPing);
+      await prisma.weightManagementPreferences.upsert({
+        where: { userId: id },
+        update: { trackingReminders: Boolean(dailyTrackingPing) },
+        create: { userId: id, trackingReminders: Boolean(dailyTrackingPing) },
+      });
+    }
 
     if (canChangeRoleOrSubscription) {
       if (role !== undefined) updateData.role = role.toUpperCase();
@@ -176,7 +196,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         mailingAddressSameAsResidential: true, mailingAddress: true, mailingAddressLine1: true, mailingAddressLine2: true,
         mailingSuburb: true, mailingState: true, mailingPostcode: true, mailingCountry: true,
         // Other
-        role: true, memberStatus: true, subscriptionStatus: true, subscriptionTier: true, image: true, updatedAt: true
+        role: true, memberStatus: true, subscriptionStatus: true, subscriptionTier: true, image: true, updatedAt: true,
+        notificationFrequency: true, dailyTrackingPing: true,
       },
     });
 

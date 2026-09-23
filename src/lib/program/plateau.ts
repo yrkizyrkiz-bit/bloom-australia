@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isWeightManagementUser } from "@/lib/wm/is-wm-user";
+import { notifyMember } from "@/lib/notifications/member-notify";
 
 /** Detect weight plateau and create care + notification (WM only). */
 export async function checkWeightPlateau(userId: string) {
@@ -49,16 +50,15 @@ export async function checkWeightPlateau(userId: string) {
     },
   });
 
-  await prisma.notification.create({
-    data: {
-      userId,
-      type: "INFO",
-      category: "REMINDER",
-      title: "Your weight trend has levelled off",
-      message:
-        "Plateaus are normal on a weight-loss journey. Your care team can help adjust your focus for the week ahead.",
-      actionUrl: "/dashboard/weight-management",
-    },
+  await notifyMember({
+    userId,
+    intent: "MIDWEEK_NUDGE",
+    title: "Your weight trend has levelled off",
+    message:
+      "Plateaus are normal. Your care team can help adjust the focus for the week ahead.",
+    actionUrl: "/dashboard/weight-management",
+    category: "REMINDER",
+    dedupeDays: 14,
   });
 
   return { plateau: true, change };

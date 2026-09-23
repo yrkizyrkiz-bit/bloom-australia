@@ -283,7 +283,7 @@ export default function WeightManagementSettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Daily Tracking Reminders</p>
-                <p className="text-sm text-muted-foreground">Get reminded to log your weight and meals</p>
+                <p className="text-sm text-muted-foreground">One reminder if today’s ring, a meal, or a weigh-in is still open. Same switch as Account settings.</p>
               </div>
               <Switch
                 checked={trackingReminders}

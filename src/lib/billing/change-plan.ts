@@ -247,6 +247,28 @@ export async function upgradeMemberTier(input: {
   };
 }
 
+let portalCancellationDisabled = false;
+
+/** Members update a card here. Cancellation stays with the care team, so the portal has no cancel button. */
+async function ensurePortalCancellationDisabled(stripe: Stripe) {
+  if (portalCancellationDisabled) return;
+
+  const list = await stripe.billingPortal.configurations.list({ limit: 20, active: true });
+  const targets = list.data.filter((config) => config.is_default);
+  const configs = targets.length > 0 ? targets : list.data;
+
+  for (const config of configs) {
+    if (!config.features.subscription_cancel?.enabled) continue;
+    await stripe.billingPortal.configurations.update(config.id, {
+      features: {
+        subscription_cancel: { enabled: false },
+      },
+    });
+  }
+
+  portalCancellationDisabled = true;
+}
+
 export async function createBillingPortalSession(memberId: string, returnUrl: string) {
   const memberSub = await prisma.memberSubscription.findFirst({
     where: { userId: memberId },
@@ -265,6 +287,7 @@ export async function createBillingPortalSession(memberId: string, returnUrl: st
   }
 
   const stripe = getStripe();
+  await ensurePortalCancellationDisabled(stripe);
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
     return_url: returnUrl,

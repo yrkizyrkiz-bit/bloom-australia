@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PROJECTION_MONTHS,
   averageDailyWeightLossKg,
+  buildJourneyCurve,
   formatAverageDailyLoss,
   getWeightLossCurveParams,
   monthAxisTicks,
@@ -10,6 +11,7 @@ import {
   programHorizonMonths,
   projectedWeightAt,
   smoothSvgPath,
+  weightOnJourneyCurve,
 } from "@/lib/weight-management/journey-projection";
 
 describe("getWeightLossCurveParams", () => {
@@ -31,6 +33,40 @@ describe("programHorizonMonths", () => {
 
   it("reads the goal window from start to target date", () => {
     expect(programHorizonMonths(new Date("2026-03-04"), new Date("2026-09-04"))).toBeCloseTo(6, 1);
+  });
+});
+
+describe("buildJourneyCurve", () => {
+  it("keeps the start-to-target sketch when there are no weigh-ins", () => {
+    const curve = buildJourneyCurve({
+      startWeight: 90,
+      targetWeight: 75,
+      totalMonths: 6,
+      elapsedMonths: 1,
+      observed: [],
+      latestWeight: 90,
+    });
+    expect(curve[0]).toEqual({ months: 0, weight: 90 });
+    expect(weightOnJourneyCurve(curve, 6)).toBeCloseTo(75 + 15 * 0.05, 1);
+  });
+
+  it("passes through the latest weigh-in, then eases toward that member's target", () => {
+    const curve = buildJourneyCurve({
+      startWeight: 66.7,
+      targetWeight: 58,
+      totalMonths: 2.92,
+      elapsedMonths: 0.61,
+      latestWeight: 64.4,
+      observed: [
+        { months: 0.07, weight: 65.7 },
+        { months: 0.3, weight: 64.9 },
+        { months: 0.53, weight: 64.5 },
+      ],
+    });
+    expect(curve[0]!.weight).toBe(66.7);
+    expect(weightOnJourneyCurve(curve, 0.61)).toBeCloseTo(64.4, 1);
+    expect(weightOnJourneyCurve(curve, 2.92)).toBeCloseTo(58 + (64.4 - 58) * 0.05, 1);
+    expect(weightOnJourneyCurve(curve, 0.61)).toBeGreaterThan(weightOnJourneyCurve(curve, 2.92));
   });
 });
 

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { notifyMember as deliverMemberNotification } from "@/lib/notifications/member-notify";
 import {
   generateDoseDates,
   parseDoseIntervalDays,
@@ -177,6 +178,16 @@ export async function activateMemberProgram(
   const dashboardUrl = `${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/dashboard/weight-management`;
 
   if (notifyMember) {
+    await deliverMemberNotification({
+      userId,
+      intent: "PROGRAM_STEP",
+      title: "Your program is ready",
+      message: "Your program is active. Open it to see the next step.",
+      actionUrl: "/dashboard/weight-management",
+      type: "SUCCESS",
+      dedupeDays: 14,
+      email: false,
+    });
     const doseLine = prescription
       ? `<p><strong>First medication dose:</strong> scheduled for the start of week 2 (${firstDoseLabel}). Your care partner will confirm storage and usage instructions before then.</p>`
       : "";

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { extendProgramTasks } from "@/lib/program/extend-tasks";
-import { sendProgramRemindersForUser } from "@/lib/program/reminders";
+import { sendProgramRemindersForUser, sendMidweekNudge, sendConsultTomorrowPings } from "@/lib/program/reminders";
 import { assertCronAuthorized } from "@/lib/security/cron-auth";
 
 /** Daily program maintenance: extend tasks, mark overdue, send reminders. */
@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
       if (user) {
         const { sent } = await sendProgramRemindersForUser(program.userId, program.id);
         remindersSent += sent;
+        await sendMidweekNudge(program.userId, program.id);
 
         const { evaluateProgramPhase } = await import("@/lib/program/phase-engine");
         await evaluateProgramPhase(program.userId);
@@ -54,11 +55,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const consults = await sendConsultTomorrowPings();
+
     return NextResponse.json({
       success: true,
       programsProcessed: programs.length,
       extended,
       remindersSent,
+      consultsTomorrow: consults.sent,
     });
   } catch (error) {
     console.error("[cron/program-daily]", error);

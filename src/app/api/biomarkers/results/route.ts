@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { notifyMember } from "@/lib/notifications/member-notify";
 import { persistDerivedBiomarkersForUser } from "@/lib/persist-derived-biomarkers";
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 import {
@@ -368,14 +369,21 @@ export async function POST(request: NextRequest) {
 
     // Create notification for the user (only if new results were added)
     if (createdResults.length > 0) {
-      await prisma.notification.create({
-        data: {
-          userId,
-          type: "SUCCESS",
-          title: "New Test Results Available",
-          message: `${createdResults.length} new biomarker results have been uploaded to your profile.`,
-          category: "BIOMARKER",
-        },
+      const outside = createdResults.filter(
+        (result) => result.status === "OUT_OF_RANGE" || result.status === "CRITICAL"
+      ).length;
+      const message =
+        outside > 0
+          ? `${createdResults.length} new results are in your profile. ${outside} ${outside === 1 ? "is" : "are"} outside the usual range.`
+          : `${createdResults.length} new biomarker results are in your profile.`;
+      await notifyMember({
+        userId,
+        intent: "RESULTS_READY",
+        title: "New test results available",
+        message,
+        actionUrl: "/dashboard",
+        type: "SUCCESS",
+        category: "BIOMARKER",
       });
     }
 

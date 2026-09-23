@@ -12,6 +12,7 @@ import {
   verifyBiomarkersPanelBookingPayment,
 } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
 import { tryActivateAfterDoctorApproval } from "@/lib/program/activate-member-program";
+import { notifyMember } from "@/lib/notifications/member-notify";
 
 async function auditDoctorDecision(
   request: NextRequest,
@@ -1519,6 +1520,17 @@ Tasks:
             <p>We're excited to support you on this journey!</p>
             <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
           `,
+        });
+
+        await notifyMember({
+          userId,
+          intent: "PROGRAM_STEP",
+          title: "Your program is ready",
+          message: "Your doctor has approved your program. Open it to see the next step.",
+          actionUrl: "/dashboard",
+          type: "SUCCESS",
+          dedupeDays: 14,
+          email: false,
         });
 
         // Log automation

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateWeeklyInsight } from "@/lib/program/weekly-insight";
+import { notifyMember } from "@/lib/notifications/member-notify";
 import { programCalendarWeek } from "@/lib/program/program-week";
 import { evaluateBiomarkerFlags, applyBiomarkerEscalations } from "@/lib/program/biomarker-rules";
 import { assertCronAuthorized } from "@/lib/security/cron-auth";
@@ -23,7 +24,18 @@ export async function GET(request: NextRequest) {
     for (const program of programs) {
       const programWeek = programCalendarWeek(program.startedAt);
 
-      await generateWeeklyInsight(program.userId, program.id, programWeek);
+      const insight = await generateWeeklyInsight(program.userId, program.id, programWeek);
+      if (insight?.summary) {
+        await notifyMember({
+          userId: program.userId,
+          intent: "WEEKLY_NOTE",
+          title: "Your week with George",
+          message: insight.summary.slice(0, 280),
+          actionUrl: "/dashboard/weight-management",
+          category: "SYSTEM",
+          dedupeDays: 6,
+        });
+      }
 
       if (program.planTier === "PRECISION") {
         const { flags } = await evaluateBiomarkerFlags(program.userId);

@@ -11,7 +11,6 @@ export interface RealTimeNotification {
   read: boolean;
   category?: "biomarker" | "goal" | "reminder" | "system";
   actionUrl?: string;
-  icon?: string;
 }
 
 interface NotificationContextType {
@@ -27,137 +26,125 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// Simulated real-time notifications that would come from a WebSocket
-const simulatedNotifications: Omit<RealTimeNotification, "id" | "timestamp" | "read">[] = [
-  {
-    type: "success",
-    title: "Goal Achieved!",
-    message: "Congratulations! Your LDL cholesterol has reached the optimal range.",
-    category: "goal",
-    actionUrl: "/dashboard/goals"
-  },
-  {
-    type: "info",
-    title: "New Lab Results Available",
-    message: "Your latest blood test results have been uploaded and analyzed.",
-    category: "biomarker",
-    actionUrl: "/dashboard/biomarkers"
-  },
-  {
-    type: "warning",
-    title: "Upcoming Test Reminder",
-    message: "Your kidney function test is scheduled for tomorrow at 9:00 AM.",
-    category: "reminder",
-    actionUrl: "/dashboard/kidney-test"
-  },
-  {
-    type: "alert",
-    title: "Biomarker Alert",
-    message: "Your cortisol levels remain elevated. Consider reviewing stress management tips.",
-    category: "biomarker",
-    actionUrl: "/dashboard/hormone-test"
-  },
-  {
-    type: "info",
-    title: "Weekly Health Summary",
-    message: "Your overall health score improved by 3 points this week!",
-    category: "system",
-    actionUrl: "/dashboard"
-  },
-  {
-    type: "success",
-    title: "Streak Achievement",
-    message: "You've tracked your health for 30 consecutive days!",
-    category: "system"
-  },
-];
+type ApiNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  category?: string;
+  actionUrl?: string | null;
+  isRead: boolean;
+  createdAt: string;
+};
+
+function mapNotification(row: ApiNotification): RealTimeNotification {
+  const type = row.type?.toLowerCase();
+  const category = row.category?.toLowerCase();
+  return {
+    id: row.id,
+    type: type === "success" || type === "warning" || type === "alert" ? type : "info",
+    title: row.title,
+    message: row.message,
+    timestamp: new Date(row.createdAt),
+    read: row.isRead,
+    category:
+      category === "biomarker" || category === "goal" || category === "reminder" || category === "system"
+        ? category
+        : "system",
+    actionUrl: row.actionUrl || undefined,
+  };
+}
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<RealTimeNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Simulate WebSocket connection
-  useEffect(() => {
-    // Simulate connection delay
-    const connectionTimer = setTimeout(() => {
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications?limit=20");
+      if (!res.ok) {
+        setIsConnected(false);
+        return;
+      }
+      const data = await res.json();
+      const rows = Array.isArray(data.notifications) ? data.notifications : [];
+      setNotifications(rows.map(mapNotification));
+      setUnreadCount(typeof data.unreadCount === "number" ? data.unreadCount : rows.filter((row: ApiNotification) => !row.isRead).length);
       setIsConnected(true);
-    }, 1000);
-
-    return () => clearTimeout(connectionTimer);
+    } catch {
+      setIsConnected(false);
+    }
   }, []);
 
-  // Simulate receiving real-time notifications
   useEffect(() => {
-    if (!isConnected) return;
-
-    // Add initial notifications
-    const initialNotifications: RealTimeNotification[] = [
-      {
-        id: `notif_${Date.now()}_1`,
-        type: "info",
-        title: "Welcome Back!",
-        message: "Your dashboard has been updated with your latest health data.",
-        timestamp: new Date(Date.now() - 5 * 60 * 1000),
-        read: false,
-        category: "system"
-      },
-      {
-        id: `notif_${Date.now()}_2`,
-        type: "warning",
-        title: "Vitamin D Reminder",
-        message: "Don't forget to take your vitamin D supplement today.",
-        timestamp: new Date(Date.now() - 30 * 60 * 1000),
-        read: false,
-        category: "reminder"
-      },
-    ];
-    setNotifications(initialNotifications);
-
-    // Simulate periodic notifications (every 30-60 seconds in production, faster for demo)
-    const notificationInterval = setInterval(() => {
-      const randomNotif = simulatedNotifications[Math.floor(Math.random() * simulatedNotifications.length)];
-      const newNotification: RealTimeNotification = {
-        ...randomNotif,
-        id: `notif_${Date.now()}`,
-        timestamp: new Date(),
-        read: false,
-      };
-
-      setNotifications(prev => [newNotification, ...prev].slice(0, 20)); // Keep last 20
-    }, 45000); // Every 45 seconds for demo
-
-    return () => clearInterval(notificationInterval);
-  }, [isConnected]);
-
-  const addNotification = useCallback((notification: Omit<RealTimeNotification, "id" | "timestamp" | "read">) => {
-    const newNotification: RealTimeNotification = {
-      ...notification,
-      id: `notif_${Date.now()}`,
-      timestamp: new Date(),
-      read: false,
+    refresh();
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    const interval = setInterval(refresh, 60_000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(interval);
     };
-    setNotifications(prev => [newNotification, ...prev].slice(0, 20));
-  }, []);
+  }, [refresh]);
+
+  const addNotification = useCallback((_notification: Omit<RealTimeNotification, "id" | "timestamp" | "read">) => {
+    refresh();
+  }, [refresh]);
 
   const markAsRead = useCallback((id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
-  }, []);
+    setNotifications((prev) => {
+      const target = prev.find((n) => n.id === id);
+      if (target && !target.read) {
+        setUnreadCount((count) => Math.max(0, count - 1));
+      }
+      return prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+    });
+    fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).then((res) => {
+      if (!res.ok) refresh();
+    }).catch(() => refresh());
+  }, [refresh]);
 
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markAllRead: true }),
+    }).then((res) => {
+      if (!res.ok) refresh();
+    }).catch(() => refresh());
+  }, [refresh]);
 
   const removeNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+    setNotifications((prev) => {
+      const target = prev.find((n) => n.id === id);
+      if (target && !target.read) {
+        setUnreadCount((count) => Math.max(0, count - 1));
+      }
+      return prev.filter((n) => n.id !== id);
+    });
+    fetch(`/api/notifications?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      .then((res) => {
+        if (!res.ok) refresh();
+      })
+      .catch(() => refresh());
+  }, [refresh]);
 
   const clearAll = useCallback(() => {
     setNotifications([]);
-  }, []);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
+    setUnreadCount(0);
+    fetch("/api/notifications?clearAll=true", { method: "DELETE" })
+      .then((res) => {
+        if (!res.ok) refresh();
+      })
+      .catch(() => refresh());
+  }, [refresh]);
 
   return (
     <NotificationContext.Provider

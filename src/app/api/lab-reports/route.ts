@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { notifyMember } from "@/lib/notifications/member-notify";
 
 // GET /api/lab-reports
 export async function GET(request: NextRequest) {
@@ -70,17 +71,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await prisma.notification.create({
-      data: {
-        userId,
-        type: "INFO",
-        title: "Lab Report Uploaded",
-        message: `A new lab report "${fileName}" has been uploaded.`,
-        category: "BIOMARKER",
-        actionUrl: "/dashboard",
-      },
-    });
-
     await prisma.activityLog.create({
       data: { userId: session.user.id, action: "LAB_REPORT_UPLOADED", entity: "lab_report", entityId: labReport.id, details: { fileName, targetUserId: userId } },
     });
@@ -119,15 +109,14 @@ export async function PATCH(request: NextRequest) {
     });
 
     if (status?.toUpperCase() === "PROCESSED") {
-      await prisma.notification.create({
-        data: {
-          userId: existing.userId,
-          type: "SUCCESS",
-          title: "Lab Results Ready",
-          message: `Your lab report "${existing.fileName}" has been processed.`,
-          category: "BIOMARKER",
-          actionUrl: "/dashboard",
-        },
+      await notifyMember({
+        userId: existing.userId,
+        intent: "RESULTS_READY",
+        title: "Lab results ready",
+        message: `Your lab report "${existing.fileName}" has been processed.`,
+        actionUrl: "/dashboard",
+        type: "SUCCESS",
+        category: "BIOMARKER",
       });
     }
 

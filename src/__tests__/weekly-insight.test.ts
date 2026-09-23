@@ -108,8 +108,13 @@ describe("medication insight for weekly dosing", () => {
       exerciseSessions: 2,
       exerciseMinutes: 45,
       sideEffectReports: 0,
+      weeklyTargetLossKg: 0.5,
     });
     expect(systemPrompt).toMatch(/never treat medication as daily/i);
+    expect(systemPrompt).toMatch(/range of weekly goals/i);
+    expect(userPrompt).toMatch(/within their range of weekly goals/i);
+    expect(userPrompt).not.toMatch(/0\.5 kg/);
+    expect(userPrompt).not.toMatch(/kg average per week/i);
     expect(systemPrompt).not.toMatch(/adherence is low/i);
     expect(systemPrompt).toMatch(/Change since program start/i);
     expect(systemPrompt).toMatch(/never describe this week/i);

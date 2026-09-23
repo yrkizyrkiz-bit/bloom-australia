@@ -3,12 +3,13 @@
 import { useEffect, useId, useState, type MouseEvent } from "react";
 import { Scale } from "lucide-react";
 import {
+  buildJourneyCurve,
   getWeightLossCurveParams,
   monthAxisTicks,
   monthsFromStart,
   programHorizonMonths,
-  projectedWeightAt,
   smoothSvgPath,
+  weightOnJourneyCurve,
 } from "@/lib/weight-management/journey-projection";
 import { parsePlanDate } from "@/lib/weight-management/quiz-goal-defaults";
 
@@ -84,7 +85,7 @@ export function JourneyProjectionChart({
 
   const start = parsePlanDate(startDate) ?? new Date();
   const target = parsePlanDate(targetDate);
-  const { weightLoss, goalMonths, totalMonths, k } = getWeightLossCurveParams(
+  const { weightLoss, goalMonths, totalMonths } = getWeightLossCurveParams(
     startWeight,
     targetWeight,
     programHorizonMonths(start, target)
@@ -159,16 +160,35 @@ export function JourneyProjectionChart({
   const toY = (w: number) => padT + (1 - (w - minW) / (maxW - minW)) * plotH;
   const toX = (t: number) => padL + (t / totalMonths) * plotW;
 
+  const elapsedMonths = monthsFromStart(start, new Date(), totalMonths);
+  const journeyCurve = buildJourneyCurve({
+    startWeight,
+    targetWeight,
+    totalMonths,
+    elapsedMonths,
+    latestWeight: currentWeight,
+    observed: weeklyAverages.flatMap((row) => {
+      const at = parsePlanDate(row.week);
+      if (!at) return [];
+      return [{ months: monthsFromStart(start, at, totalMonths), weight: row.avgWeight }];
+    }),
+  });
+
   const drawnMonths = totalMonths * projectionProgress;
-  const projectionPoints: { x: number; y: number }[] = [];
-  const steps = 360;
-  for (let i = 0; i <= steps; i++) {
-    const t = (i / steps) * drawnMonths;
-    projectionPoints.push({
-      x: toX(t),
-      y: toY(projectedWeightAt(startWeight, targetWeight, t, k)),
-    });
+  const drawnCurve = journeyCurve.filter((point) => point.months <= drawnMonths + 0.001);
+  if (drawnCurve.length > 0 && drawnMonths < totalMonths) {
+    const tip = drawnCurve[drawnCurve.length - 1]!;
+    if (drawnMonths - tip.months > 0.01) {
+      drawnCurve.push({
+        months: drawnMonths,
+        weight: weightOnJourneyCurve(journeyCurve, drawnMonths),
+      });
+    }
   }
+  const projectionPoints = drawnCurve.map((point) => ({
+    x: toX(point.months),
+    y: toY(point.weight),
+  }));
 
   const actualPoints = weeklyAverages
     .map((row) => {
@@ -194,7 +214,6 @@ export function JourneyProjectionChart({
   const visibleActual = actualPoints.slice(0, Math.round(actualPoints.length * progressProgress));
   const linePath = smoothSvgPath(projectionPoints);
   const lastPt = projectionPoints[projectionPoints.length - 1] || { x: 0, y: toY(startWeight) };
-  const actualPath = smoothSvgPath(visibleActual);
   const goalX = toX(goalMonths);
   const goalY = toY(targetWeight);
   const ticks = monthAxisTicks(totalMonths);
@@ -209,7 +228,7 @@ export function JourneyProjectionChart({
     const local = pt.matrixTransform(ctm.inverse());
     const x = Math.min(W - padR, Math.max(padL, local.x));
     const months = Math.min(totalMonths, Math.max(0, ((x - padL) / plotW) * totalMonths));
-    const goalKg = projectedWeightAt(startWeight, targetWeight, months, k);
+    const goalKg = weightOnJourneyCurve(journeyCurve, months);
     const actual = interpolateActual(x, visibleActual);
     setHover({
       months,
@@ -255,7 +274,7 @@ export function JourneyProjectionChart({
               </p>
               <p className="mt-1 font-serif text-lg leading-none text-[#2c3628]">
                 {hover.goalKg.toFixed(1)}
-                <span className="ml-1 text-xs font-sans text-[#7e9a72]">kg goal</span>
+                <span className="ml-1 text-xs font-sans text-[#7e9a72]">kg</span>
               </p>
               {hover.actualKg != null ? (
                 <p className="mt-1.5 text-sm text-[#c17a58]">{hover.actualKg.toFixed(1)} kg logged</p>
@@ -315,16 +334,6 @@ export function JourneyProjectionChart({
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          {visibleActual.length > 1 ? (
-            <path
-              d={actualPath}
-              fill="none"
-              stroke="#c17a58"
-              strokeWidth="6.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ) : null}
           {visibleActual.map((point, i) => (
             <circle
               key={`p${i}`}
@@ -393,11 +402,11 @@ export function JourneyProjectionChart({
       <div className="mt-3 flex items-center gap-4 text-[11px] text-[#7e9a72]">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4 rounded-full bg-[#5c7a52]" />
-          Goal
+          Your journey
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4 rounded-full bg-[#c17a58]" />
-          Your progress
+          <span className="inline-block h-2 w-2 rounded-full bg-[#c17a58]" />
+          Weigh-ins
         </span>
       </div>
 

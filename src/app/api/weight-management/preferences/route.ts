@@ -28,7 +28,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(preferences);
+    const member = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailyTrackingPing: true },
+    });
+
+    return NextResponse.json({
+      ...preferences,
+      trackingReminders: member?.dailyTrackingPing ?? preferences.trackingReminders,
+    });
   } catch (error) {
     console.error("Error fetching preferences:", error);
     return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
@@ -52,6 +60,13 @@ export async function PUT(request: NextRequest) {
       update: updateData,
       create: { userId: targetUserId, ...updateData },
     });
+
+    if (typeof updateData.trackingReminders === "boolean") {
+      await prisma.user.update({
+        where: { id: targetUserId },
+        data: { dailyTrackingPing: updateData.trackingReminders },
+      });
+    }
 
     return NextResponse.json(preferences);
   } catch (error) {

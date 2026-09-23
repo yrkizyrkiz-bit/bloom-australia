@@ -48,6 +48,9 @@ export default function SettingsPage() {
   const [membershipLoading, setMembershipLoading] = useState(true);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [savingMarketing, setSavingMarketing] = useState(false);
+  const [notificationFrequency, setNotificationFrequency] = useState<"QUIET" | "STANDARD" | "CLOSER">("STANDARD");
+  const [dailyTrackingPing, setDailyTrackingPing] = useState(true);
+  const [savingNotifications, setSavingNotifications] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -73,6 +76,12 @@ export default function SettingsPage() {
             phone: data.user?.phone || null,
             gender: data.user?.gender || "OTHER",
           });
+          if (data.user?.notificationFrequency === "QUIET" || data.user?.notificationFrequency === "CLOSER" || data.user?.notificationFrequency === "STANDARD") {
+            setNotificationFrequency(data.user.notificationFrequency);
+          }
+          if (typeof data.user?.dailyTrackingPing === "boolean") {
+            setDailyTrackingPing(data.user.dailyTrackingPing);
+          }
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -102,6 +111,32 @@ export default function SettingsPage() {
     };
     if (user?.id) fetchMembership();
   }, [user?.id]);
+
+  const handleNotificationChange = async (
+    next: { notificationFrequency?: "QUIET" | "STANDARD" | "CLOSER"; dailyTrackingPing?: boolean }
+  ) => {
+    if (!user?.id) return;
+    const previousFrequency = notificationFrequency;
+    const previousPing = dailyTrackingPing;
+    if (next.notificationFrequency) setNotificationFrequency(next.notificationFrequency);
+    if (typeof next.dailyTrackingPing === "boolean") setDailyTrackingPing(next.dailyTrackingPing);
+    setSavingNotifications(true);
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      toast.success("Notification settings saved");
+    } catch {
+      setNotificationFrequency(previousFrequency);
+      setDailyTrackingPing(previousPing);
+      toast.error("Could not update notifications");
+    } finally {
+      setSavingNotifications(false);
+    }
+  };
 
   const handleMarketingToggle = async (checked: boolean) => {
     if (!user?.id) return;
@@ -474,21 +509,44 @@ export default function SettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {[
-            { title: "New Results Available", desc: "Get notified when new biomarker results are uploaded" },
-            { title: "Health Insights", desc: "Receive personalized health insights and recommendations" },
-            { title: "Monthly Summary", desc: "Get a monthly overview of your health trends" },
-          ].map((item, index) => (
-            <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-              <div>
-                <p className="font-medium text-sm">{item.title}</p>
-                <p className="text-xs text-muted-foreground">{item.desc}</p>
-              </div>
-              <Button variant="outline" size="sm">
-                Enabled
-              </Button>
+          <div className="space-y-2">
+            <Label>How often</Label>
+            <Select
+              value={notificationFrequency}
+              onValueChange={(value) =>
+                handleNotificationChange({
+                  notificationFrequency: value as "QUIET" | "STANDARD" | "CLOSER",
+                })
+              }
+              disabled={savingNotifications}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="QUIET">Quiet — only things that need a decision</SelectItem>
+                <SelectItem value="STANDARD">Standard — quiet, plus one weekly note</SelectItem>
+                <SelectItem value="CLOSER">Closer — standard, plus a mid-week nudge</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Results, an overdue dose, and a consult tomorrow always come through. Standard adds one weekly note. Closer also adds a mid-week nudge if a dose or check-in is still open.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+            <div>
+              <p className="font-medium text-sm">Daily tracking ping</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                One reminder if today’s ring, a meal, or a weigh-in is still open
+              </p>
             </div>
-          ))}
+            <Switch
+              checked={dailyTrackingPing}
+              onCheckedChange={(checked) => handleNotificationChange({ dailyTrackingPing: checked })}
+              disabled={savingNotifications}
+            />
+          </div>
         </CardContent>
       </Card>
 

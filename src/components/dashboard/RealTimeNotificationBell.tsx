@@ -21,8 +21,6 @@ import {
   AlertTriangle,
   AlertCircle,
   CheckCircle,
-  Wifi,
-  WifiOff,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -59,7 +57,6 @@ export function RealTimeNotificationBell() {
   const {
     notifications,
     unreadCount,
-    isConnected,
     markAsRead,
     markAllAsRead,
     removeNotification,
@@ -112,20 +109,7 @@ export function RealTimeNotificationBell() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span>Notifications</span>
-            {isConnected ? (
-              <span className="flex items-center gap-1 text-xs text-green-600">
-                <Wifi className="w-3 h-3" />
-                Live
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <WifiOff className="w-3 h-3" />
-                Connecting...
-              </span>
-            )}
-          </div>
+          <span>Notifications</span>
           {notifications.length > 0 && (
             <div className="flex gap-1">
               <Button

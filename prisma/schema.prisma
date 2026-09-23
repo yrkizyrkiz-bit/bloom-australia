@@ -92,6 +92,8 @@ model User {
   renewalDate                     DateTime?
   assignedCarePartnerId           String?
   marketingOptIn                  Boolean                 @default(false)
+  notificationFrequency           NotificationFrequency  @default(STANDARD)
+  dailyTrackingPing               Boolean                 @default(true)
   passkeysEnabled                 Boolean                 @default(true)
   unsubscribedAt                  DateTime?
   aiAnalysisCache                 AIAnalysisCache[]
@@ -2070,6 +2072,12 @@ enum ReminderFrequency {
   WEEKLY
   MONTHLY
   YEARLY
+}
+
+enum NotificationFrequency {
+  QUIET
+  STANDARD
+  CLOSER
 }
 
 enum NotificationType {

@@ -76,14 +76,6 @@ function formatPlanLabel(planTier?: string | null) {
   return "Sanative Core";
 }
 
-function formatWeeklyLossGoal(weeklyTargetLossKg?: number | null): string {
-  if (weeklyTargetLossKg == null || !Number.isFinite(weeklyTargetLossKg) || weeklyTargetLossKg <= 0) {
-    return "your goals";
-  }
-  const rounded = Math.round(weeklyTargetLossKg * 10) / 10;
-  return `your goals (about ${rounded} kg average loss per week)`;
-}
-
 /** True only in week 0/1 and the first few calendar days after program start. */
 export function shouldWriteEarlyWelcome(programWeek: number, daysOnProgram: number) {
   return programWeek <= 1 && daysOnProgram > 0 && daysOnProgram <= 3;
@@ -157,7 +149,7 @@ Medication rules:
 Program start rules:
 - Only judge days on or after their program start date.
 - If they started mid-week, do not mention gaps, catch-up, missed earlier weekdays, or “days before start”.
-- In the first few days, write as George — their warm companion on the journey. Welcome them by name, introduce yourself, encourage daily rings, and mention activities, calories, and meds. If a weekly loss target is known, reference it naturally.
+- In the first few days, write as George — their warm companion on the journey. Welcome them by name, introduce yourself, encourage daily rings, and mention activities, calories, and meds.
 
 Program week rules:
 - Weeks are Monday–Sunday.
@@ -169,7 +161,9 @@ Weight rules:
 - “Change since program start” is their total loss or gain on the program. Use only this number when you say how much they have lost, or how they are tracking across days on the program.
 - “Change this week” is only Monday–Sunday of the current week. If you mention it, label it as this week only.
 - Never describe this week’s kg change as their program loss, and never say they lost that amount “across X days”.
-- Prefer the program start weight (goal / plan) over the first weigh-in of a short lookback.`;
+- Prefer the program start weight (goal / plan) over the first weigh-in of a short lookback.
+- Do not mention a specific weekly kilogram target, such as 0.5 kg per week, and do not say they are ahead of or behind a numbered weekly goal.
+- When you talk about pace, say they are within their range of weekly goals, or that this week sits a little outside that range.`;
 
   const daysOnProgram = input.daysOnProgram ?? 0;
   const startNote = input.programStartedAt
@@ -182,9 +176,7 @@ Weight rules:
     : "Program start date unknown — still do not invent missed earlier weekdays.";
 
   const weeklyGoalNote =
-    input.weeklyTargetLossKg != null && input.weeklyTargetLossKg > 0
-      ? `Weekly loss goal: about ${Math.round(input.weeklyTargetLossKg * 10) / 10} kg average per week.`
-      : "Weekly loss goal: not set yet.";
+    "Weekly pace: do not quote a kg-per-week target. Say they are within their range of weekly goals, or that this week sits a little outside that range.";
 
   const fromStart =
     input.weightChangeFromStartKg ?? input.weightChangeKg ?? null;
