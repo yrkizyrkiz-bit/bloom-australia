@@ -25,6 +25,7 @@ import type { Recipe } from "@/data/recipes";
 import type { CombinedFoodMeal } from "@/components/weight-management/FoodSearchDialog";
 import { getMealImage, getRandomMotivation } from "@/data/mealImages";
 import { useAuth } from "@/contexts/AuthContext";
+import { matchesFavoriteName } from "@/lib/weight-management/favorite-meals";
 
 const FoodSearchDialog = dynamic(
   () =>
@@ -236,6 +237,7 @@ export default function MealsPage() {
   const [showCustomMealDialog, setShowCustomMealDialog] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteMeal[]>([]);
   const [loggingFavoriteId, setLoggingFavoriteId] = useState<string | null>(null);
+  const [togglingLogFavouriteId, setTogglingLogFavouriteId] = useState<string | null>(null);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
 
   const todayKey = localDateKey(new Date());
@@ -354,14 +356,17 @@ export default function MealsPage() {
     return () => controller.abort();
   }, [user?.id, fetchFavorites]);
 
-  const saveFavouriteMeal = async (payload: {
-    mealType: string;
-    name: string;
-    calories?: number | null;
-    protein?: number | null;
-    carbs?: number | null;
-    fat?: number | null;
-  }) => {
+  const saveFavouriteMeal = async (
+    payload: {
+      mealType: string;
+      name: string;
+      calories?: number | null;
+      protein?: number | null;
+      carbs?: number | null;
+      fat?: number | null;
+    },
+    options?: { errorMessage?: string }
+  ) => {
     const favRes = await fetch("/api/weight-management/favorite-meals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -372,7 +377,7 @@ export default function MealsPage() {
       await fetchFavorites();
       return true;
     }
-    toast.error("Meal logged, but it could not be saved to favourites");
+    toast.error(options?.errorMessage ?? "Meal logged, but it could not be saved to favourites");
     return false;
   };
 
@@ -483,6 +488,45 @@ export default function MealsPage() {
       });
     } finally {
       setLoggingFavoriteId(null);
+    }
+  };
+
+  const handleToggleLoggedFavourite = async (meal: MealLog) => {
+    setTogglingLogFavouriteId(meal.id);
+    try {
+      const existing = favorites.filter((favourite) => matchesFavoriteName(favourite.name, meal.name));
+      if (existing.length > 0) {
+        const results = await Promise.all(
+          existing.map((favourite) =>
+            fetch(`/api/weight-management/favorite-meals?id=${favourite.id}`, {
+              method: "DELETE",
+              credentials: "same-origin",
+            })
+          )
+        );
+        if (results.some((res) => !res.ok)) {
+          toast.error("Could not update favourites");
+          return;
+        }
+        const removed = new Set(existing.map((favourite) => favourite.id));
+        setFavorites((current) => current.filter((favourite) => !removed.has(favourite.id)));
+        toast.success("Removed from favourites");
+        return;
+      }
+      const saved = await saveFavouriteMeal(
+        {
+          mealType: meal.mealType,
+          name: meal.name,
+          calories: meal.calories,
+          protein: meal.protein,
+          carbs: meal.carbs,
+          fat: meal.fat,
+        },
+        { errorMessage: "Could not add to favourites" }
+      );
+      if (saved) toast.success("Added to favourites");
+    } finally {
+      setTogglingLogFavouriteId(null);
     }
   };
 
@@ -1004,10 +1048,41 @@ export default function MealsPage() {
                       ) : null}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 flex-col items-center gap-0.5 sm:flex-row sm:gap-1">
                     {meal.protein ? (
                       <Badge variant="outline" className="hidden text-xs md:flex">P: {meal.protein}g</Badge>
                     ) : null}
+                    {(() => {
+                      const isFavourite = favorites.some((favourite) =>
+                        matchesFavoriteName(favourite.name, meal.name)
+                      );
+                      return (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={togglingLogFavouriteId === meal.id}
+                          onClick={() => void handleToggleLoggedFavourite(meal)}
+                          aria-label={
+                            isFavourite
+                              ? `Remove ${meal.name} from favourites`
+                              : `Add ${meal.name} to favourites`
+                          }
+                        >
+                          {togglingLogFavouriteId === meal.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Heart
+                              className={`h-4 w-4 ${
+                                isFavourite
+                                  ? "fill-rose-500 text-rose-500"
+                                  : "text-muted-foreground hover:text-rose-500"
+                              }`}
+                            />
+                          )}
+                        </Button>
+                      );
+                    })()}
                     {isToday ? (
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(meal.id)}>
                         <Trash2 className="h-4 w-4 text-muted-foreground hover:text-red-500" />

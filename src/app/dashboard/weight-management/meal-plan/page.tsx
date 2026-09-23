@@ -8,12 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Plus, Calendar, CalendarDays, ChevronLeft, ChevronRight,
-  X, Flame, Clock, ShoppingCart, Trash2, Sparkles
+  X, Flame, Clock, ShoppingCart, Trash2, Sparkles, Heart
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { RECIPES, Recipe } from "@/data/recipes";
+import { defaultMealImages, getMealImage } from "@/data/mealImages";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFavoriteMeals } from "@/hooks/useFavoriteMeals";
+import { matchesFavoriteName, type PublicFavoriteMeal } from "@/lib/weight-management/favorite-meals";
 import {
   addDays,
   localDateKey,
@@ -43,6 +46,38 @@ const MEAL_SLOTS = [
 
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+function recipeMealTypeForFavourite(mealType: string): Recipe["mealType"] {
+  if (mealType === "BREAKFAST" || mealType === "LUNCH" || mealType === "DINNER" || mealType === "DESSERT") {
+    return mealType;
+  }
+  return "SNACK";
+}
+
+function recipeFromFavourite(favourite: PublicFavoriteMeal): Recipe {
+  const catalog = RECIPES.find((recipe) => matchesFavoriteName(recipe.title, favourite.name));
+  if (catalog) return catalog;
+  const mealType = recipeMealTypeForFavourite(favourite.mealType);
+  return {
+    id: `favourite-${favourite.id}`,
+    title: favourite.name,
+    description: "",
+    imageUrl:
+      getMealImage(favourite.name, favourite.mealType) ||
+      defaultMealImages[favourite.mealType] ||
+      defaultMealImages.LUNCH,
+    mealType,
+    dietaryTags: [],
+    prepTime: 0,
+    cookTime: 0,
+    servings: 1,
+    difficulty: "EASY",
+    calories: favourite.calories ?? 0,
+    protein: favourite.protein ?? 0,
+    carbs: favourite.carbs ?? 0,
+    fat: favourite.fat ?? 0,
+  };
+}
+
 function persistMealPlan(
   weekStart: string,
   plan: Record<string, DayPlan>,
@@ -58,6 +93,7 @@ function persistMealPlan(
 
 export default function MealPlanPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { favorites } = useFavoriteMeals();
   const [weekSunday, setWeekSunday] = useState(() => startOfWeekSunday());
   const weekDates = weekDatesFromSunday(weekSunday);
   const weekStartIso = localDateKey(weekDates[0] ?? weekSunday);
@@ -262,9 +298,12 @@ export default function MealPlanPage() {
     ? programWeekProgress(weekSunday, programSpan.start, programSpan.end)
     : { weekNumber: 1, totalWeeks: 12 };
 
-  const filteredRecipes = RECIPES.filter(recipe => {
-    const matchesSearch = !searchQuery ||
-      recipe.title.toLowerCase().includes(searchQuery.toLowerCase());
+  const query = searchQuery.trim().toLowerCase();
+  const visibleFavourites = favorites.filter(
+    (favourite) => !query || favourite.name.toLowerCase().includes(query)
+  );
+  const recipesForFilter = RECIPES.filter(recipe => {
+    const matchesSearch = !query || recipe.title.toLowerCase().includes(query);
     const matchesType = filterMealType === "all" ||
       (filterMealType === "breakfast" && recipe.mealType === "BREAKFAST") ||
       (filterMealType === "lunch" && recipe.mealType === "LUNCH") ||
@@ -272,6 +311,9 @@ export default function MealPlanPage() {
       (filterMealType === "snack" && recipe.mealType === "SNACK");
     return matchesSearch && matchesType;
   });
+  const filteredRecipes = recipesForFilter.filter(
+    (recipe) => !favorites.some((favourite) => matchesFavoriteName(favourite.name, recipe.title))
+  );
 
   const isToday = (date: Date) => localDateKey(date) === localDateKey(new Date());
 
@@ -446,33 +488,92 @@ export default function MealPlanPage() {
           </div>
 
           <ScrollArea className="h-[50vh]">
-            <div className="grid grid-cols-2 gap-3 p-1">
-              {filteredRecipes.map(recipe => (
-                <Card
-                  key={recipe.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
-                  onClick={() => addRecipeToSlot(recipe)}
-                >
-                  <div className="flex gap-3 p-3">
-                    <img
-                      src={recipe.imageUrl}
-                      alt={recipe.title}
-                      className="w-16 h-16 rounded-lg object-cover shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm line-clamp-1">{recipe.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="text-[10px]">
-                          <Flame className="w-3 h-3 mr-1" />{recipe.calories}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px]">
-                          <Clock className="w-3 h-3 mr-1" />{recipe.prepTime + recipe.cookTime}m
-                        </Badge>
-                      </div>
-                    </div>
+            <div className="space-y-4 p-1">
+              {visibleFavourites.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" />
+                    Favourites
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {visibleFavourites.map((favourite) => {
+                      const recipe = recipeFromFavourite(favourite);
+                      return (
+                        <Card
+                          key={favourite.id}
+                          className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
+                          onClick={() => addRecipeToSlot(recipe)}
+                        >
+                          <div className="flex gap-3 p-3">
+                            <img
+                              src={recipe.imageUrl}
+                              alt={recipe.title}
+                              className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-1 text-sm font-medium">{recipe.title}</p>
+                              <div className="mt-1 flex items-center gap-2">
+                                <Badge variant="secondary" className="text-[10px]">
+                                  <Flame className="mr-1 h-3 w-3" />
+                                  {recipe.calories}
+                                </Badge>
+                                {recipe.prepTime + recipe.cookTime > 0 ? (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    <Clock className="mr-1 h-3 w-3" />
+                                    {recipe.prepTime + recipe.cookTime}m
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </div>
-                </Card>
-              ))}
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Recipes
+                </p>
+                {filteredRecipes.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    {recipesForFilter.length > 0
+                      ? "Those meals are already in Favourites."
+                      : "No recipes found."}
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {filteredRecipes.map(recipe => (
+                      <Card
+                        key={recipe.id}
+                        className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
+                        onClick={() => addRecipeToSlot(recipe)}
+                      >
+                        <div className="flex gap-3 p-3">
+                          <img
+                            src={recipe.imageUrl}
+                            alt={recipe.title}
+                            className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-1 text-sm font-medium">{recipe.title}</p>
+                            <div className="mt-1 flex items-center gap-2">
+                              <Badge variant="secondary" className="text-[10px]">
+                                <Flame className="mr-1 h-3 w-3" />{recipe.calories}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px]">
+                                <Clock className="mr-1 h-3 w-3" />{recipe.prepTime + recipe.cookTime}m
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </ScrollArea>
         </DialogContent>
