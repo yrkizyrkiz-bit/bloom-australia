@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireClinicalStaff } from "@/lib/auth/require-clinical-staff";
 
 // GET - List all biomarker campaigns
 export async function GET() {
   try {
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
+
     const campaigns = await prisma.biomarkerCampaign.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
@@ -23,10 +25,8 @@ export async function GET() {
 // POST - Create a new biomarker campaign
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
 
     const body = await request.json();
     const {
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         genderFilter: genderFilter || "ALL",
         isEnabled: isEnabled !== undefined ? isEnabled : true,
         sortOrder: sortOrder || 0,
-        createdBy: session.user.email || undefined,
+        createdBy: auth.session.user.email || undefined,
       },
     });
 
@@ -107,10 +107,8 @@ export async function POST(request: NextRequest) {
 // PUT - Update an existing biomarker campaign
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
 
     const body = await request.json();
     const { id, ...data } = body;
@@ -143,10 +141,8 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete a biomarker campaign
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

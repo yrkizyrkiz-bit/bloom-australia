@@ -11,7 +11,11 @@ import { sanitizeHolisticHealthReport } from "@/lib/holistic-health-report-types
 import {
   answerReportAskQuestion,
   buildReportAskItems,
+  refreshAskQuestions,
 } from "@/lib/holistic-report-ask";
+import { generateHolisticAskAnswerWithClaude } from "@/lib/holistic-report-ask-claude";
+import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
+import { enforceDbRateLimit, rateLimitExceededResponse } from "@/lib/security/rate-limit-http";
 
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
@@ -68,11 +72,36 @@ export async function POST(request: NextRequest) {
 
     const catalog =
       Array.isArray(report.askItems) && report.askItems.length > 0
-        ? report.askItems
+        ? refreshAskQuestions(report, report.askItems)
         : buildReportAskItems(report);
 
-    const answer = answerReportAskQuestion(report, question, catalog);
-    return NextResponse.json({ answer });
+    // Prepared questions are answered from the doctor-reviewed catalogue.
+    const prepared = catalog.find(
+      (item) => item.question.trim().toLowerCase() === question.toLowerCase()
+    );
+    if (prepared) {
+      return NextResponse.json({ answer: answerReportAskQuestion(report, question, catalog) });
+    }
+
+    const limited = await enforceDbRateLimit(
+      `report-ask:user:${session.user.id}`,
+      RATE_LIMITS.reportAskUser
+    );
+    if (!limited.allowed) {
+      return rateLimitExceededResponse(limited.retryAfterSec);
+    }
+
+    const member = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true },
+    });
+
+    const answer = await generateHolisticAskAnswerWithClaude({
+      question,
+      userName: member?.firstName || "there",
+      report,
+    });
+    return NextResponse.json({ answer, source: answer.id.startsWith("claude-") ? "ai" : "local" });
   } catch (error) {
     console.error("[holistic-health-report/ask] POST", error);
     return NextResponse.json({ error: "Failed to answer question" }, { status: 500 });

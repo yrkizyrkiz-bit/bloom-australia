@@ -18,7 +18,7 @@ import type { BiomarkerDefinition, BiomarkerResult } from "@/types";
 import {
   getEssentialMarkerIds,
   getProgramEssentialPanel,
-  PROGRAM_ESSENTIAL_PANELS,
+  visibleProgramEssentialPanels,
   type ProgramEssentialSlug,
 } from "@/lib/program-essential-panels";
 import {
@@ -59,6 +59,7 @@ export function BiomarkerProgramEssentialView({
   onBiomarkerClick,
 }: BiomarkerProgramEssentialViewProps) {
   const panelMeta = getProgramEssentialPanel(program);
+  const programTabs = useMemo(() => visibleProgramEssentialPanels(gender), [gender]);
   const essentialIds = useMemo(
     () => new Set(getEssentialMarkerIds(program, gender)),
     [program, gender]
@@ -126,7 +127,7 @@ export function BiomarkerProgramEssentialView({
       >
         <div className="overflow-x-auto pb-1">
           <TabsList className="w-max h-auto flex-wrap gap-1 bg-muted/50 p-1">
-            {PROGRAM_ESSENTIAL_PANELS.map((p) => (
+            {programTabs.map((p) => (
               <TabsTrigger
                 key={p.slug}
                 value={p.slug}

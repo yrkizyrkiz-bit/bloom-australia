@@ -10,14 +10,17 @@ import {
 } from "@/lib/holistic-report-ask";
 import { stripAskEducationalGpClosing } from "@/lib/holistic-patient-language";
 
-const CLAUDE_MODEL =
-  process.env.HOLISTIC_HEALTH_AI_MODEL ||
-  process.env.ORGAN_CARE_AI_MODEL ||
-  process.env.ANTHROPIC_MODEL ||
-  "claude-sonnet-4-6";
+// Ask runs inside a synchronous Netlify function (~10s cap), so it uses a fast
+// model and a tight budget, falling back to the prepared local answer on timeout.
+function askModel() {
+  return process.env.HOLISTIC_ASK_AI_MODEL || "claude-haiku-4-5";
+}
 
-const CLAUDE_ASK_TIMEOUT_MS = Number(process.env.HOLISTIC_ASK_AI_TIMEOUT_MS || 45_000);
-const CLAUDE_ASK_MAX_TOKENS = 700;
+function askTimeoutMs() {
+  return Number(process.env.HOLISTIC_ASK_AI_TIMEOUT_MS || 8_500);
+}
+
+const CLAUDE_ASK_MAX_TOKENS = 450;
 
 const ASK_TOOL = {
   name: "submit_report_ask_answer",
@@ -153,6 +156,7 @@ Style rules:
 - Bullets: prefer exactly 1 (never more than 2). Title = "Common name: value unit". Body = one short sentence with no repeated numbers or "Your result is…".
 - Insight: 1–2 sentences on everyday clinical context (e.g. CRP often jumps after a cold/flu/infection). Do not restate the bullet.
 - Closing: omit. Do not tell the member to check with their GP or Sanative care team.
+- Answer the question they asked. If they ask “am I diabetic?”, interpret HbA1c and fasting glucose and say this is not a diagnosis. Never switch to an unrelated high-priority marker (for example CRP) just because it is flagged.
 - Stay on-topic. Do NOT pad with unrelated markers.
 - Speak as George in a warm, clear voice.
 
@@ -162,13 +166,13 @@ Submit via submit_report_ask_answer only.`;
     const anthropic = new Anthropic();
     const message = await withTimeout(
       anthropic.messages.create({
-        model: CLAUDE_MODEL,
+        model: askModel(),
         max_tokens: CLAUDE_ASK_MAX_TOKENS,
         tools: [ASK_TOOL as unknown as Anthropic.Tool],
         tool_choice: { type: "tool", name: "submit_report_ask_answer" },
         messages: [{ role: "user", content: prompt }],
       }),
-      CLAUDE_ASK_TIMEOUT_MS
+      askTimeoutMs()
     );
 
     const toolUse = message.content.find(

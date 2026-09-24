@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   filterToLatestPanelDate,
   filterToLatestPanelForMarkers,
+  formatUtcPanelDayLabel,
   getLatestPanelDateKey,
   pairCurrentPanelWithPrevious,
   testedAtUtcDayKey,
@@ -34,6 +35,18 @@ describe("panel-scoped latest results", () => {
   it("uses UTC day keys matching history API grouping", () => {
     expect(testedAtUtcDayKey("2026-09-13T14:30:00.000Z")).toBe("2026-09-13");
     expect(testedAtUtcDayKey(new Date("2026-09-03T00:00:00.000Z"))).toBe("2026-09-03");
+    expect(testedAtUtcDayKey("2026-09-13")).toBe("2026-09-13");
+  });
+
+  it("does not throw on empty or invalid timestamps", () => {
+    expect(testedAtUtcDayKey("")).toBe("");
+    expect(testedAtUtcDayKey("Invalid Date")).toBe("");
+    expect(testedAtUtcDayKey(new Date("not-a-date"))).toBe("");
+    expect(formatUtcPanelDayLabel("")).toBe("—");
+    expect(formatUtcPanelDayLabel("not-a-date", "full")).toBe("—");
+    expect(getLatestPanelDateKey([{ testedAt: "" }, { testedAt: "2026-09-03T00:00:00.000Z" }])).toBe(
+      "2026-09-03"
+    );
   });
 
   it("picks the newest panel date across all results", () => {

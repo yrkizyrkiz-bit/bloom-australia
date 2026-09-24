@@ -222,3 +222,28 @@ export function resolveDefaultProgramFromTier(
 export function isProgramEssentialSlug(value: string): value is ProgramEssentialSlug {
   return PROGRAM_ESSENTIAL_PANELS.some((p) => p.slug === value);
 }
+
+/** Men's Health is male-only; Women's Health is female-only. Weight and Hair stay for both. */
+export function programVisibleForGender(
+  slug: ProgramEssentialSlug,
+  gender: ProgramEssentialGender
+): boolean {
+  if (slug === "WOMENS_HEALTH") return gender === "female";
+  if (slug === "MENS_HEALTH") return gender === "male";
+  return true;
+}
+
+export function visibleProgramEssentialPanels(
+  gender: ProgramEssentialGender
+): ProgramEssentialPanel[] {
+  return PROGRAM_ESSENTIAL_PANELS.filter((panel) =>
+    programVisibleForGender(panel.slug, gender)
+  );
+}
+
+export function clampProgramForGender(
+  slug: ProgramEssentialSlug,
+  gender: ProgramEssentialGender
+): ProgramEssentialSlug {
+  return programVisibleForGender(slug, gender) ? slug : "WEIGHT_MANAGEMENT";
+}

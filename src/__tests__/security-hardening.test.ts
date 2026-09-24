@@ -1,7 +1,38 @@
 import { createHmac } from "crypto";
+import { readdirSync, readFileSync, statSync } from "fs";
+import { join } from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isValidCalSignature } from "@/lib/security/cal-webhook-signature";
 import { getAuthJwtSecret } from "@/lib/security/jwt-secret";
+
+function listRouteFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) return listRouteFiles(full);
+    return entry === "route.ts" ? [full] : [];
+  });
+}
+
+describe("admin API routes enforce a staff role", () => {
+  const adminApiDir = join(process.cwd(), "src/app/api/admin");
+  const roleGuard =
+    /requireClinicalStaff|requireDoctorOrAdmin|hasClinicalStaffRole|hasDoctorAdminRole|isStaffRole|ALLOWED_ROLES|allowedRoles|\.role\b|requireAdminAuth|requireCronAuth|blockDevOnlyRouteInProduction/;
+
+  it("every /api/admin route checks a role, not just that a session exists", () => {
+    const unguarded = listRouteFiles(adminApiDir)
+      .filter((file) => !roleGuard.test(readFileSync(file, "utf8")))
+      .map((file) => file.replace(adminApiDir, ""));
+    expect(unguarded).toEqual([]);
+  });
+
+  it("internal notes and biomarker campaigns use the shared staff guard", () => {
+    for (const route of ["notes", "biomarker-campaigns"]) {
+      const source = readFileSync(join(adminApiDir, route, "route.ts"), "utf8");
+      expect(source).toContain("requireClinicalStaff");
+      expect(source).not.toMatch(/if \(!session\?\.user(\?\.id)?\) \{/);
+    }
+  });
+});
 
 describe("auth JWT secret", () => {
   afterEach(() => {

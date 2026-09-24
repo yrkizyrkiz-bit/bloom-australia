@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireClinicalStaff } from "@/lib/auth/require-clinical-staff";
 import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
 
 // GET - Fetch notes for a user
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
@@ -36,10 +33,9 @@ export async function GET(req: NextRequest) {
 // POST - Create a new note
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
+    const session = auth.session;
 
     const body = await req.json();
     const { userId, title, content, category = "GENERAL" } = body;
@@ -78,10 +74,8 @@ export async function POST(req: NextRequest) {
 // PATCH - Update a note
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
 
     const body = await req.json();
     const { noteId, title, content, isPinned } = body;
@@ -110,10 +104,8 @@ export async function PATCH(req: NextRequest) {
 // DELETE - Delete a note
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
 
     const { searchParams } = new URL(req.url);
     const noteId = searchParams.get("noteId");

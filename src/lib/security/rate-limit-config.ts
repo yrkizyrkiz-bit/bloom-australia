@@ -25,6 +25,8 @@ export const RATE_LIMITS = {
   checkEmailIp: { limit: 30, windowSec: 60 * 60 },
   /** Checkout / payment intent creation per IP */
   checkoutIp: { limit: 20, windowSec: 60 * 60 },
+  /** Free-text Ask questions to Claude per member (cost control) */
+  reportAskUser: { limit: 30, windowSec: 60 * 60 },
   /** Australian address autocomplete per IP */
   addressSuggestIp: { limit: 40, windowSec: 60 },
   /** Australian address place details per IP */

@@ -27,6 +27,7 @@ import { UntestedBiomarkerCard } from "@/components/dashboard/UntestedBiomarkerC
 import { isCatalogBiomarker } from "@/lib/catalog-biomarkers";
 import { shouldShowPortalMarkerCard, CATEGORY_ORDER } from "@/lib/biomarkers/panel-biomarker-display";
 import {
+  clampProgramForGender,
   isProgramEssentialSlug,
   type ProgramEssentialSlug,
 } from "@/lib/program-essential-panels";
@@ -62,7 +63,7 @@ function BiomarkersPageContent() {
     viewParam === "program" ? "program" : "categories";
   const programParam = searchParams?.get("program");
   const womensHealthSubcategory = getWomensHealthSubcategory(searchParams?.get("subcategory"));
-  const initialProgram: ProgramEssentialSlug =
+  const requestedProgram: ProgramEssentialSlug =
     programParam && isProgramEssentialSlug(programParam)
       ? programParam
       : "WEIGHT_MANAGEMENT";
@@ -84,7 +85,7 @@ function BiomarkersPageContent() {
   const [viewMode, setViewMode] = useState<BiomarkerViewMode>(
     initialCategory ? "categories" : initialView
   );
-  const [selectedProgram, setSelectedProgram] = useState<ProgramEssentialSlug>(initialProgram);
+  const [selectedProgram, setSelectedProgram] = useState<ProgramEssentialSlug>(requestedProgram);
   const resultsFilterRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -115,6 +116,10 @@ function BiomarkersPageContent() {
 
   // Get user gender for gender-specific ranges
   const gender: Gender = user?.gender === "female" ? "female" : "male";
+
+  useEffect(() => {
+    setSelectedProgram((current) => clampProgramForGender(current, gender));
+  }, [gender]);
 
   // Transform API data to a lookup map by biomarkerId (derived values persisted server-side)
   const biomarkerResultsMap = useMemo(() => {
@@ -334,7 +339,9 @@ function BiomarkersPageContent() {
           </h1>
           <p className="text-muted-foreground mt-1">
             {viewMode === "program"
-              ? "Essential monitoring panels by clinical program, toggle Weight, Hair, Men's or Women's"
+              ? gender === "female"
+                ? "Essential monitoring panels by clinical program — Weight, Hair, or Women's"
+                : "Essential monitoring panels by clinical program — Weight, Hair, or Men's"
               : `View and explore ${counts.totalInPanel} biomarkers across ${visibleCategories.length} health categories`}
           </p>
         </div>

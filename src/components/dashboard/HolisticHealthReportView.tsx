@@ -9,10 +9,12 @@ import {
   type HolisticPriorityBand,
   holisticReportShowsPendingOverlay,
 } from "@/lib/holistic-health-report-types";
-import { patientFacingMarkerName, combinedTrendStatusLabel, combinedTrendStatusTone, stripAskEducationalGpClosing } from "@/lib/holistic-patient-language";
+import { buildHolisticActionPlan } from "@/lib/holistic-action-plan";
+import { patientFacingMarkerName, combinedTrendStatusLabel, combinedTrendStatusTone, stripAskEducationalGpClosing, stripGpHandoffLanguage, GP_NEXT_CONSULT_COPY, isGpConsultCopy } from "@/lib/holistic-patient-language";
 import {
   answerReportAskQuestion,
   buildReportAskItems,
+  refreshAskQuestions,
   type ReportAskItem,
 } from "@/lib/holistic-report-ask";
 import { cn } from "@/lib/utils";
@@ -374,26 +376,40 @@ function SoftPanel({
   );
 }
 
+function GpConsultNote() {
+  return (
+    <p className="mt-4 text-center text-xs leading-relaxed hhr-muted">
+      {GP_NEXT_CONSULT_COPY}
+    </p>
+  );
+}
+
+function cardCopy(text?: string | null): string {
+  const value = stripGpHandoffLanguage(text || "");
+  return isGpConsultCopy(value) ? "" : value;
+}
+
 function formatAskAnswerText(item: ReportAskItem): string {
-  const parts = [item.intro];
-  for (const bullet of item.bullets.slice(0, 1)) {
-    parts.push(`• ${bullet.title} — ${bullet.body}`);
+  const parts = [stripGpHandoffLanguage(item.intro)];
+  for (const bullet of item.bullets.slice(0, 2)) {
+    parts.push(`• ${stripGpHandoffLanguage(bullet.title)} — ${stripGpHandoffLanguage(bullet.body)}`);
   }
-  if (item.insight) parts.push(item.insight);
+  if (item.insight) parts.push(stripGpHandoffLanguage(item.insight));
   const closing = stripAskEducationalGpClosing(item.closing);
-  if (closing && closing.length < 100) parts.push(closing);
-  return parts.join("\n\n");
+  if (closing && closing.length < 100) parts.push(stripGpHandoffLanguage(closing));
+  return parts.filter(Boolean).join("\n\n");
 }
 
 function ReportAskPanel({
   report,
+  userId,
 }: {
   report: HolisticHealthReport;
   userId: string;
 }) {
   const catalog = useMemo(() => {
     if (Array.isArray(report.askItems) && report.askItems.length > 0) {
-      return report.askItems;
+      return refreshAskQuestions(report, report.askItems);
     }
     return buildReportAskItems(report);
   }, [report]);
@@ -404,7 +420,21 @@ function ReportAskPanel({
   const [isTyping, setIsTyping] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
-  const ask = (question: string) => {
+  const showAnswer = (question: string, answer: ReportAskItem) => {
+    // Always echo what the member actually asked, even when the answer comes
+    // from the nearest prepared item.
+    setActive({
+      id: answer.id || `ask-${Date.now()}`,
+      question,
+      intro: answer.intro,
+      bullets: answer.bullets.slice(0, 2),
+      insight: answer.insight,
+      closing: answer.closing,
+    });
+    setPendingQuestion(null);
+  };
+
+  const ask = async (question: string) => {
     const trimmed = question.trim();
     if (!trimmed || pendingQuestion) return;
     setActive(null);
@@ -412,17 +442,35 @@ function ReportAskPanel({
     setIsTyping(false);
     setPendingQuestion(trimmed);
     setDraft("");
-    // Prebaked / local answers only — no second Claude trip on Netlify sync routes.
-    const answer = answerReportAskQuestion(report, trimmed, catalog);
-    setActive({
-      id: answer.id || `ask-${Date.now()}`,
-      question: answer.question || trimmed,
-      intro: answer.intro,
-      bullets: answer.bullets.slice(0, 1),
-      insight: answer.insight,
-      closing: answer.closing,
-    });
-    setPendingQuestion(null);
+
+    // Prepared questions use the doctor-reviewed catalogue instantly.
+    const prepared = catalog.find(
+      (item) => item.question.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (prepared) {
+      showAnswer(trimmed, answerReportAskQuestion(report, trimmed, catalog));
+      return;
+    }
+
+    // Free-text goes to George (Claude) with the report as context; the local
+    // matcher is the fallback if the call fails or times out.
+    try {
+      const res = await fetch("/api/holistic-health-report/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, question: trimmed }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { answer?: ReportAskItem };
+        if (data.answer?.intro) {
+          showAnswer(trimmed, data.answer);
+          return;
+        }
+      }
+    } catch {
+      // fall through to local answer
+    }
+    showAnswer(trimmed, answerReportAskQuestion(report, trimmed, catalog));
   };
 
   useEffect(() => {
@@ -527,12 +575,19 @@ function ReportAskPanel({
                       <span className="h-2 w-2 animate-bounce rounded-full bg-[#5c7a52] [animation-delay:240ms]" />
                     </div>
                   ) : (
-                    <p className="whitespace-pre-line text-sm leading-relaxed text-[#2c3628]">
-                      {displayedAnswer}
-                      {isTyping && (
-                        <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[#5c7a52]" />
+                    <>
+                      <p className="whitespace-pre-line text-sm leading-relaxed text-[#2c3628]">
+                        {displayedAnswer}
+                        {isTyping && (
+                          <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[#5c7a52]" />
+                        )}
+                      </p>
+                      {active?.id.startsWith("claude-") && !isTyping && (
+                        <p className="mt-2 text-[11px] leading-snug text-[#8a9b82]">
+                          This information is from your report.
+                        </p>
                       )}
-                    </p>
+                    </>
                   )}
                 </div>
               </div>
@@ -680,6 +735,20 @@ export function HolisticHealthReportView({
   staffPreview?: boolean;
 }) {
   const [section, setSection] = useState<ReportSection>("priorities");
+  const actionPlan = useMemo(() => {
+    try {
+      return buildHolisticActionPlan(report);
+    } catch {
+      return {
+        items: [],
+        leftoverRecommendations: (report.recommendations || []).map((rec) => ({
+          action: rec.action,
+          rationale: rec.rationale,
+        })),
+        leftoverUrgent: report.urgentActions || [],
+      };
+    }
+  }, [report]);
   const panelLabel = formatReportDate(dataDate) || formatReportDate(report.analysisTimestamp);
   const pendingApproval = !staffPreview && holisticReportShowsPendingOverlay(report);
   const reviewedLabel =
@@ -836,10 +905,12 @@ export function HolisticHealthReportView({
                 </h4>
                 <MarkerList items={report.priorityBands.good} band="good" />
               </div>
+              <GpConsultNote />
             </div>
           )}
 
           {section === "organs" && (
+            <div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {report.organSystems.map((organ) => {
                 const visual = organVisual(organ.id);
@@ -912,6 +983,8 @@ export function HolisticHealthReportView({
                 );
               })}
             </div>
+            <GpConsultNote />
+            </div>
           )}
 
           {section === "patterns" &&
@@ -920,8 +993,11 @@ export function HolisticHealthReportView({
                 No strong cross-system patterns flagged from this panel.
               </p>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {report.crossSystemPatterns.map((pattern) => (
+              <div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                {report.crossSystemPatterns.map((pattern) => {
+                  const advice = cardCopy(pattern.monitoringAdvice);
+                  return (
                   <div key={pattern.title} className="hhr-pattern-card">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium hhr-ink">{pattern.title}</p>
@@ -933,69 +1009,97 @@ export function HolisticHealthReportView({
                       </Badge>
                     </div>
                     <p className="mt-1.5 text-xs leading-relaxed hhr-body">
-                      {pattern.explanation}
+                      {cardCopy(pattern.explanation)}
                     </p>
                     <p className="mt-2 text-[11px] hhr-muted">
                       Systems: {pattern.involvedSystems.join(", ")}
                     </p>
-                    <p className="mt-1 text-xs hhr-ink">{pattern.monitoringAdvice}</p>
+                    {advice ? <p className="mt-1 text-xs hhr-ink">{advice}</p> : null}
                   </div>
-                ))}
+                  );
+                })}
+                </div>
+                <GpConsultNote />
               </div>
             ))}
 
           {section === "actions" && (
             <div className="space-y-4">
-              {report.organSystems.some((organ) => organ.goal) && (
-                <div className="hhr-care-team-box">
-                  <p className="flex items-center gap-2 text-sm font-medium hhr-ink">
-                    <Target className="h-4 w-4 text-[#5c7a52]" /> Goals
-                  </p>
-                  <ul className="mt-2 space-y-2">
-                    {report.organSystems
-                      .filter((organ) => organ.goal)
-                      .map((organ) => (
-                        <li key={organ.id} className="text-xs leading-relaxed hhr-body">
-                          <span className="font-medium hhr-ink">{organ.label}: </span>
-                          {organ.goal}
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
-              {report.urgentActions.length > 0 && (
+              {actionPlan.leftoverUrgent.length > 0 && (
                 <div className="hhr-urgent-box">
                   <p className="text-sm font-medium text-red-700">Urgent educational actions</p>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-900/80">
-                    {report.urgentActions.map((action) => (
+                    {actionPlan.leftoverUrgent.map((action) => (
                       <li key={action}>{action}</li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                {report.recommendations.map((rec) => (
-                  <div
-                    key={`${rec.category}-${rec.action}`}
-                    className="hhr-rec-card"
-                  >
-                    <div className="mb-1.5 flex items-center gap-1.5">
-                      <Badge
-                        variant="outline"
-                        className="border-[rgb(188_211_189)] text-[10px] text-[#3a4c2c]"
-                      >
-                        {rec.priority}
-                      </Badge>
-                      <Badge className="bg-[rgb(204_234_131_/_0.5)] text-[10px] hhr-ink hover:bg-[rgb(204_234_131_/_0.5)]">
-                        {rec.category}
-                      </Badge>
+              <div className="space-y-3">
+                {actionPlan.items.map((item) => {
+                  const visual = organVisual(item.organId);
+                  return (
+                    <div key={item.organId} className="hhr-rec-card">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span style={{ color: visual.color }}>{visual.icon}</span>
+                        <p className="text-sm font-medium hhr-ink">{item.label}</p>
+                        <Badge
+                          variant="outline"
+                          className="border-[rgb(188_211_189)] text-[10px] text-[#3a4c2c]"
+                        >
+                          {item.status === "needs_attention"
+                            ? "Needs attention"
+                            : item.status === "watch"
+                              ? "Watch"
+                              : "On track"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm font-medium leading-relaxed hhr-ink">
+                        {item.outcome}
+                      </p>
+                      {item.why ? (
+                        <p className="mt-1.5 text-xs leading-relaxed hhr-body">{item.why}</p>
+                      ) : null}
+                      {item.focusMarkers.length > 0 ? (
+                        <p className="mt-1.5 text-[11px] hhr-muted">
+                          Focus:{" "}
+                          {item.focusMarkers
+                            .map((marker) => `${marker.name} ${marker.value} ${marker.unit}`)
+                            .join(" · ")}
+                        </p>
+                      ) : null}
+                      {item.steps.length > 0 ? (
+                        <div className="mt-3">
+                          <p className="flex items-center gap-1.5 text-xs font-medium hhr-ink">
+                            <Target className="h-3.5 w-3.5 text-[#5c7a52]" />
+                            How to get there
+                          </p>
+                          <ol className="mt-1.5 list-decimal space-y-1.5 pl-5 text-xs leading-relaxed hhr-body">
+                            {item.steps.map((step) => (
+                              <li key={step}>{step}</li>
+                            ))}
+                          </ol>
+                        </div>
+                      ) : null}
                     </div>
-                    <p className="text-sm font-medium hhr-ink">{rec.action}</p>
-                    <p className="mt-1 text-xs leading-relaxed hhr-body">{rec.rationale}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
+              {actionPlan.leftoverRecommendations.length > 0 && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {actionPlan.leftoverRecommendations.map((rec) => (
+                    <div key={rec.action} className="hhr-rec-card">
+                      <p className="text-sm font-medium hhr-ink">{rec.action}</p>
+                      {rec.rationale ? (
+                        <p className="mt-1 text-xs leading-relaxed hhr-body">{rec.rationale}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <GpConsultNote />
 
               {report.retestingGuidance ? (
                 <div className="hhr-care-team-box">

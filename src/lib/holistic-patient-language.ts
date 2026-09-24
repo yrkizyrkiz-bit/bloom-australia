@@ -224,7 +224,7 @@ export function trendArrowLabel(
   return combinedTrendStatusLabel({ trend, status, ...extra });
 }
 
-const GP_NOUN = String.raw`(?:GP|doctor|physician)`;
+const GP_NOUN = String.raw`(?:GP|doctor|physician|clinician)`;
 const GP_HANDOFF_LEAD =
   /^(?:please\s+)?(?:ask|talk(?:\s+with)?|speak(?:\s+with|\s+to)?|see|visit|contact|call|mention|discuss|tell|flag|bring)\b/i;
 
@@ -235,58 +235,80 @@ function mentionsClinician(text: string): boolean {
 /** True when copy is mainly telling the member to involve their GP or doctor. */
 export function isGpHandoffCopy(text: string): boolean {
   const value = text.trim();
-  if (!value || !mentionsClinician(value)) return false;
-  if (GP_HANDOFF_LEAD.test(value)) return true;
+  if (!value) return false;
+  if (mentionsClinician(value) && GP_HANDOFF_LEAD.test(value)) return true;
+  if (
+    /^(?:please\s+)?ask\b/i.test(value) &&
+    /\b(review|repeat|test|panel|appointment|consult|gp|doctor|clinician|iron|crp|blood)\b/i.test(value)
+  ) {
+    return true;
+  }
+  if (!mentionsClinician(value)) return false;
   return new RegExp(
     `(?:ask|talk(?:\\s+with)?|speak(?:\\s+with|\\s+to)?|see|visit|contact|call|mention|discuss|tell|flag|bring(?:\\s+\\w+){0,6}\\s+up).{0,80}\\b(?:your\\s+)?${GP_NOUN}\\b|\\b(?:with|to)\\s+your\\s+${GP_NOUN}\\b`,
     "i"
   ).test(value);
 }
 
+/** Shown once under a group of report cards, never on each card. */
+export const GP_NEXT_CONSULT_COPY =
+  "Your GP will discuss these with you in detail during your next consultation.";
+
+export function isGpConsultCopy(text?: string | null): boolean {
+  const value = (text || "").trim().replace(/\.+$/, "");
+  return value === GP_NEXT_CONSULT_COPY.replace(/\.+$/, "");
+}
+
 /**
- * Remove GP/doctor handoff phrasing from member-facing assessment copy.
- * The approved report is already GP-reviewed, so the member does not need to be told to ask their GP.
+ * Remove GP/doctor handoff phrasing from member-facing cards.
+ * The consult line is rendered once under the card group, not on every card.
  */
 export function stripGpHandoffLanguage(text: string): string {
+  if (typeof text !== "string" || !text.trim()) return "";
   const sentences = text
     .split(/(?<=[.!?])\s+/)
-    .map((sentence) => {
-      const original = sentence.trim();
-      if (!original) return "";
-      // Do not salvage leftover topics from "Talk with your GP about X" — drop the whole sentence.
-      if (isGpHandoffCopy(original)) return "";
-
-      let next = original
-        .replace(
-          /\b(?:please\s+)?(?:ask|talk with|speak with|speak to|see|visit|contact|call)\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?(?:\s+about)?/gi,
-          ""
-        )
-        .replace(/\bmention(?:\s+\w+){0,8}\s+to\s+your\s+(?:GP|doctor|physician)\b/gi, "")
-        .replace(
-          /\bdiscuss(?:\s+\w+){0,10}\s+with\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi,
-          ""
-        )
-        .replace(
-          /\b(?:reviewed?|confirm(?:ed)?|check(?:ed)?)\s+with\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi,
-          ""
-        )
-        .replace(/\bwith your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi, "")
-        .replace(/\bto your\s+(?:GP|doctor|physician)\b/gi, "")
-        .replace(/\byour\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi, "")
-        .replace(/\s+(?:and|or)\s*$/i, "")
-        .replace(/\s{2,}/g, " ")
-        .replace(/\s+([,.;:])/g, "$1")
-        .replace(/^[,.;:\s]+/, "")
-        .replace(/\s+\./g, ".")
-        .trim();
-      if (!next) return "";
-      if (/^(?:about|and|or|to|with|for)\b/i.test(next)) return "";
-      if (isGpHandoffCopy(next)) return "";
-      return next.charAt(0).toUpperCase() + next.slice(1);
-    })
+    .map((sentence) => sentence.trim())
     .filter(Boolean);
 
-  return sentences.join(" ").replace(/\s{2,}/g, " ").trim();
+  if (sentences.length === 0) return "";
+
+  const kept: string[] = [];
+
+  for (const original of sentences) {
+    if (isGpConsultCopy(original) || isGpHandoffCopy(original)) {
+      continue;
+    }
+
+    let next = original
+      .replace(
+        /\b(?:please\s+)?(?:ask|talk with|speak with|speak to|see|visit|contact|call)\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?(?:\s+about)?/gi,
+        ""
+      )
+      .replace(/\bmention(?:\s+\w+){0,8}\s+to\s+your\s+(?:GP|doctor|physician)\b/gi, "")
+      .replace(
+        /\bdiscuss(?:\s+\w+){0,10}\s+with\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi,
+        ""
+      )
+      .replace(
+        /\b(?:reviewed?|confirm(?:ed)?|check(?:ed)?)\s+with\s+your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi,
+        ""
+      )
+      .replace(/\bwith your\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi, "")
+      .replace(/\bto your\s+(?:GP|doctor|physician)\b/gi, "")
+      .replace(/\byour\s+(?:GP|doctor|physician)(?:\s+or\s+Sanative care team)?\b/gi, "")
+      .replace(/\s+(?:and|or)\s*$/i, "")
+      .replace(/\s{2,}/g, " ")
+      .replace(/\s+([,.;:])/g, "$1")
+      .replace(/^[,.;:\s]+/, "")
+      .replace(/\s+\./g, ".")
+      .trim();
+    if (!next || /^(?:about|and|or|to|with|for)\b/i.test(next) || isGpHandoffCopy(next) || isGpConsultCopy(next)) {
+      continue;
+    }
+    kept.push(next.charAt(0).toUpperCase() + next.slice(1));
+  }
+
+  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
 }
 
 /** Drop the canned Ask footer that tells the member to check with their GP. */

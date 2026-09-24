@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,20 @@ export function TestComparisonDialog({
 }: TestComparisonDialogProps) {
   const [date1, setDate1] = useState<string>(testDates[1] || testDates[0] || "");
   const [date2, setDate2] = useState<string>(testDates[0] || "");
+
+  useEffect(() => {
+    if (testDates.length === 0) {
+      setDate1("");
+      setDate2("");
+      return;
+    }
+    setDate1((current) =>
+      current && testDates.includes(current) ? current : testDates[1] || testDates[0]
+    );
+    setDate2((current) =>
+      current && testDates.includes(current) ? current : testDates[0]
+    );
+  }, [testDates]);
 
   const results1 = useMemo(() => allResults.filter(r => r.testedAt.startsWith(date1)), [date1, allResults]);
   const results2 = useMemo(() => allResults.filter(r => r.testedAt.startsWith(date2)), [date2, allResults]);

@@ -1,3 +1,5 @@
+import { stripGpHandoffLanguage } from "@/lib/holistic-patient-language";
+
 export type HolisticPriorityBand = "good" | "look_out" | "needs_attention" | "immediate";
 
 export type HolisticOrganSystemId =
@@ -107,6 +109,8 @@ export type HolisticHealthReport = {
     priority: "high" | "medium" | "low";
     action: string;
     rationale: string;
+    /** Which organ goal this how-to supports. */
+    organId?: HolisticOrganSystemId;
   }>;
   /** Suggested questions for the care team (shown in Actions). */
   questionsForCareTeam?: string[];
@@ -351,7 +355,7 @@ export function sanitizeHolisticHealthReport(
     report.clinicalContext
   );
 
-  return {
+  return rewriteHolisticMemberFacingCopy({
     aiProvider: report.aiProvider,
     aiModel: report.aiModel,
     approvalStatus: normalizeHolisticApprovalStatus(report.approvalStatus),
@@ -400,6 +404,60 @@ export function sanitizeHolisticHealthReport(
     limitations: Array.isArray(report.limitations) ? report.limitations : [],
     askItems: sanitizeAskItems(report.askItems),
     analysisTimestamp: report.analysisTimestamp || new Date().toISOString(),
+  });
+}
+
+function rewriteCopy(text: string | undefined | null): string {
+  return stripGpHandoffLanguage(text || "");
+}
+
+function rewriteMarker(item: HolisticMarkerItem): HolisticMarkerItem {
+  return { ...item, plainEnglish: rewriteCopy(item.plainEnglish) };
+}
+
+function rewriteHolisticMemberFacingCopy(report: HolisticHealthReport): HolisticHealthReport {
+  return {
+    ...report,
+    executiveSummary: rewriteCopy(report.executiveSummary),
+    priorityBands: {
+      good: report.priorityBands.good.map(rewriteMarker),
+      lookOut: report.priorityBands.lookOut.map(rewriteMarker),
+      needsAttention: report.priorityBands.needsAttention.map(rewriteMarker),
+      immediate: report.priorityBands.immediate.map(rewriteMarker),
+    },
+    organSystems: report.organSystems.map((organ) => ({
+      ...organ,
+      summary: rewriteCopy(organ.summary),
+      highlights: organ.highlights.map(rewriteCopy),
+      riskFactor: organ.riskFactor ? rewriteCopy(organ.riskFactor) : organ.riskFactor,
+      gaps: organ.gaps?.map(rewriteCopy),
+      goal: organ.goal ? rewriteCopy(organ.goal) : organ.goal,
+    })),
+    crossSystemPatterns: report.crossSystemPatterns.map((pattern) => ({
+      ...pattern,
+      explanation: rewriteCopy(pattern.explanation),
+      monitoringAdvice: rewriteCopy(pattern.monitoringAdvice),
+    })),
+    recommendations: report.recommendations.map((rec) => ({
+      ...rec,
+      action: rewriteCopy(rec.action),
+      rationale: rewriteCopy(rec.rationale),
+    })),
+    questionsForCareTeam: (report.questionsForCareTeam || []).map(rewriteCopy),
+    retestingGuidance: rewriteCopy(report.retestingGuidance),
+    urgentActions: report.urgentActions.map(rewriteCopy),
+    limitations: report.limitations.map(rewriteCopy),
+    askItems: (report.askItems || []).map((item) => ({
+      ...item,
+      intro: rewriteCopy(item.intro),
+      insight: item.insight ? rewriteCopy(item.insight) : item.insight,
+      closing: item.closing ? rewriteCopy(item.closing) : item.closing,
+      bullets: item.bullets.map((bullet) => ({
+        ...bullet,
+        title: rewriteCopy(bullet.title),
+        body: rewriteCopy(bullet.body),
+      })),
+    })),
   };
 }
 

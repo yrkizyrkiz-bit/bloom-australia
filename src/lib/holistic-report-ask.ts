@@ -44,7 +44,7 @@ function clinicalInsightForMarker(item: HolisticMarkerItem): string | null {
 
   if (id === "crp" || id === "hs_crp") {
     if (sharpRise || high) {
-      return "A sharp CRP rise is often temporary after a cold, flu, infection, dental issue, or injury — and usually settles once you recover. Mention any recent illness to your GP; they may simply retest.";
+      return "A sharp CRP rise is often temporary after a cold, flu, infection, dental issue, or injury — and usually settles once you recover.";
     }
     return "CRP reflects inflammation. Short spikes often follow infection or injury; mild ongoing elevation is read with heart and metabolic markers.";
   }
@@ -137,21 +137,35 @@ function markerBullet(item: HolisticMarkerItem): ReportAskBullet {
   };
 }
 
+/**
+ * Marker label for use mid-sentence: lower-case the leading word unless it is
+ * an acronym, and leave the rest (e.g. "(HbA1c)", "(MCV)") untouched.
+ */
+function inSentence(name: string): string {
+  const trimmed = name.trim();
+  const firstWord = trimmed.split(/\s+/)[0] ?? "";
+  const isAcronym = /^[A-Z0-9][A-Z0-9-]*$/.test(firstWord) && firstWord.length <= 6;
+  if (isAcronym || !trimmed) return trimmed;
+  return trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+}
+
 function questionForMarker(item: HolisticMarkerItem): string {
-  const name = markerLabel(item);
-  const lower = name.toLowerCase();
-  if (item.band === "good") return `Is my ${lower} looking okay?`;
+  const name = inSentence(markerLabel(item));
+  if (item.band === "good") return `Is my ${name} looking okay?`;
   if (item.trend === "worsening" || item.trend === "declining") {
-    return `Why has my ${lower} changed?`;
+    return `Why has my ${name} changed since my last test?`;
   }
   if (/\b(low|below|borderline low)\b/i.test(item.plainEnglish)) {
-    return `Is my ${lower} too low?`;
+    return `Is my ${name} too low?`;
   }
-  return `Why is my ${lower} ${bandPhrase(item.band, item.status)}?`;
+  if (item.band === "immediate") return `Why does my ${name} need prompt attention?`;
+  if (item.band === "needs_attention") return `Why does my ${name} need attention?`;
+  if (item.band === "look_out") return `Why is my ${name} worth keeping an eye on?`;
+  return `What does my ${name} result mean?`;
 }
 
 function answerForMarker(report: HolisticHealthReport, item: HolisticMarkerItem): ReportAskItem {
-  const name = markerLabel(item);
+  const name = inSentence(markerLabel(item));
   const insight = clinicalInsightForMarker(item);
   const sharpRise = item.previousValue != null && item.value > item.previousValue * 1.5;
 
@@ -159,7 +173,7 @@ function answerForMarker(report: HolisticHealthReport, item: HolisticMarkerItem)
     id: `marker-${item.biomarkerId}`,
     question: questionForMarker(item),
     intro: sharpRise
-      ? `Great question — ${name} has changed enough to look at closely.`
+      ? `Great question — your ${name} has changed enough to look at closely.`
       : `Great question — here’s a quick read on your ${name}.`,
     bullets: [markerBullet(item)],
     insight: insight || undefined,
@@ -308,6 +322,34 @@ export function buildReportAskItems(report: HolisticHealthReport): ReportAskItem
   return items.slice(0, 6);
 }
 
+/**
+ * Cached reports carry question text frozen at generation time. Re-derive the
+ * wording from the current templates (matched by id) while keeping the stored
+ * answer content, so older reports pick up copy fixes without regeneration.
+ */
+export function refreshAskQuestions(
+  report: HolisticHealthReport,
+  items: ReportAskItem[]
+): ReportAskItem[] {
+  // Only marker ids (marker-<biomarkerId>) are stable across regenerations;
+  // pattern ids are positional, so their stored wording is left alone.
+  const fresh = new Map(
+    buildReportAskItems(report)
+      .filter((item) => item.id.startsWith("marker-"))
+      .map((item) => [item.id, item.question])
+  );
+  const seen = new Set<string>();
+  const refreshed: ReportAskItem[] = [];
+  for (const item of items) {
+    const question = fresh.get(item.id) ?? item.question;
+    const key = question.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    refreshed.push(question === item.question ? item : { ...item, question });
+  }
+  return refreshed;
+}
+
 function withoutGpEducationalClosing(item: ReportAskItem): ReportAskItem {
   return { ...item, closing: stripAskEducationalGpClosing(item.closing) };
 }
@@ -329,7 +371,7 @@ export function answerReportAskQuestion(
       const words = item.question
         .toLowerCase()
         .split(/[^a-z0-9]+/)
-        .filter((w) => w.length > 3);
+        .filter((w) => w.length > 3 && !ASK_STOP_WORDS.has(w));
       const hits = words.filter((w) => q.includes(w)).length;
       return { item, hits };
     })
@@ -351,7 +393,188 @@ export function answerReportAskQuestion(
       label.split(/[^a-z0-9]+/).some((w) => w.length > 3 && q.includes(w))
     );
   });
-
   if (matched[0]) return withoutGpEducationalClosing(answerForMarker(report, matched[0]));
-  return withoutGpEducationalClosing(overallActionsAnswer(report));
+
+  const topical = TOPIC_SYNONYMS.find(({ pattern }) => pattern.test(q));
+  if (topical) {
+    const topicalAnswer = answerForTopic(report, question.trim(), topical, all);
+    if (topicalAnswer) return withoutGpEducationalClosing(topicalAnswer);
+  }
+
+  if (/\b(what should i do|next steps?|priorit|most important|where do i start|overall|summary)\b/.test(q)) {
+    return withoutGpEducationalClosing(overallActionsAnswer(report));
+  }
+
+  return noMatchAnswer(report, question.trim());
+}
+
+const ASK_STOP_WORDS = new Set([
+  "about",
+  "changed",
+  "does",
+  "from",
+  "have",
+  "just",
+  "keep",
+  "keeping",
+  "last",
+  "looking",
+  "mean",
+  "need",
+  "needs",
+  "okay",
+  "prompt",
+  "results",
+  "should",
+  "since",
+  "test",
+  "that",
+  "this",
+  "together",
+  "what",
+  "with",
+  "worth",
+]);
+
+type TopicSynonym = {
+  id: string;
+  label: string;
+  diagnosis?: string;
+  pattern: RegExp;
+  markers: string[];
+};
+
+const TOPIC_SYNONYMS: TopicSynonym[] = [
+  {
+    id: "diabetes",
+    label: "blood-sugar",
+    diagnosis: "diabetes",
+    pattern: /\b(diabet|pre-?diabet|blood sugar|sugar|glucose|insulin|a1c|hba1c)/,
+    markers: ["hba1c", "glucose", "insulin"],
+  },
+  {
+    id: "cholesterol",
+    label: "cholesterol and blood-fat",
+    diagnosis: "heart disease",
+    pattern: /\b(cholesterol|lipids?|blood fats?|heart|cardio|artery|arteries|plaque)/,
+    markers: ["ldl_cholesterol", "total_cholesterol", "hdl_cholesterol", "triglycerides", "apolipoprotein_b", "lipoprotein_a"],
+  },
+  {
+    id: "anaemia",
+    label: "iron and red-cell",
+    diagnosis: "anaemia",
+    pattern: /\b(an(a)?emi|iron|tired|fatigue|energy|pale)/,
+    markers: ["ferritin", "hemoglobin", "transferrin_saturation", "iron", "hematocrit", "mcv"],
+  },
+  {
+    id: "inflammation",
+    label: "inflammation",
+    pattern: /\b(inflam|infection|immune|crp)/,
+    markers: ["crp", "hs_crp", "wbc"],
+  },
+  {
+    id: "kidney",
+    label: "kidney",
+    pattern: /\b(kidney|renal|egfr|creatinine|dehydrat)/,
+    markers: ["egfr", "creatinine", "bun", "urea", "uric_acid"],
+  },
+  {
+    id: "liver",
+    label: "liver",
+    pattern: /\b(liver|hepat|alcohol|fatty)/,
+    markers: ["alt", "ast", "ggt", "alp", "bilirubin"],
+  },
+  {
+    id: "thyroid",
+    label: "thyroid",
+    pattern: /\b(thyroid|tsh|metabolism|weight gain)/,
+    markers: ["tsh", "free_t4", "free_t3"],
+  },
+  {
+    id: "vitamin-d",
+    label: "vitamin D",
+    pattern: /\b(vitamin d|vit d|bone|sunlight)/,
+    markers: ["vitamin_d"],
+  },
+  {
+    id: "b12",
+    label: "B12 and folate",
+    pattern: /\b(b ?12|folate|nerve|tingling)/,
+    markers: ["vitamin_b12", "folate"],
+  },
+  {
+    id: "hormones",
+    label: "hormone",
+    pattern: /\b(testosterone|libido|hormone|oestrogen|estrogen|menopause)/,
+    markers: ["testosterone", "free_testosterone", "estradiol", "fsh", "lh", "shbg"],
+  },
+  {
+    id: "hair",
+    label: "hair-related",
+    pattern: /\b(hair|hair loss|thinning)/,
+    markers: ["ferritin", "tsh", "vitamin_d", "testosterone", "dht"],
+  },
+];
+
+function askingForDiagnosis(question: string): boolean {
+  return /\b(am i|do i have|have i got|is this|diagnos|could i have)\b/i.test(question);
+}
+
+function answerForTopic(
+  _report: HolisticHealthReport,
+  question: string,
+  topic: TopicSynonym,
+  all: HolisticMarkerItem[]
+): ReportAskItem | null {
+  const found = topic.markers
+    .map((id) => all.find((m) => m.biomarkerId === id))
+    .filter((m): m is HolisticMarkerItem => Boolean(m));
+  if (!found[0]) return null;
+
+  const diagnosisAsked = Boolean(topic.diagnosis) && askingForDiagnosis(question);
+  const intro = diagnosisAsked
+    ? `This report cannot diagnose ${topic.diagnosis} — that is a decision only a doctor can make. What it can show is how your ${topic.label} markers look.`
+    : `Here’s what this report shows about your ${topic.label} markers.`;
+
+  const flagged = found.filter((m) => m.band !== "good");
+  const insightFocus = flagged[0] || found[0];
+  const names = found.slice(0, 2).map((m) => inSentence(markerLabel(m)));
+  const watchNote =
+    found.some((m) => m.band === "look_out")
+      ? ` ${names.join(" and ")} ${found.length > 1 ? "are" : "is"} in a watch zone on this report, which is why they appear here.`
+      : found.every((m) => m.band === "good")
+        ? ` On this report, ${names.join(" and ")} ${found.length > 1 ? "look" : "looks"} within a preferred range.`
+        : "";
+
+  return {
+    id: `topic-${topic.id}`,
+    question,
+    intro,
+    bullets: found.slice(0, 2).map(markerBullet),
+    insight: `${clinicalInsightForMarker(insightFocus) || "Markers move with illness, medicines, sleep, and meal timing."}${watchNote}`.trim(),
+    closing: undefined,
+  };
+}
+
+function noMatchAnswer(report: HolisticHealthReport, question: string): ReportAskItem {
+  const covered = [
+    ...report.priorityBands.immediate,
+    ...report.priorityBands.needsAttention,
+    ...report.priorityBands.lookOut,
+  ]
+    .slice(0, 3)
+    .map((m) => inSentence(markerLabel(m)));
+
+  const examples = covered.length
+    ? ` Try asking about ${covered.join(", ")}, or "what should I do about my results?".`
+    : ' Try asking about one of your markers, or "what should I do about my results?".';
+
+  return {
+    id: "no-match",
+    question,
+    intro: "I can only speak to what is in this report, and I couldn’t find a result that answers that directly.",
+    bullets: [],
+    insight: `Your report covers your blood-test markers and the patterns between them.${examples}`,
+    closing: undefined,
+  };
 }

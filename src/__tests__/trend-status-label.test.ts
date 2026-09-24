@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { combinedTrendStatusLabel, stripAskEducationalGpClosing, stripGpHandoffLanguage } from "@/lib/holistic-patient-language";
+import { combinedTrendStatusLabel, GP_NEXT_CONSULT_COPY, stripAskEducationalGpClosing, stripGpHandoffLanguage } from "@/lib/holistic-patient-language";
 
 describe("combinedTrendStatusLabel", () => {
   it("pairs a drop with the current in-range band", () => {
@@ -78,16 +78,19 @@ describe("combinedTrendStatusLabel", () => {
 });
 
 describe("stripGpHandoffLanguage", () => {
-  it("drops sentences that tell the member to involve their GP", () => {
+  it("drops ask-your-GP instructions from card copy", () => {
     expect(
       stripGpHandoffLanguage("Talk with your GP about liver enzymes and when to retest.")
     ).toBe("");
     expect(
-      stripGpHandoffLanguage("Ask your GP to review liver enzymes at your next test.")
+      stripGpHandoffLanguage(
+        "Ask your GP to review both the iron studies and the CRP result at the same appointment, and to consider whether an underlying infection or inflammatory condition could be driving both."
+      )
     ).toBe("");
     expect(
       stripGpHandoffLanguage("Mention GGT to your GP at the next visit.")
     ).toBe("");
+    expect(stripGpHandoffLanguage(GP_NEXT_CONSULT_COPY)).toBe("");
   });
 
   it("keeps member actions and removes a trailing GP mention", () => {

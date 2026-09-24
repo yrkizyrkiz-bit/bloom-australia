@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBiomarkerResults } from "@/hooks/useApi";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
+  ChevronLeft,
 } from "lucide-react";
 
 /** Markers that need attention based on stored result status or reference ranges. */
@@ -315,10 +317,19 @@ export default function GoalsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading your goals...</p>
+      <div className="space-y-8">
+        <Link
+          href="/dashboard"
+          aria-label="Back to dashboard"
+          className="inline-flex shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Link>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading your goals...</p>
+          </div>
         </div>
       </div>
     );
@@ -327,9 +338,18 @@ export default function GoalsPage() {
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-serif text-foreground">Health Goals</h1>
-          <p className="text-muted-foreground mt-1">Set biomarker targets and review progress on scheduled dates</p>
+        <div className="flex items-start gap-1">
+          <Link
+            href="/dashboard"
+            aria-label="Back to dashboard"
+            className="mt-1.5 inline-flex shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-serif text-foreground">Health Goals</h1>
+            <p className="text-muted-foreground mt-1">Set biomarker targets and review progress on scheduled dates</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchGoals}>

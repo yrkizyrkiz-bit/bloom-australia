@@ -8,9 +8,27 @@
  * panel date. Missing markers must NOT be backfilled from older panels.
  */
 
+/** Parse a lab timestamp or UTC day key. Returns null when the value is not a real date. */
+export function parseTestedAtDate(testedAt: Date | string | null | undefined): Date | null {
+  if (testedAt instanceof Date) {
+    return Number.isNaN(testedAt.getTime()) ? null : testedAt;
+  }
+  if (typeof testedAt !== "string") return null;
+  const value = testedAt.trim();
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 /** UTC YYYY-MM-DD key matching history API date grouping. */
-export function testedAtUtcDayKey(testedAt: Date | string): string {
-  const d = testedAt instanceof Date ? testedAt : new Date(testedAt);
+export function testedAtUtcDayKey(testedAt: Date | string | null | undefined): string {
+  const d = parseTestedAtDate(testedAt);
+  if (!d) return "";
   return d.toISOString().split("T")[0];
 }
 
@@ -26,10 +44,12 @@ function utcDateFromDayKey(dayKey: string): Date {
  * (e.g. 3 Sep and 13 Sep 2026) are not both labelled "Sep 26".
  */
 export function formatUtcPanelDayLabel(
-  testedAt: Date | string,
+  testedAt: Date | string | null | undefined,
   style: "axis" | "full" = "axis"
 ): string {
-  const day = utcDateFromDayKey(testedAtUtcDayKey(testedAt));
+  const dayKey = testedAtUtcDayKey(testedAt);
+  if (!dayKey) return "—";
+  const day = utcDateFromDayKey(dayKey);
   if (style === "full") {
     return day.toLocaleDateString("en-AU", {
       day: "numeric",
@@ -53,6 +73,7 @@ export function getLatestPanelDateKey(
   let latest: string | null = null;
   for (const result of results) {
     const day = testedAtUtcDayKey(result.testedAt);
+    if (!day) continue;
     if (!latest || day > latest) latest = day;
   }
   return latest;

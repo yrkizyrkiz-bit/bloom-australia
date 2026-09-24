@@ -430,13 +430,30 @@ const REPORT_TOOL = {
             goal: {
               type: "string",
               description:
-                "ONE unique goal for this organ only. Will appear under Actions. Must not be repeated on any other organ.",
+                "ONE unique OUTCOME for this organ only (what to achieve by the next test). Do not put how-to steps in the goal. Do not write “Book a GP appointment” as a goal. Must not be repeated on any other organ.",
             },
           },
         },
       },
       crossSystemPatterns: { type: "array", items: { type: "object" } },
-      recommendations: { type: "array", items: { type: "object" } },
+      recommendations: {
+        type: "array",
+        description:
+          "Concrete how-to steps. Each item MUST include organId matching one organ goal. Action is what to do for THAT goal, not a generic tip unlinked to a goal.",
+        items: {
+          type: "object",
+          properties: {
+            category: { type: "string" },
+            priority: { type: "string" },
+            action: { type: "string" },
+            rationale: { type: "string" },
+            organId: {
+              type: "string",
+              description: "liver | kidney | heart | thyroid | hormones | metabolic | blood",
+            },
+          },
+        },
+      },
       careTeamHandoffSummary: { type: "string" },
       questionsForCareTeam: { type: "array", items: { type: "string" } },
       askItems: {
@@ -523,7 +540,7 @@ function plainEnglishForMarker(
       : "";
 
   if (band === "immediate") {
-    return `${label}: ${meaning} ${result}${prior} This sits outside a safer range and should be reviewed with your GP or Sanative care team soon.`;
+    return `${label}: ${meaning} ${result}${prior} This sits outside a safer range.`;
   }
   if (band === "needs_attention") {
     return `${label}: ${meaning} ${result}${prior} It is outside the preferred range — worth discussing at your next care review.`;
@@ -587,7 +604,7 @@ function seedOrganNarrative(
       kidney: "Keep kidney filter rate and waste markers in range on your next blood test",
       heart: "Keep cholesterol and heart-inflammation markers in range on your next blood test",
       metabolic: "Keep blood-sugar and metabolic markers in range on your next blood test",
-      thyroid: "Keep thyroid markers in range on your next blood test",
+      thyroid: "Keep TSH on your next annual blood panel",
       hormones: "Keep hormone markers in range on your next blood test",
       blood: "Keep iron stores and blood-count markers in range on your next blood test",
     };
@@ -601,8 +618,14 @@ function seedOrganNarrative(
   const improveGoal: Record<string, string> = {
     liver: `Bring ${top.name} into a healthier liver range by your next blood test`,
     kidney: `Improve ${top.name} for kidney health by your next blood test`,
-    heart: `Improve ${top.name} for heart health by your next blood test`,
-    metabolic: `Improve ${top.name} for metabolic health by your next blood test`,
+    heart:
+      top.biomarkerId === "crp" || top.biomarkerId === "hs_crp"
+        ? `Find the cause of the rise in ${top.name} rather than treating a one-off spike as ongoing heart risk`
+        : `Improve ${top.name} for heart health by your next blood test`,
+    metabolic:
+      top.biomarkerId === "glucose"
+        ? "Bring fasting blood sugar back below 5.5 mmol/L by your next test"
+        : `Improve ${top.name} for metabolic health by your next blood test`,
     thyroid: `Bring ${top.name} into a healthier thyroid range by your next blood test`,
     hormones: `Bring ${top.name} into a healthier hormone range by your next blood test`,
     blood: `Bring ${top.name} into a healthier blood and iron range by your next blood test`,
@@ -711,8 +734,7 @@ function buildCrossPatterns(
       involvedBiomarkers: metabolic.map((m) => m.biomarkerId),
       explanation:
         "Your blood sugar and related fat markers often rise or fall as a set. Looking at them together tells a clearer story about energy and heart risk than any single number.",
-      monitoringAdvice:
-        "Talk with your GP about blood sugar, average sugar (HbA1c), cholesterol/fats, and liver enzymes, and when to retest.",
+      monitoringAdvice: "",
     });
   }
 
@@ -732,8 +754,7 @@ function buildCrossPatterns(
       involvedBiomarkers: heart.map((m) => m.biomarkerId),
       explanation:
         "Several heart-related markers (cholesterol, blood fats, or inflammation) are outside preferred ranges or trending less helpfully. Together they can raise long-term heart risk.",
-      monitoringAdvice:
-        "Review cholesterol, blood pressure, food, movement, and sleep with your clinician. Ask when to repeat the cholesterol panel if anything changes.",
+      monitoringAdvice: "",
     });
   }
 
@@ -746,8 +767,7 @@ function buildCrossPatterns(
       involvedBiomarkers: liver.map((m) => m.biomarkerId),
       explanation:
         "More than one liver enzyme is raised. That can track with metabolic load, medicines, alcohol, or fatty liver risk — it is usually a pattern, not one isolated blip.",
-      monitoringAdvice:
-        "Repeat liver bloods and discuss sugar, weight, medicines, and alcohol history with your GP.",
+      monitoringAdvice: "",
     });
   }
 
@@ -761,8 +781,7 @@ function buildCrossPatterns(
       involvedSystems: ["kidney", "heart", "metabolic"],
       involvedBiomarkers: kidney.map((m) => m.biomarkerId),
       explanation: `Your kidney markers currently map to “${context.clinicalFlags.ckdStage}”. Kidneys, heart, and blood-sugar health influence each other over time.`,
-      monitoringAdvice:
-        "Confirm kidney filter rate and urine protein with your GP, and keep blood pressure and blood sugar on track.",
+      monitoringAdvice: "Keep blood pressure and blood sugar on track.",
     });
   }
 
@@ -784,8 +803,7 @@ function buildCrossPatterns(
       involvedBiomarkers: iron.map((m) => m.biomarkerId),
       explanation:
         "Low iron stores, low circulating iron, and smaller/pale red cells often travel together. That pattern commonly links to tiredness and should be reviewed promptly — causes can include diet, periods, gut absorption, or bleeding.",
-      monitoringAdvice:
-        "Ask your GP to review full iron studies with your blood count, check for a cause, and plan treatment and a repeat test.",
+      monitoringAdvice: "",
     });
   }
 
@@ -880,7 +898,7 @@ function buildDeterministicHolisticReport(context: HolisticContext): HolisticHea
   const executiveSummary = [
     `Your overall health score is ${context.healthScores.overall}/100 across liver, heart, kidney, thyroid, hormones, and metabolic markers from your latest blood test.`,
     immediateNames.length
-      ? `Please prioritise a chat with your GP about: ${immediateNames.join(", ")}.`
+      ? `Priority markers on this report: ${immediateNames.join(", ")}.`
       : attentionNames.length
         ? `Main areas to discuss with your care team: ${attentionNames.join(", ")}.`
         : "Nothing in this panel jumped out as an immediate laboratory red flag.",
@@ -890,7 +908,7 @@ function buildDeterministicHolisticReport(context: HolisticContext): HolisticHea
   ].join(" ");
 
   const urgentActions = priorityBands.immediate.map(
-    (m) => `Book a prompt review of ${m.name} (result ${m.value} ${m.unit}) with your GP or Sanative care team.`
+    (m) => `${m.name} (${m.value} ${m.unit}) sits outside a safer range.`
   );
 
   const recommendations: HolisticHealthReport["recommendations"] = [
@@ -1086,6 +1104,7 @@ Audience (critical):
 - First say what the marker means for the body, then what their number suggests in plain words.
 - Avoid unexplained jargon: lipids, glycaemic, filtration, enzyme elevation, pathology, cardiovascular risk stratification.
 - Never use "worsening", "deteriorating", or "getting worse" in member-facing text. Say the result has moved further from the preferred range, or that it needs watching.
+- Do not tell the member to ask, talk to, mention things to, or book a review with their GP. Do not repeat a “your GP will discuss this” line on every card or recommendation.
 
 Hard rules (AU-aligned):
 - Educational only. Do NOT diagnose, prescribe, or claim disease certainty.
@@ -1116,9 +1135,10 @@ Submit via submit_holistic_health_report:
 - clinicalContext: MUST be "" (empty). Never duplicate the member summary here.
 - careTeamHandoffSummary (clinician-facing, 4-6 sentences max — put age/sex and clinical detail here, not in member fields)
 - askItems (REQUIRED, do these early): for EACH seeded question, return {id, question, intro, bullets[1], insight, optional closing}. Speak as George — warm, short, educational. Intro one sentence; one bullet with Marker: value unit; insight 1–2 sentences of everyday context. Keep the seeded id and question text exactly. Do not invent extra questions.
-- organSystems: refine summaries/highlights in patient language for liver, heart, kidney, blood/iron and any other systems with data (keep scores aligned to seed). For EACH organ include: riskFactor (the main risk from THIS blood test), gaps (1–3 unique gaps for that organ only), and goal (ONE unique goal for that organ). Goals appear under Actions — do not copy the same goal across organs.
+- organSystems: refine summaries/highlights in patient language for liver, heart, kidney, blood/iron and any other systems with data (keep scores aligned to seed). For EACH organ include: riskFactor (the main risk from THIS blood test), gaps (1–3 unique gaps for that organ only), and goal (ONE unique OUTCOME for that organ — what to achieve by the next test, not the how-to). Do not write “Book a GP appointment” as a goal. Goals appear under Actions — do not copy the same goal across organs.
 - crossSystemPatterns: 2-5 patterns spanning systems, titles and explanations in plain English
-- recommendations (max 8, patient actions in plain English), questionsForCareTeam (3-5), retestingGuidance, urgentActions, limitations, analysisTimestamp (ISO)`;
+- recommendations (max 8): each MUST include organId for the organ goal it supports. Action is a concrete how-to for THAT goal (food, movement, alcohol, retest interval, what to note before the consult). Do not list generic tips that do not map to a goal.
+- questionsForCareTeam (3-5), retestingGuidance, urgentActions, limitations, analysisTimestamp (ISO)`;
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
