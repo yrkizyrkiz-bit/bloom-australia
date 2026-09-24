@@ -4,8 +4,7 @@ import { verify } from "jsonwebtoken";
 import { SYDNEY_TZ, toSydneyISO } from "@/lib/sydney-time";
 import { journeyStatusAfterSlotHold } from "@/lib/funnel/booking-hold-journey";
 import { roundBmi } from "@/lib/bmi";
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
+import { getAuthJwtSecret } from "@/lib/security/jwt-secret";
 
 const TIMEZONE = SYDNEY_TZ;
 
@@ -81,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     if (!userId && sessionId) {
       try {
-        const tokenData = verify(sessionId, JWT_SECRET) as { userId: string | null };
+        const tokenData = verify(sessionId, getAuthJwtSecret()) as { userId: string | null };
         userId = tokenData.userId || undefined;
       } catch {
         // Session verification failed - continue without user if allowed

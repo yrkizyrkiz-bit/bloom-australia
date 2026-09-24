@@ -3,6 +3,33 @@ import type { RateLimitConfig, RateLimitResult } from "@/lib/security/rate-limit
 
 export type { RateLimitResult };
 
+/**
+ * Read-only check: is this bucket currently exhausted? Does not record a hit.
+ * Pair with `consumeRateLimit` when only failed attempts should count.
+ */
+export async function peekRateLimit(
+  bucketKey: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const now = new Date();
+  const existing = await prisma.rateLimitBucket.findUnique({
+    where: { bucketKey },
+    select: { hits: true, resetAt: true },
+  });
+
+  if (!existing || existing.resetAt <= now || existing.hits < config.limit) {
+    return { allowed: true };
+  }
+
+  return {
+    allowed: false,
+    retryAfterSec: Math.max(
+      1,
+      Math.ceil((existing.resetAt.getTime() - now.getTime()) / 1000)
+    ),
+  };
+}
+
 export async function consumeRateLimit(
   bucketKey: string,
   config: RateLimitConfig

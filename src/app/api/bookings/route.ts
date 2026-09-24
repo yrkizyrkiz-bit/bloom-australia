@@ -3,8 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verify } from "jsonwebtoken";
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'sanative-secret-key';
+import { getAuthJwtSecret } from "@/lib/security/jwt-secret";
 
 // GAP-008: Allowed roles for listing all bookings
 const ADMIN_ROLES = ["ADMIN", "CARE_PARTNER", "DOCTOR"];
@@ -180,7 +179,7 @@ export async function POST(req: NextRequest) {
 
     if (!userId && sessionToken) {
       try {
-        const tokenData = verify(sessionToken, JWT_SECRET) as { userId: string | null };
+        const tokenData = verify(sessionToken, getAuthJwtSecret()) as { userId: string | null };
         verifiedUserId = tokenData.userId;
       } catch {
         return NextResponse.json(

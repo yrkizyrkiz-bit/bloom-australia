@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { hasPortalFeature } from "@/components/portal/ProgramFeatureGate";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,9 +39,15 @@ const navItems = [
 
 export function DashboardNav() {
   const pathname = usePathname() || "";
+  const router = useRouter();
   const { user, logout } = useAuth();
   const { data: portal } = usePortalContext();
   const biomarkersUnlocked = hasPortalFeature(portal, "biomarkerResults");
+
+  useEffect(() => {
+    if (!biomarkersUnlocked) return;
+    router.prefetch("/dashboard");
+  }, [biomarkersUnlocked, router]);
 
   const initials = user
     ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
@@ -76,18 +84,20 @@ export function DashboardNav() {
             {/* Keep this slot in the tree so Radix menu IDs stay stable after portal context loads. */}
             <Link
               href="/dashboard"
-              className={biomarkersUnlocked ? undefined : "hidden"}
+              prefetch={biomarkersUnlocked}
               tabIndex={biomarkersUnlocked ? undefined : -1}
               aria-hidden={!biomarkersUnlocked}
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "gap-2 rounded-xl",
+                biomarkersUnlocked ? undefined : "hidden",
+                pathname === "/dashboard"
+                  ? "bg-[#1D9E75]/10 text-[#1D9E75]"
+                  : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"
+              )}
             >
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`gap-2 rounded-xl ${pathname === "/dashboard" ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                Overview
-              </Button>
+              <LayoutDashboard className="w-4 h-4" />
+              Overview
             </Link>
 
             {navItems.map((item) => {

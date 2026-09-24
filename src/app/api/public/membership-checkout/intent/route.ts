@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { verify } from "jsonwebtoken";
 import { resolveSanativeMembershipStripePriceId } from "@/lib/portal/sanative-membership";
 import { createIncompleteSubscription } from "@/lib/portal/stripe-subscription";
+import {
+  bindCheckoutEmail,
+  verifyVerifiedContactToken,
+} from "@/lib/auth/verified-contact-token";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
   enforceIpRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
 
 let stripeClient: Stripe | null = null;
 function getStripeClient(): Stripe {
@@ -21,13 +22,6 @@ function getStripeClient(): Stripe {
   }
   return stripeClient;
 }
-
-type SessionTokenData = {
-  contact: string;
-  type: string;
-  verified: boolean;
-  userId: string | null;
-};
 
 /**
  * Create an incomplete Stripe Subscription for Sanative Membership.
@@ -53,22 +47,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Verification required" }, { status: 401 });
     }
 
-    let tokenData: SessionTokenData;
-    try {
-      tokenData = verify(sessionToken, JWT_SECRET) as SessionTokenData;
-    } catch {
+    const tokenData = verifyVerifiedContactToken(sessionToken);
+    if (!tokenData) {
       return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
     }
-    if (!tokenData.verified) {
-      return NextResponse.json({ error: "Verification required" }, { status: 401 });
-    }
 
-    const resolvedEmail = (
-      email ||
-      (tokenData.type === "email" ? tokenData.contact : "")
-    )
-      .toLowerCase()
-      .trim();
+    const identity = await bindCheckoutEmail(tokenData, email);
+    if (!identity.ok) {
+      return NextResponse.json({ error: identity.error }, { status: identity.status });
+    }
+    const resolvedEmail = identity.email;
     const resolvedPhone = phone || (tokenData.type === "phone" ? tokenData.contact : "");
 
     if (!resolvedEmail) {
@@ -109,7 +97,7 @@ export async function POST(req: NextRequest) {
       email: resolvedEmail,
       phone: resolvedPhone || "",
       postcode: postcode || "",
-      userId: tokenData.userId || "",
+      userId: identity.userId || "",
     };
 
     const { subscriptionId, clientSecret, paymentIntentId } =

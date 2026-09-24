@@ -136,6 +136,42 @@ export async function sendMembershipWelcomeEmail(params: {
   return sendEmailInternal(params.to, subject, html, text);
 }
 
+/** Self-service password reset link. The link is the only place the token appears. */
+export async function sendPasswordResetEmail(params: {
+  to: string;
+  firstName: string | null;
+  resetLink: string;
+  expiresInMinutes: number;
+}): Promise<SendEmailResult> {
+  const greeting = params.firstName ? `Hi ${params.firstName},` : "Hi,";
+  const subject = "Reset your Sanative password";
+
+  const html = `
+  <div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #2c3628;">
+    <h1 style="font-size: 22px; margin: 0 0 16px;">Reset your password</h1>
+    <p>${greeting}</p>
+    <p>We received a request to reset the password for your Sanative account. Choose a new password using the button below.</p>
+    <p style="margin: 28px 0;">
+      <a href="${params.resetLink}" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">Choose a new password</a>
+    </p>
+    <p style="font-size: 13px; color: #5c7a52;">This link expires in ${params.expiresInMinutes} minutes and can only be used once. If the button doesn't work, copy this URL into your browser:<br/>${params.resetLink}</p>
+    <p style="font-size: 13px; color: #5c7a52;">If you didn't ask to reset your password, you can ignore this email. Your password won't change.</p>
+    <p style="font-size: 12px; color: #9aa79a; margin-top: 32px;">Sanative · doctor-led preventative care</p>
+  </div>`;
+
+  const text = [
+    greeting,
+    "",
+    "We received a request to reset the password for your Sanative account.",
+    `Choose a new password here (expires in ${params.expiresInMinutes} minutes, single use):`,
+    params.resetLink,
+    "",
+    "If you didn't ask to reset your password, you can ignore this email. Your password won't change.",
+  ].join("\n");
+
+  return sendEmailInternal(params.to, subject, html, text);
+}
+
 /** Renewal reminder for annual Sanative Membership (one-off billing model). */
 export async function sendMembershipRenewalReminderEmail(params: {
   to: string;

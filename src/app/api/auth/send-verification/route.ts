@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getDevVerificationCode } from "@/lib/auth/dev-verification";
+import { isProductionRuntime } from "@/lib/security/jwt-secret";
 import { RATE_LIMITS, rateLimitBucketKey } from "@/lib/security/rate-limit-config";
 import {
   enforceDbRateLimits,
@@ -24,6 +25,12 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 async function sendSMS(phone: string, message: string): Promise<boolean> {
   if (SMS_PROVIDER === 'mock' || !TWILIO_ACCOUNT_SID) {
+    if (isProductionRuntime()) {
+      // No SMS provider configured: never claim the code was delivered, and
+      // never write a live code into production logs.
+      console.error('[SMS] No SMS provider configured; refusing to report success');
+      return false;
+    }
     console.log(`[SMS Mock] To: ${phone}, Message: ${message}`);
     return true;
   }
@@ -55,17 +62,28 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
 const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Sanative Health';
 
-// Set EMAIL_DEV_MODE=true to skip Resend and only log codes to console
-const EMAIL_DEV_MODE = process.env.EMAIL_DEV_MODE === 'true';
+// Set EMAIL_DEV_MODE=true to skip Resend and only log codes to console.
+// Ignored in production builds.
+const EMAIL_DEV_MODE = process.env.EMAIL_DEV_MODE === 'true' && !isProductionRuntime();
+
+function logCodeForLocalTesting(label: string, email: string, code: string, extra?: string) {
+  // Verification codes only ever reach logs outside production.
+  if (isProductionRuntime()) return;
+  console.log(`\n========================================`);
+  console.log(`[${label}]`);
+  console.log(`To: ${email}`);
+  console.log(`Code: ${code}`);
+  if (extra) console.log(extra);
+  console.log(`========================================\n`);
+}
 
 async function sendEmail(email: string, code: string): Promise<boolean> {
-  // If dev mode enabled or no API key, just log the code
   if (!RESEND_API_KEY || EMAIL_DEV_MODE) {
-    console.log(`\n========================================`);
-    console.log(`[EMAIL VERIFICATION CODE]`);
-    console.log(`To: ${email}`);
-    console.log(`Code: ${code}`);
-    console.log(`========================================\n`);
+    if (isProductionRuntime()) {
+      console.error('[Email] RESEND_API_KEY is not configured; refusing to report success');
+      return false;
+    }
+    logCodeForLocalTesting('EMAIL VERIFICATION CODE', email, code);
     return true;
   }
 
@@ -134,32 +152,23 @@ async function sendEmail(email: string, code: string): Promise<boolean> {
       const errorData = await response.json().catch(() => ({}));
       console.error('[Email] Resend API error:', errorData);
 
-      // If Resend fails (e.g., domain not verified), fall back to logging the code
-      console.log(`\n========================================`);
-      console.log(`[EMAIL FAILED - VERIFICATION CODE]`);
-      console.log(`To: ${email}`);
-      console.log(`Code: ${code}`);
-      console.log(`Error: ${JSON.stringify(errorData)}`);
-      console.log(`========================================\n`);
-
-      // Return true anyway so user can still test with console code
-      return true;
+      // Locally, fall back to the console so the flow can still be exercised.
+      // In production the send genuinely failed and the caller must hear that.
+      logCodeForLocalTesting(
+        'EMAIL FAILED - VERIFICATION CODE',
+        email,
+        code,
+        `Error: ${JSON.stringify(errorData)}`
+      );
+      return !isProductionRuntime();
     }
 
     console.log(`[Email] Successfully sent to ${email}`);
     return true;
   } catch (error) {
     console.error('[Email] Error:', error);
-
-    // Fall back to logging the code
-    console.log(`\n========================================`);
-    console.log(`[EMAIL ERROR - VERIFICATION CODE]`);
-    console.log(`To: ${email}`);
-    console.log(`Code: ${code}`);
-    console.log(`========================================\n`);
-
-    // Return true anyway so user can still test
-    return true;
+    logCodeForLocalTesting('EMAIL ERROR - VERIFICATION CODE', email, code);
+    return !isProductionRuntime();
   }
 }
 
@@ -247,8 +256,10 @@ export async function POST(req: NextRequest) {
     // Send verification code
     let sent = false;
 
-    // Always log code in development for easy testing
-    console.log(`[Verification] Code for ${contact}: ${code}`);
+    // Log the code for easy local testing only; never in production
+    if (!isProductionRuntime()) {
+      console.log(`[Verification] Code for ${contact}: ${code}`);
+    }
 
     if (devCode) {
       console.warn("[DEV] Skipping email/SMS send; DEV_VERIFICATION_CODE is set");

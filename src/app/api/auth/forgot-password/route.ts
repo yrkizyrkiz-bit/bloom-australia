@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import crypto from "crypto";
 import { RATE_LIMITS, rateLimitBucketKey } from "@/lib/security/rate-limit-config";
 import {
   enforceDbRateLimits,
   enforceIpRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
+import {
+  PASSWORD_RESET_TTL_MS,
+  createPasswordResetToken,
+  findResetAccount,
+} from "@/lib/auth/password-reset";
+import { sendPasswordResetEmail } from "@/lib/email";
+import { resolveAppBaseUrl } from "@/lib/app-base-url";
+
+const GENERIC_RESPONSE = {
+  success: true,
+  message: "If an account exists with this email, a password reset link will be sent.",
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +30,9 @@ export async function POST(request: NextRequest) {
       return rateLimitExceededResponse(ipLimited.retryAfterSec);
     }
 
-    const { email } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const email = typeof body?.email === "string" ? body.email : "";
+    const clientOrigin = typeof body?.clientOrigin === "string" ? body.clientOrigin : undefined;
 
     if (!email) {
       return NextResponse.json(
@@ -39,78 +52,45 @@ export async function POST(request: NextRequest) {
       return rateLimitExceededResponse(emailLimited.retryAfterSec);
     }
 
-    // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
-
-    // For security reasons, we always return success even if user doesn't exist
-    // This prevents email enumeration attacks
-    if (!user) {
-      // Log the attempt but don't reveal that the user doesn't exist
-      console.log(`Password reset requested for non-existent email: ${email}`);
-      return NextResponse.json({
-        success: true,
-        message: "If an account exists with this email, a password reset link will be sent.",
-      });
+    // The response is identical whether or not an account exists, and whether
+    // or not the email could be delivered, so this endpoint can't be used to
+    // enumerate accounts.
+    const account = await findResetAccount(normalizedEmail);
+    if (!account) {
+      return NextResponse.json(GENERIC_RESPONSE);
     }
 
-    // Generate a secure reset token
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenHash = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+    const token = await createPasswordResetToken(account.email);
+    const baseUrl = resolveAppBaseUrl({ clientOrigin, request });
+    const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
-    // Store the hashed token in the database
-    // Note: You would need to add these fields to your User model in Prisma schema
-    // For now, we'll simulate the token storage
+    const sent = await sendPasswordResetEmail({
+      to: account.email,
+      firstName: account.firstName,
+      resetLink,
+      expiresInMinutes: Math.round(PASSWORD_RESET_TTL_MS / 60000),
+    });
+    if (!sent.success) {
+      console.error("[forgot-password] reset email failed:", sent.error);
+    }
 
-    // In a production app, you would:
-    // 1. Store the hashed token in the database
-    // 2. Send an email with the reset link containing the plain token
-    // 3. When user clicks the link, hash the token and compare with stored hash
-
-    // Example database update (uncomment when fields are added to schema):
-    // await prisma.user.update({
-    //   where: { id: user.id },
-    //   data: {
-    //     passwordResetToken: resetTokenHash,
-    //     passwordResetExpiry: resetTokenExpiry,
-    //   },
-    // });
-
-    // For demo purposes, log the reset token (in production, send via email)
-    console.log(`Password reset token for ${email}: ${resetToken}`);
-    console.log(`Reset link would be: ${process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}`);
-
-    // In production, send email using a service like SendGrid, AWS SES, etc.
-    // Example:
-    // await sendPasswordResetEmail({
-    //   to: user.email,
-    //   name: user.firstName,
-    //   resetLink: `${process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}`,
-    // });
-
-    // Log activity
-    await prisma.activityLog.create({
-      data: {
-        userId: user.id,
-        action: "PASSWORD_RESET_REQUESTED",
-        entity: "user",
-        entityId: user.id,
-        details: {
-          email: user.email,
-          requestedAt: new Date().toISOString(),
+    await prisma.activityLog
+      .create({
+        data: {
+          userId: account.kind === "user" ? account.id : null,
+          action: "PASSWORD_RESET_REQUESTED",
+          entity: account.kind,
+          entityId: account.id,
+          details: {
+            email: account.email,
+            requestedAt: new Date().toISOString(),
+            emailSent: sent.success,
+          },
         },
-      },
-    });
+      })
+      .catch((err) => console.error("[forgot-password] activity log failed:", err));
 
-    return NextResponse.json({
-      success: true,
-      message: "If an account exists with this email, a password reset link will be sent.",
-    });
+    return NextResponse.json(GENERIC_RESPONSE);
   } catch (error) {
     console.error("Password reset error:", error);
     return NextResponse.json(

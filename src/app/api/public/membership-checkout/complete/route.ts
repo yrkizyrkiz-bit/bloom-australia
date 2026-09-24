@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { verify } from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { activateSanativeMembership } from "@/lib/portal/sanative-membership";
 import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
-import { signMagicLoginToken } from "@/lib/magic-link";
+import { MAGIC_LINK_BROWSER_TTL, signMagicLoginToken } from "@/lib/magic-link";
 import { resolveAppBaseUrl } from "@/lib/app-base-url";
 import { sendMembershipWelcomeEmail } from "@/lib/email";
 import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscription";
 import { getStripeSubscriptionPeriod } from "@/lib/stripe/subscription-period";
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
+import {
+  bindCheckoutEmail,
+  verifyVerifiedContactToken,
+} from "@/lib/auth/verified-contact-token";
+import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
+import {
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
 
 let stripeClient: Stripe | null = null;
 function getStripeClient(): Stripe {
@@ -41,6 +47,15 @@ function parseAuDate(value?: string): Date | null {
  */
 export async function POST(request: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      request,
+      "membership-checkout-complete:ip",
+      RATE_LIMITS.checkoutIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const body = await request.json().catch(() => ({}));
     const {
       paymentIntentId,
@@ -66,26 +81,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "paymentIntentId required" }, { status: 400 });
     }
 
-    let tokenData: { contact: string; type: string; verified: boolean; userId: string | null };
-    try {
-      tokenData = verify(sessionToken || "", JWT_SECRET) as typeof tokenData;
-    } catch {
+    const tokenData = verifyVerifiedContactToken(sessionToken);
+    if (!tokenData) {
       return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
     }
 
-    const resolvedEmail = (
-      email ||
-      (tokenData.type === "email" ? tokenData.contact : "")
-    )
-      .toLowerCase()
-      .trim();
+    const priorInvoice =
+      typeof paymentIntentId === "string" && paymentIntentId
+        ? await prisma.invoice.findUnique({
+            where: { stripeId: paymentIntentId },
+            select: { userId: true },
+          })
+        : null;
+    const identity = await bindCheckoutEmail(tokenData, email, {
+      activatedUserId: priorInvoice?.userId ?? null,
+    });
+    if (!identity.ok) {
+      return NextResponse.json({ error: identity.error }, { status: identity.status });
+    }
+    const resolvedEmail = identity.email;
     if (!resolvedEmail) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
     const consentVerification = await requirePrePaymentConsent({
       consentRecordId,
-      userId: tokenData.userId ?? undefined,
+      userId: identity.userId ?? undefined,
       email: resolvedEmail,
     });
     if (!consentVerification.ok) {
@@ -101,6 +122,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Payment not completed" }, { status: 400 });
     }
     if (paymentIntent.metadata?.purchaseType !== "sanative_membership") {
+      return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
+    }
+    // The intent route stamped the verified email (and account, if any) on the
+    // payment. Activation must land on that same identity.
+    const paidForEmail = (paymentIntent.metadata?.email || "").toLowerCase().trim();
+    if (paidForEmail && paidForEmail !== resolvedEmail) {
+      return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
+    }
+    const paidForUserId = paymentIntent.metadata?.userId || "";
+    if (paidForUserId && identity.userId && paidForUserId !== identity.userId) {
       return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
     }
 
@@ -155,15 +186,19 @@ export async function POST(request: NextRequest) {
 
     let magicLink: string | null = null;
     if (userForLink?.email) {
-      const token = signMagicLoginToken(userForLink.id, userForLink.email);
       const baseUrl = resolveAppBaseUrl({ clientOrigin, request });
-      magicLink = `${baseUrl}/auth/magic?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent("/dashboard")}`;
+      const linkFor = (token: string) =>
+        `${baseUrl}/auth/magic?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent("/dashboard")}`;
+      // The browser that just paid gets a short-lived link; the emailed copy keeps the 7-day life.
+      magicLink = linkFor(
+        signMagicLoginToken(userForLink.id, userForLink.email, MAGIC_LINK_BROWSER_TTL)
+      );
 
       if (!result.alreadyProcessed) {
         await sendMembershipWelcomeEmail({
           to: userForLink.email,
           firstName: userForLink.firstName || firstName || "",
-          magicLink,
+          magicLink: linkFor(signMagicLoginToken(userForLink.id, userForLink.email)),
           needsPassword: !userForLink.passwordHash,
         }).catch((err) =>
           console.error("[membership-checkout/complete] welcome email failed:", err)

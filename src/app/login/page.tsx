@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
@@ -39,7 +38,6 @@ export default function LoginPage() {
   const [showFaceId, setShowFaceId] = useState(false);
   const [faceIdLoading, setFaceIdLoading] = useState(false);
   const { login, loginWithPasskey, user, isLoading: isAuthLoading } = useAuth();
-  const router = useRouter();
 
   // Prefill email from Remember me or from a prior Face ID setup on this phone.
   useEffect(() => {
@@ -103,9 +101,9 @@ export default function LoginPage() {
         user.role === "DOCTOR" || ["admin", "ADMIN", "CARE_PARTNER"].includes(user.role)
           ? resolveStaffPortalHome(user.role)
           : MEMBER_PROGRAMS_HOME;
-      router.replace(targetPath);
+      window.location.assign(targetPath);
     }
-  }, [user, isAuthLoading, isLoading, router]);
+  }, [user, isAuthLoading, isLoading]);
 
   // Show loading while checking auth or redirecting
   if (isAuthLoading || isRedirecting) {
@@ -156,7 +154,7 @@ export default function LoginPage() {
       role === "DOCTOR" || ["admin", "ADMIN", "CARE_PARTNER"].includes(role || "")
         ? resolveStaffPortalHome(role || "")
         : MEMBER_PROGRAMS_HOME;
-    router.replace(targetPath);
+    window.location.assign(targetPath);
   };
 
   const handleLogin = async (e: React.FormEvent) => {

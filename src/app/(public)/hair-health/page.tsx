@@ -275,7 +275,7 @@ function HairHealthPageContent() {
           <HairHealthMembershipHowItWorks />
         </div>
 
-        <HairHealthCascadeSection />
+        <HairHealthCascadeSection gender={gender} />
 
         {/* Hair Loss Causes Section - Updated with animations */}
         <section className="py-20 lg:py-28 bg-[#f4f7f2]">

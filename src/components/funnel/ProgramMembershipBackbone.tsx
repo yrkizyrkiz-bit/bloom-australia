@@ -656,14 +656,14 @@ function WelcomeStep({
       }
       setSaving(true);
       try {
+        const token = magicLink ? magicTokenFromLink(magicLink) : null;
         const res = await fetch("/api/auth/set-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, password }),
+          body: JSON.stringify({ userId, password, magicToken: token ?? undefined }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "Could not set your password");
-        const token = magicLink ? magicTokenFromLink(magicLink) : null;
         if (token && email) {
           const result = await signIn("credentials", {
             email,

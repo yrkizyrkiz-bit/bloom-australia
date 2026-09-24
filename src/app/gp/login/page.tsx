@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Loader2, ArrowRight } from "lucide-react";
 
 export default function GPLoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +26,7 @@ export default function GPLoginPage() {
       if (result?.error) {
         setError("Invalid email or password");
       } else {
-        router.push("/gp/dashboard");
+        window.location.assign("/gp/dashboard");
       }
     } catch {
       setError("An error occurred. Please try again.");

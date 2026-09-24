@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
-import { verify } from "jsonwebtoken";
+import {
+  bindCheckoutEmail,
+  verifyVerifiedContactToken,
+} from "@/lib/auth/verified-contact-token";
 import { getPublicOrganCareAnnualPricing } from "@/lib/billing/portal-pricing";
 import { activateOrganCarePublicMembership } from "@/lib/portal/organ-care-membership";
 import { ORGAN_CARE_CHECKOUT_DESCRIPTION } from "@/lib/programs/organ-care-public-offer";
@@ -33,8 +36,6 @@ function getStripeClient(): Stripe {
   }
   return stripeClient;
 }
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'sanative-secret-key';
 
 // Membership price ID
 const MEMBERSHIP_PRICE_ID = process.env.STRIPE_MEMBERSHIP_PRICE_ID || 'price_membership_yearly';
@@ -229,17 +230,16 @@ async function handleMembershipSubscription(body: {
   const stripe = getStripeClient();
   const { sessionToken, email, postcode, firstName, lastName, phone } = body;
 
-  let tokenData: { contact: string; type: string; verified: boolean; userId: string | null };
-  try {
-    tokenData = verify(sessionToken, JWT_SECRET) as typeof tokenData;
-    if (!tokenData.verified) {
-      return NextResponse.json({ error: "Session not verified" }, { status: 401 });
-    }
-  } catch {
+  const tokenData = verifyVerifiedContactToken(sessionToken);
+  if (!tokenData) {
     return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
   }
 
-  const userEmail = email || (tokenData.type === 'email' ? tokenData.contact : null);
+  const identity = await bindCheckoutEmail(tokenData, email);
+  if (!identity.ok) {
+    return NextResponse.json({ error: identity.error }, { status: identity.status });
+  }
+  const userEmail = identity.email;
   if (!userEmail) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
@@ -281,6 +281,7 @@ async function handleMembershipSubscription(body: {
     metadata: {
       type: 'organ_care_membership',
       email: userEmail,
+      userId: identity.userId || '',
       postcode: postcode || '',
       firstName: firstName || '',
       lastName: lastName || '',
@@ -318,17 +319,32 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { paymentIntentId, consentRecordId, sessionToken, firstName, lastName, email, phone, dateOfBirth, address, addressLine1, addressLine2, suburb, state, postcode } = body;
 
-    let tokenData: { contact: string; type: string; verified: boolean; userId: string | null };
-    try {
-      tokenData = verify(sessionToken, JWT_SECRET) as typeof tokenData;
-    } catch {
+    const tokenData = verifyVerifiedContactToken(sessionToken);
+    if (!tokenData) {
       return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
     }
+    if (!paymentIntentId || typeof paymentIntentId !== "string") {
+      return NextResponse.json({ error: "paymentIntentId required" }, { status: 400 });
+    }
 
-    const userEmail = email || tokenData.contact;
+    const priorInvoice = await prisma.invoice.findUnique({
+      where: { stripeId: paymentIntentId },
+      select: { userId: true },
+    });
+    const identity = await bindCheckoutEmail(tokenData, email, {
+      activatedUserId: priorInvoice?.userId ?? null,
+    });
+    if (!identity.ok) {
+      return NextResponse.json({ error: identity.error }, { status: identity.status });
+    }
+    const userEmail = identity.email;
+    if (!userEmail) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
     const consentVerification = await requirePrePaymentConsent({
       consentRecordId,
-      userId: tokenData.userId ?? undefined,
+      userId: identity.userId ?? undefined,
       email: userEmail,
     });
 
@@ -344,11 +360,20 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Payment not completed" }, { status: 400 });
     }
 
-    const resolvedEmail = email || paymentIntent.metadata.email || userEmail;
+    // The payment was created for a bound email; activation must land on the same identity.
+    const paidForEmail = (paymentIntent.metadata?.email || "").toLowerCase().trim();
+    if (paidForEmail && paidForEmail !== userEmail) {
+      return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
+    }
+    const paidForUserId = paymentIntent.metadata?.userId || "";
+    if (paidForUserId && identity.userId && paidForUserId !== identity.userId) {
+      return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
+    }
+
     const result = await activateOrganCarePublicMembership({
       paymentIntentId,
       customerId: paymentIntent.customer as string,
-      email: resolvedEmail,
+      email: userEmail,
       firstName,
       lastName,
       phone,

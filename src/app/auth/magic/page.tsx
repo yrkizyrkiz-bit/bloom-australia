@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
@@ -27,7 +27,6 @@ function resolveRedirectPath(
 
 function MagicLoginContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success" | "error" | "set-password">("loading");
   const [error, setError] = useState<string>("");
   const [password, setPassword] = useState("");
@@ -79,7 +78,7 @@ function MagicLoginContent() {
         if (result?.ok) {
           // Ensure the session cookie is readable before navigating to the dashboard.
           await getSession();
-          router.replace(resolveRedirectPath(data.subscriptionTier, searchParams));
+          window.location.assign(resolveRedirectPath(data.subscriptionTier, searchParams));
         } else {
           setStatus("error");
           setError("Failed to sign in. Please try again.");
@@ -108,7 +107,7 @@ function MagicLoginContent() {
       const res = await fetch("/api/auth/set-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, password }),
+        body: JSON.stringify({ userId, password, magicToken }),
       });
 
       if (res.ok) {
@@ -122,7 +121,7 @@ function MagicLoginContent() {
 
         if (result?.ok) {
           await getSession();
-          router.replace(resolveRedirectPath(subscriptionTier, searchParams));
+          window.location.assign(resolveRedirectPath(subscriptionTier, searchParams));
         } else {
           setStatus("error");
           setError("Failed to sign in. Please try logging in manually.");

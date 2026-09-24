@@ -10,7 +10,7 @@ import { TestimonialsSection } from "@/components/promo/sections/TestimonialsSec
 import { SanativeJourney } from "@/components/promo/sections/SanativeJourney";
 import { MembershipPricingSection } from "@/components/promo/sections/MembershipPricingSection";
 import { MemberProgramsSection } from "@/components/promo/sections/MemberProgramsSection";
-import { GPCTABand } from "@/components/promo/sections/GPCTABand";
+// GP referral band (GPCTABand) is hidden until the GP portal ships in v2.
 
 export default function HomePage() {
   return (
@@ -25,7 +25,6 @@ export default function HomePage() {
         <MembershipPricingSection />
         <MemberProgramsSection />
         <DoctorsSection />
-        <GPCTABand />
         <QuestionsSection />
         <TestimonialsSection />
       </main>

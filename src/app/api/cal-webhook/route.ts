@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createHmac } from "crypto";
+import { isValidCalSignature } from "@/lib/security/cal-webhook-signature";
 
 interface CalBookingPayload {
   uid: string;
@@ -26,18 +26,16 @@ interface CalWebhookPayload {
 }
 
 export async function POST(req: NextRequest) {
-  // Verify Cal.com webhook signature (optional but recommended)
   const calSignature = req.headers.get("x-cal-signature-256");
   const body = await req.text();
 
-  if (calSignature && process.env.CALCOM_WEBHOOK_SECRET) {
-    const expectedSig = createHmac("sha256", process.env.CALCOM_WEBHOOK_SECRET)
-      .update(body)
-      .digest("hex");
-    if (`sha256=${expectedSig}` !== calSignature) {
-      console.error("Cal.com webhook signature mismatch");
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
+  if (!process.env.CALCOM_WEBHOOK_SECRET) {
+    console.error("Cal.com webhook rejected: CALCOM_WEBHOOK_SECRET is not configured");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 401 });
+  }
+  if (!isValidCalSignature(body, calSignature, process.env.CALCOM_WEBHOOK_SECRET)) {
+    console.error("Cal.com webhook signature missing or mismatched");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   let payload: CalWebhookPayload;

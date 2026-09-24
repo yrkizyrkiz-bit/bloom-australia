@@ -3,7 +3,7 @@
  * Update this table when adding a new purchase flow.
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 type CheckoutPathExpectation = {
@@ -28,11 +28,8 @@ const CHECKOUT_PATHS: CheckoutPathExpectation[] = [
     memberSubscription: "on_activate",
     entitlement: "yes",
   },
-  {
-    path: "Public biomarkers (public-biomarkers-purchase.ts)",
-    memberSubscription: "on_activate",
-    entitlement: "pending_on_pay",
-  },
+  // The standalone public biomarkers checkout was folded into the membership
+  // funnel; /biomarkers/checkout redirects to /membership/checkout.
   {
     path: "Public funnel booking (bookings/confirm)",
     memberSubscription: "after_doctor",
@@ -63,33 +60,23 @@ describe("checkout billing coverage", () => {
     expect(source).toContain("syncMemberSubscriptionFromStripe");
   });
 
-  it("public biomarkers activates pending entitlement and subscription on payment", () => {
-    const source = readSource("lib/portal/public-biomarkers-purchase.ts");
-    expect(source).toContain('status: "PENDING"');
-    expect(source).toContain("syncMemberSubscriptionFromPaymentIntent");
-    expect(source).toContain('status: "ACTIVE"');
-  });
-
-  it("hair-loss and women's public biomarkers paths do not bundle Organ Care", () => {
+  it("hair-loss and women's panel tiers do not bundle Organ Care", () => {
     const tierMap = readSource("lib/biomarkers/public-checkout-tier-map.ts");
-    const purchase = readSource("lib/portal/public-biomarkers-purchase.ts");
     expect(tierMap).toContain('source === "hair_loss"');
     expect(tierMap).toContain('source === "womens_health"');
-    expect(purchase).toContain("shouldBundleOrganCare");
-    expect(purchase).toContain("revokeEntitlement");
-    expect(purchase).toContain("fromWomensHealth");
   });
 
-  it("hair-loss / women's / men's public biomarkers keep one In Triage booking", () => {
-    const purchase = readSource("lib/portal/public-biomarkers-purchase.ts");
+  it("program funnels hand off to the consolidated checkout with a consult type", () => {
     const handoff = readSource("lib/funnel/program-biomarkers-checkout-handoff.ts");
     const consultType = readSource("lib/funnel/resolve-consult-program-type.ts");
     expect(handoff).toContain("navigateToProgramBiomarkersCheckout");
     expect(handoff).toContain("PROGRAM_BIOMARKERS_CHECKOUT_KEY");
     expect(consultType).toContain("resolveConsultProgramType");
-    expect(purchase).toContain("fromMensHealth");
-    expect(purchase).toContain("memberHasConsultInTriage");
-    expect(purchase).toContain("keepSingleInTriageBooking");
+  });
+
+  it("the old public biomarkers checkout API no longer exists", () => {
+    expect(existsSync(join(ROOT, "app/api/public/biomarkers-checkout"))).toBe(false);
+    expect(existsSync(join(ROOT, "lib/portal/public-biomarkers-purchase.ts"))).toBe(false);
   });
 
   it("clinical program assessments use the membership backbone instead of biomarkers checkout", () => {
@@ -118,15 +105,13 @@ describe("checkout billing coverage", () => {
     expect(createProgramFn).not.toContain("preTriageTask.create");
   });
 
-  it("consult-first and public biomarkers grant panel entitlements at payment", () => {
+  it("consult-first booking grants panel entitlements at payment", () => {
     const confirm = readSource("app/api/bookings/confirm/route.ts");
-    const purchase = readSource("lib/portal/public-biomarkers-purchase.ts");
     const helper = readSource("lib/portal/grant-program-panel-at-payment.ts");
     expect(helper).toContain("grantProgramPanelEntitlementsAtPayment");
     expect(helper).toContain("BIOLOGICAL_CLOCK");
     expect(helper).toContain("ORGAN_CARE");
     expect(confirm).toContain("grantProgramPanelEntitlementsAtPayment");
-    expect(purchase).toContain("grantProgramPanelEntitlementsAtPayment");
   });
 
   it("portal biomarkers syncs incomplete subscription instead of duplicating", () => {
@@ -149,6 +134,6 @@ describe("checkout billing coverage", () => {
   });
 
   it("documents all checkout paths", () => {
-    expect(CHECKOUT_PATHS.length).toBeGreaterThanOrEqual(7);
+    expect(CHECKOUT_PATHS.length).toBeGreaterThanOrEqual(6);
   });
 });

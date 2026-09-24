@@ -187,24 +187,7 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
   };
 
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        {!embedded && (
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-serif text-foreground">{pageTitle}</h1>
-            <p className="text-muted-foreground mt-1">Loading your biomarker data...</p>
-          </div>
-        )}
-        <div className="space-y-4">
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-48 w-full" />
-        </div>
-      </div>
-    );
-  }
-
-  if (biomarkerData.length === 0) {
+  if (!isLoading && biomarkerData.length === 0) {
     return (
       <div className="space-y-6">
         {!embedded && (
@@ -239,19 +222,28 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
           <div>
             <h1 className="text-2xl sm:text-3xl font-serif text-foreground">{pageTitle}</h1>
             <p className="text-muted-foreground mt-1">
-              View your test history and generate AI-powered health reports
+              {isLoading
+                ? "Loading your biomarker data..."
+                : "View your test history and generate AI-powered health reports"}
             </p>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            View your test history and generate AI-powered health reports
+            {isLoading
+              ? "Loading your biomarker data..."
+              : "View your test history and generate AI-powered health reports"}
           </p>
         )}
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           <Button variant="outline" size="icon" onClick={fetchBiomarkerHistory} title="Refresh data" className="shrink-0">
             <RefreshCw className="w-4 h-4" />
           </Button>
-          <Button variant="outline" onClick={() => setShowComparisonDialog(true)} className="w-full gap-2 sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={() => setShowComparisonDialog(true)}
+            disabled={isLoading}
+            className="w-full gap-2 sm:w-auto"
+          >
             <ArrowLeftRight className="w-4 h-4" />
             Compare Tests
           </Button>
@@ -383,14 +375,20 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
         </TabsList>
 
         <TabsContent value="history" className="space-y-6">
-          {testDates.every((testDate) => getResultsForDate(testDate.date).length === 0) && (
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+          ) : null}
+          {!isLoading && testDates.every((testDate) => getResultsForDate(testDate.date).length === 0) && (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
                 No biomarkers match this filter for your test history.
               </CardContent>
             </Card>
           )}
-          {testDates.map((testDate) => {
+          {!isLoading && testDates.map((testDate) => {
             const results = getResultsForDate(testDate.date);
             if (results.length === 0) return null;
             const isExpanded = Boolean(expandedTestDates[testDate.date]);
@@ -506,6 +504,9 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-6">
+          {isLoading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Biomarker Trends Over Time</CardTitle>
@@ -606,9 +607,10 @@ export function BiomarkerHistoryView({ embedded = false, pageTitle = "History" }
               )}
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
-        <TabsContent value="reports" className="space-y-6">
+        <TabsContent value="reports" forceMount className="space-y-6 data-[state=inactive]:hidden">
           <GeneratedAIReportPanel />
         </TabsContent>
       </Tabs>

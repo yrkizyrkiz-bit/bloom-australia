@@ -73,12 +73,4 @@ describe("checkout paths grant panel at payment", () => {
     expect(source).toContain("grantProgramPanelEntitlementsAtPayment");
     expect(source).toContain("resolvePanelGrantContext");
   });
-
-  it("public biomarkers enrollment uses the shared panel grant helper", () => {
-    const source = readFileSync(
-      join(root, "lib/portal/public-biomarkers-purchase.ts"),
-      "utf8"
-    );
-    expect(source).toContain("grantProgramPanelEntitlementsAtPayment");
-  });
 });

@@ -14,10 +14,11 @@ export function SessionProvider({ children, session }: SessionProviderProps) {
   return (
     <NextAuthSessionProvider
       session={session}
-      // Refetch session every 5 minutes to keep it fresh
+      // Refetch session every 5 minutes to keep it fresh.
+      // A focus refetch is omitted: remote-desktop windows fire it constantly,
+      // and one empty reply was clearing the session and bouncing back to login.
       refetchInterval={5 * 60}
-      // Avoid noisy session refetch errors while the dev server is recompiling
-      refetchOnWindowFocus={process.env.NODE_ENV === "production"}
+      refetchOnWindowFocus={false}
     >
       {children}
     </NextAuthSessionProvider>

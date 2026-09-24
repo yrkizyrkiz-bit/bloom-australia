@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sign } from "jsonwebtoken";
 import { matchesDevVerificationCode } from "@/lib/auth/dev-verification";
+import { signVerifiedContactToken } from "@/lib/auth/verified-contact-token";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
   enforceIpRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'sanative-secret-key';
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,6 +26,9 @@ export async function POST(req: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+    if (type !== "email" && type !== "phone") {
+      return NextResponse.json({ error: "Invalid verification type" }, { status: 400 });
     }
 
     const normalizedContact = String(contact).toLowerCase().trim();
@@ -111,16 +112,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate a session token for the checkout flow
-    const sessionToken = sign(
-      {
-        contact,
-        type,
-        verified: true,
-        userId: existingUser?.id || null,
-        exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour
-      },
-      JWT_SECRET
-    );
+    const sessionToken = signVerifiedContactToken({
+      contact,
+      type,
+      userId: existingUser?.id || null,
+    });
 
     return NextResponse.json({
       success: true,

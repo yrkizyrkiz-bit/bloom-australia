@@ -5,14 +5,17 @@ import prisma from "./prisma";
 import { verifyMagicLoginToken } from "./magic-link";
 import { authUserFromRecord } from "./webauthn/session-user";
 import { verifyWebAuthnLoginToken } from "./webauthn/tokens";
+import { getAuthJwtSecret } from "./security/jwt-secret";
 
+// Same secret source as every other signed token in the app. Without a
+// configured secret in production this is undefined and NextAuth refuses to
+// issue or accept sessions rather than falling back to a guessable value.
 function getNextAuthSecret(): string | undefined {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
-  if (secret) return secret;
-  if (process.env.NODE_ENV === "development") {
-    return "dev-nextauth-secret-not-for-production";
+  try {
+    return getAuthJwtSecret();
+  } catch {
+    return undefined;
   }
-  return undefined;
 }
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") === true;
@@ -295,7 +298,8 @@ export const authOptions: NextAuthOptions = {
   },
   secret: getNextAuthSecret(),
   debug: process.env.NEXTAUTH_DEBUG === "true",
-  // Secure cookies only when served over HTTPS (iframe / cross-site embeds)
+  // First-party session cookie. Lax is sent on a normal visit to this site
+  // and withheld from another website's background request.
   ...(useSecureCookies
     ? {
         cookies: {
@@ -303,7 +307,7 @@ export const authOptions: NextAuthOptions = {
             name: `__Secure-next-auth.session-token`,
             options: {
               httpOnly: true,
-              sameSite: "none" as const,
+              sameSite: "lax" as const,
               path: "/",
               secure: true,
             },
@@ -312,7 +316,7 @@ export const authOptions: NextAuthOptions = {
             name: `__Host-next-auth.csrf-token`,
             options: {
               httpOnly: true,
-              sameSite: "none" as const,
+              sameSite: "lax" as const,
               path: "/",
               secure: true,
             },
@@ -321,7 +325,7 @@ export const authOptions: NextAuthOptions = {
             name: `__Secure-next-auth.callback-url`,
             options: {
               httpOnly: true,
-              sameSite: "none" as const,
+              sameSite: "lax" as const,
               path: "/",
               secure: true,
             },

@@ -96,15 +96,13 @@ export default function TreatmentPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch journey status
-      const statusRes = await fetch("/api/weight-management/journey-status");
+      const [statusRes, treatmentRes] = await Promise.all([
+        fetch("/api/weight-management/journey-status"),
+        fetch("/api/weight-management/treatment"),
+      ]);
       if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setJourneyStatus(statusData);
+        setJourneyStatus(await statusRes.json());
       }
-
-      // Fetch treatments (doctor-prescribed only from Prescription model)
-      const treatmentRes = await fetch("/api/weight-management/treatment");
       if (treatmentRes.ok) {
         const treatmentData = await treatmentRes.json();
         setTreatments(treatmentData.treatments || []);

@@ -1,6 +1,5 @@
 import { verify } from "jsonwebtoken";
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
+import { getAuthJwtSecret } from "@/lib/security/jwt-secret";
 
 export type ResumeVerificationClaims = {
   contact: string;
@@ -15,7 +14,7 @@ export function verifyResumeVerificationToken(
   email: string
 ): { valid: true; userId: string | null } | { valid: false } {
   try {
-    const payload = verify(token, JWT_SECRET) as ResumeVerificationClaims;
+    const payload = verify(token, getAuthJwtSecret()) as ResumeVerificationClaims;
     if (payload.type !== "email" || !payload.verified) {
       return { valid: false };
     }

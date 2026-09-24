@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { getSession } from "next-auth/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PortalContextProvider } from "@/contexts/PortalContextProvider";
@@ -10,9 +11,35 @@ import { DashboardNav } from "@/components/dashboard/DashboardNav";
 import { MobileNav } from "@/components/dashboard/MobileNav";
 import { Heart } from "lucide-react";
 
+const SESSION_RELOAD_KEY = "sanative_session_document_reload";
+
 function buildLoginRedirect(pathname: string, search: string) {
   const returnTo = `${pathname}${search}`;
   return `/login?redirect=${encodeURIComponent(returnTo)}`;
+}
+
+function readReloadFlag() {
+  try {
+    return sessionStorage.getItem(SESSION_RELOAD_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeReloadFlag() {
+  try {
+    sessionStorage.setItem(SESSION_RELOAD_KEY, "1");
+  } catch {
+    // ignore
+  }
+}
+
+function clearReloadFlag() {
+  try {
+    sessionStorage.removeItem(SESSION_RELOAD_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export default function DashboardLayoutClient({
@@ -26,21 +53,47 @@ export default function DashboardLayoutClient({
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const searchSuffix = search ? `?${search}` : "";
+  const confirmStarted = useRef(false);
 
   useEffect(() => {
     if (isLoading) return;
 
-    if (!user) {
-      router.replace(buildLoginRedirect(pathname, searchSuffix));
+    if (user) {
+      clearReloadFlag();
+      if (user.role === "admin") {
+        window.location.assign("/admin");
+      }
       return;
     }
 
-    if (user.role === "admin") {
-      router.replace("/admin");
-    }
+    if (confirmStarted.current) return;
+    confirmStarted.current = true;
+
+    let cancelled = false;
+    void (async () => {
+      const session = await getSession();
+      if (cancelled) return;
+
+      if (session?.user?.id) {
+        // The document was painted logged-out, but the cookie is present.
+        // One full load picks it up. A second miss goes to login.
+        if (!readReloadFlag()) {
+          writeReloadFlag();
+          window.location.assign(`${pathname}${searchSuffix}`);
+          return;
+        }
+      }
+      clearReloadFlag();
+      router.replace(buildLoginRedirect(pathname, searchSuffix));
+    })();
+
+    return () => {
+      cancelled = true;
+      confirmStarted.current = false;
+    };
   }, [user, isLoading, router, pathname, searchSuffix]);
 
-  if (isLoading) {
+  if (isLoading || !user || user.role === "admin") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#fdfbf7] via-white to-[#f0f7f4]">
         <div className="flex flex-col items-center gap-4">
@@ -54,10 +107,6 @@ export default function DashboardLayoutClient({
         </div>
       </div>
     );
-  }
-
-  if (!user || user.role === "admin") {
-    return null;
   }
 
   return (

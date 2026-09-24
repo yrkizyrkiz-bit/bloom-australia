@@ -43,8 +43,7 @@ import { getStripe } from "@/lib/stripe";
 import { validatePrePaymentConsent } from "@/lib/legal/consent-record";
 import { syncEntitlementsFromSignals } from "@/lib/membership/entitlement-service";
 import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "sanative-secret-key";
+import { getAuthJwtSecret } from "@/lib/security/jwt-secret";
 
 /** Resolve program + panel tier hints from the latest ProgramMember intake. */
 async function resolvePanelGrantContext(
@@ -678,7 +677,7 @@ export async function POST(req: NextRequest) {
 
     if (!userId && sessionId) {
       try {
-        const tokenData = verify(sessionId, JWT_SECRET) as { userId: string | null };
+        const tokenData = verify(sessionId, getAuthJwtSecret()) as { userId: string | null };
         userId = tokenData.userId || undefined;
       } catch {
         // Session verification failed

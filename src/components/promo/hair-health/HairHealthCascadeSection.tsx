@@ -3,11 +3,17 @@
 import type { CSSProperties } from "react";
 import "@/components/promo/weight-loss/cascading-health-cards.css";
 
+type Gender = "men" | "women";
+
 type CascadeFeature = {
   eyebrow: string;
   title: string;
   description: string;
-  image: string;
+  image: string | Record<Gender, string>;
+};
+
+type HairHealthCascadeSectionProps = {
+  gender?: Gender;
 };
 
 const features: CascadeFeature[] = [
@@ -16,7 +22,10 @@ const features: CascadeFeature[] = [
     title: "Check your hair health",
     description:
       "Start with a doctor-led assessment and targeted biomarkers that reveal what’s driving your hair loss: hormones, thyroid, iron, nutrients, and more.",
-    image: "/images/membership/hair_dressing_w.webp",
+    image: {
+      women: "/images/membership/hair_dressing_w.webp",
+      men: "/images/membership/men-check-hair.webp",
+    },
   },
   {
     eyebrow: "Step 2",
@@ -30,11 +39,13 @@ const features: CascadeFeature[] = [
     title: "Care delivered. Support that stays.",
     description:
       "Your plan arrives at your door, with ongoing clinical check-ins, progress tracking, and real Care Partner support so you never navigate hair recovery alone.",
-    image: "/images/supplements-pills.webp",
+    image: "/images/membership/package-delivery.webp",
   },
 ];
 
-export function HairHealthCascadeSection() {
+export function HairHealthCascadeSection({
+  gender = "women",
+}: HairHealthCascadeSectionProps) {
   return (
     <section
       className="cascade-section"
@@ -72,7 +83,15 @@ export function HairHealthCascadeSection() {
               </div>
               <div className="cascade-card-visual">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={feature.image} alt="" loading="lazy" />
+                <img
+                  src={
+                    typeof feature.image === "string"
+                      ? feature.image
+                      : feature.image[gender]
+                  }
+                  alt=""
+                  loading="lazy"
+                />
               </div>
             </div>
           </article>
