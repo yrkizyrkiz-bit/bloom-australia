@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { calculateBiologicalAge, mapBiomarkerResultsToInput } from "@/lib/biological-age";
-import { getLatestPanelCatalogBiomarkerResults } from "@/lib/biomarkers/latest-results";
+import { loadMemberDashboard } from "@/lib/dashboard/load-member-dashboard";
 
 // GET /api/dashboard/stats - Get dashboard statistics for a user
 export async function GET(request: NextRequest) {
@@ -20,72 +18,20 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date();
+    const loaded = await loadMemberDashboard(userId, now);
+    if (!loaded) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const [
+    const {
       user,
       biomarkerResults,
-      latestHealthScore,
+      healthScore: latestHealthScore,
       goals,
       upcomingReminders,
       upcomingAppointments,
       unreadNotifications,
       recentActivity,
       labReports,
-    ] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          dateOfBirth: true,
-          gender: true,
-          subscriptionStatus: true,
-          createdAt: true,
-        },
-      }),
-      getLatestPanelCatalogBiomarkerResults(userId),
-      prisma.healthScore.findFirst({ where: { userId }, orderBy: { calculatedAt: "desc" } }),
-      prisma.healthGoal.findMany({
-        where: { userId },
-        include: { biomarker: { select: { name: true, shortName: true, unit: true } } },
-      }),
-      prisma.reminder.findMany({
-        where: { userId, isActive: true, isCompleted: false, dueDate: { gte: now } },
-        orderBy: { dueDate: "asc" },
-        take: 5,
-      }),
-      prisma.appointment.findMany({
-        where: {
-          userId,
-          scheduledAt: { gte: now },
-          status: { in: ["SCHEDULED", "CONFIRMED"] },
-        },
-        orderBy: { scheduledAt: "asc" },
-        take: 5,
-      }),
-      prisma.notification.count({ where: { userId, isRead: false } }),
-      prisma.activityLog.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      }),
-      prisma.labReport.findMany({
-        where: { userId },
-        select: {
-          id: true,
-          fileName: true,
-          status: true,
-          uploadedAt: true,
-          biomarkerCount: true,
-        },
-        orderBy: { uploadedAt: "desc" },
-        take: 5,
-      }),
-    ]);
-
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    } = loaded;
 
     const biomarkerStats = {
       total: biomarkerResults.length,
@@ -110,22 +56,17 @@ export async function GET(request: NextRequest) {
       else categoryBreakdown[cat].outOfRange++;
     }
 
-    let biologicalAgeData = null;
-    if (user.dateOfBirth && biomarkerResults.length > 0) {
-      const chronologicalAge = Math.floor(
-        (Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-      );
-      const biomarkerArray = biomarkerResults.map((r) => ({
-        biomarkerId: r.biomarkerId,
-        value: r.value,
-      }));
-      const biomarkers = mapBiomarkerResultsToInput(biomarkerArray);
-      biologicalAgeData = calculateBiologicalAge({
-        chronologicalAge,
-        gender: user.gender === "FEMALE" ? "female" : "male",
-        biomarkers,
-      });
-    }
+    const savedBiologicalAge =
+      typeof latestHealthScore?.biologicalAge === "number" ? latestHealthScore.biologicalAge : null;
+    const savedChronologicalAge =
+      typeof latestHealthScore?.chronologicalAge === "number" ? latestHealthScore.chronologicalAge : null;
+    const biologicalAgeData =
+      savedBiologicalAge == null
+        ? null
+        : {
+            biologicalAge: savedBiologicalAge,
+            chronologicalAge: savedChronologicalAge,
+          };
 
     const goalStats = {
       total: goals.length,
