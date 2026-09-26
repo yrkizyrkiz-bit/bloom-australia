@@ -64,6 +64,16 @@ import { format, isToday, isTomorrow, isPast, formatDistanceToNow } from "date-f
 import Link from "next/link";
 import { MemberWeightPlanPanel } from "@/components/admin/MemberWeightPlanPanel";
 import { HolisticReportReviewDialog } from "@/components/admin/HolisticReportReviewDialog";
+import { EnrolledProgramBadges } from "@/components/admin/EnrolledProgramBadges";
+import { MemberHairLossQuestionnaire } from "@/components/admin/quiz-assessment/MemberHairLossQuestionnaire";
+import {
+  HAIR_LOSS_MEDICATION_SUGGESTIONS,
+  defaultDoctorProgramTab,
+  hasDoctorProgram,
+  resolveDoctorPrescriptionCategory,
+  type DoctorProgramTab,
+} from "@/lib/admin/doctor-consult-programs";
+import type { EnrolledProgram } from "@/lib/triage/enrolled-programs";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Types
@@ -110,6 +120,7 @@ interface Consultation {
   isCallCompleted: boolean;
   isAwaitingDecision: boolean;
   isPast: boolean;
+  enrolledPrograms?: EnrolledProgram[];
 }
 
 interface PatientBrief {
@@ -208,6 +219,12 @@ interface PatientBrief {
     memberProfile: string;
     doctorBrief: string;
   };
+  enrolledPrograms?: EnrolledProgram[];
+  hairBrief?: {
+    enrolled: boolean;
+    submittedAt: string | null;
+    surveyData: Record<string, unknown>;
+  };
 }
 
 // Update DecisionOptions interface to remove medications and add medicationForms
@@ -287,6 +304,7 @@ export default function DoctorDashboardPage() {
   const [showDecisionDialog, setShowDecisionDialog] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  const [programConsultTab, setProgramConsultTab] = useState<DoctorProgramTab>("WEIGHT_MANAGEMENT");
   const [counts, setCounts] = useState({
     total: 0,
     pending: 0,
@@ -469,6 +487,9 @@ export default function DoctorDashboardPage() {
       if (res.ok) {
         const data = await res.json();
         setPatientBrief(data);
+        setProgramConsultTab(
+          defaultDoctorProgramTab(data.enrolledPrograms, Boolean(data.hairBrief?.enrolled))
+        );
       }
     } catch (error) {
       console.error("Error fetching patient brief:", error);
@@ -652,6 +673,7 @@ export default function DoctorDashboardPage() {
         payload.contraindicationsReviewed = contraindicationsReviewed;
         payload.patientCounsellingDocumented = patientCounsellingDocumented;
         payload.followUpTiming = followUpTiming;
+        payload.prescriptionCategory = resolveDoctorPrescriptionCategory(programConsultTab);
       } else if (decisionType === "APPROVED_NO_TREATMENT") {
         payload.noTreatment = true;
         payload.contraindicationsReviewed = contraindicationsReviewed;
@@ -815,6 +837,7 @@ export default function DoctorDashboardPage() {
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             {getStatusBadge(c)}
+                            <EnrolledProgramBadges programs={c.enrolledPrograms} />
                             {c.riskFlags.length > 0 && <Badge className="bg-red-50 text-red-600 text-xs">{c.riskFlags.length} flags</Badge>}
                             {c.patientBmi && <Badge variant="outline" className="text-xs">BMI {c.patientBmi.toFixed(1)}</Badge>}
                           </div>
@@ -844,7 +867,11 @@ export default function DoctorDashboardPage() {
                           <div className="flex items-center gap-3 text-sm text-slate-500">
                             <span>{patientBrief.patient.age} years</span><span>•</span><span>{patientBrief.patient.gender}</span><span>•</span><span>{patientBrief.status.selectedPlan || "No plan"}</span>
                           </div>
-                          <div className="flex items-center gap-2 mt-2">{getRiskBadge(patientBrief.riskAssessment.riskLevel)}<Badge variant="outline">Triage: {patientBrief.status.triageScore || "N/A"}</Badge></div>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            {getRiskBadge(patientBrief.riskAssessment.riskLevel)}
+                            <Badge variant="outline">Triage: {patientBrief.status.triageScore || "N/A"}</Badge>
+                            <EnrolledProgramBadges programs={patientBrief.enrolledPrograms} />
+                          </div>
                         </div>
                       </div>
                       <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center sm:flex-wrap">
@@ -1041,6 +1068,18 @@ export default function DoctorDashboardPage() {
                   </Card>
                 )}
 
+                <Tabs
+                  value={programConsultTab}
+                  onValueChange={(value) => setProgramConsultTab(value as DoctorProgramTab)}
+                >
+                  <TabsList className="h-auto flex flex-wrap justify-start gap-1">
+                    <TabsTrigger value="WEIGHT_MANAGEMENT">Weight Management</TabsTrigger>
+                    {(patientBrief.hairBrief?.enrolled ||
+                      hasDoctorProgram(patientBrief.enrolledPrograms, "HAIR_LOSS")) && (
+                      <TabsTrigger value="HAIR_LOSS">Hair</TabsTrigger>
+                    )}
+                  </TabsList>
+                  <TabsContent value="WEIGHT_MANAGEMENT" className="mt-4 space-y-4">
                 {patientBrief.riskAssessment.riskFlags.length > 0 && (
                   <Card className="bg-red-50 border-red-200">
                     <CardContent className="p-4">
@@ -1108,6 +1147,34 @@ export default function DoctorDashboardPage() {
                     </CardContent>
                   </Card>
                 </div>
+                  </TabsContent>
+                  <TabsContent value="HAIR_LOSS" className="mt-4 space-y-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-amber-600" />
+                          Hair health brief
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 text-sm text-slate-600">
+                        Review the hair assessment, then approve to prescribe hair-loss medication.
+                        Weight-management dosing and billing are not used on this tab.
+                      </CardContent>
+                    </Card>
+                    {patientBrief.hairBrief && Object.keys(patientBrief.hairBrief.surveyData).length > 0 ? (
+                      <MemberHairLossQuestionnaire
+                        rawSurveyData={patientBrief.hairBrief.surveyData}
+                        submittedAt={patientBrief.hairBrief.submittedAt}
+                      />
+                    ) : (
+                      <Card>
+                        <CardContent className="p-4 text-sm text-slate-500">
+                          No hair assessment answers are recorded yet.
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
+                </Tabs>
 
                 {patientBrief.clinicalNotes.length > 0 && (
                   <Card>
@@ -1147,7 +1214,7 @@ export default function DoctorDashboardPage() {
                       <div className="space-y-3">
                         <p className="text-sm text-slate-500 mb-4">Select decision:</p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                          <Button onClick={() => openDecisionDialog("APPROVED")} className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">Prescribe</span></Button>
+                          <Button onClick={() => openDecisionDialog("APPROVED")} className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">{programConsultTab === "HAIR_LOSS" ? "Hair script" : "Prescribe"}</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_NO_TREATMENT")} className="bg-blue-600 hover:bg-blue-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">No Treatment</span></Button>
                           <Button onClick={() => openDecisionDialog("DECLINED")} variant="destructive" className="h-auto py-4 flex-col"><XCircle className="w-6 h-6 mb-1" /><span className="font-semibold">Decline</span><span className="text-xs opacity-80">Refund</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_PENDING_TESTS")} className="bg-amber-600 hover:bg-amber-700 h-auto py-4 flex-col"><FlaskConical className="w-6 h-6 mb-1" /><span className="font-semibold">Tests</span><span className="text-xs opacity-80">Blood work</span></Button>
@@ -1330,7 +1397,7 @@ export default function DoctorDashboardPage() {
             }
           >
             <DialogTitle>
-              {decisionType === "APPROVED" && "Approve Patient"}
+              {decisionType === "APPROVED" && (programConsultTab === "HAIR_LOSS" ? "Approve Patient — Hair" : "Approve Patient")}
               {decisionType === "APPROVED_NO_TREATMENT" && "Approve Patient (No Treatment)"}
               {decisionType === "DECLINED" && "Decline Patient"}
               {decisionType === "APPROVED_PENDING_TESTS" && (
@@ -1367,14 +1434,40 @@ export default function DoctorDashboardPage() {
 
             {decisionType === "APPROVED" && decisionOptions && (
               <div className="space-y-4">
+                {programConsultTab === "HAIR_LOSS" && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-slate-600">Hair-loss medication</p>
+                    <div className="flex flex-wrap gap-2">
+                      {HAIR_LOSS_MEDICATION_SUGGESTIONS.map((suggestion) => (
+                        <Button
+                          key={suggestion.name}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-auto py-1.5"
+                          onClick={() => {
+                            setMedicationName(suggestion.name);
+                            setMedicationGenericName(suggestion.generic);
+                            setMedicationStrength(suggestion.strength);
+                            setMedicationForm(suggestion.form);
+                            setMedicationDosage(suggestion.dosage);
+                            setMedicationFrequency(suggestion.frequency);
+                          }}
+                        >
+                          {suggestion.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Medication Name *</Label>
-                    <Input value={medicationName} onChange={(e) => setMedicationName(e.target.value)} placeholder="e.g. Ozempic" />
+                    <Input value={medicationName} onChange={(e) => setMedicationName(e.target.value)} placeholder={programConsultTab === "HAIR_LOSS" ? "e.g. Finasteride" : "e.g. Ozempic"} />
                   </div>
                   <div className="space-y-2">
                     <Label>Generic Name *</Label>
-                    <Input value={medicationGenericName} onChange={(e) => setMedicationGenericName(e.target.value)} placeholder="e.g. Semaglutide" />
+                    <Input value={medicationGenericName} onChange={(e) => setMedicationGenericName(e.target.value)} placeholder={programConsultTab === "HAIR_LOSS" ? "e.g. Minoxidil" : "e.g. Semaglutide"} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

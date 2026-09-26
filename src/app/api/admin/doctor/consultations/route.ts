@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveDoctorEnrolledPrograms } from "@/lib/admin/doctor-consult-programs";
 
 // GET /api/admin/doctor/consultations - Get doctor's scheduled consultations
 export async function GET(request: NextRequest) {
@@ -119,6 +120,40 @@ export async function GET(request: NextRequest) {
       orderBy: { scheduledAt: "asc" },
     });
 
+    const users = consultations
+      .map((consultation) => consultation.user)
+      .filter((user): user is NonNullable<typeof user> => user !== null);
+    const userIds = [...new Set(users.map((user) => user.id))];
+    const emails = [...new Set(users.map((user) => user.email).filter(Boolean))];
+
+    const [programMembers, programEntitlements] = userIds.length
+      ? await Promise.all([
+          prisma.programMember.findMany({
+            where: {
+              OR: [
+                { userId: { in: userIds } },
+                ...(emails.length ? [{ email: { in: emails } }] : []),
+              ],
+            },
+            select: { userId: true, email: true, program: true, membershipStatus: true },
+          }),
+          prisma.entitlement.findMany({
+            where: { userId: { in: userIds }, type: "PROGRAM" },
+            select: { userId: true, key: true, status: true },
+          }),
+        ])
+      : [[], []];
+
+    const enrolledByUserId = new Map<string, ReturnType<typeof resolveDoctorEnrolledPrograms>>();
+    for (const user of users) {
+      if (enrolledByUserId.has(user.id)) continue;
+      const members = programMembers.filter(
+        (row) => row.userId === user.id || row.email.toLowerCase() === user.email.toLowerCase()
+      );
+      const entitlements = programEntitlements.filter((row) => row.userId === user.id);
+      enrolledByUserId.set(user.id, resolveDoctorEnrolledPrograms(members, entitlements));
+    }
+
     // Transform data for frontend - GAP-012: Filter out consultations without users
     const transformedConsultations = consultations
       .filter((consultation) => consultation.user !== null)
@@ -154,6 +189,7 @@ export async function GET(request: NextRequest) {
             healthProfile: user.healthProfile,
             medicalNotes: user.internalNotes,
           },
+          enrolledPrograms: enrolledByUserId.get(user.id) ?? [],
           notes: consultation.notes,
           createdAt: consultation.createdAt.toISOString(),
           // Derived status flags

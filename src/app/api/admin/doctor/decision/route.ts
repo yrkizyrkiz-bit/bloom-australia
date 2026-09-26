@@ -303,7 +303,10 @@ export async function POST(request: NextRequest) {
       reasonForTests,
       treatmentMustWaitForResults,
       testFollowUpTimeframe,
+      prescriptionCategory: requestedPrescriptionCategory,
     } = body;
+    const isHairApproval = requestedPrescriptionCategory === "HAIR_LOSS";
+    const prescriptionCategory = isHairApproval ? "HAIR_LOSS" : "WEIGHT_MANAGEMENT";
 
     // Validate required fields
     if (!userId || !consultationId || !decision) {
@@ -510,8 +513,8 @@ export async function POST(request: NextRequest) {
             prescriberName: doctorName,
             status: "ACTIVE",
             scriptStatus: "SCRIPT_DRAFT", // Start as draft
-            category: "WEIGHT_MANAGEMENT",
-            diagnosis: "Weight management program",
+            category: prescriptionCategory,
+            diagnosis: isHairApproval ? "Hair loss program" : "Weight management program",
             notes: clinicalNotes,
             pharmacyNotes: pharmacyNotes?.trim() || null,
             safetyCounsellingNotes: safetyCounsellingNotes?.trim() || null,
@@ -522,21 +525,23 @@ export async function POST(request: NextRequest) {
         });
 
         // ─── Link prescription to WeightManagementIntake ─────────────────────────
-        try {
-          await prisma.weightManagementIntake.updateMany({
-            where: { userId },
-            data: {
-              prescriptionId: prescription.id,
-              doctorReviewStatus: "APPROVED",
-              doctorId: session.user.id,
-              doctorReviewedAt: new Date(),
-              doctorDecision: "APPROVED",
-              doctorNotes: clinicalNotes,
-            },
-          });
-          console.log(`[Prescription] Linked prescription ${prescription.id} to intake for user ${userId}`);
-        } catch (intakeLinkError) {
-          console.error("[Prescription] Failed to link prescription to intake:", intakeLinkError);
+        if (!isHairApproval) {
+          try {
+            await prisma.weightManagementIntake.updateMany({
+              where: { userId },
+              data: {
+                prescriptionId: prescription.id,
+                doctorReviewStatus: "APPROVED",
+                doctorId: session.user.id,
+                doctorReviewedAt: new Date(),
+                doctorDecision: "APPROVED",
+                doctorNotes: clinicalNotes,
+              },
+            });
+            console.log(`[Prescription] Linked prescription ${prescription.id} to intake for user ${userId}`);
+          } catch (intakeLinkError) {
+            console.error("[Prescription] Failed to link prescription to intake:", intakeLinkError);
+          }
         }
 
         await prisma.user.update({
@@ -559,39 +564,41 @@ export async function POST(request: NextRequest) {
 
         // ─── GAP-005: Create ongoing monthly subscription ─────────────────────────
         let subscriptionResult: { success: boolean; subscriptionId?: string; error?: string } = { success: false };
-        try {
-          subscriptionResult = await createOngoingSubscription(
-            userId,
-            user.email,
-            `${user.firstName} ${user.lastName}`.trim(),
-            selectedPlan,
-            consultation.paymentIntentId
-          );
+        if (!isHairApproval) {
+          try {
+            subscriptionResult = await createOngoingSubscription(
+              userId,
+              user.email,
+              `${user.firstName} ${user.lastName}`.trim(),
+              selectedPlan,
+              consultation.paymentIntentId
+            );
 
-          if (!subscriptionResult.success) {
-            // Log failure but don't block the approval
-            console.error(`[GAP-005] Subscription creation failed: ${subscriptionResult.error}`);
+            if (!subscriptionResult.success) {
+              // Log failure but don't block the approval
+              console.error(`[GAP-005] Subscription creation failed: ${subscriptionResult.error}`);
 
-            // Create task for manual subscription setup
-            await prisma.careCommunication.create({
-              data: {
-                userId,
-                type: "BILLING",
-                priority: "HIGH",
-                subject: `MANUAL SUBSCRIPTION REQUIRED: ${user.firstName} ${user.lastName}`,
-                notes: `Patient was approved but automatic subscription creation failed.
+              // Create task for manual subscription setup
+              await prisma.careCommunication.create({
+                data: {
+                  userId,
+                  type: "BILLING",
+                  priority: "HIGH",
+                  subject: `MANUAL SUBSCRIPTION REQUIRED: ${user.firstName} ${user.lastName}`,
+                  notes: `Patient was approved but automatic subscription creation failed.
 
 Please manually create the ${selectedPlan} subscription ($${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}/month).
 
 Error: ${subscriptionResult.error}
 Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
-                status: "PENDING",
-                dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-              },
-            });
+                  status: "PENDING",
+                  dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                },
+              });
+            }
+          } catch (subscriptionError) {
+            console.error("[GAP-005] Subscription creation error:", subscriptionError);
           }
-        } catch (subscriptionError) {
-          console.error("[GAP-005] Subscription creation error:", subscriptionError);
         }
 
         // Create clinical note - DO NOT expose medication details publicly
@@ -608,6 +615,8 @@ Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
 
 **Script Status:** DRAFT - Pending finalization
 
+**Program:** ${isHairApproval ? "Hair loss" : "Weight management"}
+
 **Prescription Details:**
 - Medication: [CONFIDENTIAL - See Prescription ${prescription.id}]
 - Dosage: ${dosage}
@@ -615,11 +624,12 @@ Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
 - Repeats: ${repeats || 0}
 - Start Date: ${startDate ? new Date(startDate).toLocaleDateString() : "As directed"}
 - Follow-up: ${followUpDate ? new Date(followUpDate).toLocaleDateString() : "As clinically indicated"}
-
+${isHairApproval ? "" : `
 **Billing:**
 - Plan: ${selectedPlan}
 - Monthly Amount: $${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}
 - Subscription Created: ${subscriptionResult.success ? "Yes" : "No (manual setup required)"}
+`}
 
 **Safety Notes:**
 ${safetyCounsellingNotes || "Standard counselling provided"}
@@ -766,6 +776,17 @@ Welcome call / onboarding walkthrough:
         }
 
         await auditDoctorDecision(request, auth, userId, decision);
+
+        if (isHairApproval) {
+          return NextResponse.json({
+            success: true,
+            decision: "APPROVED",
+            prescriptionId: prescription.id,
+            scriptStatus: "SCRIPT_DRAFT",
+            prescriptionCategory,
+            message: "Patient approved for hair loss treatment. Script is in DRAFT.",
+          });
+        }
 
         const activation = await tryActivateAfterDoctorApproval(userId, session.user.id);
 

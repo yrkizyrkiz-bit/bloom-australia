@@ -12,6 +12,8 @@ import {
 import { labelPreviousTreatment, labelStartTiming, labelExerciseFrequency, labelWaistMeasurement } from "@/lib/quiz-assessment";
 import { calculateBmi, roundBmi } from "@/lib/bmi";
 import { resolveQuizTargetWeightKg } from "@/lib/weight-management/quiz-goal-defaults";
+import { normalizeProgramKey } from "@/lib/membership/keys";
+import { resolveDoctorEnrolledPrograms } from "@/lib/admin/doctor-consult-programs";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -207,18 +209,48 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Fetch program member data for quiz responses
-    const programMember = await prisma.programMember.findFirst({
-      where: {
-        OR: [{ email: user.email }, { userId }],
-      },
-      select: {
-        intakeData: true,
-        program: true,
-        membershipStatus: true,
-        membershipStart: true,
-      },
-    });
+    const [programMembers, programEntitlements, hairQuiz] = await Promise.all([
+      prisma.programMember.findMany({
+        where: {
+          OR: [{ email: user.email }, { userId }],
+        },
+        select: {
+          intakeData: true,
+          program: true,
+          membershipStatus: true,
+          membershipStart: true,
+        },
+      }),
+      prisma.entitlement.findMany({
+        where: { userId, type: "PROGRAM" },
+        select: { key: true, status: true },
+      }),
+      prisma.portalQuizSubmission.findFirst({
+        where: { userId, programKey: { in: ["HAIR_LOSS", "hair_loss"] } },
+        orderBy: { submittedAt: "desc" },
+        select: { answers: true, submittedAt: true },
+      }),
+    ]);
+
+    const enrolledPrograms = resolveDoctorEnrolledPrograms(programMembers, programEntitlements);
+    const wmMember = programMembers.find(
+      (member) => normalizeProgramKey(member.program) === "WEIGHT_MANAGEMENT"
+    );
+    const hairMember = programMembers.find(
+      (member) => normalizeProgramKey(member.program) === "HAIR_LOSS"
+    );
+    // WM cards keep using WM intake only so a hair-only signup does not fill weight fields.
+    const programMember = wmMember ?? null;
+
+    const hairSurveyData = {
+      ...((hairMember?.intakeData as Record<string, unknown>) || {}),
+      ...((hairQuiz?.answers as Record<string, unknown>) || {}),
+    };
+    const hairBrief = {
+      enrolled: Boolean(hairMember || hairQuiz || enrolledPrograms.some((p) => p.key === "HAIR_LOSS")),
+      submittedAt: hairQuiz?.submittedAt?.toISOString() || hairMember?.membershipStart?.toISOString() || null,
+      surveyData: hairSurveyData,
+    };
 
     // Calculate age
     const age = user.dateOfBirth
@@ -418,6 +450,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         memberProfile: `/admin/crm/customers/${user.id}`,
         doctorBrief: `/admin/doctor/brief/${user.id}`,
       },
+
+      enrolledPrograms,
+      hairBrief,
 
       // Clinical Notes (exclude system/integration failure notes)
       clinicalNotes: user.internalNotes
