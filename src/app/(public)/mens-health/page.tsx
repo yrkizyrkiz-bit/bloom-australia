@@ -12,6 +12,7 @@ import {
   MENS_HEALTH_PANEL_HONEYCOMB_IDS,
 } from "@/components/promo/BiomarkerHoneycomb";
 import { PUBLIC_BIOMARKER_COUNT_LABEL } from "@/lib/biomarkers/public-subscription-panels";
+import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 import {
   ArrowRight,
   Zap,
@@ -276,7 +277,7 @@ export default function MensHealthPage() {
 
               <Link
                 href="/mens-health/erectile-dysfunction"
-                className="md:col-span-3 group relative rounded-2xl overflow-hidden bg-[#ece8e0] hover:bg-[#2c3628] p-5 min-h-[152px] lg:min-h-[168px] flex flex-col justify-between text-left transition-colors duration-300 ease-out"
+                className={`${VITALITY_PROGRAM_RELEASED ? "md:col-span-3" : "md:col-span-6"} group relative rounded-2xl overflow-hidden bg-[#ece8e0] hover:bg-[#2c3628] p-5 min-h-[152px] lg:min-h-[168px] flex flex-col justify-between text-left transition-colors duration-300 ease-out`}
               >
                 <div>
                   <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-[#c17a58] text-white rounded-full mb-2">
@@ -297,6 +298,7 @@ export default function MensHealthPage() {
                 </div>
               </Link>
 
+              {VITALITY_PROGRAM_RELEASED && (
               <button
                 type="button"
                 onClick={() => scrollToSection("energy")}
@@ -317,6 +319,7 @@ export default function MensHealthPage() {
                   </div>
                 </div>
               </button>
+              )}
             </div>
 
             {/* Trust Indicators */}
@@ -340,7 +343,8 @@ export default function MensHealthPage() {
         <ErectileDysfunctionContent variant="embed" />
 
         {/* Energy & vitality */}
-        {treatmentSections.map((section, index) => (
+        {VITALITY_PROGRAM_RELEASED &&
+          treatmentSections.map((section, index) => (
           <TreatmentSection
             key={section.id}
             {...section}
@@ -502,7 +506,7 @@ export default function MensHealthPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href="/mens-health/assessment"
+                href="/mens-health/assessment?concern=erectile-dysfunction"
                 className="btn-white inline-flex items-center justify-center gap-2 text-lg px-8 py-4"
               >
                 Start assessment

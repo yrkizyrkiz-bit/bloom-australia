@@ -45,9 +45,9 @@ describe("program landing CTAs go to the matching funnel", () => {
       "components/promo/mens-health/MensHealthMembershipHowItWorks.tsx"
     );
     const page = readSource("app/(public)/mens-health/page.tsx");
-    expect(howItWorks).toContain('href="/mens-health/assessment"');
+    expect(howItWorks).toContain('href="/mens-health/assessment?concern=erectile-dysfunction"');
     expect(howItWorks).not.toContain("/membership/checkout?intent=mens_health");
-    expect(page).toContain('href="/mens-health/assessment"');
+    expect(page).toContain('href="/mens-health/assessment?concern=erectile-dysfunction"');
   });
 
   it("sends hair loss page CTAs to the hair assessment funnel", () => {

@@ -37,9 +37,9 @@ const PROGRAMS = [
   {
     id: "mens-health",
     title: "Men's Health",
-    subtitle: "Performance & Vitality",
+    subtitle: "Sexual health & hair",
     description: "Doctor-led men's health programs may include treatment if prescribed following clinical assessment.",
-    href: "/mens-health/assessment",
+    href: "/mens-health",
     color: "#5c7a52",
     bgColor: "bg-[#e6ebe3]",
     features: ["100% confidential", "Clinical assessment", "Treatment if prescribed", "Discreet delivery"],

@@ -1,5 +1,6 @@
 import type { PortalContextPayload } from "@/lib/portal-context";
 import { PROGRAM_CARDS } from "@/lib/programs/catalog";
+import { isHiddenVitalityProgram } from "@/lib/programs/release-flags";
 import { isProgramEntitled } from "@/lib/membership/program-access";
 import type { ProgramKey } from "@/lib/membership/keys";
 import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
@@ -26,6 +27,7 @@ export function getPrimaryEnrolledProgramKey(
 ): ProgramKey | null {
   if (!membership) return null;
   for (const key of PRIMARY_PROGRAM_PRIORITY) {
+    if (isHiddenVitalityProgram(key)) continue;
     if (isProgramEntitled(membership, key)) return key;
   }
   return null;

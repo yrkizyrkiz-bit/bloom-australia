@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type { QuizStep } from "@/lib/programs/quizzes/sexual-health-quiz-shared";
 import {
   getSexualHealthPublicQuizSteps,
@@ -26,6 +27,7 @@ import type { ProgramKey } from "@/lib/membership/keys";
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
+import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 import {
   buildLoginRedirectUrl,
   fetchExistingAccountFirstName,
@@ -249,14 +251,23 @@ const otherConcernsOptions = [
   { id: "hair-loss", label: "Hair Loss" },
   { id: "weight", label: "Weight Management" },
   { id: "sexual-health", label: "Sexual Health" },
-  { id: "energy", label: "Energy & Vitality" },
+  ...(VITALITY_PROGRAM_RELEASED
+    ? [{ id: "energy", label: "Energy & Vitality" }]
+    : []),
   { id: "none", label: "No, I'm only interested in this pathway" },
 ];
 
 function AssessmentContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const concernParam = searchParams.get("concern") || "energy-vitality";
   const isSexualFlow = isSexualHealthConcern(concernParam);
+
+  useEffect(() => {
+    if (!VITALITY_PROGRAM_RELEASED && !isSexualFlow) {
+      router.replace("/mens-health");
+    }
+  }, [isSexualFlow, router]);
 
   const [step, setStep] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});

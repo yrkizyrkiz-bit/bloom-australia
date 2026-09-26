@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ProgramKey } from "@/lib/membership/keys";
+import { isHiddenVitalityProgram } from "@/lib/programs/release-flags";
 
 export type CardGender = "all" | "male" | "female";
 export type CardTone = "light" | "dark";
@@ -222,6 +223,7 @@ export function getProgramCardsForGender(
   else if (tier.includes("mens") || tier.includes("hair")) preferredGender = "male";
 
   return PROGRAM_CARDS.filter((card) => {
+    if (isHiddenVitalityProgram(card.key)) return false;
     if (card.gender === "all") return true;
     if (entitled.has(card.key)) return true;
     if (preferredGender === "female" && card.gender === "female") return true;

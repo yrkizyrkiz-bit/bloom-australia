@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { normalizeProgramKey, PROGRAM_LABELS, type ProgramKey } from "@/lib/membership/keys";
 import { getProgramOffer, PROGRAM_BILLING_TERM_OPTIONS, type ProgramBillingTerm } from "@/lib/programs/offers";
 import { PROGRAM_CARDS } from "@/lib/programs/catalog";
+import { isHiddenVitalityProgram } from "@/lib/programs/release-flags";
 import { GENERIC_PROGRAM_QUIZ } from "@/lib/programs/quizzes/generic-program-quiz";
 import {
   getSexualHealthConsultationSummary,
@@ -68,6 +69,10 @@ export default function InPortalProgramPage() {
     Boolean(programKey && hasProgramMembership(portal?.membership, programKey));
 
   useEffect(() => {
+    if (isHiddenVitalityProgram(programKey)) {
+      router.replace(PROGRAMS_HUB);
+      return;
+    }
     if (portalLoading || !programKey || !shouldRedirectToDashboard) return;
     const card = PROGRAM_CARDS.find((c) => c.key === programKey);
     if (card?.dashboardRoute) {
@@ -108,7 +113,7 @@ export default function InPortalProgramPage() {
     );
   }
 
-  if (portalLoading || shouldRedirectToDashboard) {
+  if (isHiddenVitalityProgram(programKey) || portalLoading || shouldRedirectToDashboard) {
     return (
       <div className="mx-auto flex max-w-xl justify-center px-4 py-16">
         <Loader2 className="h-8 w-8 animate-spin text-[#5c7a52]" />

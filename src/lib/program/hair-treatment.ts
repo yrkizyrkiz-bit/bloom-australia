@@ -1,57 +1,24 @@
 import { prisma } from "@/lib/prisma";
-import { parseDoseIntervalDays } from "@/lib/program/dose-schedule";
-import { parseUtcDateOnly } from "@/lib/program/member-schedule";
+import { toUtcDateInput } from "@/lib/program/member-schedule";
+import {
+  HAIR_DEFAULT_SUPPLY_DAYS,
+  generateHairDoseDates,
+  hairDoseScheduleNeedsRepair,
+  isDoctorCompletedHairPrescription,
+  parseHairFirstDoseDate,
+} from "@/lib/program/hair-treatment-schedule";
 
-const MAX_SCHEDULE_DAYS = 90;
-const DEFAULT_SUPPLY_DAYS = 28;
-
-export function isDoctorCompletedHairPrescription(rx: {
-  category?: string | null;
-  status?: string | null;
-}): boolean {
-  return rx.category === "HAIR_LOSS" && rx.status === "ACTIVE";
-}
-
-export function hairDosesPerDay(frequency: string): number {
-  const f = frequency.toLowerCase();
-  if (/\btwice\b|\btwo times\b|\b2x\b|\b2 times\b/.test(f)) return 2;
-  if (/\bthree times\b|\bthrice\b|\b3x\b/.test(f)) return 3;
-  return 1;
-}
-
-export function generateHairDoseDates(
-  firstDose: Date,
-  frequency: string,
-  supplyDays: number
-): Date[] {
-  const days = Math.min(MAX_SCHEDULE_DAYS, Math.max(1, supplyDays));
-  const perDay = hairDosesPerDay(frequency);
-  const intervalDays = perDay > 1 ? 1 : parseDoseIntervalDays(frequency);
-  const dates: Date[] = [];
-
-  if (perDay > 1) {
-    for (let day = 0; day < days; day++) {
-      for (let slot = 0; slot < perDay; slot++) {
-        const date = new Date(firstDose);
-        date.setUTCDate(date.getUTCDate() + day);
-        date.setUTCHours(slot * Math.floor(24 / perDay), 0, 0, 0);
-        dates.push(date);
-      }
-    }
-    return dates;
-  }
-
-  for (let i = 0; i < days; i++) {
-    const date = new Date(firstDose);
-    date.setUTCDate(date.getUTCDate() + i * intervalDays);
-    dates.push(date);
-  }
-  return dates;
-}
-
-export function parseHairFirstDoseDate(value: string): Date | null {
-  return parseUtcDateOnly(value);
-}
+export {
+  formatHairDoseLine,
+  formatHairFrequencyLabel,
+  generateHairDoseDates,
+  hairDoseScheduleNeedsRepair,
+  hairDosesPerDay,
+  isDoctorCompletedHairPrescription,
+  parseHairDoseIntervalDays,
+  parseHairFirstDoseDate,
+  selectUpcomingHairDoses,
+} from "@/lib/program/hair-treatment-schedule";
 
 export async function startHairTreatmentFromFirstDose(input: {
   userId: string;
@@ -89,7 +56,7 @@ export async function startHairTreatmentFromFirstDose(input: {
     throw new Error("This treatment already has logged doses");
   }
 
-  const supplyDays = prescription.daysSupply || DEFAULT_SUPPLY_DAYS;
+  const supplyDays = prescription.daysSupply || HAIR_DEFAULT_SUPPLY_DAYS;
   const doseDates = generateHairDoseDates(firstDose, prescription.frequency, supplyDays);
   const nextDoseDate = doseDates[0] ?? firstDose;
 
@@ -148,4 +115,34 @@ export async function startHairTreatmentFromFirstDose(input: {
     nextDoseDate: nextDoseDate.toISOString(),
     doseCount: doseDates.length,
   };
+}
+
+export async function repairHairTreatmentScheduleIfNeeded(input: {
+  userId: string;
+  prescriptionId: string | null;
+  frequency: string;
+  startDate: Date;
+  daysSupply?: number | null;
+  doses: Array<{ scheduledAt: Date; takenAt: Date | null }>;
+}): Promise<boolean> {
+  if (!input.prescriptionId) return false;
+  if (input.doses.some((dose) => dose.takenAt)) return false;
+  const supplyDays = input.daysSupply || HAIR_DEFAULT_SUPPLY_DAYS;
+  if (
+    !hairDoseScheduleNeedsRepair(
+      input.frequency,
+      input.startDate,
+      supplyDays,
+      input.doses.map((dose) => dose.scheduledAt)
+    )
+  ) {
+    return false;
+  }
+
+  await startHairTreatmentFromFirstDose({
+    userId: input.userId,
+    prescriptionId: input.prescriptionId,
+    firstDoseDate: toUtcDateInput(input.startDate),
+  });
+  return true;
 }

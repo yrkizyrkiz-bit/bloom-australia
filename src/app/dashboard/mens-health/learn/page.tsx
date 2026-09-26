@@ -10,6 +10,7 @@ import {
   Sparkles, Heart, Zap, Brain, Dumbbell, Moon, Apple
 } from "lucide-react";
 import Link from "next/link";
+import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 
 const categories = [
   { id: "all", label: "All", icon: Book },
@@ -117,15 +118,21 @@ const content = [
 export default function LearnPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const visibleCategories = categories.filter(
+    (cat) => VITALITY_PROGRAM_RELEASED || cat.id !== "vitality"
+  );
+  const visibleContent = content.filter(
+    (item) => VITALITY_PROGRAM_RELEASED || item.category !== "vitality"
+  );
 
-  const filteredContent = content.filter((item) => {
+  const filteredContent = visibleContent.filter((item) => {
     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           item.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  const featuredContent = content.filter((item) => item.featured);
+  const featuredContent = visibleContent.filter((item) => item.featured);
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">
@@ -156,7 +163,7 @@ export default function LearnPage() {
 
       {/* Categories */}
       <div className="flex gap-2 overflow-x-auto pb-2">
-        {categories.map((cat) => (
+        {visibleCategories.map((cat) => (
           <Button
             key={cat.id}
             variant={selectedCategory === cat.id ? "default" : "outline"}

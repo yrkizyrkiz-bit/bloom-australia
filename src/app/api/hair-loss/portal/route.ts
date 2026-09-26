@@ -7,7 +7,11 @@ import {
   getHairJourneyStageDescription,
   resolveHairJourneyStatus,
 } from "@/lib/program-journey/hair-journey";
-import { isDoctorCompletedHairPrescription } from "@/lib/program/hair-treatment";
+import {
+  isDoctorCompletedHairPrescription,
+  repairHairTreatmentScheduleIfNeeded,
+  selectUpcomingHairDoses,
+} from "@/lib/program/hair-treatment";
 
 const HAIR_MEDICATION_KEYWORDS = [
   "finasteride",
@@ -155,8 +159,7 @@ export async function GET() {
           where: { userId, isActive: true },
           include: {
             doses: {
-              orderBy: { scheduledAt: "desc" },
-              take: 60,
+              orderBy: { scheduledAt: "asc" },
             },
           },
           orderBy: { startDate: "asc" },
@@ -177,11 +180,35 @@ export async function GET() {
         isHairMedication(rx.medicationName, rx.diagnosis)
     );
     const hairRxIds = new Set(hairPrescriptions.map((rx) => rx.id));
-    const hairTreatments = treatments.filter(
+    let hairTreatments = treatments.filter(
       (treatment) =>
         (treatment.prescriptionId && hairRxIds.has(treatment.prescriptionId)) ||
         isHairMedication(treatment.medicationName)
     );
+
+    const repairedIds: string[] = [];
+    for (const treatment of hairTreatments) {
+      const linkedRx = hairPrescriptions.find((rx) => rx.id === treatment.prescriptionId);
+      const repaired = await repairHairTreatmentScheduleIfNeeded({
+        userId,
+        prescriptionId: treatment.prescriptionId,
+        frequency: linkedRx?.frequency || treatment.frequency,
+        startDate: treatment.startDate,
+        daysSupply: linkedRx?.daysSupply,
+        doses: treatment.doses,
+      });
+      if (repaired) repairedIds.push(treatment.id);
+    }
+
+    if (repairedIds.length > 0) {
+      const refreshed = await prisma.treatment.findMany({
+        where: { id: { in: repairedIds } },
+        include: { doses: { orderBy: { scheduledAt: "asc" } } },
+      });
+      hairTreatments = hairTreatments.map(
+        (treatment) => refreshed.find((row) => row.id === treatment.id) ?? treatment
+      );
+    }
 
     const treatmentStart =
       hairTreatments[0]?.startDate || hairPrescriptions[0]?.startDate || null;
@@ -297,19 +324,19 @@ export async function GET() {
         };
       }),
       treatments: hairTreatments.map((treatment) => {
+        const linkedRx = hairPrescriptions.find((rx) => rx.id === treatment.prescriptionId);
         const doses = treatment.doses;
         const dueDoses = doses.filter(
           (dose) => dose.scheduledAt <= new Date() && !dose.skipped
         );
         const taken = dueDoses.filter((dose) => dose.takenAt).length;
-        const upcoming = doses
-          .filter((dose) => !dose.takenAt && !dose.skipped)
-          .slice(0, 8);
+        const upcoming = selectUpcomingHairDoses(doses);
         return {
           id: treatment.id,
           prescriptionId: treatment.prescriptionId,
           medicationName: treatment.medicationName,
           dosage: treatment.dosage,
+          strength: linkedRx?.strength || "",
           frequency: treatment.frequency,
           instructions: treatment.instructions,
           startDate: treatment.startDate.toISOString(),

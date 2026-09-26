@@ -17,6 +17,7 @@ import { MensHealthProgramModuleCard } from "@/components/dashboard/MensHealthPr
 import { isProgramEntitled } from "@/lib/membership/program-access";
 import { PROGRAM_CARDS } from "@/lib/programs/catalog";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 import {
   loadVitalityCheckIns,
   computeVitalityStreak,
@@ -72,7 +73,9 @@ export default function MensHealthPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   const hairEntitled = isProgramEntitled(portal?.membership, "HAIR_LOSS");
-  const vitalityEntitled = isProgramEntitled(portal?.membership, "MENS_HEALTH_VITALITY");
+  const vitalityEntitled =
+    VITALITY_PROGRAM_RELEASED &&
+    isProgramEntitled(portal?.membership, "MENS_HEALTH_VITALITY");
   const sexualEntitled = isProgramEntitled(portal?.membership, "MENS_HEALTH_SEXUAL");
 
   const programQuizRoutes = useMemo(() => {
@@ -150,25 +153,27 @@ export default function MensHealthPage() {
         },
         image: "/images/remote/unsplash/photo-1585747860715-2ba37e788b70.webp",
       },
-      {
-        id: "vitality",
-        title: "Daily Vitality",
-        description: "Energy, testosterone & wellness",
-        icon: Zap,
-        href: "/dashboard/mens-health/vitality",
-        quizRoute: programQuizRoutes.get("MENS_HEALTH_VITALITY") ?? "/dashboard/programs/mens_health_vitality",
-        gradient: "from-amber-500 to-orange-600",
-        entitled: vitalityEntitled,
-        stats: {
-          label: todayVitality
-            ? `${todayVitality.energy}%`
-            : vitalityCheckIns.length > 0
-              ? `${weeklyEnergy}% avg`
-              : "Check in",
-          value: "Energy",
-        },
-        image: "/images/remote/unsplash/photo-1571019614242-c5c5dee9f50b.webp",
-      },
+      ...(VITALITY_PROGRAM_RELEASED
+        ? [{
+            id: "vitality",
+            title: "Daily Vitality",
+            description: "Energy, testosterone & wellness",
+            icon: Zap,
+            href: "/dashboard/mens-health/vitality",
+            quizRoute: programQuizRoutes.get("MENS_HEALTH_VITALITY") ?? "/dashboard/programs/mens_health_vitality",
+            gradient: "from-amber-500 to-orange-600",
+            entitled: vitalityEntitled,
+            stats: {
+              label: todayVitality
+                ? `${todayVitality.energy}%`
+                : vitalityCheckIns.length > 0
+                  ? `${weeklyEnergy}% avg`
+                  : "Check in",
+              value: "Energy",
+            },
+            image: "/images/remote/unsplash/photo-1571019614242-c5c5dee9f50b.webp",
+          }]
+        : []),
       {
         id: "sexual-health",
         title: "Sexual Wellness",
@@ -197,14 +202,16 @@ export default function MensHealthPage() {
       color: "bg-violet-600",
       entitled: hairEntitled,
     },
-    {
-      label: "Check-in",
-      description: "Daily vitality",
-      icon: CheckCircle2,
-      href: "/dashboard/mens-health/vitality/check-in",
-      color: "bg-amber-500",
-      entitled: vitalityEntitled,
-    },
+    ...(VITALITY_PROGRAM_RELEASED
+      ? [{
+          label: "Check-in",
+          description: "Daily vitality",
+          icon: CheckCircle2,
+          href: "/dashboard/mens-health/vitality/check-in",
+          color: "bg-amber-500",
+          entitled: vitalityEntitled,
+        }]
+      : []),
     {
       label: "Medication",
       description: "Log doses",
@@ -319,7 +326,7 @@ export default function MensHealthPage() {
           <Target className="h-5 w-5 text-teal-600" />
           Your Programs
         </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className={cn("grid grid-cols-1 gap-4", VITALITY_PROGRAM_RELEASED ? "md:grid-cols-3" : "md:grid-cols-2")}>
           {healthModules.map((module) => (
             <MensHealthProgramModuleCard
               key={module.id}
@@ -334,7 +341,7 @@ export default function MensHealthPage() {
             <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
               <p className="font-medium">No men&apos;s health programs enrolled yet</p>
               <p className="max-w-md text-sm text-muted-foreground">
-                Browse hair, vitality, and sexual wellness programs from your programs hub.
+                Browse hair and sexual wellness programs from your programs hub.
               </p>
               <Button asChild>
                 <Link href={MEMBER_PROGRAMS_HOME}>View programs</Link>
@@ -516,7 +523,9 @@ export default function MensHealthPage() {
         <CardContent className="space-y-3">
           {[
             { title: "Understanding DHT", description: "Learn how DHT affects hair loss", category: "Hair Loss", href: "/dashboard/mens-health/learn/dht" },
-            { title: "Testosterone & Energy", description: "Natural ways to optimize levels", category: "Vitality", href: "/dashboard/mens-health/learn/testosterone" },
+            ...(VITALITY_PROGRAM_RELEASED
+              ? [{ title: "Testosterone & Energy", description: "Natural ways to optimize levels", category: "Vitality", href: "/dashboard/mens-health/learn/testosterone" }]
+              : []),
             { title: "ED: Causes & Solutions", description: "Evidence-based treatments", category: "Sexual Health", href: "/dashboard/mens-health/learn/ed-treatments" },
           ].map((content) => (
             <Link key={content.href} href={content.href}>

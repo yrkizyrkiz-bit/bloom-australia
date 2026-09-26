@@ -45,7 +45,7 @@ export function Header({
       label: "Men's Health",
       href: "/mens-health",
       dropdown: [
-        { label: "Start Assessment", href: "/mens-health/assessment" },
+        { label: "Start Assessment", href: "/mens-health" },
         { label: "Health Check", href: "/labs" },
         { label: "Weight Loss", href: "/weight-management?gender=men" },
         { label: "Erectile Dysfunction", href: "/mens-health#sexual-health" },

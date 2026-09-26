@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +27,23 @@ import {
 } from "@/lib/mens-health/vitality-check-ins";
 
 export default function VitalityPage() {
+  const router = useRouter();
   const { data: portal, isLoading: portalLoading } = usePortalContext();
   const vitalityEntitled = isProgramEntitled(portal?.membership, "MENS_HEALTH_VITALITY");
+
+  useEffect(() => {
+    if (!VITALITY_PROGRAM_RELEASED) {
+      router.replace("/dashboard/mens-health");
+    }
+  }, [router]);
+
+  if (!VITALITY_PROGRAM_RELEASED) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
 
   const [checkIns, setCheckIns] = useState<VitalityCheckIn[]>([]);
   const [todayCheckIn, setTodayCheckIn] = useState<VitalityCheckIn | null>(null);

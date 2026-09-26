@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import {
   ArrowLeft, Camera, TrendingUp, Pill, Calendar, ChevronRight,
-  Sparkles, CheckCircle2, Play,
+  Sparkles, CheckCircle2,
   Lightbulb, Target, BarChart3, Loader2, Stethoscope, MessageCircle
 } from "lucide-react";
 import {
@@ -75,6 +75,7 @@ type HairPortalData = {
     prescriptionId?: string | null;
     medicationName: string;
     dosage: string;
+    strength?: string;
     frequency: string;
     instructions: string | null;
     startDate: string;
@@ -205,34 +206,19 @@ export default function HairLossPage() {
               <CardTitle className="text-base">While you wait</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Link href="/dashboard/messages">
-                  <Card className="h-full cursor-pointer transition-shadow hover:shadow-md">
-                    <CardContent className="flex items-center gap-3 p-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100">
-                        <MessageCircle className="h-5 w-5 text-pink-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Message Care Team</p>
-                        <p className="text-xs text-muted-foreground">Ask questions</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-                <Link href="/dashboard/mens-health/learn">
-                  <Card className="h-full cursor-pointer transition-shadow hover:shadow-md">
-                    <CardContent className="flex items-center gap-3 p-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100">
-                        <Play className="h-5 w-5 text-violet-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Learn about hair loss</p>
-                        <p className="text-xs text-muted-foreground">Get prepared</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </div>
+              <Link href="/dashboard/messages">
+                <Card className="cursor-pointer transition-shadow hover:shadow-md">
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100">
+                      <MessageCircle className="h-5 w-5 text-pink-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Message Care Team</p>
+                      <p className="text-xs text-muted-foreground">Ask questions</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             </CardContent>
           </Card>
           {(data?.prescriptions.length || data?.treatments.length) ? (
@@ -444,13 +430,16 @@ export default function HairLossPage() {
         </CardContent>
       </Card>
 
-      {/* Expected Timeline */}
+      {/* Typical progression */}
       <Card className="border-slate-200 dark:border-slate-800">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-violet-600" />
-            What to Expect
+            Typical progression
           </CardTitle>
+          <p className="text-sm text-muted-foreground pt-1">
+            Treatment differs from one person to another. A typical treatment program could result in the following progression:
+          </p>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -496,42 +485,6 @@ export default function HairLossPage() {
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Learn More */}
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Play className="w-5 h-5 text-violet-600" />
-            Understanding Hair Loss
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Link href="/dashboard/mens-health/learn/dht">
-            <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-              <div className="w-12 h-12 rounded-lg bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center shrink-0">
-                <Play className="w-5 h-5 text-violet-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-sm">How DHT Causes Hair Loss</p>
-                <p className="text-xs text-muted-foreground">5 min read</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </div>
-          </Link>
-          <Link href="/dashboard/mens-health/learn">
-            <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-              <div className="w-12 h-12 rounded-lg bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center shrink-0">
-                <Play className="w-5 h-5 text-violet-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-sm">How Doctor-Led Hair Treatment Works</p>
-                <p className="text-xs text-muted-foreground">4 min read</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </div>
-          </Link>
         </CardContent>
       </Card>
     </div>

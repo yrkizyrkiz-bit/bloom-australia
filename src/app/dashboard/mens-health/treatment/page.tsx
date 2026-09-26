@@ -23,6 +23,7 @@ interface HairPortalTreatment {
   prescriptionId?: string | null;
   medicationName: string;
   dosage: string;
+  strength?: string;
   frequency: string;
   startDate: string;
   nextDoseDate: string | null;
@@ -317,26 +318,6 @@ export default function TreatmentPage() {
         </Card>
       )}
 
-      {hasPrograms && (
-        <Card className="border-0 bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
-          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20">
-                <Truck className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="font-semibold">Discreet delivery</p>
-                <p className="text-sm text-teal-100">Plain packaging on prescription refills</p>
-              </div>
-            </div>
-            <Link href="/dashboard/mens-health/support" className="w-full sm:w-auto">
-              <Button variant="secondary" size="sm" className="w-full sm:w-auto">
-                Contact care team
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 
 export default function SettingsPage() {
   const [notifications, setNotifications] = useState({
@@ -73,6 +74,7 @@ export default function SettingsPage() {
             </div>
             <Badge className="bg-green-500">Active</Badge>
           </div>
+          {VITALITY_PROGRAM_RELEASED && (
           <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
             <div className="flex items-center gap-3">
               <Zap className="w-5 h-5 text-amber-600" />
@@ -83,6 +85,7 @@ export default function SettingsPage() {
             </div>
             <Badge className="bg-green-500">Active</Badge>
           </div>
+          )}
         </CardContent>
       </Card>
 

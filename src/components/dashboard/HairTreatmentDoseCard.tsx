@@ -9,6 +9,10 @@ import { Progress } from "@/components/ui/progress";
 import { Calendar, Pill } from "lucide-react";
 import { toast } from "sonner";
 import { DOSE_SCHEDULE_TIMEZONE } from "@/lib/program/dose-schedule";
+import {
+  formatHairDoseLine,
+  hairDosesPerDay,
+} from "@/lib/program/hair-treatment-schedule";
 
 export type HairTreatmentDose = {
   id: string;
@@ -20,6 +24,7 @@ export type HairTreatmentRecord = {
   prescriptionId?: string | null;
   medicationName: string;
   dosage: string;
+  strength?: string;
   frequency: string;
   startDate: string;
   nextDoseDate: string | null;
@@ -38,10 +43,19 @@ export type HairPrescriptionRecord = {
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-AU", {
+    timeZone: DOSE_SCHEDULE_TIMEZONE,
     weekday: "short",
     day: "numeric",
     month: "short",
   });
+}
+
+function formatUpcomingDose(dateStr: string, frequency: string): string {
+  const date = formatDate(dateStr);
+  if (hairDosesPerDay(frequency) <= 1) return date;
+  const hour = new Date(dateStr).getUTCHours();
+  const slot = hour < 8 ? "morning" : hour < 16 ? "evening" : "night";
+  return `${date} · ${slot}`;
 }
 
 export function HairFirstDoseForm({
@@ -116,19 +130,25 @@ export function HairTreatmentDoseCard({
   onSaved: () => void;
 }) {
   const name = treatment?.medicationName || prescription?.medicationName || "Hair treatment";
-  const dosage = treatment?.dosage || prescription?.strength || prescription?.dosage || "";
   const frequency = treatment?.frequency || prescription?.frequency || "";
+  const doseLine = formatHairDoseLine({
+    strength: prescription?.strength || treatment?.strength,
+    dosage: treatment?.dosage || prescription?.dosage,
+    frequency,
+  });
   const needsFirstDose = Boolean(prescription?.needsFirstDose) && !treatment?.upcomingDoses?.length;
-  const upcoming = treatment?.upcomingDoses ?? [];
+  const upcoming = [...(treatment?.upcomingDoses ?? [])].sort(
+    (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+  );
 
   return (
     <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950/20">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="font-semibold">{name}</p>
-          <p className="text-sm text-muted-foreground">
-            {[dosage, frequency].filter(Boolean).join(" · ")}
-          </p>
+          {doseLine ? (
+            <p className="text-sm text-muted-foreground">{doseLine}</p>
+          ) : null}
         </div>
         <Badge className="w-fit bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
           {needsFirstDose ? "Awaiting first dose" : "Prescribed"}
@@ -157,7 +177,7 @@ export function HairTreatmentDoseCard({
               <p className="mb-1 text-xs font-medium text-violet-800">Upcoming doses</p>
               <ul className="space-y-1 text-xs text-muted-foreground">
                 {upcoming.slice(0, 6).map((dose) => (
-                  <li key={dose.id}>{formatDate(dose.scheduledAt)}</li>
+                  <li key={dose.id}>{formatUpcomingDose(dose.scheduledAt, frequency)}</li>
                 ))}
               </ul>
             </div>

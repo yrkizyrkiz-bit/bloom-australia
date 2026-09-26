@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { isProgramEntitled } from "@/lib/membership/program-access";
+import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 import {
   Home, TrendingUp, Pill, HelpCircle, Settings, Plus,
   Sparkles, Heart, Zap, ShieldCheck, Loader2
@@ -20,11 +21,12 @@ import {
   TabIndicator,
 } from "@/components/weight-management/PageTransition";
 
-// Men's Health 5-tab navigation
 const mensHealthNavItems = [
   { href: "/dashboard/mens-health", label: "Home", icon: Home, exact: true },
   { href: "/dashboard/mens-health/hair-loss", label: "Hair", icon: Sparkles },
-  { href: "/dashboard/mens-health/vitality", label: "Vitality", icon: Zap },
+  ...(VITALITY_PROGRAM_RELEASED
+    ? [{ href: "/dashboard/mens-health/vitality", label: "Vitality", icon: Zap }]
+    : []),
   { href: "/dashboard/mens-health/sexual-health", label: "Wellness", icon: Heart },
   { href: "/dashboard/mens-health/support", label: "Care Team", icon: HelpCircle },
 ];
@@ -241,9 +243,10 @@ export default function MensHealthLayout({
                 {[
                   { href: "/dashboard/mens-health/hair-loss/check-in", label: "Weekly Check-in" },
                   { href: "/dashboard/mens-health/treatment", label: "Medications" },
-                  ...(pathname.startsWith("/dashboard/mens-health/hair-loss")
-                    ? []
-                    : [{ href: "/dashboard/mens-health/vitality/check-in", label: "Daily Check-in" }]),
+                  ...(VITALITY_PROGRAM_RELEASED &&
+                  !pathname.startsWith("/dashboard/mens-health/hair-loss")
+                    ? [{ href: "/dashboard/mens-health/vitality/check-in", label: "Daily Check-in" }]
+                    : []),
                 ].map((action, index) => {
                   const actionActive = pathname.includes(action.href.split('/').pop() || '');
                   return (

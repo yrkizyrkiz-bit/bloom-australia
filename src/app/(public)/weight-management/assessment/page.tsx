@@ -20,6 +20,7 @@ import {
   pruneGenderIncompatibleSelections,
   type OtherGoalOption,
 } from "@/lib/quiz-gender-filters";
+import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 import {
   buildPortalActivationMagicLink,
   WM_POST_CHECKOUT_PATH,
@@ -2341,7 +2342,9 @@ export default function WeightLossAssessmentPage() {
   const OTHER_GOAL_OPTIONS: OtherGoalOption[] = [
     { id: "hair_loss", label: "Hair loss" },
     { id: "hormonal_health", label: "Hormonal health" },
-    { id: "mens_vitality", label: "Men's vitality & energy" },
+    ...(VITALITY_PROGRAM_RELEASED
+      ? [{ id: "mens_vitality", label: "Men's vitality & energy" }]
+      : []),
     { id: "fatty_liver", label: "Liver & metabolic health" },
     { id: "biomarker_testing", label: "Comprehensive health testing" },
     { id: "skin_health", label: "Skin health" },

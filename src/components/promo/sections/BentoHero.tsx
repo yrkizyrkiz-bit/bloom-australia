@@ -124,7 +124,7 @@ export function BentoHero() {
               </h3>
               <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
             </div>
-            <p className="text-[#7e9a72] text-sm">Testosterone, hair loss & vitality</p>
+            <p className="text-[#7e9a72] text-sm">Hair loss and sexual health</p>
           </Link>
 
           {/* Organ Care - Wide Card */}
