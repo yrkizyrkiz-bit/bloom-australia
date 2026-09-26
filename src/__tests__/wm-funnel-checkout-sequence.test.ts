@@ -41,6 +41,8 @@ describe("weight-management funnel checkout sequence", () => {
     expect(payment).toContain("MembershipPricingCard.module.css");
     expect(payment).toContain("Sanative Membership");
     expect(payment).toContain('type: "accordion"');
+    expect(payment).toContain('radios: "never"');
+    expect(payment).not.toContain("radios: false");
     expect(payment).not.toContain('layout: "tabs"');
     expect(assessment).not.toContain("requireBookingHold={false}");
   });

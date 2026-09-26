@@ -731,6 +731,155 @@ export async function assignDoctorToPatientBooking(
   return assignDoctorToConsultationBooking(booking.id, doctorId, actor);
 }
 
+const STAFF_BOOKING_TYPES = new Set([
+  "CONSULTATION",
+  "FOLLOW_UP",
+  "REVIEW",
+  "URGENT",
+]);
+
+export async function createStaffConsultationBooking(
+  actor: StaffActor,
+  options: {
+    userId: string;
+    scheduledAt?: string;
+    slotId?: string;
+    bookingType?: string;
+    appointmentType?: string;
+    duration?: number;
+    notes?: string;
+    doctorId?: string;
+    notifyMember?: boolean;
+  }
+) {
+  const userId = options.userId?.trim();
+  if (!userId) {
+    throw new Error("Member is required");
+  }
+
+  const scheduledAt = parseSlotToDate(options.slotId, options.scheduledAt);
+  if (!scheduledAt) {
+    throw new Error("Valid scheduledAt or slotId is required");
+  }
+
+  const slotCheck = await isSlotAvailable(scheduledAt);
+  if (!slotCheck.available) {
+    throw new Error(slotCheck.reason || "Slot not available");
+  }
+
+  const member = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      role: true,
+    },
+  });
+
+  if (!member || member.role !== "MEMBER") {
+    throw new Error("Member not found");
+  }
+
+  let doctorId: string | null = null;
+  let doctorName: string | null = null;
+  if (options.doctorId) {
+    const doctor = await prisma.user.findUnique({
+      where: { id: options.doctorId },
+      select: { id: true, firstName: true, lastName: true, role: true },
+    });
+    if (!doctor || doctor.role !== "DOCTOR") {
+      throw new Error("Doctor not found");
+    }
+    doctorId = doctor.id;
+    doctorName = `Dr. ${doctor.firstName} ${doctor.lastName}`.trim();
+  }
+
+  const bookingType = STAFF_BOOKING_TYPES.has(options.bookingType || "")
+    ? options.bookingType!
+    : "CONSULTATION";
+  const appointmentType =
+    options.appointmentType === "VIDEO_CONSULT" ? "VIDEO_CONSULT" : "PHONE_CONSULT";
+  const duration =
+    options.duration && options.duration >= 15 && options.duration <= 120
+      ? options.duration
+      : 30;
+  const notes = options.notes?.trim() || null;
+
+  const booking = await prisma.$transaction(async (tx) => {
+    const created = await tx.consultationBooking.create({
+      data: {
+        userId: member.id,
+        bookingType,
+        scheduledAt,
+        duration,
+        status: "BOOKING_CONFIRMED",
+        confirmedAt: new Date(),
+        notes,
+        doctorId,
+        doctorName,
+        appointmentType,
+        patientPhone: member.phone,
+        holdExpiresAt: null,
+      },
+    });
+
+    await tx.bookingChangeLog.create({
+      data: {
+        bookingId: created.id,
+        action: "CREATED",
+        newAt: scheduledAt,
+        newDoctorId: doctorId,
+        newStatus: "BOOKING_CONFIRMED",
+        reason: "Staff created booking from calendar",
+        changedByUserId: actor.userId,
+        changedByRole: actor.role,
+      },
+    });
+
+    return created;
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      userId: actor.userId,
+      action: "BOOKING_CREATED",
+      entity: "consultation_booking",
+      entityId: booking.id,
+      details: {
+        memberId: member.id,
+        scheduledAt: scheduledAt.toISOString(),
+        bookingType,
+        changedByRole: actor.role,
+      },
+    },
+  });
+
+  await syncConsultationScheduleNote(booking.id, member.id, {
+    scheduledAt,
+    doctorName,
+    doctorId,
+  });
+
+  if (options.notifyMember !== false && member.email) {
+    const name = member.firstName || "there";
+    await notifyMember(
+      member.email,
+      name,
+      "Your Sanative consultation is booked",
+      `<p>Hi ${name},</p>
+       <p>Our care team has booked a consultation for you.</p>
+       <p><strong>Time:</strong> ${formatConsultationTime(scheduledAt)} (Sydney time)</p>
+       ${doctorName ? `<p><strong>Doctor:</strong> ${doctorName}</p>` : ""}
+       <p>We'll call you at your appointment time. If you have questions, reply to this email or contact your care partner.</p>`
+    );
+  }
+
+  return booking;
+}
+
 export async function findBookingById(bookingId: string) {
   const consultation = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },

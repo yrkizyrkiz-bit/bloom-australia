@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { RescheduleBookingDialog } from "@/components/admin/RescheduleBookingDialog";
 import { CancelBookingDialog } from "@/components/admin/CancelBookingDialog";
+import { NewBookingDialog } from "@/components/admin/NewBookingDialog";
 import { BookingChangeHistory } from "@/components/admin/BookingChangeHistory";
 import {
   DropdownMenu,
@@ -183,6 +184,7 @@ export default function BookingsCalendarPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<Booking | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
+  const [showNewBooking, setShowNewBooking] = useState(false);
   const [doctors, setDoctors] = useState<DoctorOption[]>([]);
   const [assigningDoctor, setAssigningDoctor] = useState(false);
   const isDoctor = user?.role === "DOCTOR";
@@ -417,7 +419,7 @@ export default function BookingsCalendarPage() {
             Refresh
           </Button>
           {!isDoctor && (
-            <Button>
+            <Button onClick={() => setShowNewBooking(true)}>
               <Plus className="w-4 h-4 mr-2" />
               New Booking
             </Button>
@@ -1031,6 +1033,18 @@ export default function BookingsCalendarPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {!isDoctor && (
+        <NewBookingDialog
+          open={showNewBooking}
+          onOpenChange={setShowNewBooking}
+          doctors={doctors}
+          onSuccess={() => {
+            setShowNewBooking(false);
+            fetchBookings();
+          }}
+        />
+      )}
 
       {rescheduleTarget && (
         <RescheduleBookingDialog

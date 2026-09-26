@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { Component, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -38,6 +38,49 @@ const MEMBERSHIP_MARQUEE = [
 
 const MEMBERSHIP_COPY =
   "Sanative starts with a comprehensive health check, including 85+ biomarkers, to help your doctor understand factors relevant to your health and weight.";
+
+/** Stripe Dahlia rejects boolean `radios` — must be always | auto | never | if_multiple. */
+const PAYMENT_ELEMENT_OPTIONS = {
+  layout: {
+    type: "accordion" as const,
+    defaultCollapsed: false,
+    radios: "never" as const,
+    spacedAccordionItems: true,
+  },
+  wallets: STRIPE_CHECKOUT_WALLETS,
+  fields: {
+    billingDetails: {
+      email: "never" as const,
+      name: "never" as const,
+    },
+  },
+};
+
+class StripeFormErrorBoundary extends Component<
+  { children: ReactNode; onError: (message: string) => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error) {
+    this.props.onError(error.message || "Payment form failed to load");
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <p className="text-sm text-red-600">
+          Payment form failed to load. Please refresh and try again.
+        </p>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function ImageMarquee() {
   const loop = [...MEMBERSHIP_MARQUEE, ...MEMBERSHIP_MARQUEE];
@@ -146,20 +189,9 @@ function CardPaymentForm({
 
       <div className="w-full min-w-0 overflow-x-hidden [&_iframe]:max-w-full">
         <PaymentElement
-          options={{
-            layout: {
-              type: "accordion",
-              defaultCollapsed: false,
-              radios: false,
-              spacedAccordionItems: true,
-            },
-            wallets: STRIPE_CHECKOUT_WALLETS,
-            fields: {
-              billingDetails: {
-                email: "never",
-                name: "never",
-              },
-            },
+          options={PAYMENT_ELEMENT_OPTIONS}
+          onLoadError={(event) => {
+            setError(event.error?.message || "Payment form failed to load");
           }}
         />
       </div>
@@ -258,6 +290,23 @@ export function FunnelMembershipPaymentScreen({
   const [initError, setInitError] = useState<string | null>(null);
   const [activating, setActivating] = useState(false);
 
+  const elementsOptions = useMemo(
+    () =>
+      clientSecret
+        ? {
+            clientSecret,
+            appearance: {
+              theme: "stripe" as const,
+              variables: {
+                colorPrimary: "#1c1c1c",
+                borderRadius: "12px",
+              },
+            },
+          }
+        : undefined,
+    [clientSecret]
+  );
+
   useEffect(() => {
     if (alreadyPaid) return;
 
@@ -301,9 +350,9 @@ export function FunnelMembershipPaymentScreen({
     return () => {
       cancelled = true;
     };
-    // onError is unstable from the parent; only re-init when account fields change.
+    // onError is unstable from the parent; only re-init when the account identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alreadyPaid, userId, email, phone, firstName, lastName, postcode]);
+  }, [alreadyPaid, userId, email]);
 
   const handlePaid = async (result: CheckoutPaymentSuccess) => {
     setActivating(true);
@@ -419,29 +468,28 @@ export function FunnelMembershipPaymentScreen({
           </div>
         ) : initError ? (
           <p className="text-sm text-red-600">{initError}</p>
-        ) : clientSecret ? (
-          <Elements
-            stripe={stripePromise}
-            options={{
-              clientSecret,
-              appearance: {
-                theme: "stripe",
-                variables: {
-                  colorPrimary: "#1c1c1c",
-                  borderRadius: "12px",
-                },
-              },
+        ) : clientSecret && elementsOptions ? (
+          <StripeFormErrorBoundary
+            onError={(message) => {
+              setInitError(message);
+              onError(message);
             }}
           >
-            <CardPaymentForm
-              amountAud={amountAud}
-              customerEmail={email}
-              customerName={`${firstName} ${lastName}`.trim()}
-              userId={userId}
-              returnPath={returnPath}
-              onSuccess={handlePaid}
-            />
-          </Elements>
+            <Elements
+              key={clientSecret}
+              stripe={stripePromise}
+              options={elementsOptions}
+            >
+              <CardPaymentForm
+                amountAud={amountAud}
+                customerEmail={email}
+                customerName={`${firstName} ${lastName}`.trim()}
+                userId={userId}
+                returnPath={returnPath}
+                onSuccess={handlePaid}
+              />
+            </Elements>
+          </StripeFormErrorBoundary>
         ) : null}
       </div>
       <div className="order-1 lg:order-2">{summaryColumn}</div>

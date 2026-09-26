@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireClinicalStaff } from "@/lib/auth/require-clinical-staff";
+import { createStaffConsultationBooking } from "@/lib/booking-manage";
 
 type CalendarBooking = {
   id: string;
@@ -206,48 +208,69 @@ export async function GET(req: NextRequest) {
 // Create a new booking
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireClinicalStaff();
+    if (auth.error) return auth.error;
+    if (auth.role === "DOCTOR") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
     const data = await req.json();
+    const {
+      userId,
+      type,
+      scheduledAt,
+      slotId,
+      duration,
+      location,
+      notes,
+      doctorId,
+      notifyMember,
+    } = data;
 
-    const { userId, type, title, scheduledAt, duration, location, notes } = data;
-
-    if (!userId || !scheduledAt) {
+    if (!userId || !(scheduledAt || slotId)) {
       return NextResponse.json(
-        { error: "userId and scheduledAt are required" },
+        { error: "Member and appointment time are required" },
         { status: 400 }
       );
     }
 
-    const appointment = await prisma.appointment.create({
-      data: {
+    const booking = await createStaffConsultationBooking(
+      { userId: auth.userId, role: auth.role },
+      {
         userId,
-        type: type || "CONSULTATION",
-        title: title || "Consultation",
-        scheduledAt: new Date(scheduledAt),
-        duration: duration || 30,
-        location: location || "Video",
-        status: "SCHEDULED",
+        scheduledAt,
+        slotId,
+        bookingType: type,
+        appointmentType: location === "Video" ? "VIDEO_CONSULT" : "PHONE_CONSULT",
+        duration,
         notes,
-      },
-    });
+        doctorId: doctorId || undefined,
+        notifyMember: notifyMember !== false,
+      }
+    );
 
     return NextResponse.json({
       booking: {
-        id: appointment.id,
-        userId: appointment.userId,
-        type: appointment.type,
-        title: appointment.title,
-        scheduledAt: appointment.scheduledAt.toISOString(),
-        duration: appointment.duration,
-        location: appointment.location,
-        status: appointment.status,
-        notes: appointment.notes,
+        id: booking.id,
+        userId: booking.userId,
+        type: booking.bookingType,
+        title: "Consultation",
+        scheduledAt: booking.scheduledAt.toISOString(),
+        duration: booking.duration,
+        location: booking.appointmentType === "VIDEO_CONSULT" ? "Video" : "Phone",
+        status: booking.status,
+        notes: booking.notes,
+        doctorId: booking.doctorId,
+        doctorName: booking.doctorName,
+        source: "consultation",
       },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to create booking";
     console.error("Error creating booking:", error);
     return NextResponse.json(
-      { error: "Failed to create booking" },
-      { status: 500 }
+      { error: message },
+      { status: message === "Failed to create booking" ? 500 : 400 }
     );
   }
 }

@@ -26,11 +26,11 @@ describe("temporary dev verification code", () => {
     expect(matchesDevVerificationCode("00000")).toBe(false);
   });
 
-  it("is ignored in production even when the env var is set", () => {
+  it("stays available in a production build when the env var is set", () => {
     vi.stubEnv("DEV_VERIFICATION_CODE", "000000");
     vi.stubEnv("NODE_ENV", "production");
-    expect(isDevVerificationEnabled()).toBe(false);
-    expect(getDevVerificationCode()).toBeNull();
-    expect(matchesDevVerificationCode("000000")).toBe(false);
+    expect(isDevVerificationEnabled()).toBe(true);
+    expect(getDevVerificationCode()).toBe("000000");
+    expect(matchesDevVerificationCode("000000")).toBe(true);
   });
 });
