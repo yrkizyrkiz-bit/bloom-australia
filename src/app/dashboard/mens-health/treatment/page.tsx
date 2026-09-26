@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Pill,
@@ -17,14 +16,18 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
+import { HairTreatmentsList } from "@/components/dashboard/HairTreatmentDoseCard";
 
 interface HairPortalTreatment {
   id: string;
+  prescriptionId?: string | null;
   medicationName: string;
   dosage: string;
   frequency: string;
+  startDate: string;
   nextDoseDate: string | null;
   adherence: number | null;
+  upcomingDoses?: Array<{ id: string; scheduledAt: string }>;
 }
 
 interface HairPortalPrescription {
@@ -35,6 +38,7 @@ interface HairPortalPrescription {
   frequency: string;
   status: string;
   nextRefillDate: string | null;
+  needsFirstDose?: boolean;
 }
 
 interface HairPortalData {
@@ -82,18 +86,13 @@ function formatDate(dateStr: string) {
   });
 }
 
-function HairTreatmentSection({ data }: { data: HairPortalData }) {
-  const hairItems = data.treatments.length
-    ? data.treatments
-    : data.prescriptions.map((rx) => ({
-        id: rx.id,
-        medicationName: rx.medicationName,
-        dosage: rx.strength || rx.dosage,
-        frequency: rx.frequency,
-        nextDoseDate: null,
-        adherence: null,
-      }));
-
+function HairTreatmentSection({
+  data,
+  onSaved,
+}: {
+  data: HairPortalData;
+  onSaved: () => void;
+}) {
   return (
     <Card className="border-slate-200 dark:border-slate-800">
       <CardHeader className="pb-2">
@@ -109,49 +108,12 @@ function HairTreatmentSection({ data }: { data: HairPortalData }) {
           </Link>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {hairItems.length ? (
-          hairItems.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950/20"
-            >
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-semibold">{item.medicationName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {item.dosage} · {item.frequency}
-                  </p>
-                </div>
-                <Badge className="w-fit bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                  Active
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Adherence</span>
-                  <span className="font-medium">
-                    {item.adherence != null ? `${item.adherence}%` : "Starts after dosing"}
-                  </span>
-                </div>
-                <Progress value={item.adherence ?? 0} className="h-2" />
-                <p className="text-xs text-muted-foreground">
-                  {item.nextDoseDate
-                    ? `Next dose: ${formatDate(item.nextDoseDate)}`
-                    : "Dose schedule will appear after setup"}
-                </p>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
-            <Pill className="mx-auto mb-2 h-8 w-8" />
-            <p className="font-medium">No hair treatment prescribed yet</p>
-            <p className="mt-1 text-sm">
-              Your doctor-approved treatment will appear here after triage and approval.
-            </p>
-          </div>
-        )}
+      <CardContent>
+        <HairTreatmentsList
+          prescriptions={data.prescriptions}
+          treatments={data.treatments}
+          onSaved={onSaved}
+        />
       </CardContent>
     </Card>
   );
@@ -248,37 +210,33 @@ export default function TreatmentPage() {
   const [hairPortalData, setHairPortalData] = useState<HairPortalData | null>(null);
   const [sexualPortalData, setSexualPortalData] = useState<SexualHealthPortalData | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadPortalData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const [hairRes, sexualRes] = await Promise.all([
+        fetch("/api/hair-loss/portal"),
+        fetch("/api/mens-health/sexual-health/portal"),
+      ]);
 
-    async function loadPortalData() {
-      try {
-        const [hairRes, sexualRes] = await Promise.all([
-          fetch("/api/hair-loss/portal"),
-          fetch("/api/mens-health/sexual-health/portal"),
-        ]);
-
-        if (!cancelled && hairRes.ok) {
-          const json = (await hairRes.json()) as HairPortalData;
-          if (json.isHairMember) setHairPortalData(json);
-        }
-
-        if (!cancelled && sexualRes.ok) {
-          const json = (await sexualRes.json()) as SexualHealthPortalData;
-          if (json.isMember) setSexualPortalData(json);
-        }
-      } catch (error) {
-        console.error("Treatment portal load error:", error);
-      } finally {
-        if (!cancelled) setLoading(false);
+      if (hairRes.ok) {
+        const json = (await hairRes.json()) as HairPortalData;
+        setHairPortalData(json.isHairMember ? json : null);
       }
-    }
 
-    loadPortalData();
-    return () => {
-      cancelled = true;
-    };
+      if (sexualRes.ok) {
+        const json = (await sexualRes.json()) as SexualHealthPortalData;
+        setSexualPortalData(json.isMember ? json : null);
+      }
+    } catch (error) {
+      console.error("Treatment portal load error:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadPortalData();
+  }, [loadPortalData]);
 
   const hairCount =
     hairPortalData?.treatments.length ||
@@ -339,7 +297,9 @@ export default function TreatmentPage() {
         </div>
       )}
 
-      {hairPortalData?.isHairMember && <HairTreatmentSection data={hairPortalData} />}
+      {hairPortalData?.isHairMember && (
+        <HairTreatmentSection data={hairPortalData} onSaved={() => loadPortalData(true)} />
+      )}
       {sexualPortalData?.isMember && <SexualHealthTreatmentSection data={sexualPortalData} />}
 
       {!hasPrograms && (

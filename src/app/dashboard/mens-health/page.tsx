@@ -190,10 +190,10 @@ export default function MensHealthPage() {
 
   const quickActions = [
     {
-      label: "Log Progress",
-      description: "Track hair growth",
+      label: "Weekly Check-in",
+      description: "Photos and how you feel",
       icon: Camera,
-      href: "/dashboard/mens-health/hair-loss/track",
+      href: "/dashboard/mens-health/hair-loss/check-in",
       color: "bg-violet-600",
       entitled: hairEntitled,
     },

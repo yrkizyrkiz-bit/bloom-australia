@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import {
   ArrowLeft, Camera, TrendingUp, Pill, Calendar, ChevronRight,
-  Sparkles, Clock, CheckCircle2, Play,
+  Sparkles, CheckCircle2, Play,
   Lightbulb, Target, BarChart3, Loader2, Stethoscope, MessageCircle
 } from "lucide-react";
 import {
@@ -17,8 +15,12 @@ import {
   getProgramJourneyGreeting,
   type ProgramJourneyViewModel,
 } from "@/components/dashboard/ProgramJourneyShell";
-import { getJourneyStageMeta } from "@/lib/program-journey/stages";
+import {
+  getHairJourneyStageDescription,
+  resolveHairJourneyStatus,
+} from "@/lib/program-journey/hair-journey";
 import { isAwaitingDoctorConsultation } from "@/lib/program-journey/upcoming-consultation";
+import { HairTreatmentsList } from "@/components/dashboard/HairTreatmentDoseCard";
 
 type HairPortalData = {
   user: {
@@ -26,6 +28,10 @@ type HairPortalData = {
     subscriptionTier: string | null;
     journeyStatus: string | null;
     approvalStatus: string | null;
+  };
+  hairJourney?: {
+    status: string;
+    label: string;
   };
   status: {
     hasPaid: boolean;
@@ -62,9 +68,11 @@ type HairPortalData = {
     startDate: string;
     nextRefillDate: string | null;
     refillsRemaining: number;
+    needsFirstDose?: boolean;
   }>;
   treatments: Array<{
     id: string;
+    prescriptionId?: string | null;
     medicationName: string;
     dosage: string;
     frequency: string;
@@ -72,6 +80,7 @@ type HairPortalData = {
     startDate: string;
     nextDoseDate: string | null;
     adherence: number | null;
+    upcomingDoses?: Array<{ id: string; scheduledAt: string }>;
   }>;
 };
 
@@ -96,26 +105,22 @@ export default function HairLossPage() {
   const [data, setData] = useState<HairPortalData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await fetch("/api/hair-loss/portal");
-        if (!res.ok) throw new Error("Failed to load");
-        const json = await res.json();
-        if (!cancelled) setData(json);
-      } catch (error) {
-        console.error("Hair portal load error:", error);
-        if (!cancelled) setData(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/hair-loss/portal");
+      if (!res.ok) throw new Error("Failed to load");
+      setData(await res.json());
+    } catch (error) {
+      console.error("Hair portal load error:", error);
+      setData(null);
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (loading) {
     return (
@@ -127,20 +132,37 @@ export default function HairLossPage() {
 
   const progressData = data?.progress || emptyProgress;
   const hasActiveTreatment = data?.status.hasActiveTreatment || false;
-  const journeyStatus = data?.user.journeyStatus || "CONSULTATION_PAID";
-  const stageMeta = getJourneyStageMeta(journeyStatus);
+  const hairJourneyStatus =
+    data?.hairJourney?.status ||
+    resolveHairJourneyStatus({
+      journeyStatus: data?.user.journeyStatus,
+      approvalStatus: data?.user.approvalStatus,
+      hasUpcomingBooking: Boolean(data?.booking && !data.booking.completedAt),
+      consultCompleted: Boolean(data?.booking?.completedAt),
+      hasHairPrescription: (data?.prescriptions.length ?? 0) > 0,
+      hasActiveTreatment: (data?.treatments.length ?? 0) > 0,
+    });
+  const hairJourneyLabel =
+    data?.hairJourney?.label || getHairJourneyStageDescription(hairJourneyStatus);
+  const programActive = hairJourneyStatus === "ACTIVE";
 
   const showCountdown =
     Boolean(data?.booking) &&
     !data?.booking?.completedAt &&
-    isAwaitingDoctorConsultation(journeyStatus);
+    isAwaitingDoctorConsultation(hairJourneyStatus);
 
   const journeyView: ProgramJourneyViewModel = {
-    journeyStatus,
-    stageDescription: data?.status.label || stageMeta.stageDescription,
-    stage: stageMeta.stage,
-    isApproved: data?.status.isApproved || stageMeta.isApproved,
+    journeyStatus: hairJourneyStatus,
+    stageDescription: data?.status.label || hairJourneyLabel,
+    stage:
+      hairJourneyStatus === "AWAITING_DOCTOR_CALL"
+        ? "consultation"
+        : hairJourneyStatus === "APPROVED" || programActive
+          ? "approved"
+          : "pre-consultation",
+    isApproved: data?.status.isApproved || hairJourneyStatus === "APPROVED" || programActive,
     hasPrescription: (data?.prescriptions.length ?? 0) > 0,
+    hasTestsTracking: false,
     consultation: showCountdown && data?.booking
       ? {
           date: data.booking.scheduledAt,
@@ -154,7 +176,7 @@ export default function HairLossPage() {
       : undefined,
   };
 
-  if (!hasActiveTreatment) {
+  if (!programActive) {
     return (
       <div className="space-y-6 pb-20 md:pb-6">
         <div className="flex items-center gap-4">
@@ -213,6 +235,20 @@ export default function HairLossPage() {
               </div>
             </CardContent>
           </Card>
+          {(data?.prescriptions.length || data?.treatments.length) ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">My Treatments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <HairTreatmentsList
+                  prescriptions={data.prescriptions}
+                  treatments={data.treatments}
+                  onSaved={load}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
         </ProgramJourneyShell>
       </div>
     );
@@ -249,6 +285,13 @@ export default function HairLossPage() {
           <p className="text-muted-foreground">Track your progress & manage treatment</p>
         </div>
       </div>
+
+      <ProgramJourneyShell
+        programKey="HAIR_LOSS"
+        firstName={data?.user.firstName}
+        greeting={getProgramJourneyGreeting()}
+        journey={journeyView}
+      />
 
       {/* Progress Overview Card */}
       <Card className="overflow-hidden bg-gradient-to-br from-violet-900 via-purple-900 to-slate-900 border-0 text-white">
@@ -332,7 +375,7 @@ export default function HairLossPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/dashboard/mens-health/hair-loss/track">
+        <Link href="/dashboard/mens-health/hair-loss/check-in">
           <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-2 border-violet-200 dark:border-violet-900 hover:border-violet-400">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -340,8 +383,8 @@ export default function HairLossPage() {
                   <Camera className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="font-semibold">Log Progress</p>
-                  <p className="text-xs text-muted-foreground">Take a photo</p>
+                  <p className="font-semibold">Weekly Check-in</p>
+                  <p className="text-xs text-muted-foreground">Photos & how you feel</p>
                 </div>
               </div>
             </CardContent>
@@ -392,44 +435,12 @@ export default function HairLossPage() {
             </Link>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {data?.treatments.length ? data.treatments.map((treatment) => (
-            <div
-              key={treatment.id}
-              className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="font-semibold">{treatment.medicationName}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className="text-xs">{treatment.dosage}</Badge>
-                    <span className="text-xs text-muted-foreground">{treatment.frequency}</span>
-                  </div>
-                </div>
-                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                  Active
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Adherence</span>
-                  <span className="font-medium">{treatment.adherence ?? "—"}{treatment.adherence != null ? "%" : ""}</span>
-                </div>
-                <Progress value={treatment.adherence ?? 0} className="h-2" />
-                <p className="text-xs text-muted-foreground">
-                  {treatment.nextDoseDate
-                    ? `Next dose: ${formatDate(treatment.nextDoseDate)}`
-                    : "Dose schedule will appear after setup"}
-                </p>
-              </div>
-            </div>
-          )) : (
-            <div className="p-6 rounded-xl border border-dashed text-center text-muted-foreground">
-              <Pill className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="font-medium">No prescribed hair treatments yet</p>
-              <p className="text-sm mt-1">Your doctor-approved plan will appear here.</p>
-            </div>
-          )}
+        <CardContent>
+          <HairTreatmentsList
+            prescriptions={data?.prescriptions || []}
+            treatments={data?.treatments || []}
+            onSaved={load}
+          />
         </CardContent>
       </Card>
 

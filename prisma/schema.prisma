@@ -123,6 +123,7 @@ model User {
   reminders                       Reminder[]
   sessions                        Session[]
   weeklyCheckIns                  WeeklyCheckIn[]
+  hairWeeklyCheckIns              HairWeeklyCheckIn[]
   womensHealthCheckIns            WomensHealthCheckIn[]
   weightGoals                     WeightGoal[]
   weightLogs                      WeightLog[]
@@ -625,6 +626,26 @@ model WeeklyCheckIn {
 
   @@index([userId])
   @@index([weekNumber])
+  @@index([checkedInAt])
+}
+
+model HairWeeklyCheckIn {
+  id             String   @id @default(cuid())
+  userId         String
+  weekKey        String
+  overallFeeling Int
+  sheddingLevel  Int
+  scalpComfort   Int
+  confidence     Int
+  notes          String?
+  photos         Json     @default("[]")
+  checkedInAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekKey])
+  @@index([userId])
   @@index([checkedInAt])
 }
 

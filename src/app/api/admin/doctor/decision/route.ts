@@ -13,6 +13,8 @@ import {
 } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
 import { tryActivateAfterDoctorApproval } from "@/lib/program/activate-member-program";
 import { notifyMember } from "@/lib/notifications/member-notify";
+import { normalizeProgramKey } from "@/lib/membership/keys";
+import { resolveHairApprovalUserJourney } from "@/lib/program-journey/hair-journey";
 
 async function auditDoctorDecision(
   request: NextRequest,
@@ -544,11 +546,36 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const enrolledPrograms = isHairApproval
+          ? await prisma.programMember.findMany({
+              where: { OR: [{ userId }, { email: user.email }] },
+              select: { program: true },
+            })
+          : [];
+        const hasWeightManagementEnrollment = enrolledPrograms.some(
+          (member) => normalizeProgramKey(member.program) === "WEIGHT_MANAGEMENT"
+        );
+
+        if (isHairApproval) {
+          await prisma.programMember.updateMany({
+            where: {
+              program: "HAIR_LOSS",
+              OR: [{ userId }, { email: user.email }],
+            },
+            data: {
+              membershipStatus: "ACTIVE",
+              membershipStart: new Date(),
+            },
+          });
+        }
+
         await prisma.user.update({
           where: { id: userId },
           data: {
             approvalStatus: "APPROVED",
-            journeyStatus: "ONBOARDING_PENDING",
+            ...(isHairApproval
+              ? resolveHairApprovalUserJourney({ hasWeightManagementEnrollment })
+              : { journeyStatus: "ONBOARDING_PENDING" }),
           },
         });
 

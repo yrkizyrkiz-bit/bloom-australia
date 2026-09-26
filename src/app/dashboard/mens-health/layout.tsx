@@ -239,9 +239,11 @@ export default function MensHealthLayout({
               </p>
               <div className="space-y-1">
                 {[
-                  { href: "/dashboard/mens-health/hair-loss/track", label: "Log Progress" },
+                  { href: "/dashboard/mens-health/hair-loss/check-in", label: "Weekly Check-in" },
                   { href: "/dashboard/mens-health/treatment", label: "Medications" },
-                  { href: "/dashboard/mens-health/vitality/check-in", label: "Daily Check-in" },
+                  ...(pathname.startsWith("/dashboard/mens-health/hair-loss")
+                    ? []
+                    : [{ href: "/dashboard/mens-health/vitality/check-in", label: "Daily Check-in" }]),
                 ].map((action, index) => {
                   const actionActive = pathname.includes(action.href.split('/').pop() || '');
                   return (

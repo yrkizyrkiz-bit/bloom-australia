@@ -72,8 +72,10 @@ export function ProgramJourneyShell({
   const theme = config.theme;
   const { currentStep, steps } = getTimelineProgress(journey.journeyStatus, {
     includeMonitoringSteps: journey.hasTestsTracking !== false,
+    programKey,
   });
   const atProgramActive = currentStep >= steps.length - 1;
+  const showPrep = programKey !== "HAIR_LOSS" || currentStep < 2;
   const [journeyOpen, setJourneyOpen] = useState(!atProgramActive);
   const awaitingCall = isAwaitingDoctorConsultation(journey.journeyStatus);
   const countdown =
@@ -163,6 +165,7 @@ export function ProgramJourneyShell({
         </motion.div>
       )}
 
+      {showPrep && (
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className={`flex items-center gap-2 text-base ${theme.iconColor}`}>
@@ -187,6 +190,7 @@ export function ProgramJourneyShell({
           </ul>
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <Collapsible open={atProgramActive ? journeyOpen : true} onOpenChange={setJourneyOpen}>

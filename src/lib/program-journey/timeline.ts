@@ -8,6 +8,7 @@ import {
   Truck,
   Sparkles,
 } from "lucide-react";
+import { getHairTimelineProgress } from "@/lib/program-journey/hair-journey";
 
 export type JourneyTimelineStep = {
   key: string;
@@ -95,8 +96,12 @@ const STATUS_TO_STEP: Record<string, number> = {
 
 export function getTimelineProgress(
   journeyStatus: string,
-  options?: { includeMonitoringSteps?: boolean }
+  options?: { includeMonitoringSteps?: boolean; programKey?: string }
 ): { currentStep: number; steps: JourneyTimelineStep[] } {
+  if (options?.programKey === "HAIR_LOSS") {
+    return getHairTimelineProgress(journeyStatus);
+  }
+
   const currentStep = STATUS_TO_STEP[journeyStatus] ?? 0;
   const steps =
     options?.includeMonitoringSteps === false
