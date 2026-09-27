@@ -94,11 +94,14 @@ export function HairFirstDoseForm({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-violet-200 bg-white/70 p-3 dark:bg-violet-950/30">
-      <Label htmlFor={`first-dose-${prescriptionId}`} className="text-sm font-medium">
+    <div className="space-y-3 rounded-2xl border border-[#cdd8c6] bg-white/70 p-3">
+      <Label
+        htmlFor={`first-dose-${prescriptionId}`}
+        className="text-sm font-medium text-[#2c3628]"
+      >
         Date of first dose
       </Label>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-[#5c7a52]">
         Enter when you took or will take the first dose. Later dose dates are calculated from this.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -107,9 +110,10 @@ export function HairFirstDoseForm({
           type="date"
           value={firstDoseDate}
           onChange={(event) => setFirstDoseDate(event.target.value)}
+          className="border-[#cdd8c6] bg-white"
         />
         <Button
-          className="bg-violet-600 hover:bg-violet-700"
+          className="bg-[#4a6243] text-white hover:bg-[#3d4f38]"
           onClick={submit}
           disabled={saving}
         >
@@ -142,15 +146,19 @@ export function HairTreatmentDoseCard({
   );
 
   return (
-    <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950/20">
+    <div className="rounded-2xl border border-[#cdd8c6] bg-white/70 p-4">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="font-semibold">{name}</p>
-          {doseLine ? (
-            <p className="text-sm text-muted-foreground">{doseLine}</p>
-          ) : null}
+          <p className="font-serif font-semibold text-[#2c3628]">{name}</p>
+          {doseLine ? <p className="text-sm text-[#5c7a52]">{doseLine}</p> : null}
         </div>
-        <Badge className="w-fit bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        <Badge
+          className={
+            needsFirstDose
+              ? "w-fit border-0 bg-[#f0e8d8] text-[#c17a58]"
+              : "w-fit border-0 bg-[#cdd8c6]/70 text-[#2c3628]"
+          }
+        >
           {needsFirstDose ? "Awaiting first dose" : "Prescribed"}
         </Badge>
       </div>
@@ -160,29 +168,29 @@ export function HairTreatmentDoseCard({
       ) : (
         <div className="space-y-2">
           <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Adherence</span>
-            <span className="font-medium">
+            <span className="text-[#5c7a52]">Adherence</span>
+            <span className="font-medium text-[#2c3628]">
               {treatment?.adherence != null ? `${treatment.adherence}%` : "Starts after first dose"}
             </span>
           </div>
-          <Progress value={treatment?.adherence ?? 0} className="h-2" />
+          <Progress value={treatment?.adherence ?? 0} className="h-2 bg-[#e6ebe3]" />
           {treatment?.startDate && (
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            <p className="flex items-center gap-1 text-xs text-[#5c7a52]">
               <Calendar className="h-3 w-3" />
               First dose {formatDate(treatment.startDate)}
             </p>
           )}
           {upcoming.length > 0 ? (
             <div className="pt-1">
-              <p className="mb-1 text-xs font-medium text-violet-800">Upcoming doses</p>
-              <ul className="space-y-1 text-xs text-muted-foreground">
+              <p className="mb-1 text-xs font-medium text-[#4a6243]">Upcoming doses</p>
+              <ul className="space-y-1 text-xs text-[#5c7a52]">
                 {upcoming.slice(0, 6).map((dose) => (
                   <li key={dose.id}>{formatUpcomingDose(dose.scheduledAt, frequency)}</li>
                 ))}
               </ul>
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#5c7a52]">
               {treatment?.nextDoseDate
                 ? `Next dose: ${formatDate(treatment.nextDoseDate)}`
                 : "Dose schedule will appear after you log the first dose date"}
@@ -212,10 +220,10 @@ export function HairTreatmentsList({
 
   if (!items.length) {
     return (
-      <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
-        <Pill className="mx-auto mb-2 h-8 w-8" />
-        <p className="font-medium">No hair treatment prescribed yet</p>
-        <p className="mt-1 text-sm">
+      <div className="rounded-2xl border border-dashed border-[#cdd8c6] bg-white/40 p-6 text-center">
+        <Pill className="mx-auto mb-2 h-8 w-8 text-[#a8bb9e]" />
+        <p className="font-serif font-medium text-[#2c3628]">No hair treatment prescribed yet</p>
+        <p className="mt-1 text-sm text-[#5c7a52]">
           Your doctor-approved hair prescription will appear here when the script is complete.
         </p>
       </div>

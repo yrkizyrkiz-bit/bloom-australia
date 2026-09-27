@@ -3,20 +3,22 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { derivePortalContext } from "@/lib/portal-context";
-import {
-  getAllEntitlements,
-  syncEntitlementsFromSignals,
-} from "@/lib/membership/entitlement-service";
+import { getAllEntitlements } from "@/lib/membership/entitlement-service";
 import { PAID_WEIGHT_JOURNEY_STATUSES } from "@/lib/membership/weight-access";
 import { normalizeProgramKey } from "@/lib/membership/keys";
+import type { EntitlementRecord } from "@/lib/membership/entitlements";
 import {
-  deriveMembershipEntitlements,
-  type EntitlementRecord,
-} from "@/lib/membership/entitlements";
-import { getDistinctBiomarkerIdsForUser } from "@/lib/biomarkers/latest-results";
+  deriveAccessMembership,
+  mergeSubscriptionSignalsIntoEntitlements,
+} from "@/lib/membership/subscription-access";
 
 const PAID_JOURNEY_STATUSES = Array.from(PAID_WEIGHT_JOURNEY_STATUSES);
 
+/**
+ * Slim portal context for programs hub / nav: entitlements + MemberSubscriptions only.
+ * Biomarker readiness lives on GET /api/portal/readiness.
+ * Does not run syncEntitlementsFromSignals (write path is checkout/webhook/admin).
+ */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -25,8 +27,7 @@ export async function GET() {
     }
     const userId = session.user.id;
 
-    // Overlap user + entitlements + biomarker coverage queries on the critical path.
-    const [user, initialEntitlements, biomarkerIds, pendingLabCount] = await Promise.all([
+    const [user, entitlements, memberSubscriptions] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -39,9 +40,12 @@ export async function GET() {
         },
       }),
       getAllEntitlements(userId),
-      getDistinctBiomarkerIdsForUser(userId),
-      prisma.labReport.count({
-        where: { userId, status: { in: ["PENDING", "PROCESSING"] } },
+      prisma.memberSubscription.findMany({
+        where: { userId },
+        select: {
+          status: true,
+          product: { select: { program: true, slug: true, name: true, planTier: true } },
+        },
       }),
     ]);
 
@@ -51,28 +55,17 @@ export async function GET() {
 
     const isWeightTier = normalizeProgramKey(user.subscriptionTier) === "WEIGHT_MANAGEMENT";
     const hasPaidWeightIntake =
-      isWeightTier &&
-      PAID_JOURNEY_STATUSES.includes(user.journeyStatus || "");
+      isWeightTier && PAID_JOURNEY_STATUSES.includes(user.journeyStatus || "");
 
-    // Derive membership entitlements: reconcile when none exist yet (first visit),
-    // otherwise use persisted rows for a fast read path.
     let membership;
     try {
-      let entitlements = initialEntitlements;
-      if (entitlements.length === 0) {
-        await syncEntitlementsFromSignals(userId);
-        entitlements = await getAllEntitlements(userId);
-      }
-
-      membership = deriveMembershipEntitlements({
-        entitlements: entitlements.map(
+      const merged = mergeSubscriptionSignalsIntoEntitlements(
+        entitlements.map(
           (e): EntitlementRecord => ({ type: e.type, key: e.key, status: e.status })
         ),
-        // Coverage only needs marker presence — not full result history.
-        biomarkerResults: biomarkerIds.map((biomarkerId) => ({ biomarkerId })),
-        gender: user.gender,
-        hasPendingResults: pendingLabCount > 0,
-      });
+        memberSubscriptions
+      );
+      membership = deriveAccessMembership(merged, memberSubscriptions);
     } catch (membershipError) {
       console.error("[portal/context] membership derivation failed", membershipError);
     }

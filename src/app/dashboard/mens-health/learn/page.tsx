@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeft, Play, Book, Search, Clock, ChevronRight,
-  Sparkles, Heart, Zap, Brain, Dumbbell, Moon, Apple
+  Sparkles, Zap, Brain, Dumbbell, Moon, Apple
 } from "lucide-react";
 import Link from "next/link";
 import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
@@ -15,8 +15,9 @@ import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 const categories = [
   { id: "all", label: "All", icon: Book },
   { id: "hair", label: "Hair Loss", icon: Sparkles },
-  { id: "ed", label: "Sexual Health", icon: Heart },
-  { id: "vitality", label: "Vitality", icon: Zap },
+  ...(VITALITY_PROGRAM_RELEASED
+    ? [{ id: "vitality", label: "Vitality", icon: Zap }]
+    : []),
   { id: "lifestyle", label: "Lifestyle", icon: Dumbbell },
 ];
 
@@ -49,15 +50,6 @@ const content = [
     duration: "7 min read",
     image: "/images/remote/unsplash/photo-1571019614242-c5c5dee9f50b.webp",
     featured: true,
-  },
-  {
-    id: "4",
-    title: "ED: Causes & Modern Treatments",
-    description: "Understanding erectile dysfunction and the treatment options available.",
-    category: "ed",
-    type: "article",
-    duration: "6 min read",
-    image: "/images/remote/unsplash/photo-1518611012118-696072aa579a.webp",
   },
   {
     id: "5",
@@ -96,15 +88,6 @@ const content = [
     image: "/images/remote/unsplash/photo-1544367567-0f2fcb009e0b.webp",
   },
   {
-    id: "9",
-    title: "ED Treatment Options Explained",
-    description: "Understanding erectile dysfunction and how doctors assess suitability.",
-    category: "ed",
-    type: "article",
-    duration: "4 min read",
-    image: "/images/remote/unsplash/photo-1584308666744-24d5c474f2ae.webp",
-  },
-  {
     id: "10",
     title: "Nutrition for Men's Health",
     description: "Foods that support testosterone, energy, and overall wellbeing.",
@@ -118,9 +101,7 @@ const content = [
 export default function LearnPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const visibleCategories = categories.filter(
-    (cat) => VITALITY_PROGRAM_RELEASED || cat.id !== "vitality"
-  );
+  const visibleCategories = categories;
   const visibleContent = content.filter(
     (item) => VITALITY_PROGRAM_RELEASED || item.category !== "vitality"
   );
@@ -138,7 +119,7 @@ export default function LearnPage() {
     <div className="space-y-6 pb-20 md:pb-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/mens-health">
+        <Link href="/dashboard/mens-health/hair-loss">
           <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
         </Link>
         <div className="flex-1">

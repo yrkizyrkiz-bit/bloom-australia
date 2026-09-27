@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Activity } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
+import { usePortalReadiness } from "@/hooks/usePortalReadiness";
 import { prefetchWmHome } from "@/lib/weight-management/wm-client-cache";
 import {
   BIOMARKERS_HERO,
-  ORGAN_CARE_CARD,
   SUPPLEMENTS_CARD,
   getProgramCardsForGender,
   type CardTheme,
@@ -29,16 +29,19 @@ type TileCta = {
   state: EntitlementState;
 };
 
-/** Badge copy for tiles where the member already has access. */
+/**
+ * Program tiles from subscription/grant:
+ * Enrolled | Enrolled · payment overdue | Paused | Start quiz.
+ */
 function getEnrollmentBadgeLabel(
   hasEntitlement: boolean,
   status: string | null | undefined,
-  state: EntitlementState
+  state: EntitlementState,
+  subscriptionStatus?: string | null
 ): string | null {
-  if (!hasEntitlement || status === "INACTIVE" || state === "inactive") return null;
-  if (state === "pending_results" || status === "PENDING") {
-    return "Enrolled · awaiting results";
-  }
+  if (status === "INACTIVE" || state === "inactive") return "Paused";
+  if (!hasEntitlement) return null;
+  if (subscriptionStatus === "PAST_DUE") return "Enrolled · payment overdue";
   return "Enrolled";
 }
 
@@ -47,7 +50,7 @@ function EnrolledBadge({ label, tone }: { label: string; tone: CardTone }) {
   return (
     <span
       className={cn(
-        "inline-flex max-w-[9.5rem] items-center rounded-full px-2 py-1 text-[9px] font-bold uppercase leading-tight tracking-wide shadow-sm sm:max-w-none sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-wider",
+        "inline-flex max-w-[12rem] items-center rounded-full px-2 py-1 text-[9px] font-bold uppercase leading-tight tracking-wide shadow-sm sm:max-w-none sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-wider",
         colors.activeBadge
       )}
     >
@@ -105,46 +108,12 @@ function programTileCta(
     badgeLabel: getEnrollmentBadgeLabel(
       program!.hasEntitlement,
       program!.status,
-      program!.state
+      program!.state,
+      program!.subscriptionStatus
     ),
     ctaLabel: "Open program",
     href: card.dashboardRoute,
     state: program!.state,
-  };
-}
-
-function organCareTileCta(
-  membership: DerivedMembershipEntitlements | undefined
-): TileCta {
-  const organScope = membership?.scopes?.ORGAN_CARE;
-  const state = organScope?.state ?? "locked_upgrade";
-
-  if (!organScope?.hasEntitlement || state === "inactive" || organScope.status === "INACTIVE") {
-    if (organScope?.status === "INACTIVE" || state === "inactive") {
-      return {
-        badgeLabel: "Paused",
-        ctaLabel: "Reactivate",
-        href: ORGAN_CARE_CARD.quizRoute,
-        state: "inactive",
-      };
-    }
-    return {
-      badgeLabel: null,
-      ctaLabel: "Start quiz",
-      href: ORGAN_CARE_CARD.quizRoute,
-      state: "locked_upgrade",
-    };
-  }
-
-  return {
-    badgeLabel: getEnrollmentBadgeLabel(
-      organScope.hasEntitlement,
-      organScope.status,
-      state
-    ),
-    ctaLabel: "Open program",
-    href: ORGAN_CARE_CARD.hubRoute,
-    state,
   };
 }
 
@@ -226,7 +195,8 @@ function BiomarkersHero({
   membershipLoading: boolean;
   onNavigate?: () => void;
 }) {
-  const clock = membership?.biologicalClock;
+  const { data: readiness } = usePortalReadiness(!membershipLoading);
+  const clock = readiness?.biologicalClock ?? membership?.biologicalClock;
   const hasBiomarkersEntitlement = Boolean(membership?.scopes?.BIOLOGICAL_CLOCK?.hasEntitlement);
   const isReady = clock?.state === "ready";
   const coverage = clock?.coverage;
@@ -240,11 +210,15 @@ function BiomarkersHero({
   const theme = BIOMARKERS_HERO.theme;
   const colors = toneClasses(theme.tone);
   const Icon = BIOMARKERS_HERO.icon;
-  const enrollmentBadge = getEnrollmentBadgeLabel(
-    hasBiomarkersEntitlement,
-    membership?.scopes?.BIOLOGICAL_CLOCK?.status,
-    clock?.state ?? "locked_upgrade"
-  );
+  // Access badge from subscription/grant; overdue comes from MemberSubscription.
+  const clockScope = membership?.scopes?.BIOLOGICAL_CLOCK;
+  const enrollmentBadge = hasBiomarkersEntitlement
+    ? clockScope?.status === "INACTIVE"
+      ? "Paused"
+      : clockScope?.subscriptionStatus === "PAST_DUE"
+        ? "Enrolled · payment overdue"
+        : "Enrolled"
+    : null;
 
   return (
     <CleanCardShell href={href} theme={theme} onNavigate={onNavigate} className="relative min-h-[180px] flex-col justify-between sm:min-h-[200px] sm:flex-row sm:items-center">
@@ -369,147 +343,57 @@ function ProgramTile({
   );
 }
 
-function OrganCareTile({
-  membership,
-  onNavigate,
-}: {
-  membership: DerivedMembershipEntitlements | undefined;
-  onNavigate?: () => void;
-}) {
-  const router = useRouter();
-  const cta = organCareTileCta(membership);
-  const entitled =
-    cta.state === "ready" || cta.state === "partial" || cta.state === "pending_results";
-  const theme = ORGAN_CARE_CARD.theme;
-  const colors = toneClasses(theme.tone);
-
-  return (
-    <CleanCardShell
-      href={cta.href}
-      theme={theme}
-      onNavigate={onNavigate}
-      className="relative min-h-[200px] justify-between sm:min-h-[220px]"
-    >
-      <div className="relative z-10">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {theme.badge && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
-                  theme.badge.className
-                )}
-              >
-                {theme.badge.label}
-              </span>
-            )}
-            {cta.badgeLabel === "Paused" && (
-              <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", colors.status)}>
-                Paused
-              </span>
-            )}
-          </div>
-          {cta.badgeLabel && cta.badgeLabel !== "Paused" && (
-            <EnrolledBadge label={cta.badgeLabel} tone={theme.tone} />
-          )}
-        </div>
-        <h3 className={cn("font-serif text-xl leading-tight lg:text-2xl", colors.title)}>
-          Organ &{" "}
-          <span className={colors.accent}>{ORGAN_CARE_CARD.titleAccent}</span>
-        </h3>
-        <p className={cn("mt-2 text-sm leading-relaxed", colors.body)}>{ORGAN_CARE_CARD.tagline}</p>
-        <div className="mt-4 flex items-center gap-3">
-          <div className="flex -space-x-1">
-            {ORGAN_CARE_CARD.organPreview.map((organ) => (
-              <div
-                key={organ.label}
-                className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm ring-2 ring-[#cdd8c6]",
-                  organ.dot
-                )}
-              >
-                {organ.letter}
-              </div>
-            ))}
-          </div>
-          <span className={cn("text-xs", colors.body)}>{ORGAN_CARE_CARD.organPreviewCaption}</span>
-        </div>
-        <p className={cn("mt-3 text-sm font-medium", colors.price)}>{ORGAN_CARE_CARD.priceHint}</p>
-      </div>
-
-      {entitled && (
-        <div className="relative z-10 mt-4 flex flex-wrap gap-2">
-          {ORGAN_CARE_CARD.organs.map((organ) => (
-            <button
-              key={organ.label}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNavigate?.();
-                router.push(organ.route);
-              }}
-              className={cn(
-                "min-h-9 rounded-full px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm",
-                "bg-[#4a6243]/10 text-[#4a6243] hover:bg-[#4a6243]/20"
-              )}
-            >
-              {organ.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="relative z-10 mt-4 flex items-center justify-between">
-        <div className={cn("flex items-center gap-2 text-sm font-medium", colors.cta)}>
-          {cta.ctaLabel}
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-        </div>
-        <div
-          className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-full lg:h-14 lg:w-14",
-            theme.iconCircle
-          )}
-        >
-          <Activity className={cn("h-6 w-6 lg:h-7 lg:w-7", theme.iconColor)} />
-        </div>
-      </div>
-    </CleanCardShell>
-  );
-}
-
 function SupplementsTile({ onNavigate }: { onNavigate?: () => void }) {
   const Icon = SUPPLEMENTS_CARD.icon;
   const theme = SUPPLEMENTS_CARD.theme;
   const colors = toneClasses(theme.tone);
 
   return (
-    <CleanCardShell href={SUPPLEMENTS_CARD.route} theme={theme} onNavigate={onNavigate} className="min-h-[200px] justify-between sm:min-h-[220px]">
-      <div className="relative z-10">
-        {theme.badge && (
-          <span
-            className={cn(
-              "mb-3 inline-block rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
-              theme.badge.className
-            )}
-          >
-            {theme.badge.label}
-          </span>
+    <CleanCardShell
+      href={SUPPLEMENTS_CARD.route}
+      theme={theme}
+      onNavigate={onNavigate}
+      className="min-h-0 flex-row items-center gap-3 p-3.5 sm:gap-5 sm:p-4 md:hover:scale-[1.005]"
+    >
+      <div
+        className={cn(
+          "relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11",
+          theme.iconCircle
         )}
-        <h3 className={cn("font-serif text-xl leading-tight lg:text-2xl", colors.title)}>
-          Supplements &{" "}
-          <span className="text-[#c17a58]">{SUPPLEMENTS_CARD.titleAccent}</span>
-        </h3>
-        <p className={cn("mt-2 text-sm leading-relaxed", colors.body)}>{SUPPLEMENTS_CARD.tagline}</p>
+      >
+        <Icon className={cn("h-5 w-5", theme.iconColor)} />
       </div>
 
-      <div className="relative z-10 mt-4 flex items-center justify-between">
-        <div className={cn("flex items-center gap-2 text-sm font-medium", colors.cta)}>
-          {SUPPLEMENTS_CARD.priceHint}
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+      <div className="relative z-10 min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className={cn("font-serif text-lg leading-tight sm:text-xl", colors.title)}>
+            Supplements &{" "}
+            <span className="text-[#c17a58]">{SUPPLEMENTS_CARD.titleAccent}</span>
+          </h3>
+          {theme.badge && (
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                theme.badge.className
+              )}
+            >
+              {theme.badge.label}
+            </span>
+          )}
         </div>
-        <div className={cn("flex h-12 w-12 items-center justify-center rounded-full lg:h-14 lg:w-14", theme.iconCircle)}>
-          <Icon className={cn("h-6 w-6 lg:h-7 lg:w-7", theme.iconColor)} />
-        </div>
+        <p className={cn("mt-0.5 truncate text-sm leading-snug", colors.body)}>
+          {SUPPLEMENTS_CARD.tagline}
+        </p>
+      </div>
+
+      <div
+        className={cn(
+          "relative z-10 flex shrink-0 items-center gap-1.5 text-sm font-medium",
+          colors.cta
+        )}
+      >
+        <span className="hidden sm:inline">{SUPPLEMENTS_CARD.priceHint}</span>
+        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
       </div>
     </CleanCardShell>
   );
@@ -535,22 +419,24 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="text-center sm:text-left">
-        <span className="mb-3 inline-block rounded-full bg-[#e6ebe3] px-3 py-1.5 text-xs font-medium text-[#5c7a52] sm:px-4 sm:text-sm">
-          Your programs
-        </span>
-        <h1 className="font-serif text-2xl text-[#2c3628] sm:text-3xl md:text-4xl">
-          {firstName ? (
-            <>
-              Welcome back, <span className="text-gradient italic">{firstName}</span>
-            </>
-          ) : (
-            <>
-              Welcome <span className="text-gradient italic">back</span>
-            </>
-          )}
-        </h1>
-        <p className="mt-2 text-[#5c7a52]">What can we help you with today?</p>
+      <div>
+        <div className="flex items-center justify-between gap-3 sm:gap-4">
+          <h1 className="min-w-0 text-left font-serif text-2xl text-[#2c3628] sm:text-3xl md:text-4xl">
+            {firstName ? (
+              <>
+                Welcome back, <span className="text-gradient italic">{firstName}</span>
+              </>
+            ) : (
+              <>
+                Welcome <span className="text-gradient italic">back</span>
+              </>
+            )}
+          </h1>
+          <span className="shrink-0 rounded-full bg-[#e6ebe3] px-3 py-1.5 text-xs font-medium text-[#5c7a52] sm:px-4 sm:text-sm">
+            Your programs
+          </span>
+        </div>
+        <p className="mt-2 text-left text-[#5c7a52]">What can we help you with today?</p>
       </div>
 
       <BiomarkersHero
@@ -563,9 +449,9 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
         {cards.map((card) => (
           <ProgramTile key={card.key} card={card} membership={membership} onNavigate={onNavigate} />
         ))}
-        <OrganCareTile membership={membership} onNavigate={onNavigate} />
-        <SupplementsTile onNavigate={onNavigate} />
       </div>
+
+      <SupplementsTile onNavigate={onNavigate} />
     </div>
   );
 }

@@ -38,10 +38,12 @@ import Link from "next/link";
 import { formatBmi } from "@/lib/bmi";
 import {
   enrolledProgramBadgeClass,
+  enrolledProgramLabel,
   type EnrolledProgram,
 } from "@/lib/triage/enrolled-programs";
 import { useAuth } from "@/contexts/AuthContext";
 import { HolisticReportReviewDialog } from "@/components/admin/HolisticReportReviewDialog";
+import { NewBookingDialog } from "@/components/admin/NewBookingDialog";
 
 interface MedicalCondition {
   id: string;
@@ -86,6 +88,8 @@ interface Patient {
   hasContraindications: boolean;
   consultationDate: string | null;
   consultationStatus: string | null;
+  consultationDoctorName?: string | null;
+  consultationAppointmentType?: string | null;
   assignedDoctorId: string | null;
   weightGoals: Array<{ startWeight: number; targetWeight: number }>;
   assessment?: {
@@ -233,10 +237,48 @@ export default function TriageQueuePage() {
       taskId: string;
       dueDate: string;
       createdAt: string;
+      appointmentConfirmed?: boolean;
       patient: { id: string; firstName: string; lastName: string; email: string } | null;
-      purchase: { label?: string; source?: string; priceLabel?: string; programKey?: string; panelTier?: string };
+      booking: {
+        id: string;
+        scheduledAt: string;
+        status: string;
+        doctorId?: string | null;
+        doctorName?: string | null;
+        appointmentType?: string | null;
+      } | null;
+      upcomingAppointments?: Array<{
+        id: string;
+        scheduledAt: string;
+        status: string;
+        doctorId?: string | null;
+        doctorName?: string | null;
+        appointmentType?: string | null;
+      }>;
+      purchase: {
+        label?: string;
+        source?: string;
+        priceLabel?: string;
+        programKey?: string;
+        programSlug?: string;
+        programLabel?: string;
+        panelTier?: string;
+        memberAddedProgram?: boolean;
+      };
     }>
   >([]);
+  const [linkingAppointmentId, setLinkingAppointmentId] = useState<string | null>(null);
+  const [preTriageBookingItem, setPreTriageBookingItem] = useState<{
+    taskId: string;
+    patient: { id: string; firstName: string; lastName: string; email: string };
+  } | null>(null);
+  const [preTriageAssignItem, setPreTriageAssignItem] = useState<{
+    taskId: string;
+    bookingId: string;
+    patientName: string;
+  } | null>(null);
+  const [preTriageAssignDoctorId, setPreTriageAssignDoctorId] = useState("");
+  const [preTriageAssigning, setPreTriageAssigning] = useState(false);
   const [pendingReports, setPendingReports] = useState<
     Array<{
       userId: string;
@@ -280,6 +322,9 @@ export default function TriageQueuePage() {
         if (res.ok) {
           const data = await res.json();
           setMemberProgramItems(data.items ?? []);
+          if (Array.isArray(data.doctors)) {
+            setDoctors(data.doctors);
+          }
         }
       } catch (error) {
         console.error("Error fetching member program queue:", error);
@@ -492,6 +537,78 @@ export default function TriageQueuePage() {
     } catch (error) {
       console.error("Error starting triage:", error);
       toast.error("Failed to start triage");
+    }
+  };
+
+  const linkPreTriageBooking = async (
+    taskId: string,
+    bookingId: string,
+    appendBookingNote?: string
+  ) => {
+    const res = await fetch("/api/admin/pre-triage", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId,
+        bookingId,
+        appointmentConfirmed: true,
+        ...(appendBookingNote ? { appendBookingNote } : {}),
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Failed to link booking to pre-triage task");
+    }
+  };
+
+  const handleUseExistingAppointment = async (
+    taskId: string,
+    bookingId: string,
+    programLabel?: string
+  ) => {
+    setLinkingAppointmentId(bookingId);
+    try {
+      await linkPreTriageBooking(
+        taskId,
+        bookingId,
+        programLabel
+          ? `Also review portal program: ${programLabel}`
+          : "Also review linked portal program purchase"
+      );
+      toast.success("Consultation linked to existing appointment");
+      fetchTriageQueue();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to link appointment");
+    } finally {
+      setLinkingAppointmentId(null);
+    }
+  };
+
+  const handlePreTriageAssignDoctor = async () => {
+    if (!preTriageAssignItem || !preTriageAssignDoctorId) {
+      toast.error("Please select a doctor");
+      return;
+    }
+    setPreTriageAssigning(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${preTriageAssignItem.bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign_doctor",
+          doctorId: preTriageAssignDoctorId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to assign doctor");
+      toast.success("Doctor assigned");
+      setPreTriageAssignItem(null);
+      setPreTriageAssignDoctorId("");
+      fetchTriageQueue();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to assign doctor");
+    } finally {
+      setPreTriageAssigning(false);
     }
   };
 
@@ -894,49 +1011,187 @@ export default function TriageQueuePage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {memberProgramItems.map((item) => (
-                <Card key={item.taskId}>
-                  <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-                    <div>
-                      <p className="font-medium">
-                        {item.patient
-                          ? `${item.patient.firstName} ${item.patient.lastName}`
-                          : "Unknown member"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.purchase.label ?? "Program purchase"}
-                        {item.purchase.priceLabel ? ` · ${item.purchase.priceLabel}` : ""}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {item.purchase.source === "public_consult_booking"
-                          ? "Public assessment + booking"
-                          : item.purchase.source === "public_subscription"
-                            ? "Public subscription checkout"
-                          : item.purchase.source === "portal_biomarkers"
-                            ? "Biomarkers panel"
-                            : "In-portal program upsell"}
-                        {item.purchase.panelTier ? ` · ${item.purchase.panelTier}` : ""}
-                        {item.booking?.scheduledAt
-                          ? ` · Consult ${new Date(item.booking.scheduledAt).toLocaleDateString("en-AU", {
-                              weekday: "short",
-                              day: "numeric",
-                              month: "short",
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}`
-                          : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {item.patient && (
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/admin/crm/customers/${item.patient.id}`}>View member</Link>
-                        </Button>
+              {memberProgramItems.map((item) => {
+                const hasBooking = Boolean(item.booking?.id);
+                const hasDoctor = Boolean(item.booking?.doctorId || item.booking?.doctorName);
+                const isPortalProgramUptake =
+                  Boolean(item.purchase.memberAddedProgram) ||
+                  item.purchase.source === "portal_upsell";
+                const programBadgeKey =
+                  item.purchase.programKey ||
+                  item.purchase.programSlug ||
+                  item.purchase.programLabel ||
+                  item.purchase.label ||
+                  "";
+                const programBadgeLabel = programBadgeKey
+                  ? enrolledProgramLabel(programBadgeKey)
+                  : null;
+                const upcomingAppointments = item.upcomingAppointments ?? [];
+                const unlinkedUpcoming = upcomingAppointments.filter(
+                  (appt) => appt.id !== item.booking?.id
+                );
+                return (
+                  <Card key={item.taskId}>
+                    <CardContent className="space-y-3 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium">
+                              {item.patient
+                                ? `${item.patient.firstName} ${item.patient.lastName}`
+                                : "Unknown member"}
+                            </p>
+                            {isPortalProgramUptake && programBadgeLabel && (
+                              <Badge
+                                variant="outline"
+                                className={`text-xs font-medium ${enrolledProgramBadgeClass(programBadgeKey)}`}
+                              >
+                                {programBadgeLabel}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {item.purchase.label ?? "Program purchase"}
+                            {item.purchase.priceLabel ? ` · ${item.purchase.priceLabel}` : ""}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {item.purchase.source === "public_consult_booking"
+                              ? "Public assessment + booking"
+                              : item.purchase.source === "public_subscription"
+                                ? "Public subscription checkout"
+                              : item.purchase.source === "portal_biomarkers"
+                                ? "Biomarkers panel"
+                                : "In-portal program upsell"}
+                            {item.purchase.panelTier ? ` · ${item.purchase.panelTier}` : ""}
+                            {item.booking?.scheduledAt
+                              ? ` · Linked consult ${new Date(item.booking.scheduledAt).toLocaleDateString("en-AU", {
+                                  weekday: "short",
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}`
+                              : " · No linked appointment"}
+                            {item.booking?.doctorName
+                              ? ` · ${item.booking.doctorName}`
+                              : hasBooking
+                                ? " · Doctor unassigned"
+                                : ""}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {item.patient && !hasBooking && (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                setPreTriageBookingItem({
+                                  taskId: item.taskId,
+                                  patient: item.patient!,
+                                })
+                              }
+                            >
+                              <Calendar className="mr-1.5 h-4 w-4" />
+                              Book appointment
+                            </Button>
+                          )}
+                          {item.patient && hasBooking && !hasDoctor && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                setPreTriageAssignItem({
+                                  taskId: item.taskId,
+                                  bookingId: item.booking!.id,
+                                  patientName: `${item.patient!.firstName} ${item.patient!.lastName}`,
+                                });
+                                setPreTriageAssignDoctorId("");
+                              }}
+                            >
+                              <Stethoscope className="mr-1.5 h-4 w-4" />
+                              Assign doctor
+                            </Button>
+                          )}
+                          {item.patient && (
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/admin/crm/customers/${item.patient.id}`}>View member</Link>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {upcomingAppointments.length > 0 && (
+                        <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sky-800">
+                            Upcoming appointments
+                          </p>
+                          <div className="space-y-2">
+                            {upcomingAppointments.map((appt) => {
+                              const isLinked = item.booking?.id === appt.id;
+                              const when = new Date(appt.scheduledAt).toLocaleString("en-AU", {
+                                weekday: "short",
+                                day: "numeric",
+                                month: "short",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              });
+                              return (
+                                <div
+                                  key={appt.id}
+                                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-sky-100 bg-white/80 px-3 py-2"
+                                >
+                                  <div className="min-w-0 text-sm">
+                                    <p className="font-medium text-sky-950">{when}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {appt.appointmentType === "VIDEO_CONSULT" ? "Video" : "Phone"}
+                                      {" · "}
+                                      {appt.status.replace(/_/g, " ")}
+                                      {appt.doctorName
+                                        ? ` · ${appt.doctorName}`
+                                        : " · Doctor unassigned"}
+                                    </p>
+                                  </div>
+                                  {isLinked ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-green-300 bg-green-50 text-xs text-green-800"
+                                    >
+                                      Linked to this task
+                                    </Badge>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      disabled={linkingAppointmentId === appt.id}
+                                      onClick={() =>
+                                        handleUseExistingAppointment(
+                                          item.taskId,
+                                          appt.id,
+                                          item.purchase.label || programBadgeLabel || undefined
+                                        )
+                                      }
+                                    >
+                                      {linkingAppointmentId === appt.id && (
+                                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                      )}
+                                      Add to this appointment
+                                    </Button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {!hasBooking && unlinkedUpcoming.length > 0 && (
+                            <p className="mt-2 text-xs text-sky-800/80">
+                              Use an existing consult instead of booking a new one when this program
+                              should be reviewed in the same call.
+                            </p>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -985,6 +1240,87 @@ export default function TriageQueuePage() {
                       <CardTitle className="text-sm">Patient Summary</CardTitle>
                     </CardHeader>
                     <CardContent>
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Programs</span>
+                        <EnrolledProgramBadges programs={selectedPatient.enrolledPrograms} />
+                      </div>
+
+                      <div
+                        className={`mb-4 rounded-lg border p-3 ${
+                          selectedPatient.consultationDate
+                            ? "border-sky-200 bg-sky-50/80"
+                            : "border-amber-200 bg-amber-50/80"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Calendar
+                            className={`mt-0.5 h-5 w-5 shrink-0 ${
+                              selectedPatient.consultationDate ? "text-sky-700" : "text-amber-700"
+                            }`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`text-sm font-semibold ${
+                                selectedPatient.consultationDate ? "text-sky-900" : "text-amber-900"
+                              }`}
+                            >
+                              {selectedPatient.consultationDate
+                                ? "Booked appointment"
+                                : "No appointment booked"}
+                            </p>
+                            {selectedPatient.consultationDate ? (
+                              <div className="mt-1 space-y-1 text-sm text-sky-900/90">
+                                <p>
+                                  {new Date(selectedPatient.consultationDate).toLocaleString(
+                                    "en-AU",
+                                    {
+                                      weekday: "short",
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    }
+                                  )}
+                                  {selectedPatient.consultationAppointmentType
+                                    ? ` · ${
+                                        selectedPatient.consultationAppointmentType ===
+                                        "VIDEO_CONSULT"
+                                          ? "Video"
+                                          : "Phone"
+                                      }`
+                                    : ""}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {selectedPatient.consultationStatus && (
+                                    <Badge variant="outline" className="bg-white text-xs">
+                                      {selectedPatient.consultationStatus.replace(/_/g, " ")}
+                                    </Badge>
+                                  )}
+                                  {selectedPatient.consultationDoctorName ? (
+                                    <span className="text-xs font-medium">
+                                      {selectedPatient.consultationDoctorName}
+                                    </span>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-amber-300 bg-amber-50 text-xs text-amber-800"
+                                    >
+                                      Doctor unassigned
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-sm text-amber-900/80">
+                                Book an appointment from Pre-Triage Queue or Bookings before sending
+                                to the doctor.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">Age:</span>
@@ -1001,12 +1337,6 @@ export default function TriageQueuePage() {
                         <div>
                           <span className="text-muted-foreground">Weight:</span>
                           <span className="ml-2 font-medium">{selectedPatient.currentWeight || "N/A"} kg</span>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <span className="text-sm text-muted-foreground">Enrolled programs</span>
-                        <div className="mt-1.5">
-                          <EnrolledProgramBadges programs={selectedPatient.enrolledPrograms} />
                         </div>
                       </div>
 
@@ -1491,6 +1821,99 @@ export default function TriageQueuePage() {
         doctors={reportDoctors}
         onChanged={fetchTriageQueue}
       />
+
+      <NewBookingDialog
+        open={Boolean(preTriageBookingItem)}
+        onOpenChange={(open) => {
+          if (!open) setPreTriageBookingItem(null);
+        }}
+        doctors={doctors}
+        preselectedMember={
+          preTriageBookingItem
+            ? {
+                id: preTriageBookingItem.patient.id,
+                firstName: preTriageBookingItem.patient.firstName,
+                lastName: preTriageBookingItem.patient.lastName,
+                email: preTriageBookingItem.patient.email,
+              }
+            : null
+        }
+        onSuccess={async (booking) => {
+          const taskId = preTriageBookingItem?.taskId;
+          if (!taskId || !booking?.id) {
+            setPreTriageBookingItem(null);
+            fetchTriageQueue();
+            return;
+          }
+          try {
+            await linkPreTriageBooking(taskId, booking.id);
+            toast.success("Appointment linked to pre-triage task");
+          } catch (error) {
+            toast.error(
+              error instanceof Error
+                ? error.message
+                : "Booking created but could not link to pre-triage task"
+            );
+          } finally {
+            setPreTriageBookingItem(null);
+            fetchTriageQueue();
+          }
+        }}
+      />
+
+      <Dialog
+        open={Boolean(preTriageAssignItem)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreTriageAssignItem(null);
+            setPreTriageAssignDoctorId("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign doctor</DialogTitle>
+            <DialogDescription>
+              Assign a doctor to {preTriageAssignItem?.patientName || "this member"}&apos;s
+              consultation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Doctor</Label>
+            <Select value={preTriageAssignDoctorId} onValueChange={setPreTriageAssignDoctorId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select doctor" />
+              </SelectTrigger>
+              <SelectContent>
+                {doctors.map((doc) => (
+                  <SelectItem key={doc.id} value={doc.id}>
+                    Dr. {doc.firstName} {doc.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPreTriageAssignItem(null);
+                setPreTriageAssignDoctorId("");
+              }}
+              disabled={preTriageAssigning}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePreTriageAssignDoctor}
+              disabled={preTriageAssigning || !preTriageAssignDoctorId}
+            >
+              {preTriageAssigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Assign doctor
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

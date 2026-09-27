@@ -9,7 +9,6 @@ export const SEXUAL_HEALTH_MED_KEYWORDS = [
   "levitra",
   "spedra",
   "priligy",
-  "ed ",
   "erectile",
   "premature ejaculation",
   "sexual health",

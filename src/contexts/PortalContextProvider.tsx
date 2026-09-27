@@ -12,7 +12,8 @@ import {
 } from "react";
 import type { PortalContextPayload } from "@/lib/portal-context";
 
-const CACHE_KEY = "sanative_portal_context_v1";
+/** Bumped when slim context dropped biomarker readiness from the cached payload. */
+const CACHE_KEY = "sanative_portal_context_v2";
 const CACHE_TTL_MS = 60_000;
 
 type PortalContextValue = {

@@ -40,7 +40,7 @@ const PROGRAMS: Record<UnifiedCheckoutProgramSlug, PublicConsultProgram> = {
   mens_health: {
     slug: "mens_health",
     label: "Men's Health",
-    subscriptionTier: "mens_health",
+    subscriptionTier: "mens_health_sexual",
     firstMonthAud: 49,
     invoiceDescription: "Men's Health - Consultation & First Month",
     isWeightManagement: false,

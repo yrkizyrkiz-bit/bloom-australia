@@ -37,17 +37,27 @@ type CheckInPayload = {
   }>;
 };
 
-async function compressPhoto(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const max = 1280;
+function drawJpeg(bitmap: ImageBitmap, max: number, quality: number): string {
   const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not read photo");
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.72);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+async function compressPhoto(file: File): Promise<{ imageData: string; thumbData: string }> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    return {
+      imageData: drawJpeg(bitmap, 1280, 0.72),
+      thumbData: drawJpeg(bitmap, 240, 0.55),
+    };
+  } finally {
+    bitmap.close();
+  }
 }
 
 export default function HairWeeklyCheckInPage() {
@@ -112,13 +122,14 @@ export default function HairWeeklyCheckInPage() {
       return;
     }
     try {
-      const imageData = await compressPhoto(file);
+      const { imageData, thumbData } = await compressPhoto(file);
       setPhotos((current) => [
         ...current.filter((photo) => photo.angle !== activeAngle),
         {
           id: `${activeAngle}-${Date.now()}`,
           angle: activeAngle,
           imageData,
+          thumbData,
           capturedAt: new Date().toISOString(),
         },
       ]);
@@ -157,7 +168,7 @@ export default function HairWeeklyCheckInPage() {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#4a6243]" />
       </div>
     );
   }
@@ -176,13 +187,87 @@ export default function HairWeeklyCheckInPage() {
             How your hair feels this week, plus progress photos
           </p>
         </div>
-        {data?.thisWeek && <Badge className="bg-violet-600">This week done</Badge>}
+        {data?.thisWeek && <Badge className="bg-[#4a6243]">This week done</Badge>}
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Smile className="h-5 w-5 text-violet-600" />
+            <Camera className="h-5 w-5 text-[#4a6243]" />
+            Weekly photos
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Take or upload up to three photos in the same light each week: hairline, crown, and side.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {HAIR_PHOTO_ANGLES.map((angle) => (
+              <Button
+                key={angle.id}
+                type="button"
+                variant={activeAngle === angle.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveAngle(angle.id)}
+              >
+                {angle.label}
+                {photos.some((photo) => photo.angle === angle.id) ? " ✓" : ""}
+              </Button>
+            ))}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void addPhoto(file);
+              event.target.value = "";
+            }}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              className="bg-[#4a6243] hover:bg-[#3d4f38]"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Take or upload photo
+            </Button>
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Choose from library
+            </Button>
+          </div>
+          {photos.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {photos.map((photo) => (
+                <button
+                  key={photo.id}
+                  type="button"
+                  className="overflow-hidden rounded-lg border"
+                  onClick={() =>
+                    setPhotos((current) => current.filter((item) => item.id !== photo.id))
+                  }
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photo.imageData} alt={photo.angle} className="h-24 w-full object-cover" />
+                  <p className="px-1 py-1 text-[10px] text-muted-foreground">
+                    {HAIR_PHOTO_ANGLES.find((angle) => angle.id === photo.angle)?.label || photo.angle} · tap to remove
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Smile className="h-5 w-5 text-[#4a6243]" />
             How do you feel
           </CardTitle>
         </CardHeader>
@@ -221,82 +306,8 @@ export default function HairWeeklyCheckInPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Camera className="h-5 w-5 text-violet-600" />
-            Weekly photos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Take or upload up to three photos in the same light each week: hairline, crown, and side.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {HAIR_PHOTO_ANGLES.map((angle) => (
-              <Button
-                key={angle.id}
-                type="button"
-                variant={activeAngle === angle.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveAngle(angle.id)}
-              >
-                {angle.label}
-                {photos.some((photo) => photo.angle === angle.id) ? " ✓" : ""}
-              </Button>
-            ))}
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void addPhoto(file);
-              event.target.value = "";
-            }}
-          />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              type="button"
-              className="bg-violet-600 hover:bg-violet-700"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Camera className="mr-2 h-4 w-4" />
-              Take or upload photo
-            </Button>
-            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" />
-              Choose from library
-            </Button>
-          </div>
-          {photos.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {photos.map((photo) => (
-                <button
-                  key={photo.id}
-                  type="button"
-                  className="overflow-hidden rounded-lg border"
-                  onClick={() =>
-                    setPhotos((current) => current.filter((item) => item.id !== photo.id))
-                  }
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.imageData} alt={photo.angle} className="h-24 w-full object-cover" />
-                  <p className="px-1 py-1 text-[10px] text-muted-foreground">
-                    {HAIR_PHOTO_ANGLES.find((angle) => angle.id === photo.angle)?.label || photo.angle} · tap to remove
-                  </p>
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       <Button
-        className="w-full bg-violet-600 hover:bg-violet-700"
+        className="w-full bg-[#4a6243] hover:bg-[#3d4f38]"
         onClick={submit}
         disabled={saving}
       >

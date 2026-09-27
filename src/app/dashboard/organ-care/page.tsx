@@ -14,7 +14,10 @@ import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
 import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
-/** Organ & Metabolic Care overview, unified scores across all six health categories. */
+/**
+ * Organ & Metabolic Care overview — feature hub included with biomarkers /
+ * membership (not a standalone subscription product).
+ */
 export default function OrganCareDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -37,27 +40,28 @@ export default function OrganCareDashboardPage() {
     );
   }
 
+  // Gate on biomarkers billing — Organ Care is bundled, not a separate product.
   return (
-    <ProgramSubscriptionGate programSlug="organ_care">
-    <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
-      <div className="flex items-start gap-2 sm:gap-3">
-        <Button variant="ghost" size="icon" asChild className="shrink-0">
-          <Link href={MEMBER_PROGRAMS_HOME} aria-label="Back to programs">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <div className="min-w-0">
-          <h1 className="font-serif text-xl text-foreground sm:text-2xl">
-            Organ & <span className="text-[#4a6243]">{ORGAN_CARE_CARD.titleAccent}</span>
-          </h1>
-          <p className="text-xs text-muted-foreground sm:text-sm">{ORGAN_CARE_CARD.tagline}</p>
+    <ProgramSubscriptionGate programSlug="biological_clock">
+      <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
+        <div className="flex items-start gap-2 sm:gap-3">
+          <Button variant="ghost" size="icon" asChild className="shrink-0">
+            <Link href={MEMBER_PROGRAMS_HOME} aria-label="Back to programs">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <div className="min-w-0">
+            <h1 className="font-serif text-xl text-foreground sm:text-2xl">
+              Organ & <span className="text-[#4a6243]">{ORGAN_CARE_CARD.titleAccent}</span>
+            </h1>
+            <p className="text-xs text-muted-foreground sm:text-sm">{ORGAN_CARE_CARD.tagline}</p>
+          </div>
         </div>
+
+        <OrganMetabolicHealthPanels organCareEntitled />
+
+        <UnifiedHealthDashboard gender={gender} hideAiQuickAction />
       </div>
-
-      <OrganMetabolicHealthPanels organCareEntitled />
-
-      <UnifiedHealthDashboard gender={gender} hideAiQuickAction />
-    </div>
     </ProgramSubscriptionGate>
   );
 }

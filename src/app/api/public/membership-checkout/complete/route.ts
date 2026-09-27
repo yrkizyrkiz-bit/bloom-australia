@@ -17,6 +17,39 @@ import {
   enforceIpRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
+import {
+  getClinicalProgramFunnelConfig,
+  type ClinicalFunnelProgramId,
+} from "@/lib/funnel/clinical-program-funnel";
+import { normalizeProgramKey } from "@/lib/membership/keys";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+
+function resolvePostCheckoutRedirect(intentProgram?: string | null): string {
+  const key = normalizeProgramKey(intentProgram);
+  if (key === "HAIR_LOSS") {
+    return getClinicalProgramFunnelConfig("hair_loss").postCheckoutPath;
+  }
+  if (key === "MENS_HEALTH_SEXUAL" || key === "MENS_HEALTH_VITALITY") {
+    return getClinicalProgramFunnelConfig("mens_health", intentProgram).postCheckoutPath;
+  }
+  if (key === "WOMENS_HEALTH_SEXUAL" || key === "WOMENS_HEALTH_VITALITY") {
+    return getClinicalProgramFunnelConfig("womens_health", intentProgram).postCheckoutPath;
+  }
+  if (key === "WEIGHT_MANAGEMENT") {
+    return getClinicalProgramFunnelConfig("weight_management").postCheckoutPath;
+  }
+  const raw = (intentProgram || "").toLowerCase().replace(/-/g, "_");
+  if (
+    raw === "weight_management" ||
+    raw === "hair_loss" ||
+    raw === "mens_health" ||
+    raw === "womens_health"
+  ) {
+    return getClinicalProgramFunnelConfig(raw as ClinicalFunnelProgramId, intentProgram)
+      .postCheckoutPath;
+  }
+  return MEMBER_PROGRAMS_HOME;
+}
 
 let stripeClient: Stripe | null = null;
 function getStripeClient(): Stripe {
@@ -187,8 +220,11 @@ export async function POST(request: NextRequest) {
     let magicLink: string | null = null;
     if (userForLink?.email) {
       const baseUrl = resolveAppBaseUrl({ clientOrigin, request });
+      const postCheckoutPath = resolvePostCheckoutRedirect(
+        intentProgram || paymentIntent.metadata?.intentProgram || null
+      );
       const linkFor = (token: string) =>
-        `${baseUrl}/auth/magic?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent("/dashboard")}`;
+        `${baseUrl}/auth/magic?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(postCheckoutPath)}`;
       // The browser that just paid gets a short-lived link; the emailed copy keeps the 7-day life.
       magicLink = linkFor(
         signMagicLoginToken(userForLink.id, userForLink.email, MAGIC_LINK_BROWSER_TTL)

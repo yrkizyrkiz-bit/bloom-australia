@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { OPEN_CONSULTATION_BOOKING_STATUSES } from "@/lib/program-journey/upcoming-consultation";
 
 type PreTriageNote = {
   memberAddedProgram?: boolean;
@@ -14,6 +15,15 @@ type PreTriageNote = {
   addOrganCare?: boolean;
   priceLabel?: string;
   paymentIntentId?: string;
+};
+
+type AppointmentRow = {
+  id: string;
+  scheduledAt: Date;
+  status: string;
+  doctorId: string | null;
+  doctorName: string | null;
+  appointmentType: string | null;
 };
 
 function parsePreTriageNote(notes: string | null): PreTriageNote | null {
@@ -40,9 +50,10 @@ export async function GET() {
     });
 
     const patientIds = [...new Set(tasks.map((t) => t.patientId))];
-    const bookingIds = tasks.map((t) => t.bookingId).filter(Boolean) as string[];
+    const linkedBookingIds = tasks.map((t) => t.bookingId).filter(Boolean) as string[];
+    const now = new Date();
 
-    const [patients, bookings] = await Promise.all([
+    const [patients, upcomingBookings, linkedBookings, doctors] = await Promise.all([
       prisma.user.findMany({
         where: { id: { in: patientIds } },
         select: {
@@ -56,16 +67,62 @@ export async function GET() {
           subscriptionTier: true,
         },
       }),
-      bookingIds.length
+      patientIds.length
         ? prisma.consultationBooking.findMany({
-            where: { id: { in: bookingIds } },
-            select: { id: true, scheduledAt: true, status: true, doctorName: true },
+            where: {
+              userId: { in: patientIds },
+              status: { in: [...OPEN_CONSULTATION_BOOKING_STATUSES] },
+              scheduledAt: { gte: now },
+              completedAt: null,
+            },
+            orderBy: { scheduledAt: "asc" },
+            select: {
+              id: true,
+              userId: true,
+              scheduledAt: true,
+              status: true,
+              doctorId: true,
+              doctorName: true,
+              appointmentType: true,
+            },
           })
         : Promise.resolve([]),
+      linkedBookingIds.length
+        ? prisma.consultationBooking.findMany({
+            where: { id: { in: linkedBookingIds } },
+            select: {
+              id: true,
+              scheduledAt: true,
+              status: true,
+              doctorId: true,
+              doctorName: true,
+              appointmentType: true,
+            },
+          })
+        : Promise.resolve([]),
+      prisma.user.findMany({
+        where: { role: "DOCTOR" },
+        select: { id: true, firstName: true, lastName: true },
+        orderBy: { firstName: "asc" },
+      }),
     ]);
 
     const patientMap = new Map(patients.map((p) => [p.id, p]));
-    const bookingMap = new Map(bookings.map((b) => [b.id, b]));
+    const linkedMap = new Map(linkedBookings.map((b) => [b.id, b]));
+    const upcomingByUser = new Map<string, AppointmentRow[]>();
+    for (const booking of upcomingBookings) {
+      if (!booking.userId) continue;
+      const list = upcomingByUser.get(booking.userId) ?? [];
+      list.push({
+        id: booking.id,
+        scheduledAt: booking.scheduledAt,
+        status: booking.status,
+        doctorId: booking.doctorId,
+        doctorName: booking.doctorName,
+        appointmentType: booking.appointmentType,
+      });
+      upcomingByUser.set(booking.userId, list);
+    }
 
     const items = tasks
       .map((task) => {
@@ -81,6 +138,9 @@ export async function GET() {
           return null;
         }
 
+        const upcomingAppointments = upcomingByUser.get(task.patientId) ?? [];
+        const booking = task.bookingId ? linkedMap.get(task.bookingId) ?? null : null;
+
         return {
           taskId: task.id,
           dueDate: task.dueDate,
@@ -88,20 +148,23 @@ export async function GET() {
           quizComplete: task.quizComplete,
           appointmentConfirmed: task.appointmentConfirmed,
           patient: patientMap.get(task.patientId) ?? null,
-          booking: task.bookingId ? bookingMap.get(task.bookingId) ?? null : null,
+          booking,
+          upcomingAppointments,
           purchase: {
             label: meta.label ?? meta.programLabel ?? "Program",
             source: meta.source,
             programKey: meta.programKey,
             programSlug: meta.programSlug,
+            programLabel: meta.programLabel,
             panelTier: meta.panelTier,
             priceLabel: meta.priceLabel,
+            memberAddedProgram: Boolean(meta.memberAddedProgram),
           },
         };
       })
       .filter(Boolean);
 
-    return NextResponse.json({ items });
+    return NextResponse.json({ items, doctors });
   } catch (error) {
     console.error("[admin/triage/member-programs]", error);
     return NextResponse.json({ error: "Failed to load queue" }, { status: 500 });

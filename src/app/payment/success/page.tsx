@@ -35,7 +35,18 @@ const PROGRAM_DETAILS: Record<string, { title: string; nextSteps: string[]; dash
       "You'll receive a personalised care plan recommendation",
       "Where clinically appropriate, items may be dispensed by an Australian pharmacy",
     ],
-    dashboardPath: "/dashboard/mens-health",
+    dashboardPath: "/dashboard/mens-health/sexual-health",
+    color: "#5c7a52",
+  },
+  mens_health_sexual: {
+    title: "Men's Sexual Health",
+    nextSteps: [
+      "Check your email for a confirmation",
+      "A doctor will review your assessment within 24 hours",
+      "You'll receive a personalised care plan recommendation",
+      "Where clinically appropriate, items may be dispensed by an Australian pharmacy",
+    ],
+    dashboardPath: "/dashboard/mens-health/sexual-health",
     color: "#5c7a52",
   },
   hair_loss: {

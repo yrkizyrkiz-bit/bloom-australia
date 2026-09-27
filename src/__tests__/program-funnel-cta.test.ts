@@ -50,6 +50,18 @@ describe("program landing CTAs go to the matching funnel", () => {
     expect(page).toContain('href="/mens-health/assessment?concern=erectile-dysfunction"');
   });
 
+  it("routes men's health funnel post-checkout to sexual health", () => {
+    expect(getClinicalProgramFunnelConfig("mens_health").postCheckoutPath).toBe(
+      "/dashboard/mens-health/sexual-health?onboarding=post-checkout"
+    );
+    expect(
+      getClinicalProgramFunnelConfig("mens_health", "MENS_HEALTH_SEXUAL").postCheckoutPath
+    ).toBe("/dashboard/mens-health/sexual-health?onboarding=post-checkout");
+    expect(getClinicalProgramFunnelConfig("hair_loss").postCheckoutPath).toContain(
+      "/dashboard/mens-health/hair-loss"
+    );
+  });
+
   it("sends hair loss page CTAs to the hair assessment funnel", () => {
     const hero = readSource("components/promo/hair-health/HairHealthHero.tsx");
     const howItWorks = readSource(

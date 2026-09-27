@@ -134,6 +134,7 @@ export async function PATCH(req: NextRequest) {
       notes,
       status,
       assignedOwnerId,
+      bookingId,
     } = body;
 
     if (!taskId) {
@@ -155,6 +156,7 @@ export async function PATCH(req: NextRequest) {
     if (notes !== undefined) updateData.notes = notes;
     if (status !== undefined) updateData.status = status;
     if (assignedOwnerId !== undefined) updateData.assignedOwnerId = assignedOwnerId;
+    if (bookingId !== undefined) updateData.bookingId = bookingId || null;
 
     // If marking as completed
     if (status === "COMPLETED") {
@@ -165,6 +167,30 @@ export async function PATCH(req: NextRequest) {
       where: { id: taskId },
       data: updateData,
     });
+
+    // When linking an existing consult, note the program on the booking for the doctor.
+    if (typeof bookingId === "string" && bookingId) {
+      const appendNote =
+        typeof body.appendBookingNote === "string" ? body.appendBookingNote.trim() : "";
+      if (appendNote) {
+        const booking = await prisma.consultationBooking.findUnique({
+          where: { id: bookingId },
+          select: { notes: true },
+        });
+        if (booking) {
+          const existing = (booking.notes || "").trim();
+          const marker = `[Pre-triage] ${appendNote}`;
+          if (!existing.includes(marker)) {
+            await prisma.consultationBooking.update({
+              where: { id: bookingId },
+              data: {
+                notes: existing ? `${existing}\n\n${marker}` : marker,
+              },
+            });
+          }
+        }
+      }
+    }
 
     // If task is now ready for doctor, update patient journey status
     if (readyForDoctor === true) {

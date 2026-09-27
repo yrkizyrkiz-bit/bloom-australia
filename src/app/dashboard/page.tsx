@@ -395,7 +395,7 @@ function DashboardPageContent({
       {/* Specialized Health Programs */}
       {gender === "male" && (
         <div className="grid gap-6 md:grid-cols-1">
-          <Link href="/dashboard/mens-health">
+          <Link href="/dashboard/mens-health/hair-loss">
             <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border-slate-200 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-teal-50 dark:from-slate-900 dark:to-teal-950/20">
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
@@ -404,7 +404,7 @@ function DashboardPageContent({
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg text-slate-900 dark:text-slate-100">Men&apos;s Health</h3>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">Hair and sexual wellness</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">Hair restoration</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-teal-600 group-hover:translate-x-1 transition-transform" />
                 </div>

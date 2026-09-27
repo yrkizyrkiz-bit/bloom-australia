@@ -61,6 +61,8 @@ export function resolveClinicalIntentProgram(
   if (resolvedProgram) {
     return resolvedProgram.toLowerCase().replace(/-/g, "_");
   }
+  // Men's public funnel is Sexual Health (ED / PE); bare id must not imply vitality.
+  if (programId === "mens_health") return "mens_health_sexual";
   return programId;
 }
 
@@ -93,6 +95,10 @@ export function getClinicalProgramFunnelConfig(
   }
 
   if (programId === "mens_health") {
+    const sexualIntent =
+      intentProgram.includes("sex") ||
+      intentProgram === "mens_health" ||
+      intentProgram === "mens_health_sexual";
     return {
       ...shared,
       id: "mens_health",
@@ -100,7 +106,9 @@ export function getClinicalProgramFunnelConfig(
       source: "mens_health_assessment",
       label: "Men's Health",
       assessmentPath: CLINICAL_FUNNEL_ASSESSMENT_PATHS.mens_health,
-      postCheckoutPath: "/dashboard/mens-health?onboarding=post-checkout",
+      postCheckoutPath: sexualIntent
+        ? "/dashboard/mens-health/sexual-health?onboarding=post-checkout"
+        : "/dashboard/mens-health/vitality?onboarding=post-checkout",
       qualificationImage: "/images/membership/Main_man.webp",
       qualificationImageAlt: "Doctor-led men's health care with Sanative",
       paymentNote:

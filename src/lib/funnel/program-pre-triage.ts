@@ -7,6 +7,9 @@ import {
 import { isBiomarkersPanelBookingNotes } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
 import { resolvePublicConsultProgramFromContext } from "./public-consult-programs";
 import { genderForPublicConsultSlug } from "./program-gender";
+import { PROGRAM_SLUG } from "@/lib/billing/program-slugs";
+import { isProgramKey } from "@/lib/membership/keys";
+import { syncEntitlementsFromSignals } from "@/lib/membership/entitlement-service";
 
 /** Program metadata stored on pre-triage tasks (clinical funnel + biomarkers consults). */
 export type PreTriageProgramInfo = {
@@ -69,14 +72,18 @@ export function isWeightManagementMembershipFunnel(
 
 /** Clinical `User.subscriptionTier` so the member appears in In Triage. */
 export function clinicalSubscriptionTierForProgram(
-  program: Pick<PreTriageProgramInfo, "slug" | "isWeightManagement">
+  program: Pick<PreTriageProgramInfo, "slug" | "isWeightManagement" | "programKey">
 ): string | null {
+  if (program.programKey && isProgramKey(program.programKey)) {
+    return PROGRAM_SLUG[program.programKey];
+  }
   if (program.isWeightManagement || program.slug === "weight_management") {
     return "weight_management";
   }
-  if (program.slug === "hair_loss" || program.slug === "mens_health" || program.slug === "womens_health") {
-    return program.slug;
-  }
+  if (program.slug === "hair_loss") return "hair_loss";
+  // Men's public funnel is Sexual Health; keep the sexual tier for entitlement sync.
+  if (program.slug === "mens_health") return "mens_health_sexual";
+  if (program.slug === "womens_health") return "womens_health";
   return null;
 }
 
@@ -214,6 +221,12 @@ export async function createProgramPreTriageTask(
       ...(programGender && !alreadyHasSex ? { gender: programGender } : {}),
       ...(assignedOwnerId ? { assignedCarePartnerId: assignedOwnerId } : {}),
     },
+  });
+
+  // Reconcile program entitlements after clinical tier is set (membership funnel
+  // grants must stay active for Sexual Health / Hair / etc.).
+  await syncEntitlementsFromSignals(input.userId).catch((err) => {
+    console.error("[in-triage] entitlement sync failed:", err);
   });
 
   if (assignedOwnerId && !alreadyInTriage) {

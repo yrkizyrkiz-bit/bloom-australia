@@ -6,26 +6,8 @@ import {
   alreadyCheckedInHairWeek,
   clampHairRating,
   hairWeekKey,
-  type HairCheckInPhoto,
 } from "@/lib/hair-health/weekly-check-in";
-
-const MAX_PHOTOS = 3;
-const MAX_IMAGE_CHARS = 900_000;
-
-function sanitizePhotos(input: unknown): HairCheckInPhoto[] {
-  if (!Array.isArray(input)) return [];
-  return input
-    .filter((photo) => photo && typeof photo.imageData === "string")
-    .slice(0, MAX_PHOTOS)
-    .map((photo, index) => ({
-      id: typeof photo.id === "string" ? photo.id : `photo-${index + 1}`,
-      angle: typeof photo.angle === "string" ? photo.angle : "hairline",
-      imageData: String(photo.imageData).slice(0, MAX_IMAGE_CHARS),
-      capturedAt:
-        typeof photo.capturedAt === "string" ? photo.capturedAt : new Date().toISOString(),
-    }))
-    .filter((photo) => photo.imageData.startsWith("data:image/"));
-}
+import { parseHairCheckInPhotos } from "@/lib/hair-health/compare-photos";
 
 export async function GET() {
   try {
@@ -35,17 +17,42 @@ export async function GET() {
     }
 
     const weekKey = hairWeekKey();
-    const checkIns = await prisma.hairWeeklyCheckIn.findMany({
-      where: { userId: session.user.id },
-      orderBy: { checkedInAt: "desc" },
-      take: 12,
-    });
-
-    const thisWeek = checkIns.find((row) => row.weekKey === weekKey) || null;
-    const photoCount = checkIns.reduce((sum, row) => {
-      const photos = Array.isArray(row.photos) ? row.photos : [];
-      return sum + photos.length;
-    }, 0);
+    const [thisWeek, history] = await Promise.all([
+      prisma.hairWeeklyCheckIn.findUnique({
+        where: { userId_weekKey: { userId: session.user.id, weekKey } },
+      }),
+      prisma.$queryRaw<
+        Array<{
+          id: string;
+          weekKey: string;
+          overallFeeling: number;
+          sheddingLevel: number;
+          scalpComfort: number;
+          confidence: number;
+          notes: string | null;
+          photoCount: number;
+          checkedInAt: Date;
+        }>
+      >`
+        SELECT
+          id,
+          "weekKey",
+          "overallFeeling",
+          "sheddingLevel",
+          "scalpComfort",
+          confidence,
+          notes,
+          CASE
+            WHEN jsonb_typeof("photos"::jsonb) = 'array' THEN jsonb_array_length("photos"::jsonb)
+            ELSE 0
+          END AS "photoCount",
+          "checkedInAt"
+        FROM "HairWeeklyCheckIn"
+        WHERE "userId" = ${session.user.id}
+        ORDER BY "checkedInAt" DESC
+        LIMIT 12
+      `,
+    ]);
 
     return NextResponse.json({
       weekKey,
@@ -63,19 +70,12 @@ export async function GET() {
             checkedInAt: thisWeek.checkedInAt.toISOString(),
           }
         : null,
-      history: checkIns.map((row) => ({
-        id: row.id,
-        weekKey: row.weekKey,
-        overallFeeling: row.overallFeeling,
-        sheddingLevel: row.sheddingLevel,
-        scalpComfort: row.scalpComfort,
-        confidence: row.confidence,
-        notes: row.notes,
-        photoCount: Array.isArray(row.photos) ? row.photos.length : 0,
-        photos: row.photos,
+      history: history.map((row) => ({
+        ...row,
+        photoCount: Number(row.photoCount),
         checkedInAt: row.checkedInAt.toISOString(),
       })),
-      photoCount,
+      photoCount: history.reduce((sum, row) => sum + Number(row.photoCount), 0),
     });
   } catch (error) {
     console.error("[hair-loss/check-in GET]", error);
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const weekKey = hairWeekKey();
-    const photos = sanitizePhotos(body?.photos);
+    const photos = parseHairCheckInPhotos(body?.photos);
 
     const checkIn = await prisma.hairWeeklyCheckIn.upsert({
       where: {

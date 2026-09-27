@@ -11,12 +11,13 @@ export function hasProgramMembership(
   return program.state !== "inactive";
 }
 
-/** Member has an active (or pending-results) program entitlement. */
+/**
+ * Member has subscription/grant access to this program.
+ * Biomarker readiness (pending_results / partial) does not gate access.
+ */
 export function isProgramEntitled(
   membership: DerivedMembershipEntitlements | undefined,
   programKey: ProgramKey
 ): boolean {
-  if (!hasProgramMembership(membership, programKey)) return false;
-  const state = membership!.programs![programKey].state ?? "locked_upgrade";
-  return state === "ready" || state === "partial" || state === "pending_results";
+  return hasProgramMembership(membership, programKey);
 }

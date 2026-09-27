@@ -10,6 +10,7 @@ import {
   resolvePlanTierFromStrings,
 } from "./catalog";
 import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
+import { upsertEntitlementsFromMemberSubscription } from "@/lib/membership/entitlement-service";
 import { PROGRAM_SLUG } from "./program-slugs";
 import { getStripeSubscriptionPeriod } from "@/lib/stripe/subscription-period";
 
@@ -259,6 +260,19 @@ export async function syncMemberSubscriptionFromStripe(
       },
     });
   }
+
+  // Keep Entitlement rows aligned with this product's subscription (not portal GET).
+  await upsertEntitlementsFromMemberSubscription(userId, {
+    status: memberSub.status,
+    product: {
+      slug: memberSub.product.slug,
+      name: memberSub.product.name,
+      program: memberSub.product.program,
+      planTier: memberSub.product.planTier,
+    },
+  }).catch((err) => {
+    console.warn("[billing/sync] entitlement upsert failed", subscription.id, err);
+  });
 
   return memberSub;
 }

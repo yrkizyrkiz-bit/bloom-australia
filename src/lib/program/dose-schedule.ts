@@ -17,6 +17,14 @@ export function canLogDoseScheduledFor(
   return getCalendarDateKey(now) >= getCalendarDateKey(scheduled);
 }
 
+/** True when the scheduled dose day is before today (AU) and still open. */
+export function isDoseOverdue(
+  scheduledAt: Date | string,
+  now = new Date()
+): boolean {
+  return getCalendarDateKey(now) > getCalendarDateKey(new Date(scheduledAt));
+}
+
 export function formatNextDoseDateLong(scheduledAt: Date | string): string {
   return new Date(scheduledAt).toLocaleDateString("en-AU", {
     timeZone: DOSE_SCHEDULE_TIMEZONE,

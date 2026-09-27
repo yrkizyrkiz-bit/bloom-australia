@@ -92,18 +92,10 @@ function subscriptionTierStatus(status?: string | null): EntitlementStatusValue 
 
 function memberSubscriptionStatus(status?: string | null): EntitlementStatusValue {
   const s = (status || "").toUpperCase();
-  if (s === "ACTIVE") return "ACTIVE";
-  if (s === "PAST_DUE") return "PENDING";
-  if (s === "CANCELLED" || s === "EXPIRED") return "INACTIVE";
-  return "PENDING";
-}
-
-function programMemberStatus(status?: string | null): EntitlementStatusValue {
-  const s = (status || "").toUpperCase();
-  if (s === "ACTIVE") return "ACTIVE";
-  if (s === "PENDING") return "PENDING";
-  if (s === "CANCELLED" || s === "EXPIRED" || s === "PAST_DUE") return "INACTIVE";
-  return "PENDING";
+  // PAST_DUE remains enrolled — never map to PENDING / "awaiting results".
+  if (s === "ACTIVE" || s === "PAST_DUE" || s === "TRIAL") return "ACTIVE";
+  if (s === "CANCELLED" || s === "EXPIRED" || s === "INACTIVE") return "INACTIVE";
+  return "ACTIVE";
 }
 
 type ProgramMemberSignal = NonNullable<EntitlementSignalsInput["programMembers"]>[number];
@@ -226,34 +218,8 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
     add("PROGRAM", "WEIGHT_MANAGEMENT", "ACTIVE", "PROGRAM_MEMBER");
   }
 
-  // 3) ProgramMember rows
-  for (const pm of input.programMembers || []) {
-    const programKey = resolveProgramMemberProgramKey(pm);
-    if (!programKey) continue;
-
-    // When subscription tier pins a men's/women's focus, ignore stale ProgramMember rows
-    // for the sibling program (e.g. vitality tier must not also grant sexual from intake).
-    if (
-      tierProgram?.startsWith("MENS_HEALTH_") &&
-      programKey.startsWith("MENS_HEALTH_") &&
-      programKey !== tierProgram
-    ) {
-      continue;
-    }
-    if (
-      tierProgram?.startsWith("WOMENS_HEALTH_") &&
-      programKey.startsWith("WOMENS_HEALTH_") &&
-      programKey !== tierProgram
-    ) {
-      continue;
-    }
-
-    let status = programMemberStatus(pm.membershipStatus);
-    if (programKey === "WEIGHT_MANAGEMENT" && weightJourneyPaid && status !== "INACTIVE") {
-      status = "ACTIVE";
-    }
-    add("PROGRAM", programKey, status, "PROGRAM_MEMBER");
-  }
+  // 3) ProgramMember is clinic/funnel state — not used for portal access.
+  // PENDING after checkout must not create Entitlement PENDING ("awaiting results").
 
   // 4) MemberSubscription rows (product text -> program and/or scope)
   for (const sub of input.memberSubscriptions || []) {
@@ -299,8 +265,7 @@ export function computeDesiredEntitlements(input: EntitlementSignalsInput): Desi
     }
   }
 
-  // 7) Sanative Membership includes the Essential panel + Biological Clock
-  // (Essential covers all clock core markers). Organ Care stays a paid upgrade.
+  // 7) Sanative Membership includes Essential panel + Biological Clock + Organ Care.
   const membership = map.get("SCOPE:MEMBERSHIP");
   if (membership) {
     for (const scope of MEMBERSHIP_INCLUDED_SCOPES) {
@@ -421,6 +386,53 @@ export async function syncEntitlementsFromSignals(userId: string): Promise<void>
   if (deactivations.length > 0) {
     await Promise.all(deactivations);
   }
+}
+
+/**
+ * Upsert PROGRAM/SCOPE entitlements for a single MemberSubscription product.
+ * Called from Stripe sync so the grid stays current without a portal GET sync.
+ */
+export async function upsertEntitlementsFromMemberSubscription(
+  userId: string,
+  subscription: NonNullable<EntitlementSignalsInput["memberSubscriptions"]>[number]
+): Promise<void> {
+  const desired = computeDesiredEntitlements({
+    memberSubscriptions: [subscription],
+  });
+  if (desired.length === 0) return;
+
+  const existing = await getAllEntitlements(userId);
+  const existingMap = new Map(existing.map((e) => [`${e.type}:${e.key}`, e]));
+
+  await Promise.all(
+    desired.map(async (d) => {
+      const current = existingMap.get(`${d.type}:${d.key}`);
+      // Keep admin grants; still refresh status from billing when subscription is stronger.
+      if (current?.source === "ADMIN_GRANT" && d.status !== "ACTIVE") return;
+      if (current?.source === "PORTAL_PURCHASE" && d.status === "INACTIVE") {
+        // Paid grant survives until admin revoke; cancelled Stripe must not wipe first-month access.
+        return;
+      }
+
+      await prisma.entitlement.upsert({
+        where: { userId_type_key: { userId, type: d.type, key: d.key } },
+        create: {
+          userId,
+          type: d.type,
+          key: d.key,
+          status: d.status,
+          source: current?.source === "PORTAL_PURCHASE" ? "PORTAL_PURCHASE" : d.source,
+        },
+        update: {
+          status: d.status,
+          source:
+            current?.source === "PORTAL_PURCHASE" || current?.source === "ADMIN_GRANT"
+              ? current.source
+              : d.source,
+        },
+      });
+    })
+  );
 }
 
 /** Manually grant an entitlement (admin / in-portal checkout). */

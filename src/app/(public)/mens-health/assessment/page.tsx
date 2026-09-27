@@ -1250,7 +1250,10 @@ function AssessmentContent() {
     return (
       <>
         <ProgramMembershipBackbone
-          config={getClinicalProgramFunnelConfig("mens_health", formData.resolvedProgram)}
+          config={getClinicalProgramFunnelConfig(
+            "mens_health",
+            formData.resolvedProgram || resolveMensHealthCanonicalKey(formData.concern)
+          )}
           userId={userId}
           returnPath={`/mens-health/assessment?concern=${encodeURIComponent(concernParam)}`}
           advanceToPay={advanceMembershipToPay}

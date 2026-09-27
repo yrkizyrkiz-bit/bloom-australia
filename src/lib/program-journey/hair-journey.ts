@@ -42,7 +42,11 @@ export type HairJourneySignals = {
   consultCompleted?: boolean;
   hasHairPrescription?: boolean;
   hasActiveTreatment?: boolean;
-  /** True only when this account is not already on a weight-management or core journey. */
+  /**
+   * True only when this account has no competing clinical programs that share
+   * user-level journey/approval fields (weight management, men's sexual health).
+   * When false, approval must come from Hair Loss–specific signals.
+   */
   hairOnly?: boolean;
 };
 
@@ -155,7 +159,8 @@ export function getHairTimelineProgress(
 
 export function resolveHairApprovalUserJourney(input: {
   hasWeightManagementEnrollment: boolean;
+  hasSexualHealthEnrollment?: boolean;
 }): { journeyStatus?: "ACTIVE" } {
-  if (input.hasWeightManagementEnrollment) return {};
+  if (input.hasWeightManagementEnrollment || input.hasSexualHealthEnrollment) return {};
   return { journeyStatus: "ACTIVE" };
 }

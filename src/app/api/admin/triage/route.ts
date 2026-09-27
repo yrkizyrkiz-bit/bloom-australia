@@ -134,6 +134,9 @@ export async function GET(request: NextRequest) {
             scheduledAt: true,
             status: true,
             completedAt: true,
+            doctorId: true,
+            doctorName: true,
+            appointmentType: true,
           },
         },
         // Appointments
@@ -182,7 +185,7 @@ export async function GET(request: NextRequest) {
     });
 
     const patientIds = patients.map((p) => p.id);
-    const [intakes, programMembers] = patientIds.length
+    const [intakes, programMembers, programEntitlements] = patientIds.length
       ? await Promise.all([
           prisma.weightManagementIntake.findMany({
             where: { userId: { in: patientIds } },
@@ -200,8 +203,16 @@ export async function GET(request: NextRequest) {
             where: { userId: { in: patientIds } },
             select: { userId: true, program: true, membershipStatus: true, intakeData: true },
           }),
+          prisma.entitlement.findMany({
+            where: {
+              userId: { in: patientIds },
+              type: "PROGRAM",
+              status: { in: ["ACTIVE", "PENDING"] },
+            },
+            select: { userId: true, key: true, status: true },
+          }),
         ])
-      : [[], []];
+      : [[], [], []];
 
     const intakeByUser = new Map<string, (typeof intakes)[0]>();
     for (const intake of intakes) {
@@ -218,10 +229,18 @@ export async function GET(request: NextRequest) {
       programMembersByUser.set(pm.userId, list);
     }
 
+    const entitlementsByUser = new Map<string, Array<(typeof programEntitlements)[number]>>();
+    for (const row of programEntitlements) {
+      const list = entitlementsByUser.get(row.userId) ?? [];
+      list.push(row);
+      entitlementsByUser.set(row.userId, list);
+    }
+
     // Transform patient data with computed fields
     const patientsWithMetrics = patients.map((patient) => {
       const intake = intakeByUser.get(patient.id);
       const patientProgramMembers = programMembersByUser.get(patient.id) ?? [];
+      const patientEntitlements = entitlementsByUser.get(patient.id) ?? [];
       const programMember = patientProgramMembers[0];
       const quizData = {
         ...((intake?.quizData as Record<string, unknown>) || {}),
@@ -309,10 +328,21 @@ export async function GET(request: NextRequest) {
         hasContraindications,
         consultationDate: patient.consultationBookings[0]?.scheduledAt || null,
         consultationStatus: patient.consultationBookings[0]?.status || null,
-        assignedDoctorId: patient.appointments[0]?.doctorId || null,
+        consultationDoctorName: patient.consultationBookings[0]?.doctorName || null,
+        consultationAppointmentType: patient.consultationBookings[0]?.appointmentType || null,
+        assignedDoctorId:
+          patient.consultationBookings[0]?.doctorId ||
+          patient.appointments[0]?.doctorId ||
+          null,
         assessment,
         enrolledPrograms: collectEnrolledPrograms(
-          patientProgramMembers,
+          [
+            ...patientProgramMembers,
+            ...patientEntitlements.map((row) => ({
+              program: row.key,
+              membershipStatus: row.status,
+            })),
+          ],
           patient.subscriptionTier
         ),
         intakePayment: intake

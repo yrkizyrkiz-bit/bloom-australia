@@ -60,19 +60,27 @@ describe("pre-triage program resolution", () => {
     ).toBe(false);
   });
 
-  it("maps WM funnel programs onto the In Triage subscription tier", () => {
+  it("maps men's sexual funnel onto mens_health_sexual triage tier", () => {
     expect(
       clinicalSubscriptionTierForProgram({
-        slug: "weight_management",
-        isWeightManagement: true,
+        slug: "mens_health",
+        isWeightManagement: false,
+        programKey: "MENS_HEALTH_SEXUAL",
       })
-    ).toBe("weight_management");
+    ).toBe("mens_health_sexual");
     expect(
       clinicalSubscriptionTierForProgram({
-        slug: "biomarkers",
+        slug: "mens_health",
         isWeightManagement: false,
       })
-    ).toBeNull();
+    ).toBe("mens_health_sexual");
+    expect(
+      clinicalSubscriptionTierForProgram({
+        slug: "hair_loss",
+        isWeightManagement: false,
+        programKey: "HAIR_LOSS",
+      })
+    ).toBe("hair_loss");
   });
   it("labels biomarkers consult bookings from public panel tier metadata", () => {
     const program = resolvePreTriageProgramForBooking({

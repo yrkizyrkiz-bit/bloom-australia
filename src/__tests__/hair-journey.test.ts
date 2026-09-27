@@ -78,6 +78,12 @@ describe("hair health journey", () => {
       resolveHairApprovalUserJourney({ hasWeightManagementEnrollment: true })
     ).toEqual({});
     expect(
+      resolveHairApprovalUserJourney({
+        hasWeightManagementEnrollment: false,
+        hasSexualHealthEnrollment: true,
+      })
+    ).toEqual({});
+    expect(
       resolveHairApprovalUserJourney({ hasWeightManagementEnrollment: false })
     ).toEqual({ journeyStatus: "ACTIVE" });
   });

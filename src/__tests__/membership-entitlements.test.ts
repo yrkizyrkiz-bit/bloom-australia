@@ -31,6 +31,12 @@ import {
   deriveMembershipEntitlements,
   type EntitlementRecord,
 } from "@/lib/membership/entitlements";
+import {
+  deriveAccessMembership,
+  mergeSubscriptionSignalsIntoEntitlements,
+  memberSubscriptionToEntitlementStatus,
+} from "@/lib/membership/subscription-access";
+import { isProgramEntitled } from "@/lib/membership/program-access";
 
 function results(...ids: string[]): BiomarkerResultSummary[] {
   return ids.map((biomarkerId) => ({ biomarkerId, testedAt: new Date() }));
@@ -50,10 +56,11 @@ describe("normalizeProgramKey", () => {
     expect(normalizeProgramKey("sanative_core")).toBe("WEIGHT_MANAGEMENT");
   });
 
-  it("defaults gendered programs to Vitality and detects sexual focus", () => {
-    expect(normalizeProgramKey("mens_health")).toBe("MENS_HEALTH_VITALITY");
-    expect(normalizeProgramKey("MENS_HEALTH")).toBe("MENS_HEALTH_VITALITY");
+  it("defaults men's health to Sexual Health and detects vitality / women's focus", () => {
+    expect(normalizeProgramKey("mens_health")).toBe("MENS_HEALTH_SEXUAL");
+    expect(normalizeProgramKey("MENS_HEALTH")).toBe("MENS_HEALTH_SEXUAL");
     expect(normalizeProgramKey("mens_health_sexual")).toBe("MENS_HEALTH_SEXUAL");
+    expect(normalizeProgramKey("mens_health_vitality")).toBe("MENS_HEALTH_VITALITY");
     expect(normalizeProgramKey("womens_health")).toBe("WOMENS_HEALTH_VITALITY");
     expect(normalizeProgramKey("womens health sexual")).toBe("WOMENS_HEALTH_SEXUAL");
   });
@@ -209,11 +216,24 @@ describe("computeDesiredEntitlements", () => {
     expect(find(desired, "SCOPE", "ORGAN_CARE")?.status).toBe("ACTIVE");
   });
 
-  it("program member maps men's health to vitality focus when no concern", () => {
+  it("ProgramMember alone does not grant program access", () => {
     const desired = computeDesiredEntitlements({
       programMembers: [{ program: "MENS_HEALTH", membershipStatus: "ACTIVE" }],
     });
-    expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")?.status).toBe("ACTIVE");
+    expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")).toBeUndefined();
+    expect(find(desired, "PROGRAM", "MENS_HEALTH_SEXUAL")).toBeUndefined();
+  });
+
+  it("ProgramMember PENDING alone does not grant entitlement", () => {
+    const desired = computeDesiredEntitlements({
+      programMembers: [
+        {
+          program: "HAIR_LOSS",
+          membershipStatus: "PENDING",
+        },
+      ],
+    });
+    expect(find(desired, "PROGRAM", "HAIR_LOSS")).toBeUndefined();
   });
 
   it("explicit mens_health_vitality tier is not overridden by a sexual ProgramMember row", () => {
@@ -235,34 +255,39 @@ describe("computeDesiredEntitlements", () => {
     expect(find(desired, "PROGRAM", "MENS_HEALTH_SEXUAL")).toBeUndefined();
   });
 
-  it("program member maps men's health PE concern to sexual health focus", () => {
+  it("hair MemberSubscription ACTIVE grants hair without weight management", () => {
     const desired = computeDesiredEntitlements({
-      subscriptionTier: "mens_health",
-      subscriptionStatus: "INACTIVE",
-      programMembers: [
+      memberSubscriptions: [
         {
-          program: "MENS_HEALTH",
-          membershipStatus: "PENDING",
-          intakeData: {
-            canonicalProgramKey: "MENS_HEALTH_SEXUAL",
-            concern: "premature-ejaculation",
+          status: "ACTIVE",
+          product: {
+            slug: "hair-loss",
+            name: "Hair Loss",
+            program: "HAIR_LOSS",
+            planTier: null,
           },
         },
       ],
     });
-    expect(find(desired, "PROGRAM", "MENS_HEALTH_SEXUAL")?.status).toBe("PENDING");
-    expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")).toBeUndefined();
-  });
-
-  it("hair-only member does not receive weight management entitlement", () => {
-    const desired = computeDesiredEntitlements({
-      subscriptionTier: "hair_loss",
-      subscriptionStatus: "ACTIVE",
-      journeyStatus: "AWAITING_DOCTOR_DECISION",
-      programMembers: [{ program: "HAIR_LOSS", membershipStatus: "ACTIVE" }],
-    });
     expect(find(desired, "PROGRAM", "HAIR_LOSS")?.status).toBe("ACTIVE");
     expect(find(desired, "PROGRAM", "WEIGHT_MANAGEMENT")).toBeUndefined();
+  });
+
+  it("past_due MemberSubscription maps to ACTIVE entitlement status", () => {
+    const desired = computeDesiredEntitlements({
+      memberSubscriptions: [
+        {
+          status: "PAST_DUE",
+          product: {
+            slug: "hair-loss",
+            name: "Hair Loss",
+            program: "HAIR_LOSS",
+            planTier: null,
+          },
+        },
+      ],
+    });
+    expect(find(desired, "PROGRAM", "HAIR_LOSS")?.status).toBe("ACTIVE");
   });
 
   it("cancelled subscription tier yields inactive program", () => {
@@ -299,7 +324,8 @@ describe("deriveMembershipEntitlements", () => {
     expect(derived.scopes.ORGAN_CARE.state).toBe("locked_upgrade");
     expect(derived.scopes.BIOLOGICAL_CLOCK.state).toBe("locked_upgrade");
     const ids = derived.upgradeOpportunities.map((o) => o.key);
-    expect(ids).toContain("ORGAN_CARE");
+    // Organ Care is bundled with biomarkers — never listed as a standalone upsell.
+    expect(ids).not.toContain("ORGAN_CARE");
     expect(ids).toContain("BIOLOGICAL_CLOCK");
   });
 
@@ -327,5 +353,90 @@ describe("deriveMembershipEntitlements", () => {
       biomarkerResults: results("glucose", "hba1c", "triglycerides"),
     });
     expect(derived.programs.WEIGHT_MANAGEMENT.state).toBe("inactive");
+  });
+});
+
+describe("subscription-only access", () => {
+  it("Hair MemberSubscription ACTIVE + zero labs → entitled ready (not pending_results)", () => {
+    const subs = [
+      {
+        status: "ACTIVE",
+        product: { slug: "hair-loss", name: "Hair", program: "HAIR_LOSS", planTier: null },
+      },
+    ];
+    const merged = mergeSubscriptionSignalsIntoEntitlements([], subs);
+    const access = deriveAccessMembership(merged, subs);
+    expect(access.programs.HAIR_LOSS.hasEntitlement).toBe(true);
+    expect(access.programs.HAIR_LOSS.state).toBe("ready");
+    expect(access.programs.HAIR_LOSS.status).toBe("ACTIVE");
+    expect(access.programs.HAIR_LOSS.subscriptionStatus).toBe("ACTIVE");
+    expect(isProgramEntitled(access, "HAIR_LOSS")).toBe(true);
+  });
+
+  it("PORTAL_PURCHASE ACTIVE without subscription row → entitled", () => {
+    const access = deriveAccessMembership([
+      { type: "PROGRAM", key: "WEIGHT_MANAGEMENT", status: "ACTIVE" },
+    ]);
+    expect(isProgramEntitled(access, "WEIGHT_MANAGEMENT")).toBe(true);
+    expect(access.programs.WEIGHT_MANAGEMENT.state).toBe("ready");
+  });
+
+  it("stale PENDING entitlement is upgraded by ACTIVE MemberSubscription", () => {
+    const merged = mergeSubscriptionSignalsIntoEntitlements(
+      [{ type: "PROGRAM", key: "HAIR_LOSS", status: "PENDING" }],
+      [
+        {
+          status: "ACTIVE",
+          product: { program: "HAIR_LOSS", slug: "hair-loss", name: "Hair", planTier: null },
+        },
+      ]
+    );
+    expect(merged.find((e) => e.type === "PROGRAM" && e.key === "HAIR_LOSS")?.status).toBe(
+      "ACTIVE"
+    );
+  });
+
+  it("maps PAST_DUE subscription to ACTIVE access status", () => {
+    expect(memberSubscriptionToEntitlementStatus("PAST_DUE")).toBe("ACTIVE");
+    expect(memberSubscriptionToEntitlementStatus("CANCELLED")).toBe("INACTIVE");
+  });
+
+  it("PAST_DUE subscription stays entitled with payment-overdue billing status", () => {
+    const subs = [
+      {
+        status: "PAST_DUE",
+        product: { program: "HAIR_LOSS", slug: "hair-loss", name: "Hair", planTier: null },
+      },
+    ];
+    const access = deriveAccessMembership(
+      mergeSubscriptionSignalsIntoEntitlements([], subs),
+      subs
+    );
+    expect(access.programs.HAIR_LOSS.hasEntitlement).toBe(true);
+    expect(access.programs.HAIR_LOSS.status).toBe("ACTIVE");
+    expect(access.programs.HAIR_LOSS.state).toBe("ready");
+    expect(access.programs.HAIR_LOSS.subscriptionStatus).toBe("PAST_DUE");
+    expect(isProgramEntitled(access, "HAIR_LOSS")).toBe(true);
+  });
+
+  it("cancelled subscription yields inactive / not entitled", () => {
+    const access = deriveAccessMembership(
+      mergeSubscriptionSignalsIntoEntitlements([], [
+        {
+          status: "CANCELLED",
+          product: { program: "HAIR_LOSS", slug: "hair-loss", name: "Hair", planTier: null },
+        },
+      ]),
+      [
+        {
+          status: "CANCELLED",
+          product: { program: "HAIR_LOSS", slug: "hair-loss", name: "Hair", planTier: null },
+        },
+      ]
+    );
+    expect(access.programs.HAIR_LOSS.hasEntitlement).toBe(false);
+    expect(access.programs.HAIR_LOSS.state).toBe("inactive");
+    expect(access.programs.HAIR_LOSS.subscriptionStatus).toBe("INACTIVE");
+    expect(isProgramEntitled(access, "HAIR_LOSS")).toBe(false);
   });
 });

@@ -110,7 +110,7 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
   },
   {
     key: "WOMENS_HEALTH_SEXUAL",
-    label: "Sexual Health",
+    label: "Wellness",
     tagline: "Confidential, judgement-free care",
     icon: HeartPulse,
     gender: "female",
@@ -143,19 +143,21 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
   },
 ];
 
+/** Feature hub metadata — not a sellable program card (included with biomarkers). */
 export const ORGAN_CARE_CARD = {
   label: "Organ and Metabolic Care",
   titleAccent: "Metabolic Care",
-  tagline: "Heart, liver, kidney, thyroid, hormones & metabolic health: one membership",
-  priceHint: "Included with your membership",
+  tagline: "Heart, liver, kidney, thyroid, hormones & metabolic health",
+  priceHint: "Included with biomarkers",
   hubRoute: "/dashboard/organ-care",
-  quizRoute: "/dashboard/organ-care/quiz",
+  /** Standalone organ quiz retired — send members to biomarkers. */
+  quizRoute: "/dashboard/biomarkers/quiz",
   theme: {
     gradient: "from-[#cdd8c6] to-[#a8bb9e]",
     tone: "light" as CardTone,
     iconCircle: "bg-[#7e9a72]/30",
     iconColor: "text-[#4a6243]",
-    badge: { label: "85+ biomarkers", className: "bg-[#4a6243] text-white" },
+    badge: { label: "Included", className: "bg-[#4a6243] text-white" },
   },
   organs: [
     { label: "Liver", route: "/dashboard/liver-test", dot: "bg-green-500" },

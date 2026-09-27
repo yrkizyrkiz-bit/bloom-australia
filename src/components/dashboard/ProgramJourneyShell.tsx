@@ -75,7 +75,9 @@ export function ProgramJourneyShell({
     programKey,
   });
   const atProgramActive = currentStep >= steps.length - 1;
-  const showPrep = programKey !== "HAIR_LOSS" || currentStep < 2;
+  const showPrep =
+    (programKey !== "HAIR_LOSS" && programKey !== "MENS_HEALTH_SEXUAL") ||
+    currentStep < 2;
   const [journeyOpen, setJourneyOpen] = useState(!atProgramActive);
   const awaitingCall = isAwaitingDoctorConsultation(journey.journeyStatus);
   const countdown =

@@ -29,9 +29,17 @@ describe("doctor consult programs", () => {
     ).toBe("WEIGHT_MANAGEMENT");
   });
 
-  it("keeps weight-management prescriptions unless the Hair tab is active", () => {
-    expect(resolveDoctorPrescriptionCategory("WEIGHT_MANAGEMENT")).toBe("WEIGHT_MANAGEMENT");
-    expect(resolveDoctorPrescriptionCategory(undefined)).toBe("WEIGHT_MANAGEMENT");
-    expect(resolveDoctorPrescriptionCategory("HAIR_LOSS")).toBe("HAIR_LOSS");
+  it("defaults a sexual-health-only member to the Men's ED tab", () => {
+    expect(
+      defaultDoctorProgramTab(
+        [{ key: "MENS_HEALTH_SEXUAL", label: "Men's Sexual Health", status: "PENDING" }],
+        false,
+        true
+      )
+    ).toBe("MENS_HEALTH_SEXUAL");
+  });
+
+  it("maps Men's ED tab to SEXUAL_HEALTH prescriptions", () => {
+    expect(resolveDoctorPrescriptionCategory("MENS_HEALTH_SEXUAL")).toBe("SEXUAL_HEALTH");
   });
 });

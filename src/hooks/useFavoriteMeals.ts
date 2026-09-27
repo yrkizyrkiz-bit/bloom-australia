@@ -12,6 +12,7 @@ import {
   matchesFavoriteName,
   type PublicFavoriteMeal,
 } from "@/lib/weight-management/favorite-meals";
+import { hasLegacyRecipeFavourites } from "@/lib/weight-management/has-legacy-recipe-favourites";
 
 export function useFavoriteMeals() {
   const { user, isLoading: authLoading } = useAuth();
@@ -28,10 +29,37 @@ export function useFavoriteMeals() {
       setLoading(true);
       try {
         const next = await fetchFavoriteMeals(signal);
-        if (!signal?.aborted) setFavorites(next);
+        if (signal?.aborted) return;
+        setFavorites(next);
+
+        // Cheap sync gate: skip dynamic import + migrate work for almost all members.
+        if (!hasLegacyRecipeFavourites(user.id)) return;
+
+        const { ensureLegacyRecipeFavouritesMigrated } = await import(
+          "@/lib/weight-management/migrate-legacy-recipe-favourites"
+        );
+        if (signal?.aborted) return;
+
+        const restored = await ensureLegacyRecipeFavouritesMigrated(user.id, next);
+        if (!signal?.aborted && restored.length > 0) {
+          setFavorites((current) => {
+            const merged = [...restored];
+            for (const meal of current) {
+              if (
+                !merged.some(
+                  (row) =>
+                    matchesFavoriteName(row.name, meal.name) && row.mealType === meal.mealType
+                )
+              ) {
+                merged.push(meal);
+              }
+            }
+            return merged;
+          });
+        }
       } catch (error) {
         if ((error as { name?: string }).name === "AbortError") return;
-        setFavorites([]);
+        // Keep the last good list — a failed fetch should not look like deleted favourites.
       } finally {
         if (!signal?.aborted) setLoading(false);
       }

@@ -9,8 +9,9 @@ import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 const PROGRAM_ROUTES: Record<string, string> = {
   weight_management: "/dashboard/weight-management?onboarding=post-checkout",
   womens_health:     "/dashboard/womens-health",
-  mens_health:       "/dashboard/mens-health",
-  hair_loss:         "/dashboard/programs?onboarding=hair-biomarkers",
+  mens_health:       "/dashboard/mens-health/sexual-health",
+  mens_health_sexual: "/dashboard/mens-health/sexual-health",
+  hair_loss:         "/dashboard/mens-health/hair-loss?onboarding=hair-biomarkers",
   fatty_liver:       "/dashboard/weight-management?onboarding=post-checkout",
 };
 
@@ -19,7 +20,13 @@ function resolveRedirectPath(
   searchParams: URLSearchParams
 ): string {
   const explicit = searchParams.get("redirect");
-  if (explicit && explicit.startsWith("/dashboard")) {
+  // Prefer clinical post-checkout destinations over the generic programs hub.
+  if (
+    explicit &&
+    explicit.startsWith("/dashboard") &&
+    explicit !== "/dashboard" &&
+    !explicit.startsWith("/dashboard?")
+  ) {
     return explicit;
   }
   return PROGRAM_ROUTES[subscriptionTier || ""] || MEMBER_PROGRAMS_HOME;

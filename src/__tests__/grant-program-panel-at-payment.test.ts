@@ -53,15 +53,15 @@ describe("resolvePanelTiersForProgramStart", () => {
 });
 
 describe("Organ Care bundling at panel grant", () => {
-  it("bundles Organ Care for advanced/complete except hair and women's funnels", () => {
+  it("bundles Organ Care with every biomarker panel, including program funnels", () => {
     expect(panelIncludesOrganCare("advanced")).toBe(true);
     expect(panelIncludesOrganCare("complete")).toBe(true);
-    expect(panelIncludesOrganCare("essential")).toBe(false);
-    expect(panelIncludesOrganCare("advanced", { sourceProgram: "hair_loss" })).toBe(false);
-    expect(panelIncludesOrganCare("advanced", { sourceProgram: "womens_health" })).toBe(false);
+    expect(panelIncludesOrganCare("essential")).toBe(true);
+    expect(panelIncludesOrganCare("advanced", { sourceProgram: "hair_loss" })).toBe(true);
+    expect(panelIncludesOrganCare("advanced", { sourceProgram: "womens_health" })).toBe(true);
     expect(
       panelIncludesOrganCare("advanced", { sourceProgram: "womens_health_sexual" })
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

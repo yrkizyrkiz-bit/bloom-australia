@@ -39,6 +39,7 @@ export type HairCheckInPhoto = {
   id: string;
   angle: HairPhotoAngle | string;
   imageData: string;
+  thumbData?: string;
   capturedAt: string;
 };
 

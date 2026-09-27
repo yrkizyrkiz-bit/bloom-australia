@@ -104,7 +104,7 @@ export function BiomarkerSummaryCard({
                     title={
                       unlocked
                         ? panel.label
-                        : "Add Organ Care to unlock these dashboards"
+                        : "Add biomarkers to unlock these dashboards"
                     }
                     className={cn(
                       "flex w-[4.5rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card p-2.5 transition-shadow",

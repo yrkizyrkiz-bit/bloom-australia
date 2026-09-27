@@ -33,7 +33,7 @@ export default function VitalityPage() {
 
   useEffect(() => {
     if (!VITALITY_PROGRAM_RELEASED) {
-      router.replace("/dashboard/mens-health");
+      router.replace("/dashboard/mens-health/hair-loss");
     }
   }, [router]);
 
@@ -107,7 +107,7 @@ export default function VitalityPage() {
     return (
       <div className="space-y-6 pb-20 md:pb-6">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/mens-health">
+          <Link href="/dashboard/mens-health/hair-loss">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -143,7 +143,7 @@ export default function VitalityPage() {
     <ProgramSubscriptionGate programSlug="mens_health_vitality">
     <div className="space-y-6 pb-20 md:pb-6">
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/mens-health">
+        <Link href="/dashboard/mens-health/hair-loss">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5" />
           </Button>

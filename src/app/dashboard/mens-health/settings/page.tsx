@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Settings, Bell, Shield, User, Clock,
-  Moon, Sparkles, Heart, Zap, Pill, ChevronRight,
+  Moon, Sparkles, Zap, Pill, ChevronRight,
   Lock, Download, Trash2, HelpCircle
 } from "lucide-react";
 import Link from "next/link";
@@ -33,7 +33,7 @@ export default function SettingsPage() {
     <div className="space-y-6 pb-20 md:pb-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/mens-health">
+        <Link href="/dashboard/mens-health/hair-loss">
           <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
         </Link>
         <div className="flex-1">
@@ -60,16 +60,6 @@ export default function SettingsPage() {
               <div>
                 <p className="font-medium">Hair Restoration</p>
                 <p className="text-xs text-muted-foreground">Day 45 of treatment</p>
-              </div>
-            </div>
-            <Badge className="bg-green-500">Active</Badge>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900">
-            <div className="flex items-center gap-3">
-              <Heart className="w-5 h-5 text-rose-600" />
-              <div>
-                <p className="font-medium">Sexual Wellness</p>
-                <p className="text-xs text-muted-foreground">On-demand treatment</p>
               </div>
             </div>
             <Badge className="bg-green-500">Active</Badge>

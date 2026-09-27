@@ -70,7 +70,7 @@ export function OrganMetabolicHealthPanels({
         {!organCareEntitled && (
           <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
             <Lock className="h-3 w-3" />
-            Organ Care
+            Biomarkers
           </span>
         )}
       </div>

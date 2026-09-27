@@ -7,6 +7,7 @@ import {
   syncEntitlementsFromSignals,
 } from "@/lib/membership/entitlement-service";
 import { normalizeProgramKey } from "@/lib/membership/keys";
+import { PROGRAM_SLUG } from "@/lib/billing/program-slugs";
 import { createOnboardingPreTriageTask } from "@/lib/funnel/program-pre-triage";
 import { isClinicalProgramMembershipFunnel } from "@/lib/funnel/clinical-program-funnel";
 import {
@@ -167,6 +168,12 @@ export async function activateSanativeMembership(
   }
 
   const pricing = await loadSanativeMembershipPricing();
+  const intentProgramKey = normalizeProgramKey(input.intentProgram);
+  // Keep clinical funnel intent on the user so entitlement sync recreates the
+  // included program (first 30 days) instead of wiping a one-off grant.
+  const subscriptionTier = intentProgramKey
+    ? PROGRAM_SLUG[intentProgramKey]
+    : "membership";
 
   let user = await prisma.user.findUnique({ where: { email: userEmail } });
   const alreadyProcessed = await hasProcessedPortalPayment(input.paymentIntentId);
@@ -186,7 +193,7 @@ export async function activateSanativeMembership(
         postcode: input.postcode ?? user.postcode,
         ...(input.gender ? { gender: input.gender } : {}),
         subscriptionStatus: "ACTIVE",
-        subscriptionTier: "membership",
+        subscriptionTier,
         journeyStatus: "ACTIVE",
       },
     });
@@ -205,7 +212,7 @@ export async function activateSanativeMembership(
         postcode: input.postcode ?? null,
         ...(input.gender ? { gender: input.gender } : {}),
         subscriptionStatus: "ACTIVE",
-        subscriptionTier: "membership",
+        subscriptionTier,
         journeyStatus: "ACTIVE",
         role: "MEMBER",
       },
@@ -294,23 +301,24 @@ export async function activateSanativeMembership(
     console.error("[sanative_membership] entitlement grant failed:", err)
   );
 
-  const intentProgramKey = normalizeProgramKey(input.intentProgram);
+  // Sync scopes from membership subscription first, then grant the included
+  // clinical program as PORTAL_PURCHASE so a later signal sync cannot deactivate it.
+  await syncEntitlementsFromSignals(user.id).catch((err) =>
+    console.error("[sanative_membership] entitlement sync failed:", err)
+  );
+
   if (intentProgramKey) {
     await grantEntitlement({
       userId: user.id,
       type: "PROGRAM",
       key: intentProgramKey,
       status: "ACTIVE",
-      source: "SUBSCRIPTION",
+      source: "PORTAL_PURCHASE",
       notes: `First 30 days included with Sanative Membership. PI ${input.paymentIntentId}`,
     }).catch((err) =>
       console.error("[sanative_membership] program entitlement grant failed:", err)
     );
   }
-
-  await syncEntitlementsFromSignals(user.id).catch((err) =>
-    console.error("[sanative_membership] entitlement sync failed:", err)
-  );
 
     if (!alreadyProcessed) {
     await recordPortalPaymentInvoice({

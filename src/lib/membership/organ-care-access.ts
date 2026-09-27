@@ -1,11 +1,24 @@
 import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
 
-/** Member has Organ Care scope (active, pending results, or partial coverage). */
+function scopeActive(
+  membership: DerivedMembershipEntitlements | undefined,
+  key: "ORGAN_CARE" | "BIOLOGICAL_CLOCK" | "MEMBERSHIP"
+): boolean {
+  const scope = membership?.scopes?.[key];
+  if (!scope?.hasEntitlement || scope.status === "INACTIVE") return false;
+  return scope.state !== "inactive";
+}
+
+/**
+ * Organ Care is included with biomarkers and Sanative Membership — not a
+ * standalone subscription. Legacy ORGAN_CARE-only grants still unlock access.
+ */
 export function isOrganCareEntitled(
   membership: DerivedMembershipEntitlements | undefined
 ): boolean {
-  const scope = membership?.scopes?.ORGAN_CARE;
-  if (!scope?.hasEntitlement || scope.status === "INACTIVE") return false;
-  const state = scope.state ?? "locked_upgrade";
-  return state === "ready" || state === "partial" || state === "pending_results";
+  return (
+    scopeActive(membership, "ORGAN_CARE") ||
+    scopeActive(membership, "BIOLOGICAL_CLOCK") ||
+    scopeActive(membership, "MEMBERSHIP")
+  );
 }

@@ -68,6 +68,9 @@ export default function InPortalProgramPage() {
   const shouldRedirectToDashboard =
     Boolean(programKey && hasProgramMembership(portal?.membership, programKey));
 
+  const [funnelQuizChecked, setFunnelQuizChecked] = useState(false);
+  const [funnelQuizReady, setFunnelQuizReady] = useState(false);
+
   useEffect(() => {
     if (isHiddenVitalityProgram(programKey)) {
       router.replace(PROGRAMS_HUB);
@@ -79,6 +82,44 @@ export default function InPortalProgramPage() {
       router.replace(card.dashboardRoute);
     }
   }, [portalLoading, programKey, shouldRedirectToDashboard, router]);
+
+  // Public clinical funnel already collected this quiz — restore access and open the program.
+  useEffect(() => {
+    if (portalLoading || !programKey || shouldRedirectToDashboard || funnelQuizChecked) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/portal/ensure-funnel-program", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ programKey }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && data?.entitled) {
+          setFunnelQuizReady(true);
+          await refetchPortal();
+          const card = PROGRAM_CARDS.find((c) => c.key === programKey);
+          router.replace(data.dashboardRoute || card?.dashboardRoute || PROGRAMS_HUB);
+          return;
+        }
+      } catch {
+        // Fall through to in-portal quiz.
+      } finally {
+        if (!cancelled) setFunnelQuizChecked(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    portalLoading,
+    programKey,
+    shouldRedirectToDashboard,
+    funnelQuizChecked,
+    refetchPortal,
+    router,
+  ]);
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -113,7 +154,13 @@ export default function InPortalProgramPage() {
     );
   }
 
-  if (isHiddenVitalityProgram(programKey) || portalLoading || shouldRedirectToDashboard) {
+  if (
+    isHiddenVitalityProgram(programKey) ||
+    portalLoading ||
+    shouldRedirectToDashboard ||
+    !funnelQuizChecked ||
+    funnelQuizReady
+  ) {
     return (
       <div className="mx-auto flex max-w-xl justify-center px-4 py-16">
         <Loader2 className="h-8 w-8 animate-spin text-[#5c7a52]" />
@@ -221,7 +268,7 @@ export default function InPortalProgramPage() {
           {sexualHealth
             ? firstName
               ? `Welcome, ${firstName}`
-              : "Welcome to Sexual Health"
+              : `Welcome to ${label}`
             : `${label}, you're in`}
         </h1>
         {sexualHealth ? (
@@ -244,7 +291,7 @@ export default function InPortalProgramPage() {
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Button asChild className="bg-emerald-700 hover:bg-emerald-800">
             <Link href={card?.dashboardRoute || "/dashboard"}>
-              {sexualHealth ? "Go to Sexual Health" : `Go to ${label}`}
+              {`Go to ${label}`}
             </Link>
           </Button>
           <Button asChild variant="outline">

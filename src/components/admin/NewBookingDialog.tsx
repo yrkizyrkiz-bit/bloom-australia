@@ -55,7 +55,9 @@ interface NewBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   doctors: DoctorOption[];
-  onSuccess: () => void;
+  onSuccess: (booking?: { id: string; doctorId?: string | null; doctorName?: string | null }) => void;
+  /** When set, skips member search and locks the booking to this member. */
+  preselectedMember?: MemberOption | null;
 }
 
 function groupSlotsByDay(slots: UnifiedSlot[]): DaySlots[] {
@@ -80,6 +82,7 @@ export function NewBookingDialog({
   onOpenChange,
   doctors,
   onSuccess,
+  preselectedMember = null,
 }: NewBookingDialogProps) {
   const [search, setSearch] = useState("");
   const [searching, setSearching] = useState(false);
@@ -100,6 +103,7 @@ export function NewBookingDialog({
 
   const groupedSlots = useMemo(() => groupSlotsByDay(slots), [slots]);
   const activeDay = groupedSlots[activeDayIndex];
+  const memberLocked = Boolean(preselectedMember);
 
   const fetchSlots = useCallback(async () => {
     setLoading(true);
@@ -128,14 +132,14 @@ export function NewBookingDialog({
     if (!open) return;
     setSearch("");
     setMembers([]);
-    setSelectedMember(null);
+    setSelectedMember(preselectedMember);
     setSelectedSlot(null);
     setDayOffset(0);
     setBookingType("CONSULTATION");
     setDoctorId("");
     setNotes("");
     setNotifyMember(true);
-  }, [open]);
+  }, [open, preselectedMember]);
 
   useEffect(() => {
     if (!open) return;
@@ -143,7 +147,7 @@ export function NewBookingDialog({
   }, [open, dayOffset, fetchSlots]);
 
   useEffect(() => {
-    if (!open || selectedMember) {
+    if (!open || selectedMember || memberLocked) {
       setMembers([]);
       return;
     }
@@ -170,7 +174,7 @@ export function NewBookingDialog({
     }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [open, search, selectedMember]);
+  }, [open, search, selectedMember, memberLocked]);
 
   const handleSubmit = async () => {
     if (!selectedMember) {
@@ -202,8 +206,12 @@ export function NewBookingDialog({
       if (!res.ok) throw new Error(data.error || "Failed to create booking");
 
       toast.success(`Booked ${memberLabel(selectedMember)}`);
+      onSuccess({
+        id: data.booking.id,
+        doctorId: data.booking.doctorId ?? null,
+        doctorName: data.booking.doctorName ?? null,
+      });
       onOpenChange(false);
-      onSuccess();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create booking");
     } finally {
@@ -230,16 +238,18 @@ export function NewBookingDialog({
                   <p className="font-medium truncate">{memberLabel(selectedMember)}</p>
                   <p className="text-xs text-muted-foreground truncate">{selectedMember.email}</p>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  onClick={() => setSelectedMember(null)}
-                  aria-label="Change member"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                {!memberLocked && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => setSelectedMember(null)}
+                    aria-label="Change member"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="space-y-2">

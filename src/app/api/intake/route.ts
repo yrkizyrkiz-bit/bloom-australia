@@ -8,6 +8,7 @@ import {
   resolveMensHealthCanonicalKey,
   resolveWomensHealthCanonicalKey,
 } from "@/lib/funnel/public-consult-programs";
+import { normalizeProgramKey } from "@/lib/membership/keys";
 import {
   appendPublicFunnelQuizFromIntake,
   savePublicFunnelQuizFromIntake,
@@ -51,8 +52,8 @@ const PROGRAM_CONFIG: Record<ProgramType, {
     consultationAmount:     4900,
   },
   MENS_HEALTH: {
-    subscriptionTier:       "mens_health",
-    portalPath:             "/dashboard/mens-health",
+    subscriptionTier:       "mens_health_sexual",
+    portalPath:             "/dashboard/mens-health/sexual-health",
     carePartnerQueue:       "MENS_HEALTH_TRIAGE",
     emailTemplateCategory:  "WELCOME",
     consultationAmount:     4900,
@@ -89,6 +90,26 @@ function buildIntakePayload(
     );
   }
   return payload as Prisma.InputJsonValue;
+}
+
+function mensHealthSubscriptionTier(data: Record<string, unknown>): string {
+  const fromResolved = normalizeProgramKey(
+    typeof data.resolvedProgram === "string" ? data.resolvedProgram : null
+  );
+  const fromConcern = resolveMensHealthCanonicalKey(
+    typeof data.concern === "string" ? data.concern : ""
+  );
+  const key = fromResolved || fromConcern;
+  if (key === "MENS_HEALTH_VITALITY") return "mens_health_vitality";
+  return "mens_health_sexual";
+}
+
+function subscriptionTierForProgram(
+  programType: ProgramType,
+  data: Record<string, unknown>
+): string {
+  if (programType === "MENS_HEALTH") return mensHealthSubscriptionTier(data);
+  return PROGRAM_CONFIG[programType].subscriptionTier;
 }
 
 const ARCHITECTURE_A_PROGRAMS: ProgramType[] = [
@@ -599,7 +620,7 @@ export async function POST(req: NextRequest) {
         role:             "MEMBER",
         memberStatus:     "POTENTIAL_MEMBER",
         subscriptionStatus: "INACTIVE",
-        subscriptionTier: config.subscriptionTier,
+        subscriptionTier: subscriptionTierForProgram(programType, data),
         journeyStatus:    "SURVEY_COMPLETED",
         leadSource:       data.howHeard || "survey",
         triageScore,

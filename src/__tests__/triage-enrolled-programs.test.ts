@@ -36,14 +36,15 @@ describe("collectEnrolledPrograms", () => {
     ]);
   });
 
-  it("deduplicates by canonical program key", () => {
+  it("maps bare mens_health to Sexual Health and keeps Vitality distinct", () => {
     expect(
       collectEnrolledPrograms([
         { program: "mens_health", membershipStatus: "ACTIVE" },
         { program: "MENS_HEALTH_VITALITY", membershipStatus: "PENDING" },
       ])
     ).toEqual([
-      { key: "MENS_HEALTH_VITALITY", label: "Men's Vitality", status: "ACTIVE" },
+      { key: "MENS_HEALTH_SEXUAL", label: "Men's Sexual Health", status: "ACTIVE" },
+      { key: "MENS_HEALTH_VITALITY", label: "Men's Vitality", status: "PENDING" },
     ]);
   });
 });

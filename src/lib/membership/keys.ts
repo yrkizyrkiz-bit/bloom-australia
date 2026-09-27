@@ -49,7 +49,7 @@ export const PROGRAM_LABELS: Record<ProgramKey, string> = {
   MENS_HEALTH_VITALITY: "Vitality",
   MENS_HEALTH_SEXUAL: "Sexual Health",
   WOMENS_HEALTH_VITALITY: "Vitality",
-  WOMENS_HEALTH_SEXUAL: "Sexual Health",
+  WOMENS_HEALTH_SEXUAL: "Wellness",
 };
 
 export const SCOPE_LABELS: Record<ScopeKey, string> = {
@@ -86,7 +86,8 @@ export function isScopeKey(value: string): value is ScopeKey {
 /**
  * Map a legacy/free-form program string (tier, slug, plan) to a canonical ProgramKey.
  * Returns null when the value does not denote a clinical program.
- * Legacy `mens_health` / `womens_health` (no focus) default to the Vitality focus.
+ * Bare `mens_health` maps to Sexual Health (the live men's health funnel).
+ * Bare `womens_health` still defaults to Vitality unless a sexual focus is present.
  */
 export function normalizeProgramKey(value?: string | null): ProgramKey | null {
   const v = normalize(value);
@@ -102,8 +103,9 @@ export function normalizeProgramKey(value?: string | null): ProgramKey | null {
     return "WOMENS_HEALTH_VITALITY";
   }
   if (v.includes("mens") || v.includes("men_") || v === "men") {
-    if (v.includes("sex")) return "MENS_HEALTH_SEXUAL";
-    return "MENS_HEALTH_VITALITY";
+    if (v.includes("vitality") || v.includes("energy")) return "MENS_HEALTH_VITALITY";
+    // Bare mens_health and sexual / ED concerns → sexual health program.
+    return "MENS_HEALTH_SEXUAL";
   }
   if (v.includes("hair")) return "HAIR_LOSS";
   // Weight + fatty liver / metabolic both route to the weight program today.

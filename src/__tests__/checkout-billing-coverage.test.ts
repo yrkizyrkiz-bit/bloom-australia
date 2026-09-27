@@ -60,10 +60,10 @@ describe("checkout billing coverage", () => {
     expect(source).toContain("syncMemberSubscriptionFromStripe");
   });
 
-  it("hair-loss and women's panel tiers do not bundle Organ Care", () => {
+  it("every biomarker panel bundles Organ Care (no longer a separate product)", () => {
     const tierMap = readSource("lib/biomarkers/public-checkout-tier-map.ts");
-    expect(tierMap).toContain('source === "hair_loss"');
-    expect(tierMap).toContain('source === "womens_health"');
+    expect(tierMap).toContain("return true");
+    expect(tierMap).toContain("no longer sold separately");
   });
 
   it("program funnels hand off to the consolidated checkout with a consult type", () => {
@@ -120,13 +120,15 @@ describe("checkout billing coverage", () => {
     expect(source).toContain("grantEntitlement");
   });
 
-  it("portal organ care syncs incomplete subscription for organ-only checkout", () => {
-    const source = readSource("lib/portal/organ-care-purchase.ts");
-    expect(source).toContain("syncMemberSubscriptionFromPaymentIntent");
-    expect(source).toContain("grantEntitlement");
+  it("retires portal organ-care checkout as a standalone subscription", () => {
+    const intent = readSource("app/api/portal/organ-care-checkout/intent/route.ts");
+    const confirm = readSource("app/api/portal/organ-care-checkout/confirm/route.ts");
+    expect(intent).toContain("status: 410");
+    expect(confirm).toContain("status: 410");
+    expect(intent).toContain("/dashboard/biomarkers/quiz");
   });
 
-  it("stripe webhook handles portal and public biomarkers sources", () => {
+  it("stripe webhook still handles biomarkers and legacy organ sources", () => {
     const source = readSource("app/api/webhooks/stripe/route.ts");
     expect(source).toContain('"portal_biomarkers"');
     expect(source).toContain('"public_biomarkers"');

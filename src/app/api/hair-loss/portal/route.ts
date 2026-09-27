@@ -12,6 +12,13 @@ import {
   repairHairTreatmentScheduleIfNeeded,
   selectUpcomingHairDoses,
 } from "@/lib/program/hair-treatment";
+import {
+  canLogDoseScheduledFor,
+  formatNextDoseDateShort,
+  getCalendarDateKey,
+  isDoseOverdue,
+} from "@/lib/program/dose-schedule";
+import { notifyMember } from "@/lib/notifications/member-notify";
 
 const HAIR_MEDICATION_KEYWORDS = [
   "finasteride",
@@ -49,6 +56,7 @@ export async function GET() {
       user,
       programMember,
       wmMember,
+      sexualMember,
       hairNoteBooking,
       openBooking,
       completedBooking,
@@ -85,6 +93,13 @@ export async function GET() {
           where: {
             OR: [{ userId }, { email: session.user.email || "" }],
             program: { in: ["WEIGHT_MANAGEMENT", "weight_management"] },
+          },
+          select: { id: true },
+        }),
+        prisma.programMember.findFirst({
+          where: {
+            OR: [{ userId }, { email: session.user.email || "" }],
+            program: { in: ["MENS_HEALTH_SEXUAL", "MENS_HEALTH"] },
           },
           select: { id: true },
         }),
@@ -164,10 +179,16 @@ export async function GET() {
           },
           orderBy: { startDate: "asc" },
         }),
-        prisma.hairWeeklyCheckIn.findMany({
-          where: { userId },
-          select: { photos: true },
-        }),
+        prisma.$queryRaw<Array<{ count: number }>>`
+          SELECT COALESCE(SUM(
+            CASE
+              WHEN jsonb_typeof("photos"::jsonb) = 'array' THEN jsonb_array_length("photos"::jsonb)
+              ELSE 0
+            END
+          ), 0)::int AS count
+          FROM "HairWeeklyCheckIn"
+          WHERE "userId" = ${userId}
+        `,
       ]);
 
     if (!user) {
@@ -224,17 +245,19 @@ export async function GET() {
         : null;
 
     const isHairMember =
-      user.subscriptionTier === "hair_loss" || programMember?.id != null;
-    const hairOnly =
-      Boolean(programMember) &&
-      !wmMember &&
-      (user.subscriptionTier === "hair_loss" || user.subscriptionTier === "HAIR_LOSS");
+      user.subscriptionTier === "hair_loss" ||
+      user.subscriptionTier === "HAIR_LOSS" ||
+      programMember?.id != null;
+    // Shared user.approvalStatus / journeyStatus must not advance Hair when
+    // another clinical program (sexual/WM) owns those fields.
+    const hairOnly = Boolean(programMember) && !wmMember && !sexualMember;
     const booking = hairNoteBooking ?? (isHairMember ? openBooking : null);
     const hasHairPrescription = hairPrescriptions.length > 0;
-    const hasActiveTreatment = hairTreatments.length > 0 || hasHairPrescription;
+    const hasActiveTreatment =
+      isHairMember && (hairTreatments.length > 0 || hasHairPrescription);
     const hairJourneyStatus = resolveHairJourneyStatus({
-      journeyStatus: user.journeyStatus,
-      approvalStatus: user.approvalStatus,
+      journeyStatus: hairOnly ? user.journeyStatus : null,
+      approvalStatus: hairOnly ? user.approvalStatus : null,
       programMemberStatus: programMember?.membershipStatus,
       hasUpcomingBooking: Boolean(booking),
       consultCompleted:
@@ -242,8 +265,8 @@ export async function GET() {
         (hairOnly ||
           !wmMember ||
           /hair|bald/i.test(completedBooking.notes || "")),
-      hasHairPrescription,
-      hasActiveTreatment: hairTreatments.length > 0,
+      hasHairPrescription: isHairMember && hasHairPrescription,
+      hasActiveTreatment: isHairMember && hairTreatments.length > 0,
       hairOnly,
     });
     const hairJourneyLabel = getHairJourneyStageDescription(hairJourneyStatus);
@@ -276,9 +299,7 @@ export async function GET() {
       status: {
         hasPaid,
         isApproved:
-          user.approvalStatus === "APPROVED" ||
-          hairJourneyStatus === "APPROVED" ||
-          hairJourneyStatus === "ACTIVE",
+          hairJourneyStatus === "APPROVED" || hairJourneyStatus === "ACTIVE",
         hasActiveTreatment,
         label: hairJourneyLabel,
       },
@@ -298,10 +319,7 @@ export async function GET() {
         totalDays: 365,
         startDate: treatmentStart?.toISOString() || null,
         treatmentAdherence,
-        photosLogged: hairCheckIns.reduce((sum, row) => {
-          const photos = Array.isArray(row.photos) ? row.photos : [];
-          return sum + photos.length;
-        }, 0),
+        photosLogged: Number(hairCheckIns[0]?.count ?? 0),
         nextMilestone: nextMilestoneForDay(currentDay),
       },
       prescriptions: hairPrescriptions.map((rx) => {
@@ -331,6 +349,27 @@ export async function GET() {
         );
         const taken = dueDoses.filter((dose) => dose.takenAt).length;
         const upcoming = selectUpcomingHairDoses(doses);
+        const nextOpen =
+          [...doses]
+            .filter((dose) => !dose.takenAt && !dose.skipped)
+            .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())[0] ?? null;
+        const todayKey = getCalendarDateKey(new Date());
+        const loggedToday = doses.some(
+          (dose) => dose.takenAt && getCalendarDateKey(dose.takenAt) === todayKey
+        );
+        const overdue = Boolean(nextOpen && isDoseOverdue(nextOpen.scheduledAt));
+        if (overdue && nextOpen) {
+          void notifyMember({
+            userId,
+            intent: "PROGRAM_STEP",
+            title: "Hair dose overdue",
+            message: `Your ${treatment.medicationName} dose was due ${formatNextDoseDateShort(nextOpen.scheduledAt)}. Log it when you can, or message your care team if you need to pause.`,
+            actionUrl: "/dashboard/mens-health/hair-loss",
+            type: "WARNING",
+            category: "REMINDER",
+            dedupeDays: 1,
+          }).catch((err) => console.error("[hair-loss/portal] overdue reminder", err));
+        }
         return {
           id: treatment.id,
           prescriptionId: treatment.prescriptionId,
@@ -347,6 +386,15 @@ export async function GET() {
             id: dose.id,
             scheduledAt: dose.scheduledAt.toISOString(),
           })),
+          nextDose: nextOpen
+            ? {
+                id: nextOpen.id,
+                scheduledAt: nextOpen.scheduledAt.toISOString(),
+                canLog: canLogDoseScheduledFor(nextOpen.scheduledAt),
+                overdue,
+              }
+            : null,
+          loggedToday,
         };
       }),
     });

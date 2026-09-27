@@ -66,8 +66,10 @@ import { MemberWeightPlanPanel } from "@/components/admin/MemberWeightPlanPanel"
 import { HolisticReportReviewDialog } from "@/components/admin/HolisticReportReviewDialog";
 import { EnrolledProgramBadges } from "@/components/admin/EnrolledProgramBadges";
 import { MemberHairLossQuestionnaire } from "@/components/admin/quiz-assessment/MemberHairLossQuestionnaire";
+import { MemberMensSexualQuestionnaire } from "@/components/admin/quiz-assessment/MemberMensSexualQuestionnaire";
 import {
   HAIR_LOSS_MEDICATION_SUGGESTIONS,
+  MENS_ED_MEDICATION_SUGGESTIONS,
   defaultDoctorProgramTab,
   hasDoctorProgram,
   resolveDoctorPrescriptionCategory,
@@ -221,6 +223,11 @@ interface PatientBrief {
   };
   enrolledPrograms?: EnrolledProgram[];
   hairBrief?: {
+    enrolled: boolean;
+    submittedAt: string | null;
+    surveyData: Record<string, unknown>;
+  };
+  sexualBrief?: {
     enrolled: boolean;
     submittedAt: string | null;
     surveyData: Record<string, unknown>;
@@ -488,7 +495,11 @@ export default function DoctorDashboardPage() {
         const data = await res.json();
         setPatientBrief(data);
         setProgramConsultTab(
-          defaultDoctorProgramTab(data.enrolledPrograms, Boolean(data.hairBrief?.enrolled))
+          defaultDoctorProgramTab(
+            data.enrolledPrograms,
+            Boolean(data.hairBrief?.enrolled),
+            Boolean(data.sexualBrief?.enrolled)
+          )
         );
       }
     } catch (error) {
@@ -1078,6 +1089,10 @@ export default function DoctorDashboardPage() {
                       hasDoctorProgram(patientBrief.enrolledPrograms, "HAIR_LOSS")) && (
                       <TabsTrigger value="HAIR_LOSS">Hair</TabsTrigger>
                     )}
+                    {(patientBrief.sexualBrief?.enrolled ||
+                      hasDoctorProgram(patientBrief.enrolledPrograms, "MENS_HEALTH_SEXUAL")) && (
+                      <TabsTrigger value="MENS_HEALTH_SEXUAL">Men&apos;s ED</TabsTrigger>
+                    )}
                   </TabsList>
                   <TabsContent value="WEIGHT_MANAGEMENT" className="mt-4 space-y-4">
                 {patientBrief.riskAssessment.riskFlags.length > 0 && (
@@ -1174,6 +1189,34 @@ export default function DoctorDashboardPage() {
                       </Card>
                     )}
                   </TabsContent>
+                  <TabsContent value="MENS_HEALTH_SEXUAL" className="mt-4 space-y-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <Heart className="w-4 h-4 text-teal-600" />
+                          Men&apos;s ED brief
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 text-sm text-slate-600">
+                        Review the sexual health assessment, then approve to prescribe ED medication
+                        (e.g. Sildenafil or Tadalafil). Weight-management dosing and billing are not
+                        used on this tab.
+                      </CardContent>
+                    </Card>
+                    {patientBrief.sexualBrief &&
+                    Object.keys(patientBrief.sexualBrief.surveyData).length > 0 ? (
+                      <MemberMensSexualQuestionnaire
+                        rawSurveyData={patientBrief.sexualBrief.surveyData}
+                        submittedAt={patientBrief.sexualBrief.submittedAt}
+                      />
+                    ) : (
+                      <Card>
+                        <CardContent className="p-4 text-sm text-slate-500">
+                          No Sexual Health assessment answers are recorded yet.
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
                 </Tabs>
 
                 {patientBrief.clinicalNotes.length > 0 && (
@@ -1214,7 +1257,7 @@ export default function DoctorDashboardPage() {
                       <div className="space-y-3">
                         <p className="text-sm text-slate-500 mb-4">Select decision:</p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                          <Button onClick={() => openDecisionDialog("APPROVED")} className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">{programConsultTab === "HAIR_LOSS" ? "Hair script" : "Prescribe"}</span></Button>
+                          <Button onClick={() => openDecisionDialog("APPROVED")} className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">{programConsultTab === "HAIR_LOSS" ? "Hair script" : programConsultTab === "MENS_HEALTH_SEXUAL" ? "ED script" : "Prescribe"}</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_NO_TREATMENT")} className="bg-blue-600 hover:bg-blue-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">No Treatment</span></Button>
                           <Button onClick={() => openDecisionDialog("DECLINED")} variant="destructive" className="h-auto py-4 flex-col"><XCircle className="w-6 h-6 mb-1" /><span className="font-semibold">Decline</span><span className="text-xs opacity-80">Refund</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_PENDING_TESTS")} className="bg-amber-600 hover:bg-amber-700 h-auto py-4 flex-col"><FlaskConical className="w-6 h-6 mb-1" /><span className="font-semibold">Tests</span><span className="text-xs opacity-80">Blood work</span></Button>
@@ -1397,7 +1440,12 @@ export default function DoctorDashboardPage() {
             }
           >
             <DialogTitle>
-              {decisionType === "APPROVED" && (programConsultTab === "HAIR_LOSS" ? "Approve Patient — Hair" : "Approve Patient")}
+              {decisionType === "APPROVED" &&
+                (programConsultTab === "HAIR_LOSS"
+                  ? "Approve Patient — Hair"
+                  : programConsultTab === "MENS_HEALTH_SEXUAL"
+                    ? "Approve Patient — Men's ED"
+                    : "Approve Patient")}
               {decisionType === "APPROVED_NO_TREATMENT" && "Approve Patient (No Treatment)"}
               {decisionType === "DECLINED" && "Decline Patient"}
               {decisionType === "APPROVED_PENDING_TESTS" && (
@@ -1460,14 +1508,60 @@ export default function DoctorDashboardPage() {
                     </div>
                   </div>
                 )}
+                {programConsultTab === "MENS_HEALTH_SEXUAL" && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-slate-600">ED medication</p>
+                    <div className="flex flex-wrap gap-2">
+                      {MENS_ED_MEDICATION_SUGGESTIONS.map((suggestion) => (
+                        <Button
+                          key={`${suggestion.name}-${suggestion.strength}`}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-auto py-1.5"
+                          onClick={() => {
+                            setMedicationName(suggestion.name);
+                            setMedicationGenericName(suggestion.generic);
+                            setMedicationStrength(suggestion.strength);
+                            setMedicationForm(suggestion.form);
+                            setMedicationDosage(suggestion.dosage);
+                            setMedicationFrequency(suggestion.frequency);
+                          }}
+                        >
+                          {suggestion.name} {suggestion.strength}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Medication Name *</Label>
-                    <Input value={medicationName} onChange={(e) => setMedicationName(e.target.value)} placeholder={programConsultTab === "HAIR_LOSS" ? "e.g. Finasteride" : "e.g. Ozempic"} />
+                    <Input
+                      value={medicationName}
+                      onChange={(e) => setMedicationName(e.target.value)}
+                      placeholder={
+                        programConsultTab === "HAIR_LOSS"
+                          ? "e.g. Finasteride"
+                          : programConsultTab === "MENS_HEALTH_SEXUAL"
+                            ? "e.g. Sildenafil"
+                            : "e.g. Ozempic"
+                      }
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Generic Name *</Label>
-                    <Input value={medicationGenericName} onChange={(e) => setMedicationGenericName(e.target.value)} placeholder={programConsultTab === "HAIR_LOSS" ? "e.g. Minoxidil" : "e.g. Semaglutide"} />
+                    <Input
+                      value={medicationGenericName}
+                      onChange={(e) => setMedicationGenericName(e.target.value)}
+                      placeholder={
+                        programConsultTab === "HAIR_LOSS"
+                          ? "e.g. Minoxidil"
+                          : programConsultTab === "MENS_HEALTH_SEXUAL"
+                            ? "e.g. Tadalafil"
+                            : "e.g. Semaglutide"
+                      }
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

@@ -23,25 +23,14 @@ export function billingTierToPublicTier(tier: BiomarkersPanelTier): BiomarkerSub
 }
 
 /**
- * Advanced and Complete public panels normally bundle Organ Care entitlements.
- * Program funnels (hair / women's Advanced checkout) unlock biomarkers + that
- * program only, not Organ Care.
+ * Organ Care is included with every biomarker panel (Essential and up),
+ * including clinical-program panel grants. It is no longer sold separately.
  */
 export function panelIncludesOrganCare(
-  tier: BiomarkerSubscriptionTier,
-  options?: { sourceProgram?: string | null }
+  _tier: BiomarkerSubscriptionTier,
+  _options?: { sourceProgram?: string | null }
 ): boolean {
-  const source = options?.sourceProgram ?? null;
-  if (
-    source === "hair_loss" ||
-    source === "mens_health" ||
-    source === "womens_health" ||
-    source === "womens_health_sexual" ||
-    source === "womens_health_vitality"
-  ) {
-    return false;
-  }
-  return tier === "advanced" || tier === "complete";
+  return true;
 }
 
 export function isValidPublicPanelTier(

@@ -15,9 +15,15 @@ export async function fetchFavoriteMeals(signal?: AbortSignal): Promise<PublicFa
     credentials: "same-origin",
     signal,
   });
-  if (!res.ok) return [];
+  // Throw on failure so callers keep the last good list instead of showing "empty".
+  if (!res.ok) {
+    throw new Error(`Failed to load favourites (${res.status})`);
+  }
   const payload = await res.json();
-  return Array.isArray(payload.favorites) ? payload.favorites : [];
+  if (!Array.isArray(payload.favorites)) {
+    throw new Error("Invalid favourites response");
+  }
+  return payload.favorites;
 }
 
 export async function postFavoriteMeal(payload: FavoriteMealWrite): Promise<PublicFavoriteMeal | null> {

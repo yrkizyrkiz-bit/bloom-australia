@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getHairTimelineProgress } from "@/lib/program-journey/hair-journey";
+import { getSexualTimelineProgress } from "@/lib/program-journey/sexual-journey";
 
 export type JourneyTimelineStep = {
   key: string;
@@ -100,6 +101,9 @@ export function getTimelineProgress(
 ): { currentStep: number; steps: JourneyTimelineStep[] } {
   if (options?.programKey === "HAIR_LOSS") {
     return getHairTimelineProgress(journeyStatus);
+  }
+  if (options?.programKey === "MENS_HEALTH_SEXUAL") {
+    return getSexualTimelineProgress(journeyStatus);
   }
 
   const currentStep = STATUS_TO_STEP[journeyStatus] ?? 0;

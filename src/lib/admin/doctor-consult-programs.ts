@@ -4,7 +4,12 @@ import {
   type EnrolledProgram,
 } from "@/lib/triage/enrolled-programs";
 
-export type DoctorProgramTab = "WEIGHT_MANAGEMENT" | "HAIR_LOSS";
+export type DoctorProgramTab = "WEIGHT_MANAGEMENT" | "HAIR_LOSS" | "MENS_HEALTH_SEXUAL";
+
+export type DoctorPrescriptionCategory =
+  | "WEIGHT_MANAGEMENT"
+  | "HAIR_LOSS"
+  | "SEXUAL_HEALTH";
 
 export const HAIR_LOSS_MEDICATION_SUGGESTIONS = [
   {
@@ -33,6 +38,55 @@ export const HAIR_LOSS_MEDICATION_SUGGESTIONS = [
   },
 ] as const;
 
+/** Common ED / PE scripts for Men's Sexual Health consults. */
+export const MENS_ED_MEDICATION_SUGGESTIONS = [
+  {
+    name: "Sildenafil",
+    generic: "Sildenafil",
+    strength: "50mg",
+    form: "TABLET",
+    dosage: "50mg",
+    frequency: "As needed, 30–60 min before activity",
+    isPRN: true,
+  },
+  {
+    name: "Sildenafil",
+    generic: "Sildenafil",
+    strength: "100mg",
+    form: "TABLET",
+    dosage: "100mg",
+    frequency: "As needed, 30–60 min before activity",
+    isPRN: true,
+  },
+  {
+    name: "Tadalafil",
+    generic: "Tadalafil",
+    strength: "5mg",
+    form: "TABLET",
+    dosage: "5mg",
+    frequency: "Once daily",
+    isPRN: false,
+  },
+  {
+    name: "Tadalafil",
+    generic: "Tadalafil",
+    strength: "10mg",
+    form: "TABLET",
+    dosage: "10mg",
+    frequency: "As needed, at least 30 min before activity",
+    isPRN: true,
+  },
+  {
+    name: "Tadalafil",
+    generic: "Tadalafil",
+    strength: "20mg",
+    form: "TABLET",
+    dosage: "20mg",
+    frequency: "As needed, at least 30 min before activity",
+    isPRN: true,
+  },
+] as const;
+
 export function resolveDoctorEnrolledPrograms(
   members: Array<{ program?: string | null; membershipStatus?: string | null }>,
   programEntitlements: Array<{ key?: string | null; status?: string | null }> = []
@@ -46,22 +100,38 @@ export function resolveDoctorEnrolledPrograms(
   ]);
 }
 
-export function hasDoctorProgram(programs: EnrolledProgram[] | undefined, key: DoctorProgramTab): boolean {
+export function hasDoctorProgram(
+  programs: EnrolledProgram[] | undefined,
+  key: DoctorProgramTab
+): boolean {
   return (programs ?? []).some((program) => normalizeProgramKey(program.key) === key);
 }
 
 export function defaultDoctorProgramTab(
   programs: EnrolledProgram[] | undefined,
-  hairEnrolled = false
+  hairEnrolled = false,
+  sexualEnrolled = false
 ): DoctorProgramTab {
   const hair = hairEnrolled || hasDoctorProgram(programs, "HAIR_LOSS");
+  const sexual =
+    sexualEnrolled || hasDoctorProgram(programs, "MENS_HEALTH_SEXUAL");
   const weight = hasDoctorProgram(programs, "WEIGHT_MANAGEMENT");
+
+  if (sexual && !weight && !hair) return "MENS_HEALTH_SEXUAL";
   if (hair && !weight) return "HAIR_LOSS";
   return "WEIGHT_MANAGEMENT";
 }
 
 export function resolveDoctorPrescriptionCategory(
   programTab: string | null | undefined
-): "HAIR_LOSS" | "WEIGHT_MANAGEMENT" {
-  return programTab === "HAIR_LOSS" ? "HAIR_LOSS" : "WEIGHT_MANAGEMENT";
+): DoctorPrescriptionCategory {
+  if (programTab === "HAIR_LOSS") return "HAIR_LOSS";
+  if (programTab === "MENS_HEALTH_SEXUAL") return "SEXUAL_HEALTH";
+  return "WEIGHT_MANAGEMENT";
+}
+
+export function isNonWeightDoctorApproval(
+  category: string | null | undefined
+): boolean {
+  return category === "HAIR_LOSS" || category === "SEXUAL_HEALTH";
 }

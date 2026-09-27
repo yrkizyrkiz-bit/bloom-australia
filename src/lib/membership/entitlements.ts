@@ -27,6 +27,9 @@ import type { ProgramEssentialGender } from "@/lib/program-essential-panels";
 
 export type EntitlementStatusValue = "ACTIVE" | "PENDING" | "INACTIVE";
 
+/** Billing status from MemberSubscription — drives overdue badge while access stays enrolled. */
+export type SubscriptionBillingStatus = "ACTIVE" | "PAST_DUE" | "INACTIVE";
+
 export type EntitlementRecord = {
   type: "PROGRAM" | "SCOPE";
   key: string;
@@ -39,7 +42,10 @@ export type ProgramEntitlementView = {
   state: EntitlementState;
   hasEntitlement: boolean;
   status: EntitlementStatusValue | null;
-  readiness: ReadinessAssessment;
+  /** Live MemberSubscription status for this program (null when grant-only). */
+  subscriptionStatus?: SubscriptionBillingStatus | null;
+  /** Present when biomarker readiness was assessed; omitted on slim access payloads. */
+  readiness?: ReadinessAssessment;
 };
 
 export type ScopeEntitlementView = {
@@ -48,6 +54,8 @@ export type ScopeEntitlementView = {
   state: EntitlementState;
   hasEntitlement: boolean;
   status: EntitlementStatusValue | null;
+  /** Live MemberSubscription status for this scope (null when grant-only). */
+  subscriptionStatus?: SubscriptionBillingStatus | null;
   readiness?: ReadinessAssessment;
 };
 
@@ -251,6 +259,8 @@ export function deriveMembershipEntitlements(
   };
 
   for (const scope of Object.values(scopes)) {
+    // Organ Care is bundled with biomarkers/membership — never upsell alone.
+    if (scope.key === "ORGAN_CARE") continue;
     pushIfUpsell(
       scope.key,
       scope.label,

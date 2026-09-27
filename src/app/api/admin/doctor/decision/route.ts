@@ -15,6 +15,8 @@ import { tryActivateAfterDoctorApproval } from "@/lib/program/activate-member-pr
 import { notifyMember } from "@/lib/notifications/member-notify";
 import { normalizeProgramKey } from "@/lib/membership/keys";
 import { resolveHairApprovalUserJourney } from "@/lib/program-journey/hair-journey";
+import { resolveSexualApprovalUserJourney } from "@/lib/program-journey/sexual-journey";
+import { grantEntitlement } from "@/lib/membership/entitlement-service";
 
 async function auditDoctorDecision(
   request: NextRequest,
@@ -308,7 +310,13 @@ export async function POST(request: NextRequest) {
       prescriptionCategory: requestedPrescriptionCategory,
     } = body;
     const isHairApproval = requestedPrescriptionCategory === "HAIR_LOSS";
-    const prescriptionCategory = isHairApproval ? "HAIR_LOSS" : "WEIGHT_MANAGEMENT";
+    const isSexualApproval = requestedPrescriptionCategory === "SEXUAL_HEALTH";
+    const isNonWeightApproval = isHairApproval || isSexualApproval;
+    const prescriptionCategory = isHairApproval
+      ? "HAIR_LOSS"
+      : isSexualApproval
+        ? "SEXUAL_HEALTH"
+        : "WEIGHT_MANAGEMENT";
 
     // Validate required fields
     if (!userId || !consultationId || !decision) {
@@ -516,18 +524,23 @@ export async function POST(request: NextRequest) {
             status: "ACTIVE",
             scriptStatus: "SCRIPT_DRAFT", // Start as draft
             category: prescriptionCategory,
-            diagnosis: isHairApproval ? "Hair loss program" : "Weight management program",
+            diagnosis: isHairApproval
+              ? "Hair loss program"
+              : isSexualApproval
+                ? "Erectile dysfunction / Sexual Health program"
+                : "Weight management program",
             notes: clinicalNotes,
             pharmacyNotes: pharmacyNotes?.trim() || null,
             safetyCounsellingNotes: safetyCounsellingNotes?.trim() || null,
             startDate: startDate ? new Date(startDate) : new Date(),
             followUpDate: followUpDate ? new Date(followUpDate) : null,
             nextRefillDate: new Date(Date.now() + (daysSupply || 28) * 24 * 60 * 60 * 1000),
+            ...(isSexualApproval ? { isPRN: true } : {}),
           },
         });
 
         // ─── Link prescription to WeightManagementIntake ─────────────────────────
-        if (!isHairApproval) {
+        if (!isNonWeightApproval) {
           try {
             await prisma.weightManagementIntake.updateMany({
               where: { userId },
@@ -546,15 +559,35 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const enrolledPrograms = isHairApproval
+        const enrolledPrograms = isNonWeightApproval
           ? await prisma.programMember.findMany({
               where: { OR: [{ userId }, { email: user.email }] },
               select: { program: true },
             })
           : [];
-        const hasWeightManagementEnrollment = enrolledPrograms.some(
-          (member) => normalizeProgramKey(member.program) === "WEIGHT_MANAGEMENT"
-        );
+        const programEntitlements = isNonWeightApproval
+          ? await prisma.entitlement.findMany({
+              where: {
+                userId,
+                type: "PROGRAM",
+                status: { in: ["ACTIVE", "PENDING"] },
+              },
+              select: { key: true },
+            })
+          : [];
+        const hasWeightManagementEnrollment =
+          enrolledPrograms.some(
+            (member) => normalizeProgramKey(member.program) === "WEIGHT_MANAGEMENT"
+          ) || programEntitlements.some((row) => row.key === "WEIGHT_MANAGEMENT");
+        const hasHairLossEnrollment =
+          enrolledPrograms.some(
+            (member) => normalizeProgramKey(member.program) === "HAIR_LOSS"
+          ) || programEntitlements.some((row) => row.key === "HAIR_LOSS");
+        const hasSexualHealthEnrollment =
+          enrolledPrograms.some((member) => {
+            const key = normalizeProgramKey(member.program);
+            return key === "MENS_HEALTH_SEXUAL" || key === "MENS_HEALTH";
+          }) || programEntitlements.some((row) => row.key === "MENS_HEALTH_SEXUAL");
 
         if (isHairApproval) {
           await prisma.programMember.updateMany({
@@ -569,13 +602,46 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        if (isSexualApproval) {
+          await prisma.programMember.updateMany({
+            where: {
+              OR: [
+                { userId, program: { in: ["MENS_HEALTH", "MENS_HEALTH_SEXUAL"] } },
+                { email: user.email, program: { in: ["MENS_HEALTH", "MENS_HEALTH_SEXUAL"] } },
+              ],
+            },
+            data: {
+              membershipStatus: "ACTIVE",
+              membershipStart: new Date(),
+            },
+          });
+          await grantEntitlement({
+            userId,
+            type: "PROGRAM",
+            key: "MENS_HEALTH_SEXUAL",
+            status: "ACTIVE",
+            source: "PORTAL_PURCHASE",
+            notes: `Doctor approved Sexual Health script. Consultation ${consultationId}`,
+          }).catch((err) =>
+            console.error("[Doctor Decision] sexual entitlement grant failed:", err)
+          );
+        }
+
         await prisma.user.update({
           where: { id: userId },
           data: {
             approvalStatus: "APPROVED",
             ...(isHairApproval
-              ? resolveHairApprovalUserJourney({ hasWeightManagementEnrollment })
-              : { journeyStatus: "ONBOARDING_PENDING" }),
+              ? resolveHairApprovalUserJourney({
+                  hasWeightManagementEnrollment,
+                  hasSexualHealthEnrollment,
+                })
+              : isSexualApproval
+                ? resolveSexualApprovalUserJourney({
+                    hasWeightManagementEnrollment,
+                    hasHairLossEnrollment,
+                  })
+                : { journeyStatus: "ONBOARDING_PENDING" }),
           },
         });
 
@@ -591,7 +657,7 @@ export async function POST(request: NextRequest) {
 
         // ─── GAP-005: Create ongoing monthly subscription ─────────────────────────
         let subscriptionResult: { success: boolean; subscriptionId?: string; error?: string } = { success: false };
-        if (!isHairApproval) {
+        if (!isNonWeightApproval) {
           try {
             subscriptionResult = await createOngoingSubscription(
               userId,
@@ -642,7 +708,13 @@ Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
 
 **Script Status:** DRAFT - Pending finalization
 
-**Program:** ${isHairApproval ? "Hair loss" : "Weight management"}
+**Program:** ${
+              isHairApproval
+                ? "Hair loss"
+                : isSexualApproval
+                  ? "Men's Sexual Health (ED)"
+                  : "Weight management"
+            }
 
 **Prescription Details:**
 - Medication: [CONFIDENTIAL - See Prescription ${prescription.id}]
@@ -651,7 +723,7 @@ Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
 - Repeats: ${repeats || 0}
 - Start Date: ${startDate ? new Date(startDate).toLocaleDateString() : "As directed"}
 - Follow-up: ${followUpDate ? new Date(followUpDate).toLocaleDateString() : "As clinically indicated"}
-${isHairApproval ? "" : `
+${isNonWeightApproval ? "" : `
 **Billing:**
 - Plan: ${selectedPlan}
 - Monthly Amount: $${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}
@@ -812,6 +884,17 @@ Welcome call / onboarding walkthrough:
             scriptStatus: "SCRIPT_DRAFT",
             prescriptionCategory,
             message: "Patient approved for hair loss treatment. Script is in DRAFT.",
+          });
+        }
+
+        if (isSexualApproval) {
+          return NextResponse.json({
+            success: true,
+            decision: "APPROVED",
+            prescriptionId: prescription.id,
+            scriptStatus: "SCRIPT_DRAFT",
+            prescriptionCategory,
+            message: "Patient approved for Men's Sexual Health (ED) treatment. Script is in DRAFT.",
           });
         }
 

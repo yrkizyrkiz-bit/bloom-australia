@@ -15,8 +15,8 @@ export const MEMBER_HEALTH_OVERVIEW = "/dashboard";
 /** Priority when a member has multiple active programs. */
 const PRIMARY_PROGRAM_PRIORITY: ProgramKey[] = [
   "WEIGHT_MANAGEMENT",
-  "HAIR_LOSS",
   "MENS_HEALTH_SEXUAL",
+  "HAIR_LOSS",
   "MENS_HEALTH_VITALITY",
   "WOMENS_HEALTH_SEXUAL",
   "WOMENS_HEALTH_VITALITY",
@@ -43,13 +43,8 @@ export function memberHasClassicHealthDashboard(
   const membership = portal?.membership;
   if (!membership) return false;
 
-  const biomarkersEntitled = Boolean(
-    membership.scopes?.BIOLOGICAL_CLOCK?.hasEntitlement &&
-      membership.scopes.BIOLOGICAL_CLOCK.status !== "INACTIVE"
-  );
-  const organCareEntitled = isOrganCareEntitled(membership);
-
-  return biomarkersEntitled && organCareEntitled;
+  // Biomarkers (or membership) unlock the classic overview; Organ Care is bundled.
+  return isOrganCareEntitled(membership);
 }
 
 /** Back navigation from program shells, classic overview vs programs hub. */

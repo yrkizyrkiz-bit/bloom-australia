@@ -6,7 +6,7 @@ export default function WomensSexualHealthPage() {
   return (
     <ProgramFocusLanding
       programKey="WOMENS_HEALTH_SEXUAL"
-      title="Sexual Health"
+      title="Wellness"
       intro="Confidential, judgement-free care for libido, intimacy and sexual wellbeing, guided by your hormones and a clinical care team."
       focusItems={[
         "Low libido and desire changes",

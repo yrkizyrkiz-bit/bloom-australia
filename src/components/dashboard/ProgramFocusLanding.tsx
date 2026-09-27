@@ -8,6 +8,7 @@ import { usePortalContext } from "@/hooks/usePortalContext";
 import { PortalStateBadge } from "@/components/portal/PortalInsightState";
 import type { ProgramKey } from "@/lib/membership/keys";
 import type { EntitlementState } from "@/lib/membership/biomarker-readiness";
+import { isProgramEntitled } from "@/lib/membership/program-access";
 import { programSlugFromProgramKey } from "@/lib/billing/program-slugs";
 import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
 
@@ -31,7 +32,7 @@ export function ProgramFocusLanding({
   const { data: portal } = usePortalContext();
   const state: EntitlementState =
     portal?.membership?.programs?.[programKey]?.state ?? "locked_upgrade";
-  const entitled = state === "ready" || state === "partial" || state === "pending_results";
+  const entitled = isProgramEntitled(portal?.membership, programKey);
 
   return (
     <ProgramSubscriptionGate programSlug={programSlugFromProgramKey(programKey)}>
