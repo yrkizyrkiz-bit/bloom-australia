@@ -4,12 +4,17 @@ import {
   type EnrolledProgram,
 } from "@/lib/triage/enrolled-programs";
 
-export type DoctorProgramTab = "WEIGHT_MANAGEMENT" | "HAIR_LOSS" | "MENS_HEALTH_SEXUAL";
+export type DoctorProgramTab =
+  | "WEIGHT_MANAGEMENT"
+  | "HAIR_LOSS"
+  | "MENS_HEALTH_SEXUAL"
+  | "WOMENS_HEALTH_SEXUAL";
 
 export type DoctorPrescriptionCategory =
   | "WEIGHT_MANAGEMENT"
   | "HAIR_LOSS"
-  | "SEXUAL_HEALTH";
+  | "SEXUAL_HEALTH"
+  | "HORMONE_THERAPY";
 
 export const HAIR_LOSS_MEDICATION_SUGGESTIONS = [
   {
@@ -87,6 +92,42 @@ export const MENS_ED_MEDICATION_SUGGESTIONS = [
   },
 ] as const;
 
+/** Common Women's Wellness / menopause HRT templates for doctor consults. */
+export const WOMENS_WELLNESS_MEDICATION_SUGGESTIONS = [
+  {
+    name: "Estradiol",
+    generic: "Estradiol",
+    strength: "50mcg/24h",
+    form: "PATCH",
+    dosage: "1 patch",
+    frequency: "Twice weekly",
+  },
+  {
+    name: "Estradiol",
+    generic: "Estradiol",
+    strength: "0.06%",
+    form: "GEL",
+    dosage: "As directed",
+    frequency: "Once daily",
+  },
+  {
+    name: "Micronised progesterone",
+    generic: "Progesterone",
+    strength: "100mg",
+    form: "CAPSULE",
+    dosage: "100mg",
+    frequency: "Once daily at night",
+  },
+  {
+    name: "Estriol cream",
+    generic: "Estriol",
+    strength: "1mg/g",
+    form: "CREAM",
+    dosage: "As directed",
+    frequency: "As directed for vaginal symptoms",
+  },
+] as const;
+
 export function resolveDoctorEnrolledPrograms(
   members: Array<{ program?: string | null; membershipStatus?: string | null }>,
   programEntitlements: Array<{ key?: string | null; status?: string | null }> = []
@@ -110,13 +151,18 @@ export function hasDoctorProgram(
 export function defaultDoctorProgramTab(
   programs: EnrolledProgram[] | undefined,
   hairEnrolled = false,
-  sexualEnrolled = false
+  sexualEnrolled = false,
+  womensEnrolled = false
 ): DoctorProgramTab {
   const hair = hairEnrolled || hasDoctorProgram(programs, "HAIR_LOSS");
   const sexual =
     sexualEnrolled || hasDoctorProgram(programs, "MENS_HEALTH_SEXUAL");
+  const womens =
+    womensEnrolled || hasDoctorProgram(programs, "WOMENS_HEALTH_SEXUAL");
   const weight = hasDoctorProgram(programs, "WEIGHT_MANAGEMENT");
 
+  // Women-only (no competing clinical programs) lands on Women's Wellness.
+  if (womens && !weight && !hair && !sexual) return "WOMENS_HEALTH_SEXUAL";
   if (sexual && !weight && !hair) return "MENS_HEALTH_SEXUAL";
   if (hair && !weight) return "HAIR_LOSS";
   return "WEIGHT_MANAGEMENT";
@@ -127,11 +173,16 @@ export function resolveDoctorPrescriptionCategory(
 ): DoctorPrescriptionCategory {
   if (programTab === "HAIR_LOSS") return "HAIR_LOSS";
   if (programTab === "MENS_HEALTH_SEXUAL") return "SEXUAL_HEALTH";
+  if (programTab === "WOMENS_HEALTH_SEXUAL") return "HORMONE_THERAPY";
   return "WEIGHT_MANAGEMENT";
 }
 
 export function isNonWeightDoctorApproval(
   category: string | null | undefined
 ): boolean {
-  return category === "HAIR_LOSS" || category === "SEXUAL_HEALTH";
+  return (
+    category === "HAIR_LOSS" ||
+    category === "SEXUAL_HEALTH" ||
+    category === "HORMONE_THERAPY"
+  );
 }

@@ -36,11 +36,8 @@ type CheckIn = {
 };
 
 const careAreas = [
-  { id: "hormones", label: "Hormone Health" },
   { id: "menopause", label: "Menopause & Perimenopause" },
-  { id: "pcos", label: "PCOS & Metabolic Health" },
-  { id: "fertility", label: "Fertility & Reproductive Health" },
-];
+] as const;
 
 const symptomOptions = [
   "fatigue",
@@ -196,7 +193,7 @@ export default function WomensHealthCheckInPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [recentCheckIns, setRecentCheckIns] = useState<CheckIn[]>([]);
-  const [careArea, setCareArea] = useState("hormones");
+  const [careArea, setCareArea] = useState<(typeof careAreas)[number]["id"]>("menopause");
   const [periodStatus, setPeriodStatus] = useState("");
   const [cycleDay, setCycleDay] = useState("");
   const [lastPeriodDate, setLastPeriodDate] = useState("");
@@ -312,28 +309,6 @@ export default function WomensHealthCheckInPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-3">
-              <Label>Care area</Label>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                {careAreas.map((area) => (
-                  <Button
-                    key={area.id}
-                    type="button"
-                    variant={careArea === area.id ? "default" : "outline"}
-                    className={`h-auto justify-start whitespace-normal text-left ${
-                      careArea === area.id ? "bg-rose-600 hover:bg-rose-700" : ""
-                    }`}
-                    onClick={() => {
-                      setCareArea(area.id);
-                      setClinicalAnswers({});
-                    }}
-                  >
-                    {area.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="period-status">Period status</Label>
@@ -396,7 +371,7 @@ export default function WomensHealthCheckInPage() {
             <div className="space-y-4 rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
-                  More about your {formatSymptom(careArea)}
+                  More about your menopause journey
                 </p>
                 <p className="text-sm text-muted-foreground">
                   A few focused questions help your care team understand what is happening day to day.

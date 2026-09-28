@@ -110,11 +110,11 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
   },
   {
     key: "WOMENS_HEALTH_SEXUAL",
-    label: "Wellness",
-    tagline: "Confidential, judgement-free care",
+    label: "Women's Wellness",
+    tagline: "Menopause, hormones and whole-person women's care",
     icon: HeartPulse,
     gender: "female",
-    dashboardRoute: "/dashboard/womens-health/sexual-health",
+    dashboardRoute: "/dashboard/womens-health",
     quizRoute: "/dashboard/programs/womens_health_sexual",
     theme: {
       gradient: "from-[#f8f4ec] to-[#f0e8d8]",
@@ -127,11 +127,11 @@ export const PROGRAM_CARDS: DashboardProgramCard[] = [
   },
   {
     key: "WOMENS_HEALTH_VITALITY",
-    label: "Vitality",
-    tagline: "Hormone balance, energy and whole-body wellbeing",
+    label: "Menopause Care",
+    tagline: "Perimenopause and menopause support, guided by your care team",
     icon: Flower2,
     gender: "female",
-    dashboardRoute: "/dashboard/womens-health/vitality",
+    dashboardRoute: "/dashboard/womens-health/menopause",
     quizRoute: "/dashboard/programs/womens_health_vitality",
     theme: {
       gradient: "from-[#e6ebe3] to-[#cdd8c6]",
@@ -221,7 +221,7 @@ export function getProgramCardsForGender(
   let preferredGender: "male" | "female" | null = null;
   if (rawGender === "female") preferredGender = "female";
   else if (rawGender === "male") preferredGender = "male";
-  else if (tier.includes("womens")) preferredGender = "female";
+  else if (tier.includes("womens") || tier.includes("women")) preferredGender = "female";
   else if (tier.includes("mens") || tier.includes("hair")) preferredGender = "male";
 
   return PROGRAM_CARDS.filter((card) => {

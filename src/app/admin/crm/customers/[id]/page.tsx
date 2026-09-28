@@ -745,8 +745,11 @@ export default function CustomerDetailPage() {
     if (lower.includes("precision")) return "Sanative Precision";
     if (lower.includes("core")) return "Sanative Core";
     if (lower.includes("weight")) return "Weight Management";
+    // Women before men — "womens_health_sexual".includes("mens") is true.
+    if (lower.includes("womens") || lower.includes("women") || lower.includes("menopause")) {
+      return "Women's Health";
+    }
     if (lower.includes("mens")) return "Men's Health";
-    if (lower.includes("womens")) return "Women's Health";
     if (lower.includes("hair")) return "Hair Loss";
     return tier.replace(/_/g, " ");
   };

@@ -11,10 +11,7 @@ import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_NAME } from "@/lib/george";
 
 const supportTopics = [
-  "Hormone symptoms and biomarker context",
   "Menopause, perimenopause or HRT questions",
-  "PCOS, cycle or metabolic concerns",
-  "Fertility planning and reproductive health",
   "Treatment side effects or prescription questions",
   "When to book a doctor follow-up",
 ];

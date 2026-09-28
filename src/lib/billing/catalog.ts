@@ -84,7 +84,7 @@ const ALL_CATALOG: CatalogProductSeed[] = [
   },
   {
     slug: "womens_health_vitality",
-    name: "Women's Vitality",
+    name: "Menopause Care",
     program: "WOMENS_HEALTH_VITALITY",
     planTier: null,
     sortOrder: 5,
@@ -92,7 +92,7 @@ const ALL_CATALOG: CatalogProductSeed[] = [
   },
   {
     slug: "womens_health_sexual",
-    name: "Women's Sexual Health",
+    name: "Women's Wellness",
     program: "WOMENS_HEALTH_SEXUAL",
     planTier: null,
     sortOrder: 6,

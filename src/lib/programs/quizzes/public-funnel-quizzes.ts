@@ -110,15 +110,21 @@ function hairStageStep(sex: "male" | "female" | ""): QuizStep {
 function getHairQuiz(gender?: string | null, answers?: Record<string, unknown>): QuizStep[] {
   const sex = resolveHairQuizSex(gender, answers);
   const isFemale = sex === "female";
-  const steps: QuizStep[] = [
-    {
+  const steps: QuizStep[] = [];
+
+  // Logged-in members already have sex on their profile — don't ask again.
+  if (!sex) {
+    steps.push({
       id: "gender",
       prompt: "What's your biological sex?",
       options: [
         { id: "male", label: "Male" },
         { id: "female", label: "Female" },
       ],
-    },
+    });
+  }
+
+  steps.push(
     hairStageStep(sex),
     {
       id: "hairLossTimeline",
@@ -150,8 +156,8 @@ function getHairQuiz(gender?: string | null, answers?: Record<string, unknown>):
         id: condition.label,
         label: condition.label,
       })),
-    },
-  ];
+    }
+  );
 
   if (isFemale) {
     steps.push({

@@ -48,8 +48,8 @@ export const PROGRAM_LABELS: Record<ProgramKey, string> = {
   HAIR_LOSS: "Hair",
   MENS_HEALTH_VITALITY: "Vitality",
   MENS_HEALTH_SEXUAL: "Sexual Health",
-  WOMENS_HEALTH_VITALITY: "Vitality",
-  WOMENS_HEALTH_SEXUAL: "Wellness",
+  WOMENS_HEALTH_VITALITY: "Menopause Care",
+  WOMENS_HEALTH_SEXUAL: "Women's Wellness",
 };
 
 export const SCOPE_LABELS: Record<ScopeKey, string> = {
@@ -87,7 +87,8 @@ export function isScopeKey(value: string): value is ScopeKey {
  * Map a legacy/free-form program string (tier, slug, plan) to a canonical ProgramKey.
  * Returns null when the value does not denote a clinical program.
  * Bare `mens_health` maps to Sexual Health (the live men's health funnel).
- * Bare `womens_health` still defaults to Vitality unless a sexual focus is present.
+ * Bare `womens_health` maps to Women's Wellness (the live menopause funnel).
+ * Explicit `vitality` / `menopause_care` still maps to Menopause Care.
  */
 export function normalizeProgramKey(value?: string | null): ProgramKey | null {
   const v = normalize(value);
@@ -98,9 +99,10 @@ export function normalizeProgramKey(value?: string | null): ProgramKey | null {
   if (canonical) return canonical;
 
   // Explicit focus variants. Check women first ("womens" contains "mens").
-  if (v.includes("women")) {
-    if (v.includes("sex")) return "WOMENS_HEALTH_SEXUAL";
-    return "WOMENS_HEALTH_VITALITY";
+  if (v.includes("women") || v.includes("menopause")) {
+    if (v.includes("vitality") || v.includes("menopause_care")) return "WOMENS_HEALTH_VITALITY";
+    // Sexual wellbeing, menopause funnel, bare womens_health → Women's Wellness.
+    return "WOMENS_HEALTH_SEXUAL";
   }
   if (v.includes("mens") || v.includes("men_") || v === "men") {
     if (v.includes("vitality") || v.includes("energy")) return "MENS_HEALTH_VITALITY";

@@ -209,7 +209,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       orderBy: { createdAt: "desc" },
     });
 
-    const [programMembers, programEntitlements, hairQuiz, sexualQuiz] = await Promise.all([
+    const [programMembers, programEntitlements, hairQuiz, sexualQuiz, womensQuiz] =
+      await Promise.all([
       prisma.programMember.findMany({
         where: {
           OR: [{ email: user.email }, { userId }],
@@ -238,6 +239,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         orderBy: { submittedAt: "desc" },
         select: { answers: true, submittedAt: true },
       }),
+      prisma.portalQuizSubmission.findFirst({
+        where: {
+          userId,
+          programKey: {
+            in: [
+              "WOMENS_HEALTH_SEXUAL",
+              "womens_health_sexual",
+              "WOMENS_HEALTH",
+              "womens_health",
+              "WOMENS_HEALTH_VITALITY",
+              "womens_health_vitality",
+            ],
+          },
+        },
+        orderBy: { submittedAt: "desc" },
+        select: { answers: true, submittedAt: true },
+      }),
     ]);
 
     const enrolledPrograms = resolveDoctorEnrolledPrograms(programMembers, programEntitlements);
@@ -250,6 +268,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const sexualMember = programMembers.find(
       (member) => normalizeProgramKey(member.program) === "MENS_HEALTH_SEXUAL"
     );
+    const womensMember = programMembers.find((member) => {
+      const key = normalizeProgramKey(member.program);
+      return key === "WOMENS_HEALTH_SEXUAL" || key === "WOMENS_HEALTH_VITALITY";
+    });
     // WM cards keep using WM intake only so a hair-only signup does not fill weight fields.
     const programMember = wmMember ?? null;
 
@@ -278,6 +300,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         sexualMember?.membershipStart?.toISOString() ||
         null,
       surveyData: sexualSurveyData,
+    };
+
+    const womensSurveyData = {
+      ...((womensMember?.intakeData as Record<string, unknown>) || {}),
+      ...((womensQuiz?.answers as Record<string, unknown>) || {}),
+    };
+    const womensBrief = {
+      enrolled: Boolean(
+        womensMember ||
+          womensQuiz ||
+          enrolledPrograms.some(
+            (p) => p.key === "WOMENS_HEALTH_SEXUAL" || p.key === "WOMENS_HEALTH_VITALITY"
+          )
+      ),
+      submittedAt:
+        womensQuiz?.submittedAt?.toISOString() ||
+        womensMember?.membershipStart?.toISOString() ||
+        null,
+      surveyData: womensSurveyData,
     };
 
     // Calculate age
@@ -482,6 +523,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       enrolledPrograms,
       hairBrief,
       sexualBrief,
+      womensBrief,
 
       // Clinical Notes (exclude system/integration failure notes)
       clinicalNotes: user.internalNotes

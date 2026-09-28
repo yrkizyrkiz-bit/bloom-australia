@@ -60,13 +60,13 @@ export const PROGRAM_OFFERS: Record<ProgramKey, ProgramOffer> = {
   },
   WOMENS_HEALTH_VITALITY: {
     programKey: "WOMENS_HEALTH_VITALITY",
-    headline: "Hormone and vitality support",
+    headline: "Menopause and perimenopause care",
     priceHint: "$240 every 3 months",
     planTier: null,
   },
   WOMENS_HEALTH_SEXUAL: {
     programKey: "WOMENS_HEALTH_SEXUAL",
-    headline: "Confidential sexual health care",
+    headline: "Women's wellness and menopause care",
     priceHint: "$240 every 3 months",
     planTier: null,
   },

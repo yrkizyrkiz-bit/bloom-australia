@@ -16,7 +16,9 @@ import { notifyMember } from "@/lib/notifications/member-notify";
 import { normalizeProgramKey } from "@/lib/membership/keys";
 import { resolveHairApprovalUserJourney } from "@/lib/program-journey/hair-journey";
 import { resolveSexualApprovalUserJourney } from "@/lib/program-journey/sexual-journey";
+import { resolveWomensApprovalUserJourney } from "@/lib/program-journey/womens-journey";
 import { grantEntitlement } from "@/lib/membership/entitlement-service";
+import { isNonWeightDoctorApproval } from "@/lib/admin/doctor-consult-programs";
 
 async function auditDoctorDecision(
   request: NextRequest,
@@ -311,12 +313,15 @@ export async function POST(request: NextRequest) {
     } = body;
     const isHairApproval = requestedPrescriptionCategory === "HAIR_LOSS";
     const isSexualApproval = requestedPrescriptionCategory === "SEXUAL_HEALTH";
-    const isNonWeightApproval = isHairApproval || isSexualApproval;
+    const isWomensApproval = requestedPrescriptionCategory === "HORMONE_THERAPY";
+    const isNonWeightApproval = isNonWeightDoctorApproval(requestedPrescriptionCategory);
     const prescriptionCategory = isHairApproval
       ? "HAIR_LOSS"
       : isSexualApproval
         ? "SEXUAL_HEALTH"
-        : "WEIGHT_MANAGEMENT";
+        : isWomensApproval
+          ? "HORMONE_THERAPY"
+          : "WEIGHT_MANAGEMENT";
 
     // Validate required fields
     if (!userId || !consultationId || !decision) {
@@ -528,7 +533,9 @@ export async function POST(request: NextRequest) {
               ? "Hair loss program"
               : isSexualApproval
                 ? "Erectile dysfunction / Sexual Health program"
-                : "Weight management program",
+                : isWomensApproval
+                  ? "Women's Wellness program"
+                  : "Weight management program",
             notes: clinicalNotes,
             pharmacyNotes: pharmacyNotes?.trim() || null,
             safetyCounsellingNotes: safetyCounsellingNotes?.trim() || null,
@@ -627,6 +634,49 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        if (isWomensApproval) {
+          await prisma.programMember.updateMany({
+            where: {
+              OR: [
+                {
+                  userId,
+                  program: {
+                    in: [
+                      "WOMENS_HEALTH",
+                      "WOMENS_HEALTH_SEXUAL",
+                      "WOMENS_HEALTH_VITALITY",
+                    ],
+                  },
+                },
+                {
+                  email: user.email,
+                  program: {
+                    in: [
+                      "WOMENS_HEALTH",
+                      "WOMENS_HEALTH_SEXUAL",
+                      "WOMENS_HEALTH_VITALITY",
+                    ],
+                  },
+                },
+              ],
+            },
+            data: {
+              membershipStatus: "ACTIVE",
+              membershipStart: new Date(),
+            },
+          });
+          await grantEntitlement({
+            userId,
+            type: "PROGRAM",
+            key: "WOMENS_HEALTH_SEXUAL",
+            status: "ACTIVE",
+            source: "PORTAL_PURCHASE",
+            notes: `Doctor approved Women's Wellness script. Consultation ${consultationId}`,
+          }).catch((err) =>
+            console.error("[Doctor Decision] women's entitlement grant failed:", err)
+          );
+        }
+
         await prisma.user.update({
           where: { id: userId },
           data: {
@@ -641,7 +691,13 @@ export async function POST(request: NextRequest) {
                     hasWeightManagementEnrollment,
                     hasHairLossEnrollment,
                   })
-                : { journeyStatus: "ONBOARDING_PENDING" }),
+                : isWomensApproval
+                  ? resolveWomensApprovalUserJourney({
+                      hasWeightManagementEnrollment,
+                      hasHairLossEnrollment,
+                      hasSexualHealthEnrollment,
+                    })
+                  : { journeyStatus: "ONBOARDING_PENDING" }),
           },
         });
 
@@ -713,7 +769,9 @@ Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
                 ? "Hair loss"
                 : isSexualApproval
                   ? "Men's Sexual Health (ED)"
-                  : "Weight management"
+                  : isWomensApproval
+                    ? "Women's Wellness"
+                    : "Weight management"
             }
 
 **Prescription Details:**
@@ -895,6 +953,17 @@ Welcome call / onboarding walkthrough:
             scriptStatus: "SCRIPT_DRAFT",
             prescriptionCategory,
             message: "Patient approved for Men's Sexual Health (ED) treatment. Script is in DRAFT.",
+          });
+        }
+
+        if (isWomensApproval) {
+          return NextResponse.json({
+            success: true,
+            decision: "APPROVED",
+            prescriptionId: prescription.id,
+            scriptStatus: "SCRIPT_DRAFT",
+            prescriptionCategory,
+            message: "Patient approved for Women's Wellness treatment. Script is in DRAFT.",
           });
         }
 

@@ -88,6 +88,7 @@ describe("GET /api/portal/context (slim)", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
+    expect(body.gender).toBe("male");
     expect(body.membership.programs.HAIR_LOSS.hasEntitlement).toBe(true);
     expect(body.membership.programs.HAIR_LOSS.state).toBe("ready");
     expect(findManyEntitlement).toHaveBeenCalled();

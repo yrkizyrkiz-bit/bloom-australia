@@ -1,27 +1,20 @@
 "use client";
 
-import { ProgramFocusLanding } from "@/components/dashboard/ProgramFocusLanding";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
+/** Legacy sexual-health URL — Women's Wellness opens the menopause program home. */
 export default function WomensSexualHealthPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/dashboard/womens-health/menopause");
+  }, [router]);
+
   return (
-    <ProgramFocusLanding
-      programKey="WOMENS_HEALTH_SEXUAL"
-      title="Wellness"
-      intro="Confidential, judgement-free care for libido, intimacy and sexual wellbeing, guided by your hormones and a clinical care team."
-      focusItems={[
-        "Low libido and desire changes",
-        "Hormone-related symptoms",
-        "Comfort, arousal and wellbeing",
-        "Menopause and perimenopause effects",
-      ]}
-      biomarkerItems={[
-        "Testosterone and Free Androgen Index",
-        "Estradiol and Progesterone",
-        "SHBG",
-        "Prolactin",
-        "TSH and Free T4",
-      ]}
-      quizRoute="/dashboard/programs/womens_health_sexual"
-    />
+    <div className="flex min-h-[400px] items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-rose-600" />
+    </div>
   );
 }

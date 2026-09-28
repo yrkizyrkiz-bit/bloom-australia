@@ -37,7 +37,7 @@ type WomensHealthCheckInRow = {
   updatedAt: Date;
 };
 
-const CARE_AREAS = new Set(["hormones", "menopause", "pcos", "fertility"]);
+const CARE_AREAS = new Set(["menopause"]);
 
 function parseRating(value: unknown, fallback?: number): number | null {
   if (value === undefined || value === null || value === "") return fallback ?? null;

@@ -46,6 +46,24 @@ describe("public consult program resolution", () => {
     ).toBe("mens_health");
   });
 
+  it("does not misclassify womens_* tiers as mens (substring trap)", () => {
+    expect(
+      resolvePublicConsultProgramFromPaymentMetadata({
+        intentProgram: "womens_health_sexual",
+      })?.slug
+    ).toBe("womens_health");
+    expect(
+      resolvePublicConsultProgramFromPaymentMetadata({
+        sourceProgram: "womens_health_vitality",
+      })?.slug
+    ).toBe("womens_health");
+    expect(
+      resolvePublicConsultProgramFromContext({
+        subscriptionTier: "womens_health_sexual",
+      }).slug
+    ).toBe("womens_health");
+  });
+
   it("uses subscription tier when notes and metadata are absent", () => {
     const program = resolvePublicConsultProgramFromContext({
       subscriptionTier: "mens_health",
@@ -56,14 +74,15 @@ describe("public consult program resolution", () => {
 });
 
 describe("resolveWomensHealthCanonicalKey", () => {
-  it("maps vitality categories to WOMENS_HEALTH_VITALITY", () => {
-    for (const category of ["menopause", "hrt", "contraception", "fertility"] as const) {
-      expect(resolveWomensHealthCanonicalKey(category)).toBe("WOMENS_HEALTH_VITALITY");
+  it("maps menopause funnel categories to Women's Wellness", () => {
+    for (const category of ["menopause", "hrt", "contraception", "fertility", "sexual"] as const) {
+      expect(resolveWomensHealthCanonicalKey(category)).toBe("WOMENS_HEALTH_SEXUAL");
     }
   });
 
-  it("maps sexual to WOMENS_HEALTH_SEXUAL", () => {
-    expect(resolveWomensHealthCanonicalKey("sexual")).toBe("WOMENS_HEALTH_SEXUAL");
+  it("maps explicit vitality / menopause_care to WOMENS_HEALTH_VITALITY", () => {
+    expect(resolveWomensHealthCanonicalKey("vitality")).toBe("WOMENS_HEALTH_VITALITY");
+    expect(resolveWomensHealthCanonicalKey("menopause_care")).toBe("WOMENS_HEALTH_VITALITY");
   });
 
   it("maps unsure and unknown to null", () => {
@@ -73,11 +92,9 @@ describe("resolveWomensHealthCanonicalKey", () => {
   });
 
   it("does not use concerns to reroute (category-only signature)", () => {
-    // Fertility + sexual-sounding concerns still Vitality, reproductive, not Sexual SKU.
-    expect(resolveWomensHealthCanonicalKey("fertility")).toBe("WOMENS_HEALTH_VITALITY");
-    expect(resolveWomensHealthCanonicalKey("contraception")).toBe("WOMENS_HEALTH_VITALITY");
-    expect(resolveWomensHealthCanonicalKey("menopause")).toBe("WOMENS_HEALTH_VITALITY");
-    // Only the sexual category yields Sexual Health.
+    expect(resolveWomensHealthCanonicalKey("fertility")).toBe("WOMENS_HEALTH_SEXUAL");
+    expect(resolveWomensHealthCanonicalKey("contraception")).toBe("WOMENS_HEALTH_SEXUAL");
+    expect(resolveWomensHealthCanonicalKey("menopause")).toBe("WOMENS_HEALTH_SEXUAL");
     expect(resolveWomensHealthCanonicalKey("sexual")).toBe("WOMENS_HEALTH_SEXUAL");
   });
 });

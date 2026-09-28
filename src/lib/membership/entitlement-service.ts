@@ -136,12 +136,16 @@ function resolveLegacyTierProgramKey(
   if (!tierProgram) return null;
 
   const tierNorm = (tier || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  // "womens" contains the substring "mens" — always test women before mens.
+  const isWomenTier = tierNorm.includes("women");
+  const isMensTier = !isWomenTier && (tierNorm.includes("mens") || /(?:^|_)men(?:_|$)/.test(tierNorm));
 
   // Explicit focus in the subscription tier, never override with another ProgramMember row.
-  if (tierNorm.includes("sex") && tierNorm.includes("mens")) return "MENS_HEALTH_SEXUAL";
-  if (tierNorm.includes("sex") && tierNorm.includes("women")) return "WOMENS_HEALTH_SEXUAL";
-  if (tierNorm.includes("vitality") && tierNorm.includes("mens")) return "MENS_HEALTH_VITALITY";
-  if (tierNorm.includes("vitality") && tierNorm.includes("women")) return "WOMENS_HEALTH_VITALITY";
+  // "womens" contains "mens" — women checks already gated by isWomenTier / isMensTier.
+  if (isWomenTier && tierNorm.includes("vitality")) return "WOMENS_HEALTH_VITALITY";
+  if (isWomenTier) return "WOMENS_HEALTH_SEXUAL";
+  if (tierNorm.includes("sex") && isMensTier) return "MENS_HEALTH_SEXUAL";
+  if (tierNorm.includes("vitality") && isMensTier) return "MENS_HEALTH_VITALITY";
   if (tierNorm.includes("hair")) return "HAIR_LOSS";
 
   const members = programMembers || [];

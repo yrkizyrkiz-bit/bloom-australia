@@ -14,8 +14,8 @@ const ADMIN_PROGRAM_LABELS: Record<ProgramKey, string> = {
   HAIR_LOSS: "Hair",
   MENS_HEALTH_VITALITY: "Men's Vitality",
   MENS_HEALTH_SEXUAL: "Men's Sexual Health",
-  WOMENS_HEALTH_VITALITY: "Women's Vitality",
-  WOMENS_HEALTH_SEXUAL: "Women's Sexual Health",
+  WOMENS_HEALTH_VITALITY: "Menopause Care",
+  WOMENS_HEALTH_SEXUAL: "Women's Wellness",
 };
 
 export function enrolledProgramLabel(program: string): string {

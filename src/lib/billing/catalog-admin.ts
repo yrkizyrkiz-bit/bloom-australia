@@ -33,8 +33,8 @@ export const PRODUCT_PROGRAM_OPTIONS: Array<{ value: string; label: string }> = 
   { value: "HAIR_LOSS", label: "Hair Loss" },
   { value: "MENS_HEALTH_VITALITY", label: "Men's Vitality" },
   { value: "MENS_HEALTH_SEXUAL", label: "Men's Sexual Health" },
-  { value: "WOMENS_HEALTH_VITALITY", label: "Women's Vitality" },
-  { value: "WOMENS_HEALTH_SEXUAL", label: "Women's Sexual Health" },
+  { value: "WOMENS_HEALTH_VITALITY", label: "Menopause Care" },
+  { value: "WOMENS_HEALTH_SEXUAL", label: "Women's Wellness" },
   { value: "BIOLOGICAL_CLOCK", label: "Biomarker Panels" },
   { value: "ORGAN_CARE", label: "Organ Care / Membership" },
 ];

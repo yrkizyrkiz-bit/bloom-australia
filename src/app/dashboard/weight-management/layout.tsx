@@ -1,10 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Suspense } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Home, Lightbulb, TrendingUp, Pill, HelpCircle, Settings, Plus, Lock } from "lucide-react";
+import {
+  Home,
+  Lightbulb,
+  TrendingUp,
+  Pill,
+  HelpCircle,
+  Settings,
+  Plus,
+  Lock,
+  Loader2,
+} from "lucide-react";
 import { motion, LayoutGroup } from "framer-motion";
 import {
   PageTransition,
@@ -15,7 +25,8 @@ import {
 import { WeightManagementPortalShell } from "@/components/portal/WeightManagementPortalShell";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { hasPortalFeature } from "@/components/portal/ProgramFeatureGate";
-import { resolveMemberBackPath } from "@/lib/portal/member-home";
+import { MEMBER_PROGRAMS_HOME, resolveMemberBackPath } from "@/lib/portal/member-home";
+import { isProgramEntitled } from "@/lib/membership/program-access";
 
 const weightNavItems = [
   { href: "/dashboard/weight-management", label: "Home", icon: Home, exact: true },
@@ -48,9 +59,18 @@ function WeightManagementLayoutInner({
   children: React.ReactNode;
 }) {
   const pathname = usePathname() || "";
-  const { data: portal } = usePortalContext();
+  const router = useRouter();
+  const { data: portal, isLoading: portalLoading } = usePortalContext();
+  const hasWeightEntitlement = isProgramEntitled(portal?.membership, "WEIGHT_MANAGEMENT");
   const progressLocked = portal && !hasPortalFeature(portal, "weightProgress");
   const backHref = resolveMemberBackPath(portal);
+
+  useEffect(() => {
+    if (portalLoading) return;
+    if (!hasWeightEntitlement) {
+      router.replace(MEMBER_PROGRAMS_HOME);
+    }
+  }, [portalLoading, hasWeightEntitlement, router]);
 
   const isActive = (href: string, exact: boolean = false) => {
     if (exact) return pathname === href;
@@ -59,6 +79,14 @@ function WeightManagementLayoutInner({
 
   const isNavLocked = (requiresProgress?: boolean) =>
     Boolean(requiresProgress && progressLocked);
+
+  if (portalLoading || !hasWeightEntitlement) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-700" />
+      </div>
+    );
+  }
 
   return (
     <NavigationProvider>

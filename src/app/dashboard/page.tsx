@@ -23,6 +23,7 @@ import {
 import { calculateAllHealthTestScores } from "@/lib/healthTestScoring";
 import { shouldShowPortalMarkerCard, CATEGORY_ORDER } from "@/lib/biomarkers/panel-biomarker-display";
 import { isOrganCareEntitled } from "@/lib/membership/organ-care-access";
+import { resolveInsightDisplayState } from "@/lib/membership/insight-display";
 import type { BiomarkerDefinition, BiomarkerResult, HealthScore } from "@/types";
 import { AlertTriangle, ArrowRight, Sparkles, LayoutGrid, List, Loader2, Zap } from "lucide-react";
 import Link from "next/link";
@@ -161,6 +162,20 @@ function DashboardPageContent({
       outOfRange: biomarkerResults.filter(r => r.status === "out_of_range" || r.status === "critical").length,
     };
   }, [dashboardData, biomarkerResults]);
+
+  const hasHealthScoreData = Boolean(
+    healthTestScores?.categories.some((category) => category.hasData)
+  );
+  const healthScoreInsight = resolveInsightDisplayState(
+    portal?.membership?.scopes?.HEALTH_SCORE,
+    hasHealthScoreData,
+    { noResultsYet: biomarkerResults.length === 0 }
+  );
+  const biologicalAgeInsight = resolveInsightDisplayState(
+    portal?.membership?.scopes?.BIOLOGICAL_CLOCK,
+    Boolean(healthScore.biologicalAge),
+    { noResultsYet: biomarkerResults.length === 0 }
+  );
 
   // Get out of range biomarkers for attention section
   const outOfRangeBiomarkers = useMemo(() => {
@@ -319,10 +334,10 @@ function DashboardPageContent({
             {/* Main Stats Grid */}
             <div className="grid min-w-0 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="min-w-0">
-                <HealthScoreCard healthScore={healthScore} />
+                <HealthScoreCard healthScore={healthScore} insightState={healthScoreInsight} />
               </div>
               <div className="min-w-0">
-                <BiologicalAgeCard healthScore={healthScore} />
+                <BiologicalAgeCard healthScore={healthScore} insightState={biologicalAgeInsight} />
               </div>
               <BiomarkerSummaryCard
                 optimal={totals.optimal}

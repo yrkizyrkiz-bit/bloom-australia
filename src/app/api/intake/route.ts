@@ -45,7 +45,7 @@ const PROGRAM_CONFIG: Record<ProgramType, {
     consultationAmount:     4900, // $49
   },
   WOMENS_HEALTH: {
-    subscriptionTier:       "womens_health",
+    subscriptionTier:       "womens_health_sexual",
     portalPath:             "/dashboard/womens-health",
     carePartnerQueue:       "WOMENS_HEALTH_TRIAGE",
     emailTemplateCategory:  "WELCOME",

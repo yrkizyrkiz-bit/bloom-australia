@@ -17,6 +17,7 @@ import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
 import { resolveClinicalRisk } from "@/lib/triage/clinical-risk";
 import { collectEnrolledPrograms } from "@/lib/triage/enrolled-programs";
 import { resolveBmi } from "@/lib/bmi";
+import { PROGRAM_SLUG } from "@/lib/billing/program-slugs";
 
 const SERIOUS_CONTRAINDICATIONS = [
   "eating_disorder",
@@ -31,11 +32,11 @@ const SERIOUS_CONTRAINDICATIONS = [
   "gallbladder_disease",
 ];
 
+/** All clinical subscription tiers that belong in triage (incl. legacy bare slugs). */
 const CLINICAL_PROGRAM_TIERS = [
-  "weight_management",
+  ...Object.values(PROGRAM_SLUG),
   "mens_health",
   "womens_health",
-  "hair_loss",
 ];
 
 // GET /api/admin/triage - Fetch triage queue

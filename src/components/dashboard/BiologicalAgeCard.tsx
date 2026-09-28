@@ -30,9 +30,9 @@ export function BiologicalAgeCard({ healthScore, insightState }: BiologicalAgeCa
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50">
                 <Hourglass className="h-8 w-8 text-sky-600" />
               </div>
-              <p className="text-lg font-medium text-foreground">Pending results</p>
+              <p className="text-lg font-medium text-foreground">Pending test results</p>
               <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-                Your Biological Age will be calculated once your biomarker panel results are in.
+                Your Biological Age will be calculated once your blood test results have been uploaded.
               </p>
             </>
           ) : insightState === "locked_upgrade" ? (

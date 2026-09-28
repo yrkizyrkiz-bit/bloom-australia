@@ -36,6 +36,8 @@ export interface PortalContextPayload {
   isActive: boolean;
   isApproved: boolean;
   hasPassword: boolean;
+  /** Fresh User.gender from DB (MALE / FEMALE / …), preferred over stale session. */
+  gender?: string | null;
   programs: PortalPrograms;
   features: PortalFeatures;
   /** Derived membership entitlements (persisted Entitlement layer + biomarker readiness). */
@@ -125,6 +127,7 @@ export function derivePortalContext(input: {
   approvalStatus?: string | null;
   passwordHash?: string | null;
   subscriptionTier?: string | null;
+  gender?: string | null;
   hasPaidWeightIntake?: boolean;
   membership?: DerivedMembershipEntitlements;
 }): PortalContextPayload {
@@ -184,6 +187,7 @@ export function derivePortalContext(input: {
     isActive,
     isApproved,
     hasPassword,
+    gender: input.gender ?? null,
     programs: {
       weightManagement: hasWeightProgram,
     },

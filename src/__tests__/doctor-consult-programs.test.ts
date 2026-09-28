@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   defaultDoctorProgramTab,
+  isNonWeightDoctorApproval,
   resolveDoctorEnrolledPrograms,
   resolveDoctorPrescriptionCategory,
 } from "@/lib/admin/doctor-consult-programs";
+import { resolveWomensApprovalUserJourney } from "@/lib/program-journey/womens-journey";
 
 describe("doctor consult programs", () => {
   it("tags hair enrollment from program members without treating membership as weight management", () => {
@@ -39,7 +41,56 @@ describe("doctor consult programs", () => {
     ).toBe("MENS_HEALTH_SEXUAL");
   });
 
+  it("defaults a women's-wellness-only member to the Women's Wellness tab", () => {
+    expect(
+      defaultDoctorProgramTab(
+        [{ key: "WOMENS_HEALTH_SEXUAL", label: "Women's Wellness", status: "PENDING" }],
+        false,
+        false,
+        true
+      )
+    ).toBe("WOMENS_HEALTH_SEXUAL");
+  });
+
   it("maps Men's ED tab to SEXUAL_HEALTH prescriptions", () => {
     expect(resolveDoctorPrescriptionCategory("MENS_HEALTH_SEXUAL")).toBe("SEXUAL_HEALTH");
+  });
+
+  it("maps Women's Wellness tab to HORMONE_THERAPY prescriptions", () => {
+    expect(resolveDoctorPrescriptionCategory("WOMENS_HEALTH_SEXUAL")).toBe("HORMONE_THERAPY");
+    expect(isNonWeightDoctorApproval("HORMONE_THERAPY")).toBe(true);
+  });
+
+  it("does not change hair/mens defaults when women is also enrolled with weight", () => {
+    expect(
+      defaultDoctorProgramTab(
+        [
+          { key: "WEIGHT_MANAGEMENT", label: "Weight Management", status: "ACTIVE" },
+          { key: "WOMENS_HEALTH_SEXUAL", label: "Women's Wellness", status: "PENDING" },
+        ],
+        false,
+        false,
+        true
+      )
+    ).toBe("WEIGHT_MANAGEMENT");
+  });
+});
+
+describe("resolveWomensApprovalUserJourney", () => {
+  it("activates journey only when no competing clinical programs", () => {
+    expect(resolveWomensApprovalUserJourney({ hasWeightManagementEnrollment: false })).toEqual({
+      journeyStatus: "ACTIVE",
+    });
+    expect(
+      resolveWomensApprovalUserJourney({
+        hasWeightManagementEnrollment: true,
+      })
+    ).toEqual({});
+    expect(
+      resolveWomensApprovalUserJourney({
+        hasWeightManagementEnrollment: false,
+        hasHairLossEnrollment: true,
+      })
+    ).toEqual({});
   });
 });

@@ -214,8 +214,9 @@ export function resolveDefaultProgramFromTier(
 ): ProgramEssentialSlug {
   const tier = (subscriptionTier || "").toLowerCase();
   if (tier.includes("hair")) return "HAIR_LOSS";
-  if (tier.includes("mens") || tier.includes("men")) return "MENS_HEALTH";
+  // "womens" contains "mens" — check women first.
   if (tier.includes("women") || tier.includes("womens")) return "WOMENS_HEALTH";
+  if (tier.includes("mens") || /(?:^|[^a-z])men(?:[^a-z]|$)/.test(tier)) return "MENS_HEALTH";
   return "WEIGHT_MANAGEMENT";
 }
 

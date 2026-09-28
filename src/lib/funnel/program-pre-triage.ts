@@ -83,7 +83,8 @@ export function clinicalSubscriptionTierForProgram(
   if (program.slug === "hair_loss") return "hair_loss";
   // Men's public funnel is Sexual Health; keep the sexual tier for entitlement sync.
   if (program.slug === "mens_health") return "mens_health_sexual";
-  if (program.slug === "womens_health") return "womens_health";
+  // Women's public funnel is Women's Wellness (menopause); keep the sexual tier.
+  if (program.slug === "womens_health") return "womens_health_sexual";
   return null;
 }
 
@@ -146,12 +147,15 @@ export function resolvePreTriageProgramForBooking(ctx: {
   ) {
     return {
       slug: "womens_health",
-      label: "Women's Health",
+      label:
+        womensSource === "womens_health_vitality" || intent === "womens_health_vitality"
+          ? "Menopause Care"
+          : "Women's Wellness",
       isWeightManagement: false,
       programKey:
-        womensSource === "womens_health_sexual" || intent === "womens_health_sexual"
-          ? "WOMENS_HEALTH_SEXUAL"
-          : "WOMENS_HEALTH_VITALITY",
+        womensSource === "womens_health_vitality" || intent === "womens_health_vitality"
+          ? "WOMENS_HEALTH_VITALITY"
+          : "WOMENS_HEALTH_SEXUAL",
       panelTier: ctx.paymentMetadata?.panelTier,
     };
   }

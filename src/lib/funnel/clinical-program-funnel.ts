@@ -63,6 +63,8 @@ export function resolveClinicalIntentProgram(
   }
   // Men's public funnel is Sexual Health (ED / PE); bare id must not imply vitality.
   if (programId === "mens_health") return "mens_health_sexual";
+  // Women's public funnel (menopause assessment) activates Women's Wellness.
+  if (programId === "womens_health") return "womens_health_sexual";
   return programId;
 }
 
@@ -122,14 +124,14 @@ export function getClinicalProgramFunnelConfig(
       id: "womens_health",
       programType: "WOMENS_HEALTH",
       source: "womens_health_assessment",
-      label: "Women's Health",
+      label: "Women's Wellness",
       assessmentPath: CLINICAL_FUNNEL_ASSESSMENT_PATHS.womens_health,
       postCheckoutPath: "/dashboard/womens-health?onboarding=post-checkout",
       qualificationImage: "/images/womens-health-doctor.webp",
-      qualificationImageAlt: "Doctor-led women's health care with Sanative",
+      qualificationImageAlt: "Doctor-led women's wellness care with Sanative",
       qualificationImagePortrait: true,
       paymentNote:
-        "Your first 30 days of doctor-led women's health care are included. After that, continue for $240 every three months. Cancel anytime.",
+        "Your first 30 days of doctor-led women's wellness care are included. After that, continue for $240 every three months. Cancel anytime.",
     };
   }
 

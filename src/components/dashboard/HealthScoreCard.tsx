@@ -14,6 +14,32 @@ interface HealthScoreCardProps {
   insightState?: EntitlementState | null;
 }
 
+function countBiomarkers(healthScore: HealthScore): number {
+  return healthScore.categories.reduce(
+    (acc, c) => acc + c.optimal + c.normal + c.outOfRange,
+    0
+  );
+}
+
+/**
+ * Prefer explicit insight state, but never treat a zero-score empty panel as
+ * "Needs Attention" — that means labs have not been uploaded yet.
+ */
+function resolveHealthScoreDisplayState(
+  healthScore: HealthScore,
+  insightState?: EntitlementState | null
+): EntitlementState | null {
+  const noResultsYet = countBiomarkers(healthScore) === 0;
+  if (insightState === "locked_upgrade" || insightState === "inactive") {
+    // Still prefer pending when there is simply no lab data to score.
+    if (noResultsYet) return "pending_results";
+    return insightState;
+  }
+  if (noResultsYet) return "pending_results";
+  if (insightState && insightState !== "ready") return insightState;
+  return null;
+}
+
 export function HealthScoreCard({ healthScore, insightState }: HealthScoreCardProps) {
   const { percentage, strokeDashoffset } = useMemo(() => {
     const circumference = 2 * Math.PI * 85;
@@ -22,7 +48,9 @@ export function HealthScoreCard({ healthScore, insightState }: HealthScoreCardPr
     return { percentage: perc, strokeDashoffset: offset };
   }, [healthScore.overall]);
 
-  if (insightState && insightState !== "ready") {
+  const displayState = resolveHealthScoreDisplayState(healthScore, insightState);
+
+  if (displayState) {
     return (
       <Card className="overflow-hidden">
         <div className="bg-gradient-to-br from-primary to-primary/80 p-4 text-white sm:p-6">
@@ -32,18 +60,17 @@ export function HealthScoreCard({ healthScore, insightState }: HealthScoreCardPr
           <p className="mt-1 text-xs opacity-60">Whole-body wellness index</p>
         </div>
         <CardContent className="flex flex-col items-center px-6 pb-8 pt-10 text-center">
-          {insightState === "pending_results" ? (
+          {displayState === "pending_results" ? (
             <>
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50">
                 <Hourglass className="h-8 w-8 text-sky-600" />
               </div>
-              <p className="text-lg font-medium text-foreground">Pending results</p>
+              <p className="text-lg font-medium text-foreground">Pending test results</p>
               <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-                Your lab results are being processed. Your Health Score will appear once biomarkers
-                are available.
+                Your Health Score will appear once your blood test results have been uploaded.
               </p>
             </>
-          ) : insightState === "locked_upgrade" ? (
+          ) : displayState === "locked_upgrade" ? (
             <>
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-50">
                 <Lock className="h-8 w-8 text-violet-600" />
@@ -90,7 +117,7 @@ export function HealthScoreCard({ healthScore, insightState }: HealthScoreCardPr
           Health Score
         </h3>
         <p className="text-xs opacity-60 mt-1">
-          Based on {healthScore.categories.reduce((acc, c) => acc + c.optimal + c.normal + c.outOfRange, 0)} biomarkers
+          Based on {countBiomarkers(healthScore)} biomarkers
         </p>
       </div>
       <CardContent className="pt-6 pb-8">

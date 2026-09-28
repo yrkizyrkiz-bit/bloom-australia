@@ -82,6 +82,31 @@ describe("pre-triage program resolution", () => {
       })
     ).toBe("hair_loss");
   });
+
+  it("maps women's menopause funnel onto womens_health_sexual triage tier", () => {
+    expect(
+      clinicalSubscriptionTierForProgram({
+        slug: "womens_health",
+        isWeightManagement: false,
+        programKey: "WOMENS_HEALTH_SEXUAL",
+      })
+    ).toBe("womens_health_sexual");
+    expect(
+      clinicalSubscriptionTierForProgram({
+        slug: "womens_health",
+        isWeightManagement: false,
+      })
+    ).toBe("womens_health_sexual");
+    expect(
+      resolvePreTriageProgramForBooking({
+        bookingNotes: "Women's Health Consultation",
+        paymentMetadata: {
+          sourceProgram: "womens_health_sexual",
+          intentProgram: "womens_health_sexual",
+        },
+      }).programKey
+    ).toBe("WOMENS_HEALTH_SEXUAL");
+  });
   it("labels biomarkers consult bookings from public panel tier metadata", () => {
     const program = resolvePreTriageProgramForBooking({
       subscriptionTier: "weight_management",
@@ -150,7 +175,7 @@ describe("pre-triage program resolution", () => {
     expect(program.isWeightManagement).toBe(false);
   });
 
-  it("resolves women's Advanced funnel as Women's Health, not Biomarkers", () => {
+  it("resolves women's Advanced funnel as Women's Wellness, not Biomarkers", () => {
     const program = resolvePreTriageProgramForBooking({
       subscriptionTier: "womens_health",
       bookingNotes: "Women's Health Program - Doctor to be assigned during triage by care partner",
@@ -163,8 +188,8 @@ describe("pre-triage program resolution", () => {
     });
 
     expect(program.slug).toBe("womens_health");
-    expect(program.label).toBe("Women's Health");
-    expect(program.programKey).toBe("WOMENS_HEALTH_VITALITY");
+    expect(program.label).toBe("Women's Wellness");
+    expect(program.programKey).toBe("WOMENS_HEALTH_SEXUAL");
     expect(program.isWeightManagement).toBe(false);
   });
 

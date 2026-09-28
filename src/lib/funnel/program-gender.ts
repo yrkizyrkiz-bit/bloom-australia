@@ -21,9 +21,14 @@ export function genderForPublicConsultSlug(slug?: string | null): UserGender | n
 
 /** Gender implied by subscription tier (matches User.subscriptionTier). */
 export function genderForSubscriptionTier(tier?: string | null): UserGender | null {
-  const t = (tier || "").toLowerCase();
-  if (t === "mens_health") return "MALE";
-  if (t === "womens_health") return "FEMALE";
+  const t = (tier || "").toLowerCase().replace(/-/g, "_");
+  // Women before men — "womens_*".includes("mens") is true.
+  if (t.includes("womens") || t.includes("women") || t.includes("menopause")) {
+    return "FEMALE";
+  }
+  if (t.includes("mens") || t === "men" || t.startsWith("men_")) {
+    return "MALE";
+  }
   return null;
 }
 

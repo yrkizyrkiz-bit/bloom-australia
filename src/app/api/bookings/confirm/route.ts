@@ -1267,15 +1267,16 @@ export async function POST(req: NextRequest) {
           select: { program: true, intakeData: true },
           orderBy: { createdAt: "desc" },
         });
+        const tiers = (user.subscriptionTier || "").toLowerCase();
         const programFromTier =
-          user.subscriptionTier === "hair_loss"
+          tiers === "hair_loss" || tiers.includes("hair")
             ? "HAIR_LOSS"
-            : user.subscriptionTier === "mens_health" ||
-                user.subscriptionTier?.includes("mens")
-              ? "MENS_HEALTH"
-              : user.subscriptionTier === "womens_health" ||
-                  user.subscriptionTier?.includes("womens")
-                ? "WOMENS_HEALTH"
+            : tiers.includes("women") || tiers.includes("womens")
+              ? "WOMENS_HEALTH"
+              : tiers === "mens_health" ||
+                  tiers.includes("mens_health") ||
+                  /(?:^|_)mens?(?:_|$)/.test(tiers)
+                ? "MENS_HEALTH"
                 : null;
         const program = programFromTier || programMember?.program;
         if (program && programMember?.intakeData) {

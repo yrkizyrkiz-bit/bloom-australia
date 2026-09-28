@@ -52,6 +52,7 @@ import {
   AlertCircle,
   Download,
   Mail,
+  Flower2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PathologyReferralDialog } from "@/components/admin/PathologyReferralDialog";
@@ -67,9 +68,11 @@ import { HolisticReportReviewDialog } from "@/components/admin/HolisticReportRev
 import { EnrolledProgramBadges } from "@/components/admin/EnrolledProgramBadges";
 import { MemberHairLossQuestionnaire } from "@/components/admin/quiz-assessment/MemberHairLossQuestionnaire";
 import { MemberMensSexualQuestionnaire } from "@/components/admin/quiz-assessment/MemberMensSexualQuestionnaire";
+import { MemberWomensWellnessQuestionnaire } from "@/components/admin/quiz-assessment/MemberWomensWellnessQuestionnaire";
 import {
   HAIR_LOSS_MEDICATION_SUGGESTIONS,
   MENS_ED_MEDICATION_SUGGESTIONS,
+  WOMENS_WELLNESS_MEDICATION_SUGGESTIONS,
   defaultDoctorProgramTab,
   hasDoctorProgram,
   resolveDoctorPrescriptionCategory,
@@ -228,6 +231,11 @@ interface PatientBrief {
     surveyData: Record<string, unknown>;
   };
   sexualBrief?: {
+    enrolled: boolean;
+    submittedAt: string | null;
+    surveyData: Record<string, unknown>;
+  };
+  womensBrief?: {
     enrolled: boolean;
     submittedAt: string | null;
     surveyData: Record<string, unknown>;
@@ -498,7 +506,8 @@ export default function DoctorDashboardPage() {
           defaultDoctorProgramTab(
             data.enrolledPrograms,
             Boolean(data.hairBrief?.enrolled),
-            Boolean(data.sexualBrief?.enrolled)
+            Boolean(data.sexualBrief?.enrolled),
+            Boolean(data.womensBrief?.enrolled)
           )
         );
       }
@@ -1093,6 +1102,10 @@ export default function DoctorDashboardPage() {
                       hasDoctorProgram(patientBrief.enrolledPrograms, "MENS_HEALTH_SEXUAL")) && (
                       <TabsTrigger value="MENS_HEALTH_SEXUAL">Men&apos;s ED</TabsTrigger>
                     )}
+                    {(patientBrief.womensBrief?.enrolled ||
+                      hasDoctorProgram(patientBrief.enrolledPrograms, "WOMENS_HEALTH_SEXUAL")) && (
+                      <TabsTrigger value="WOMENS_HEALTH_SEXUAL">Women&apos;s Wellness</TabsTrigger>
+                    )}
                   </TabsList>
                   <TabsContent value="WEIGHT_MANAGEMENT" className="mt-4 space-y-4">
                 {patientBrief.riskAssessment.riskFlags.length > 0 && (
@@ -1217,6 +1230,34 @@ export default function DoctorDashboardPage() {
                       </Card>
                     )}
                   </TabsContent>
+                  <TabsContent value="WOMENS_HEALTH_SEXUAL" className="mt-4 space-y-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <Flower2 className="w-4 h-4 text-rose-600" />
+                          Women&apos;s Wellness brief
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 text-sm text-slate-600">
+                        Review the women&apos;s wellness assessment, then approve to prescribe
+                        treatment (e.g. HRT). Weight-management dosing and billing are not used on
+                        this tab.
+                      </CardContent>
+                    </Card>
+                    {patientBrief.womensBrief &&
+                    Object.keys(patientBrief.womensBrief.surveyData).length > 0 ? (
+                      <MemberWomensWellnessQuestionnaire
+                        rawSurveyData={patientBrief.womensBrief.surveyData}
+                        submittedAt={patientBrief.womensBrief.submittedAt}
+                      />
+                    ) : (
+                      <Card>
+                        <CardContent className="p-4 text-sm text-slate-500">
+                          No Women&apos;s Wellness assessment answers are recorded yet.
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
                 </Tabs>
 
                 {patientBrief.clinicalNotes.length > 0 && (
@@ -1257,7 +1298,7 @@ export default function DoctorDashboardPage() {
                       <div className="space-y-3">
                         <p className="text-sm text-slate-500 mb-4">Select decision:</p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                          <Button onClick={() => openDecisionDialog("APPROVED")} className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">{programConsultTab === "HAIR_LOSS" ? "Hair script" : programConsultTab === "MENS_HEALTH_SEXUAL" ? "ED script" : "Prescribe"}</span></Button>
+                          <Button onClick={() => openDecisionDialog("APPROVED")} className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">{programConsultTab === "HAIR_LOSS" ? "Hair script" : programConsultTab === "MENS_HEALTH_SEXUAL" ? "ED script" : programConsultTab === "WOMENS_HEALTH_SEXUAL" ? "Wellness script" : "Prescribe"}</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_NO_TREATMENT")} className="bg-blue-600 hover:bg-blue-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">No Treatment</span></Button>
                           <Button onClick={() => openDecisionDialog("DECLINED")} variant="destructive" className="h-auto py-4 flex-col"><XCircle className="w-6 h-6 mb-1" /><span className="font-semibold">Decline</span><span className="text-xs opacity-80">Refund</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_PENDING_TESTS")} className="bg-amber-600 hover:bg-amber-700 h-auto py-4 flex-col"><FlaskConical className="w-6 h-6 mb-1" /><span className="font-semibold">Tests</span><span className="text-xs opacity-80">Blood work</span></Button>
@@ -1445,7 +1486,9 @@ export default function DoctorDashboardPage() {
                   ? "Approve Patient — Hair"
                   : programConsultTab === "MENS_HEALTH_SEXUAL"
                     ? "Approve Patient — Men's ED"
-                    : "Approve Patient")}
+                    : programConsultTab === "WOMENS_HEALTH_SEXUAL"
+                      ? "Approve Patient — Women's Wellness"
+                      : "Approve Patient")}
               {decisionType === "APPROVED_NO_TREATMENT" && "Approve Patient (No Treatment)"}
               {decisionType === "DECLINED" && "Decline Patient"}
               {decisionType === "APPROVED_PENDING_TESTS" && (
@@ -1534,6 +1577,32 @@ export default function DoctorDashboardPage() {
                     </div>
                   </div>
                 )}
+                {programConsultTab === "WOMENS_HEALTH_SEXUAL" && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-slate-600">Women&apos;s Wellness medication</p>
+                    <div className="flex flex-wrap gap-2">
+                      {WOMENS_WELLNESS_MEDICATION_SUGGESTIONS.map((suggestion) => (
+                        <Button
+                          key={`${suggestion.name}-${suggestion.strength}`}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-auto py-1.5"
+                          onClick={() => {
+                            setMedicationName(suggestion.name);
+                            setMedicationGenericName(suggestion.generic);
+                            setMedicationStrength(suggestion.strength);
+                            setMedicationForm(suggestion.form);
+                            setMedicationDosage(suggestion.dosage);
+                            setMedicationFrequency(suggestion.frequency);
+                          }}
+                        >
+                          {suggestion.name} {suggestion.strength}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Medication Name *</Label>
@@ -1545,7 +1614,9 @@ export default function DoctorDashboardPage() {
                           ? "e.g. Finasteride"
                           : programConsultTab === "MENS_HEALTH_SEXUAL"
                             ? "e.g. Sildenafil"
-                            : "e.g. Ozempic"
+                            : programConsultTab === "WOMENS_HEALTH_SEXUAL"
+                              ? "e.g. Estradiol"
+                              : "e.g. Ozempic"
                       }
                     />
                   </div>
@@ -1559,7 +1630,9 @@ export default function DoctorDashboardPage() {
                           ? "e.g. Minoxidil"
                           : programConsultTab === "MENS_HEALTH_SEXUAL"
                             ? "e.g. Tadalafil"
-                            : "e.g. Semaglutide"
+                            : programConsultTab === "WOMENS_HEALTH_SEXUAL"
+                              ? "e.g. Progesterone"
+                              : "e.g. Semaglutide"
                       }
                     />
                   </div>

@@ -6,6 +6,7 @@ import "./globals.css";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#34412f",
 };
 
 const playfair = Playfair_Display({
@@ -38,6 +39,17 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Sanative Health | Biomarker Tracking Portal",
   description: "Track your biomarkers, understand your health, and optimize your wellbeing with Sanative Health.",
+  applicationName: "Sanative",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Sanative",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [{ url: "/icons/sanative-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/sanative-192.png", sizes: "192x192", type: "image/png" }],
+  },
   // Prevent search engine indexing - private deployment
   robots: {
     index: false,

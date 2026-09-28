@@ -75,6 +75,7 @@ export async function GET() {
       approvalStatus: user.approvalStatus,
       passwordHash: user.passwordHash,
       subscriptionTier: user.subscriptionTier,
+      gender: user.gender,
       hasPaidWeightIntake,
       membership,
     });

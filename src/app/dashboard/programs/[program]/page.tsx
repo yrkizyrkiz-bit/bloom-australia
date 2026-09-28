@@ -25,6 +25,7 @@ import {
   isSexualHealthProgram,
 } from "@/lib/programs/quizzes/sexual-health-quiz";
 import { getPublicFunnelQuizSteps } from "@/lib/programs/quizzes/public-funnel-quizzes";
+import { resolveHairQuizSex } from "@/lib/programs/quizzes/hair-assessment-options";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { hasProgramMembership } from "@/lib/membership/program-access";
@@ -133,6 +134,17 @@ export default function InPortalProgramPage() {
   const [termQuotes, setTermQuotes] = useState<TermQuote[]>([]);
   const [pricingLoading, setPricingLoading] = useState(true);
 
+  // Prefer DB gender from portal context — session JWT can lag after funnel signup.
+  const knownQuizSex = useMemo(
+    () => resolveHairQuizSex(portal?.gender || user?.gender),
+    [portal?.gender, user?.gender]
+  );
+
+  useEffect(() => {
+    if (!knownQuizSex) return;
+    setAnswers((prev) => (prev.gender ? prev : { ...prev, gender: knownQuizSex }));
+  }, [knownQuizSex]);
+
   useEffect(() => {
     if (!programKey) return;
     setPricingLoading(true);
@@ -173,7 +185,7 @@ export default function InPortalProgramPage() {
   const offer = getProgramOffer(programKey);
   const card = PROGRAM_CARDS.find((c) => c.key === programKey);
   const sexualHealth = isSexualHealthProgram(programKey);
-  const quizSteps = getQuizSteps(programKey, answers, user?.gender);
+  const quizSteps = getQuizSteps(programKey, answers, knownQuizSex || user?.gender);
   const onQuiz = step < quizSteps.length;
   const question = quizSteps[step];
   const totalProgress = quizSteps.length + 1;

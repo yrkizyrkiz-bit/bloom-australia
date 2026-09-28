@@ -61,8 +61,10 @@ describe("normalizeProgramKey", () => {
     expect(normalizeProgramKey("MENS_HEALTH")).toBe("MENS_HEALTH_SEXUAL");
     expect(normalizeProgramKey("mens_health_sexual")).toBe("MENS_HEALTH_SEXUAL");
     expect(normalizeProgramKey("mens_health_vitality")).toBe("MENS_HEALTH_VITALITY");
-    expect(normalizeProgramKey("womens_health")).toBe("WOMENS_HEALTH_VITALITY");
+    expect(normalizeProgramKey("womens_health")).toBe("WOMENS_HEALTH_SEXUAL");
+    expect(normalizeProgramKey("womens_health_vitality")).toBe("WOMENS_HEALTH_VITALITY");
     expect(normalizeProgramKey("womens health sexual")).toBe("WOMENS_HEALTH_SEXUAL");
+    expect(normalizeProgramKey("menopause")).toBe("WOMENS_HEALTH_SEXUAL");
   });
 
   it("returns null for non-program strings", () => {
@@ -253,6 +255,34 @@ describe("computeDesiredEntitlements", () => {
     });
     expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")?.status).toBe("ACTIVE");
     expect(find(desired, "PROGRAM", "MENS_HEALTH_SEXUAL")).toBeUndefined();
+  });
+
+  it("womens_health_vitality grants Menopause Care, not men's vitality (womens contains mens)", () => {
+    const desired = computeDesiredEntitlements({
+      subscriptionTier: "womens_health_vitality",
+      subscriptionStatus: "ACTIVE",
+    });
+    expect(find(desired, "PROGRAM", "WOMENS_HEALTH_VITALITY")?.status).toBe("ACTIVE");
+    expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")).toBeUndefined();
+    expect(find(desired, "PROGRAM", "WOMENS_HEALTH_SEXUAL")).toBeUndefined();
+  });
+
+  it("bare womens_health grants Women's Wellness for the menopause funnel", () => {
+    const desired = computeDesiredEntitlements({
+      subscriptionTier: "womens_health",
+      subscriptionStatus: "ACTIVE",
+    });
+    expect(find(desired, "PROGRAM", "WOMENS_HEALTH_SEXUAL")?.status).toBe("ACTIVE");
+    expect(find(desired, "PROGRAM", "WOMENS_HEALTH_VITALITY")).toBeUndefined();
+  });
+
+  it("mens_health_vitality still grants men's vitality", () => {
+    const desired = computeDesiredEntitlements({
+      subscriptionTier: "mens_health_vitality",
+      subscriptionStatus: "ACTIVE",
+    });
+    expect(find(desired, "PROGRAM", "MENS_HEALTH_VITALITY")?.status).toBe("ACTIVE");
+    expect(find(desired, "PROGRAM", "WOMENS_HEALTH_VITALITY")).toBeUndefined();
   });
 
   it("hair MemberSubscription ACTIVE grants hair without weight management", () => {

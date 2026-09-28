@@ -20,7 +20,7 @@ describe("collectEnrolledPrograms", () => {
 
   it("uses subscription tier when there are no enrolled program members", () => {
     expect(collectEnrolledPrograms([], "womens_health")).toEqual([
-      { key: "WOMENS_HEALTH_VITALITY", label: "Women's Vitality", status: "ACTIVE" },
+      { key: "WOMENS_HEALTH_SEXUAL", label: "Women's Wellness", status: "ACTIVE" },
     ]);
   });
 
@@ -52,6 +52,7 @@ describe("collectEnrolledPrograms", () => {
 describe("enrolledProgramLabel", () => {
   it("disambiguates men's and women's vitality vs sexual health", () => {
     expect(enrolledProgramLabel("MENS_HEALTH_SEXUAL")).toBe("Men's Sexual Health");
-    expect(enrolledProgramLabel("WOMENS_HEALTH_VITALITY")).toBe("Women's Vitality");
+    expect(enrolledProgramLabel("WOMENS_HEALTH_SEXUAL")).toBe("Women's Wellness");
+    expect(enrolledProgramLabel("WOMENS_HEALTH_VITALITY")).toBe("Menopause Care");
   });
 });

@@ -21,7 +21,6 @@ import {
   Save,
   X,
   Loader2,
-  MessageCircle,
   ExternalLink,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -30,7 +29,6 @@ import { ProgramMembershipCard } from "@/components/account/ProgramMembershipCar
 import { MemberBillingPanel } from "@/components/account/MemberBillingPanel";
 import type { MembershipSummary } from "@/lib/membership-display";
 import type { MemberBillingOverview } from "@/lib/billing/member-billing-summary";
-import Link from "next/link";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -587,12 +585,6 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            <Link href="/dashboard/weight-management/support" className="flex-1">
-              <Button variant="outline" className="w-full gap-2">
-                <MessageCircle className="w-4 h-4" />
-                Privacy questions, care team
-              </Button>
-            </Link>
             <a
               href="https://sanative.com.au"
               target="_blank"

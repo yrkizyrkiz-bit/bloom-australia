@@ -332,16 +332,16 @@ const PROGRAM_IMPACT: Record<
     monitoringFocus: "Keep cholesterol, blood sugar, and heart markers in view alongside how symptoms respond.",
   },
   WOMENS_HEALTH_VITALITY: {
-    label: "Women’s Vitality",
+    label: "Menopause Care",
     howItHelpsFutureResults:
-      "Hormone-balanced vitality care can support sleep, stress, and metabolic resilience, which may improve thyroid follow-up needs and blood-sugar markers.",
+      "Menopause and perimenopause care can support sleep, stress, and metabolic resilience, which may improve thyroid follow-up needs and blood-sugar markers.",
     markersLikelyToImprove: ["cortisol", "tsh", "free_t4", "glucose"],
     monitoringFocus: "Align hormone timing with cycle/context and re-check metabolic labs as advised.",
   },
   WOMENS_HEALTH_SEXUAL: {
-    label: "Women’s Sexual Health",
+    label: "Women's Wellness",
     howItHelpsFutureResults:
-      "Sexual health support is mainly symptom-focused. Whole-body metabolic and hormone optimisation can still improve related wellbeing markers.",
+      "Women's Wellness support focuses on menopause, hormones and related symptoms. Whole-body metabolic and hormone optimisation can still improve related wellbeing markers.",
     markersLikelyToImprove: ["estradiol", "testosterone_total", "tsh"],
     monitoringFocus: "Review hormones in clinical context and keep an eye on overlapping metabolic risk.",
   },

@@ -17,6 +17,8 @@ describe("program gender", () => {
   it("still infers sex from men's and women's programs", () => {
     expect(genderForPublicConsultSlug("mens_health")).toBe("MALE");
     expect(genderForPublicConsultSlug("womens_health")).toBe("FEMALE");
+    expect(genderForSubscriptionTier("mens_health_sexual")).toBe("MALE");
+    expect(genderForSubscriptionTier("womens_health_sexual")).toBe("FEMALE");
     expect(genderForIntakeProgram("MENS_HEALTH", "female")).toBe("MALE");
     expect(genderForIntakeProgram("WOMENS_HEALTH", "male")).toBe("FEMALE");
   });

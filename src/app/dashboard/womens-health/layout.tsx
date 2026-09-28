@@ -7,17 +7,14 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { isProgramEntitled } from "@/lib/membership/program-access";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import {
-  Activity,
   BarChart3,
   CalendarDays,
   Heart,
-  HelpCircle,
   Home,
   Loader2,
   MessageCircle,
-  Moon,
-  Settings,
   Pill,
 } from "lucide-react";
 import { motion, LayoutGroup } from "framer-motion";
@@ -37,10 +34,7 @@ const womensHealthNavItems = [
 const quickActions = [
   { href: "/dashboard/biomarkers?view=program&program=WOMENS_HEALTH", label: "Women's Biomarkers" },
   { href: "/dashboard/hormone-test", label: "Hormone Panel" },
-  { href: "/dashboard/womens-health/hormones", label: "Hormone Health" },
   { href: "/dashboard/womens-health/menopause", label: "Menopause" },
-  { href: "/dashboard/womens-health/pcos", label: "PCOS" },
-  { href: "/dashboard/womens-health/fertility", label: "Fertility" },
 ];
 
 export default function WomensHealthLayout({
@@ -60,25 +54,12 @@ export default function WomensHealthLayout({
   useEffect(() => {
     if (isLoading || portalLoading) return;
     if (!user) return;
-
-    const gender = user.gender?.toLowerCase();
-    const isFemale = gender === "female";
-    if (!isFemale && !hasWomensHealthEntitlement) {
-      router.push("/dashboard");
+    if (!hasWomensHealthEntitlement) {
+      router.replace(MEMBER_PROGRAMS_HOME);
     }
   }, [user, isLoading, portalLoading, hasWomensHealthEntitlement, router]);
 
-  if (isLoading || portalLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-rose-600" />
-      </div>
-    );
-  }
-
-  const gender = user?.gender?.toLowerCase();
-  const isFemale = gender === "female";
-  if (user && !isFemale && !hasWomensHealthEntitlement) {
+  if (isLoading || portalLoading || (user && !hasWomensHealthEntitlement)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-rose-600" />
@@ -196,42 +177,6 @@ export default function WomensHealthLayout({
                   </Link>
                 ))}
               </div>
-            </div>
-
-            <div className="p-4 border-t border-rose-100 mt-auto">
-              <Link href="/dashboard/messages">
-                <motion.div
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-rose-50 hover:text-rose-700"
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Messages
-                </motion.div>
-              </Link>
-              <Link href="/dashboard/settings">
-                <motion.div
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-rose-50 hover:text-rose-700 mt-1"
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </motion.div>
-              </Link>
-              <Link href="/dashboard">
-                <motion.div
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-rose-50 hover:text-rose-700 mt-1"
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <HelpCircle className="w-4 h-4" />
-                  Back to Dashboard
-                </motion.div>
-              </Link>
             </div>
           </LayoutGroup>
         </aside>

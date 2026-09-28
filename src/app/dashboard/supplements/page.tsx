@@ -1,8 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Pill, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LiveChat } from "@/components/chat/LiveChat";
+import { GeorgeMascot } from "@/components/george/GeorgeMascot";
+import { GEORGE_NAME } from "@/lib/george";
 import { SUPPLEMENTS_CARD } from "@/lib/programs/catalog";
 
 /** Placeholder categories, wire to Shopify / Snipcart / Medusa when ready. */
@@ -15,6 +19,7 @@ const COMING_SOON_CATEGORIES = [
 export default function SupplementsPage() {
   const theme = SUPPLEMENTS_CARD.theme;
   const Icon = SUPPLEMENTS_CARD.icon;
+  const [chatOpen, setChatOpen] = useState(false);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -85,15 +90,20 @@ export default function SupplementsPage() {
 
       <div className="mt-10 text-center">
         <p className="mb-4 text-sm text-[#5c7a52]">
-          Need something now? Your care team can recommend supplements during your program.
+          Need something now? Ask {GEORGE_NAME} about supplements that fit your program.
         </p>
-        <Button asChild variant="outline" className="rounded-full border-[#e6ebe3]">
-          <Link href="/dashboard/weight-management/support">
-            Contact care team
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full border-[#e6ebe3]"
+          onClick={() => setChatOpen(true)}
+        >
+          <GeorgeMascot size="xs" cropFace className="mr-2" />
+          Chat with {GEORGE_NAME}
         </Button>
       </div>
+
+      <LiveChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   );
 }

@@ -48,7 +48,7 @@ const PROGRAMS: Record<UnifiedCheckoutProgramSlug, PublicConsultProgram> = {
   womens_health: {
     slug: "womens_health",
     label: "Women's Health",
-    subscriptionTier: "womens_health",
+    subscriptionTier: "womens_health_sexual",
     firstMonthAud: 49,
     invoiceDescription: "Women's Health - Consultation & First Month",
     isWeightManagement: false,
@@ -81,10 +81,25 @@ export function resolvePublicConsultProgramFromContext(ctx: {
     if (fromPayment) return fromPayment;
   }
 
-  const tier = (ctx.subscriptionTier || "").toLowerCase();
-  if (tier === "hair_loss") return PROGRAMS.hair_loss;
-  if (tier === "mens_health") return PROGRAMS.mens_health;
-  if (tier === "womens_health") return PROGRAMS.womens_health;
+  const tier = (ctx.subscriptionTier || "").toLowerCase().replace(/-/g, "_");
+  if (tier === "hair_loss" || tier.includes("hair")) return PROGRAMS.hair_loss;
+  // Women before men — "womens_*".includes("mens") is true.
+  if (
+    tier === "womens_health" ||
+    tier.includes("womens") ||
+    tier.includes("women") ||
+    tier.includes("menopause")
+  ) {
+    return PROGRAMS.womens_health;
+  }
+  if (
+    tier === "mens_health" ||
+    tier === "mens_health_sexual" ||
+    tier === "mens_health_vitality" ||
+    tier.includes("mens")
+  ) {
+    return PROGRAMS.mens_health;
+  }
 
   return PROGRAMS.weight_management;
 }
@@ -123,6 +138,7 @@ export function resolvePublicConsultProgramFromPaymentMetadata(
 ): PublicConsultProgram | null {
   const candidates = [
     metadata.intentProgram,
+    metadata.sourceProgram,
     metadata.source,
     metadata.program,
     metadata.type,
@@ -136,8 +152,11 @@ export function resolvePublicConsultProgramFromPaymentMetadata(
       return PROGRAMS[slug as UnifiedCheckoutProgramSlug];
     }
     if (slug.includes("hair")) return PROGRAMS.hair_loss;
+    // Women before men — "womens_*".includes("mens") is true.
+    if (slug.includes("womens") || slug.includes("women") || slug.includes("menopause")) {
+      return PROGRAMS.womens_health;
+    }
     if (slug.includes("mens")) return PROGRAMS.mens_health;
-    if (slug.includes("womens")) return PROGRAMS.womens_health;
     if (slug.includes("weight")) return PROGRAMS.weight_management;
   }
 
@@ -164,6 +183,8 @@ export function resolveMensHealthCanonicalKey(concern: string): ProgramKey {
 /**
  * Map women's public assessment category → canonical program key.
  * Category alone determines the SKU; concerns are triage flags, not routers.
+ * Menopause funnel (and related categories) → Women's Wellness (`WOMENS_HEALTH_SEXUAL`).
+ * Explicit vitality / menopause-care SKU remains `WOMENS_HEALTH_VITALITY`.
  * `unsure` / unknown → null (doctor classifies at care plan).
  */
 export function resolveWomensHealthCanonicalKey(
@@ -171,11 +192,13 @@ export function resolveWomensHealthCanonicalKey(
 ): ProgramKey | null {
   switch (category.toLowerCase()) {
     case "sexual":
-      return "WOMENS_HEALTH_SEXUAL";
     case "menopause":
     case "hrt":
     case "fertility":
     case "contraception":
+      return "WOMENS_HEALTH_SEXUAL";
+    case "vitality":
+    case "menopause_care":
       return "WOMENS_HEALTH_VITALITY";
     case "unsure":
       return null;
@@ -193,7 +216,7 @@ export const MENS_CHECKOUT_PRICING = {
 };
 
 export const WOMENS_CHECKOUT_PRICING = {
-  planName: "Women's Health Program",
+  planName: "Women's Wellness Program",
   firstMonthList: 79,
   dueToday: 49,
   ongoingPrice: 79,

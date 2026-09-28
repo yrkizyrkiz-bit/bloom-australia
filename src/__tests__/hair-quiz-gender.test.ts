@@ -47,6 +47,18 @@ describe("hair quiz is tailored by sex", () => {
     expect(optionLabels("female", "hairStage")).not.toContain("Noticeable recession");
   });
 
+  it("skips the biological sex question when the portal already knows sex", () => {
+    const knownFemale = getPublicFunnelQuizSteps("HAIR_LOSS", "FEMALE") ?? [];
+    expect(knownFemale[0]?.id).toBe("hairStage");
+    expect(knownFemale.some((step) => step.id === "gender")).toBe(false);
+
+    const knownMale = getPublicFunnelQuizSteps("HAIR_LOSS", "male") ?? [];
+    expect(knownMale.some((step) => step.id === "gender")).toBe(false);
+
+    const unknown = getPublicFunnelQuizSteps("HAIR_LOSS") ?? [];
+    expect(unknown[0]?.id).toBe("gender");
+  });
+
   it("hides sex-specific options until sex is known", () => {
     const medical = hairOptionsForSex(HAIR_MEDICAL_CONDITIONS, "").map((item) => item.label);
     const concerns = hairOptionsForSex(HAIR_OTHER_CONCERNS, "").map((item) => item.label);

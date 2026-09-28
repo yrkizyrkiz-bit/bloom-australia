@@ -54,8 +54,9 @@ export function resolveHairQuizSex(
   const fromAnswers = answers?.gender;
   const raw =
     typeof fromAnswers === "string" && fromAnswers.trim() ? fromAnswers : gender || "";
-  const value = raw.toLowerCase();
-  if (value === "male" || value === "female") return value;
+  const value = raw.toLowerCase().replace(/[\s-]+/g, "_");
+  if (value === "male" || value === "man" || value === "m") return "male";
+  if (value === "female" || value === "woman" || value === "f") return "female";
   return "";
 }
 
