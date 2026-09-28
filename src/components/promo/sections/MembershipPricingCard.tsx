@@ -106,7 +106,7 @@ export function MembershipPricingCard({
             <span className="text-lg sm:text-xl text-[#2c3628]">/day</span>
           </div>
           <p className="mt-2 text-sm text-[#7e9a72]">
-            ${annualPrice} billed annually
+            ${annualPrice}/year
           </p>
 
           <Link

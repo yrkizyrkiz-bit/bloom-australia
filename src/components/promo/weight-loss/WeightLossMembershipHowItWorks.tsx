@@ -123,7 +123,7 @@ export function WeightLossMembershipHowItWorks() {
                       </span>
                     </div>
                     <p className="mt-1.5 text-sm font-medium text-black/50">
-                      $365 billed annually
+                      $365/year
                     </p>
                   </div>
                   <Link

@@ -403,7 +403,7 @@ export function FunnelMembershipPaymentScreen({
           </span>
           <span className="text-base text-black/60">a day</span>
         </div>
-        <p className="mt-1 text-sm text-black/50">{priceLabel.replace("/yr", "")} billed annually</p>
+        <p className="mt-1 text-sm text-black/50">{priceLabel.includes("/yr") ? priceLabel.replace("/yr", "/year") : `${priceLabel}/year`}</p>
         <div className="mt-5 flex items-center justify-between text-base font-semibold text-[#1c1c1c]">
           <span>Total</span>
           <span>${amountAud}</span>

@@ -274,12 +274,12 @@ export function TermsContent() {
         <LegalP>
           Where Sanative Membership is marketed as <strong>$1/day</strong>, that figure is an
           illustrative daily equivalent of the annual membership fee. Membership is charged as{" "}
-          <strong>$365 billed annually</strong> (including GST), unless a different price is shown at
+          <strong>$365/year</strong> (including GST), unless a different price is shown at
           checkout.
         </LegalP>
         <LegalP>
           By purchasing Sanative Membership, you authorise Sanative and our payment processor to charge{" "}
-          <strong>$365 billed annually</strong> (or the then-current annual membership price displayed
+          <strong>$365/year</strong> (or the then-current annual membership price displayed
           at checkout), and to process renewals in accordance with our{" "}
           <Link href={LEGAL_LINKS.subscriptionTerms} className="underline text-[#5c7a52]">
             Subscription Terms

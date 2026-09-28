@@ -74,11 +74,11 @@ export function SubscriptionTermsContent() {
           and <strong>include GST</strong>, unless expressly stated otherwise at checkout.
         </LegalP>
 
-        <LegalH3>Sanative Membership: $1/day / $365 billed annually</LegalH3>
+        <LegalH3>Sanative Membership: $1/day / $365/year</LegalH3>
         <LegalP>
           Where Sanative Membership is described as <strong>$1/day</strong>, that is an illustrative
           daily equivalent. Sanative Membership is charged as{" "}
-          <strong>$365 billed annually</strong> (including GST), unless a different price is shown at
+          <strong>$365/year</strong> (including GST), unless a different price is shown at
           checkout. Further detail on what the $365 membership includes is set out in our{" "}
           <Link href={LEGAL_LINKS.terms} className="underline text-[#5c7a52]">
             Terms &amp; Conditions

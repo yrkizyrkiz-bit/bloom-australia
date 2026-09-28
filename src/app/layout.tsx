@@ -47,8 +47,11 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
-    icon: [{ url: "/icons/sanative-192.png", sizes: "192x192", type: "image/png" }],
-    apple: [{ url: "/icons/sanative-192.png", sizes: "192x192", type: "image/png" }],
+    icon: [
+      { url: "/icons/sanative-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/sanative-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/sanative-180.png", sizes: "180x180", type: "image/png" }],
   },
   // Prevent search engine indexing - private deployment
   robots: {
