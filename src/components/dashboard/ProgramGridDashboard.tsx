@@ -458,11 +458,7 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
             Your programs
           </span>
         </div>
-        <p className="mt-2 text-left text-[#5c7a52]">
-          {portal?.awaitingConsultationArrangement
-            ? "A Sanative care partner will review your intake questions and contact you to arrange a doctor consultation to discuss your treatment options."
-            : "What can we help you with today?"}
-        </p>
+        <p className="mt-2 text-left text-[#5c7a52]">What can we help you with today?</p>
       </div>
 
       <BiomarkersHero

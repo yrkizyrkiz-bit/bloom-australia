@@ -4,13 +4,14 @@ import { X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { usePortalContext } from "@/hooks/usePortalContext";
 
+/** Public-funnel post-checkout welcome. Dashboard awaiting-consult copy lives in PortalAwaitingConsultationBanner. */
 export function PostCheckoutWelcome() {
   const [dismissed, setDismissed] = useState(false);
   const { data: portal } = usePortalContext();
 
+  // Dashboard shell owns the awaiting-consultation message — avoid doubles.
+  if (portal?.awaitingConsultationArrangement) return null;
   if (dismissed) return null;
-
-  const awaitingConsult = Boolean(portal?.awaitingConsultationArrangement);
 
   return (
     <div className="bg-gradient-to-r from-emerald-700 to-emerald-600 text-white px-4 py-3 md:px-6">
@@ -19,9 +20,8 @@ export function PostCheckoutWelcome() {
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm md:text-base">Welcome to your Sanative portal</p>
           <p className="text-white/90 text-xs md:text-sm mt-0.5">
-            {awaitingConsult
-              ? "A Sanative care partner will review your intake questions and contact you to arrange a doctor consultation to discuss your treatment options."
-              : "Follow your program journey below. Progress tracking unlocks when your treatment is active."}
+            Follow your program journey below. Progress tracking unlocks when your treatment is
+            active.
           </p>
         </div>
         <button

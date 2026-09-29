@@ -33,6 +33,14 @@ import { PortalPaymentForm } from "@/components/portal/PortalPaymentForm";
 
 const PROGRAMS_HUB = "/dashboard/programs";
 
+function withPostCheckoutOnboarding(route: string): string {
+  const [path, query = ""] = route.split("?");
+  const params = new URLSearchParams(query);
+  params.set("onboarding", "post-checkout");
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
 type TermQuote = {
   term: ProgramBillingTerm;
   label: string;
@@ -302,7 +310,7 @@ export default function InPortalProgramPage() {
         )}
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Button asChild className="bg-emerald-700 hover:bg-emerald-800">
-            <Link href={card?.dashboardRoute || "/dashboard"}>
+            <Link href={withPostCheckoutOnboarding(card?.dashboardRoute || "/dashboard")}>
               {`Go to ${label}`}
             </Link>
           </Button>

@@ -18,8 +18,8 @@ export function WeightManagementPortalShell({
   const { data: portal, isLoading } = usePortalContext();
 
   const showPostCheckout =
-    searchParams.get("onboarding") === "post-checkout" ||
-    Boolean(portal?.awaitingConsultationArrangement);
+    searchParams.get("onboarding") === "post-checkout" &&
+    !portal?.awaitingConsultationArrangement;
   const progressLocked =
     !isLoading && portal && isWeightProgressPath(pathname) && !portal.features.weightProgress;
 
