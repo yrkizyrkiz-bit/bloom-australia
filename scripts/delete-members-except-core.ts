@@ -14,7 +14,7 @@ const KEEP_MEMBER_EMAILS = [
   "george.zekry@sanative.com.au",
 ].map((e) => e.toLowerCase());
 
-const STAFF_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "DOCTOR"];
+const STAFF_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "DOCTOR", "CARE_PARTNER"];
 
 async function logDelete(label: string, fn: () => Promise<{ count: number }>) {
   try {
@@ -165,6 +165,12 @@ async function main() {
   );
   await logDelete("CareCommunication", () =>
     prisma.careCommunication.deleteMany({ where: { userId: { in: deleteIds } } })
+  );
+  await logDelete("CareSupportThread", () =>
+    prisma.careSupportThread.deleteMany({ where: { userId: { in: deleteIds } } })
+  );
+  await logDelete("Notification", () =>
+    prisma.notification.deleteMany({ where: { userId: { in: deleteIds } } })
   );
   await logDelete("Referral", () =>
     prisma.referral.deleteMany({

@@ -12,6 +12,7 @@ import {
   mergeSubscriptionSignalsIntoEntitlements,
 } from "@/lib/membership/subscription-access";
 import { OPEN_CONSULTATION_BOOKING_STATUSES } from "@/lib/program-journey/upcoming-consultation";
+import { computeAwaitingConsultationArrangement } from "@/lib/portal/awaiting-consultation";
 
 const PAID_JOURNEY_STATUSES = Array.from(PAID_WEIGHT_JOURNEY_STATUSES);
 
@@ -28,7 +29,7 @@ export async function GET() {
     }
     const userId = session.user.id;
 
-    const [user, entitlements, memberSubscriptions, pendingPortalUpsell, openBooking] =
+    const [user, entitlements, memberSubscriptions, pendingPortalUpsells, openBookings] =
       await Promise.all([
         prisma.user.findUnique({
           where: { id: userId },
@@ -49,22 +50,22 @@ export async function GET() {
             product: { select: { program: true, slug: true, name: true, planTier: true } },
           },
         }),
-        prisma.preTriageTask.findFirst({
+        prisma.preTriageTask.findMany({
           where: {
             patientId: userId,
             status: "PENDING",
             appointmentConfirmed: false,
             notes: { contains: "portal_upsell" },
           },
-          select: { id: true },
+          select: { id: true, notes: true },
         }),
-        prisma.consultationBooking.findFirst({
+        prisma.consultationBooking.findMany({
           where: {
             userId,
             completedAt: null,
             status: { in: [...OPEN_CONSULTATION_BOOKING_STATUSES] },
           },
-          select: { id: true },
+          select: { id: true, notes: true },
         }),
       ]);
 
@@ -89,8 +90,10 @@ export async function GET() {
       console.error("[portal/context] membership derivation failed", membershipError);
     }
 
-    const awaitingConsultationArrangement =
-      Boolean(pendingPortalUpsell) && !openBooking;
+    const awaitingConsultationArrangement = computeAwaitingConsultationArrangement({
+      pendingPortalUpsells,
+      openBookings,
+    });
 
     const context = derivePortalContext({
       journeyStatus: user.journeyStatus,

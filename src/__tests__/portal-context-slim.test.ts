@@ -7,8 +7,8 @@ const {
   findUniqueUser,
   findManyEntitlement,
   findManyMemberSubscription,
-  findFirstPreTriageTask,
-  findFirstConsultationBooking,
+  findManyPreTriageTask,
+  findManyConsultationBooking,
   biomarkerGroupBy,
   labReportCount,
   getServerSession,
@@ -16,8 +16,8 @@ const {
   findUniqueUser: vi.fn(),
   findManyEntitlement: vi.fn(),
   findManyMemberSubscription: vi.fn(),
-  findFirstPreTriageTask: vi.fn(),
-  findFirstConsultationBooking: vi.fn(),
+  findManyPreTriageTask: vi.fn(),
+  findManyConsultationBooking: vi.fn(),
   biomarkerGroupBy: vi.fn(),
   labReportCount: vi.fn(),
   getServerSession: vi.fn(),
@@ -36,8 +36,8 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: findUniqueUser },
     entitlement: { findMany: findManyEntitlement },
     memberSubscription: { findMany: findManyMemberSubscription },
-    preTriageTask: { findFirst: findFirstPreTriageTask },
-    consultationBooking: { findFirst: findFirstConsultationBooking },
+    preTriageTask: { findMany: findManyPreTriageTask },
+    consultationBooking: { findMany: findManyConsultationBooking },
     biomarkerResult: { groupBy: biomarkerGroupBy },
     labReport: { count: labReportCount },
   },
@@ -54,8 +54,8 @@ describe("GET /api/portal/context (slim)", () => {
     findUniqueUser.mockReset();
     findManyEntitlement.mockReset();
     findManyMemberSubscription.mockReset();
-    findFirstPreTriageTask.mockReset();
-    findFirstConsultationBooking.mockReset();
+    findManyPreTriageTask.mockReset();
+    findManyConsultationBooking.mockReset();
     biomarkerGroupBy.mockReset();
     labReportCount.mockReset();
     getServerSession.mockReset();
@@ -88,8 +88,8 @@ describe("GET /api/portal/context (slim)", () => {
         },
       },
     ]);
-    findFirstPreTriageTask.mockResolvedValue(null);
-    findFirstConsultationBooking.mockResolvedValue(null);
+    findManyPreTriageTask.mockResolvedValue([]);
+    findManyConsultationBooking.mockResolvedValue([]);
   });
 
   it("returns membership access without querying BiomarkerResult or LabReport", async () => {
@@ -109,8 +109,13 @@ describe("GET /api/portal/context (slim)", () => {
   });
 
   it("sets awaitingConsultationArrangement when pending portal_upsell and no open booking", async () => {
-    findFirstPreTriageTask.mockResolvedValue({ id: "task-1" });
-    findFirstConsultationBooking.mockResolvedValue(null);
+    findManyPreTriageTask.mockResolvedValue([
+      {
+        id: "task-1",
+        notes: JSON.stringify({ source: "portal_upsell", programKey: "HAIR_LOSS" }),
+      },
+    ]);
+    findManyConsultationBooking.mockResolvedValue([]);
 
     const { GET } = await import("@/app/api/portal/context/route");
     const res = await GET();
@@ -120,9 +125,38 @@ describe("GET /api/portal/context (slim)", () => {
     expect(body.awaitingConsultationArrangement).toBe(true);
   });
 
-  it("clears awaitingConsultationArrangement when an open booking exists", async () => {
-    findFirstPreTriageTask.mockResolvedValue({ id: "task-1" });
-    findFirstConsultationBooking.mockResolvedValue({ id: "booking-1" });
+  it("keeps awaitingConsultationArrangement when open booking is for a different program", async () => {
+    findManyPreTriageTask.mockResolvedValue([
+      {
+        id: "task-1",
+        notes: JSON.stringify({ source: "portal_upsell", programKey: "HAIR_LOSS" }),
+      },
+    ]);
+    findManyConsultationBooking.mockResolvedValue([
+      {
+        id: "booking-wm",
+        notes: "Weight Management Program - Doctor to be assigned during triage by care partner",
+      },
+    ]);
+
+    const { GET } = await import("@/app/api/portal/context/route");
+    const res = await GET();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.awaitingConsultationArrangement).toBe(true);
+  });
+
+  it("clears awaitingConsultationArrangement when an open booking matches the upsold program", async () => {
+    findManyPreTriageTask.mockResolvedValue([
+      {
+        id: "task-1",
+        notes: JSON.stringify({ source: "portal_upsell", programKey: "HAIR_LOSS" }),
+      },
+    ]);
+    findManyConsultationBooking.mockResolvedValue([
+      { id: "booking-hair", notes: "Hair Loss Program - Booked via care partner" },
+    ]);
 
     const { GET } = await import("@/app/api/portal/context/route");
     const res = await GET();
