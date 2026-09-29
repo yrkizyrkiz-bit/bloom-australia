@@ -3,6 +3,11 @@ import { getPublicOrganCareAnnualPricing } from "@/lib/billing/portal-pricing";
 import { grantEntitlement } from "@/lib/membership/entitlement-service";
 import { createOnboardingPreTriageTask } from "@/lib/funnel/program-pre-triage";
 import { recordPortalPaymentInvoice } from "@/lib/portal/purchase-invoice";
+import { assertPhoneAvailableForAccount } from "@/lib/auth/assert-phone-available";
+import {
+  buildProtectedActivationProfileUpdate,
+  isEstablishedMember,
+} from "@/lib/auth/member-identity-guard";
 
 export type ActivateOrganCareMembershipInput = {
   paymentIntentId: string;
@@ -31,20 +36,36 @@ export async function activateOrganCarePublicMembership(
 
   let user = await prisma.user.findUnique({ where: { email: userEmail } });
 
+  await assertPhoneAvailableForAccount(input.phone, user?.id ?? null);
+
   if (user) {
+    const protectPii = isEstablishedMember({
+      passwordHash: user.passwordHash,
+      subscriptionStatus: user.subscriptionStatus,
+      journeyStatus: user.journeyStatus,
+      memberStatus: user.memberStatus,
+    });
+    const profileUpdate = buildProtectedActivationProfileUpdate(
+      user,
+      {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        phone: input.phone,
+        dateOfBirth: input.dateOfBirth,
+        address: input.address,
+        addressLine1: input.addressLine1,
+        addressLine2: input.addressLine2,
+        suburb: input.suburb,
+        state: input.state,
+        postcode: input.postcode,
+      },
+      protectPii
+    );
+
     user = await prisma.user.update({
       where: { id: user.id },
       data: {
-        firstName: input.firstName || user.firstName,
-        lastName: input.lastName || user.lastName,
-        phone: input.phone ?? user.phone,
-        dateOfBirth: input.dateOfBirth ?? user.dateOfBirth,
-        address: input.address ?? user.address,
-        addressLine1: input.addressLine1 ?? user.addressLine1,
-        addressLine2: input.addressLine2 ?? user.addressLine2,
-        suburb: input.suburb ?? user.suburb,
-        state: input.state ?? user.state,
-        postcode: input.postcode ?? user.postcode,
+        ...profileUpdate,
         subscriptionStatus: "ACTIVE",
         subscriptionTier: "membership",
         journeyStatus: "ACTIVE",

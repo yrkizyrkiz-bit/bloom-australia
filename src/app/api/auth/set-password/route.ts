@@ -88,11 +88,23 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true },
+      select: { id: true, email: true, passwordHash: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Contact OTP alone must not reset an established account password
+    // (e.g. verifying someone else's number after a shared-phone mistake).
+    if (authorised.via === "verified_contact" && user.passwordHash) {
+      return NextResponse.json(
+        {
+          error:
+            "This account already has a password. Please log in or use the email reset link.",
+        },
+        { status: 403 }
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);

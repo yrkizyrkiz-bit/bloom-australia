@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { matchesDevVerificationCode } from "@/lib/auth/dev-verification";
 import { signVerifiedContactToken } from "@/lib/auth/verified-contact-token";
+import {
+  isEstablishedMember,
+  phoneMatchCandidates,
+} from "@/lib/auth/member-identity-guard";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
   enforceIpRateLimit,
@@ -97,19 +101,35 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Check if user already exists
+    const identitySelect = {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      passwordHash: true,
+      subscriptionStatus: true,
+      journeyStatus: true,
+      memberStatus: true,
+    } as const;
+
     let existingUser = null;
-    if (type === 'email') {
+    if (type === "email") {
       existingUser = await prisma.user.findUnique({
         where: { email: normalizedContact },
-        select: { id: true, email: true, firstName: true, lastName: true, phone: true },
+        select: identitySelect,
       });
     } else {
+      const candidates = phoneMatchCandidates(contact);
       existingUser = await prisma.user.findFirst({
-        where: { phone: contact },
-        select: { id: true, email: true, firstName: true, lastName: true, phone: true },
+        where: {
+          OR: candidates.map((phone) => ({ phone })),
+        },
+        select: identitySelect,
       });
     }
+
+    const established = existingUser ? isEstablishedMember(existingUser) : false;
 
     // Generate a session token for the checkout flow
     const sessionToken = signVerifiedContactToken({
@@ -121,13 +141,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       verified: true,
-      existingUser: existingUser ? {
-        id: existingUser.id,
-        email: existingUser.email,
-        firstName: existingUser.firstName,
-        lastName: existingUser.lastName,
-        phone: existingUser.phone,
-      } : null,
+      existingUser: existingUser
+        ? {
+            id: existingUser.id,
+            email: existingUser.email,
+            firstName: existingUser.firstName,
+            lastName: existingUser.lastName,
+            phone: existingUser.phone,
+            isEstablished: established,
+          }
+        : null,
       sessionToken,
     });
   } catch (error) {

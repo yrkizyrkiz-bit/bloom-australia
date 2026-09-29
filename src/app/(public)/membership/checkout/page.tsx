@@ -48,7 +48,14 @@ import {
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 // ─── Types ─────────────────────────────────────────────────────────────────
-type Step = "verify" | "payment" | "onboard" | "booking" | "quiz" | "complete";
+type Step =
+  | "verify"
+  | "existing_account"
+  | "payment"
+  | "onboard"
+  | "booking"
+  | "quiz"
+  | "complete";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const MEMBERSHIP_BENEFITS = [
@@ -382,7 +389,10 @@ function MembershipCheckoutPageContent() {
     firstName: string;
     lastName: string;
     phone: string | null;
+    isEstablished?: boolean;
   } | null>(null);
+  /** True after the member confirms "continue as me" on an existing contact match. */
+  const [continuingAsExisting, setContinuingAsExisting] = useState(false);
 
   // Payment state
   const [postcode, setPostcode] = useState("");
@@ -488,18 +498,53 @@ function MembershipCheckoutPageContent() {
         setFirstName(data.existingUser.firstName || "");
         setLastName(data.existingUser.lastName || "");
         setEmail(data.existingUser.email || "");
-        setPhone(data.existingUser.phone || "");
+        setPhone(data.existingUser.phone || (verifyMethod === "phone" ? contact : ""));
+        setContinuingAsExisting(false);
+        setStep("existing_account");
       } else if (verifyMethod === "email") {
+        setExistingUser(null);
+        setContinuingAsExisting(false);
         setEmail(contact);
+        setStep("payment");
       } else {
+        setExistingUser(null);
+        setContinuingAsExisting(false);
         setPhone(contact);
+        setStep("payment");
       }
-      setStep("payment");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to verify code");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const continueAsExistingAccount = () => {
+    if (!existingUser) return;
+    setFirstName(existingUser.firstName || "");
+    setLastName(existingUser.lastName || "");
+    setEmail(existingUser.email || "");
+    setPhone(existingUser.phone || (verifyMethod === "phone" ? contact : phone));
+    setContinuingAsExisting(true);
+    setError(null);
+    setStep("payment");
+  };
+
+  const useDifferentContact = () => {
+    setExistingUser(null);
+    setContinuingAsExisting(false);
+    setSessionToken(null);
+    setCode("");
+    setCodeSent(false);
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setPhone("");
+    setClientSecret(null);
+    setPaymentIntentId(null);
+    setSubscriptionId(null);
+    setError(null);
+    setStep("verify");
   };
 
   const createPaymentIntent = async () => {
@@ -776,6 +821,80 @@ function MembershipCheckoutPageContent() {
     </div>
   );
 
+  const renderExistingAccountStep = () => {
+    const displayName =
+      [existingUser?.firstName, existingUser?.lastName].filter(Boolean).join(" ") ||
+      existingUser?.email ||
+      "this account";
+    const contactLabel = verifyMethod === "email" ? "email" : "mobile number";
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl">
+          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+            <Check className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-sm text-green-800">
+            Verified {contactLabel}
+          </span>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            This {contactLabel} already has an account
+          </h3>
+          <p className="text-sm text-gray-500">
+            We found <span className="font-medium text-gray-800">{displayName}</span>.
+            Continue only if this is you. To sign up someone else, use their own{" "}
+            {verifyMethod === "email" ? "email" : "mobile"} — not yours.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#e6ebe3] bg-[#f7f4ed] px-4 py-3 space-y-1.5 text-sm">
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-500">Name</span>
+            <span className="font-medium text-gray-900">{displayName}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-500">Email</span>
+            <span className="font-medium text-gray-900 break-all">
+              {existingUser?.email || "—"}
+            </span>
+          </div>
+          {existingUser?.phone ? (
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">Mobile</span>
+              <span className="font-medium text-gray-900">{existingUser.phone}</span>
+            </div>
+          ) : null}
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button
+          type="button"
+          onClick={continueAsExistingAccount}
+          className="w-full py-3.5 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl
+            transition-colors flex items-center justify-center gap-2"
+        >
+          Continue as {existingUser?.firstName || "this member"}
+          <ArrowRight className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={useDifferentContact}
+          className="w-full py-3.5 border-2 border-gray-200 hover:border-gray-300 text-gray-700
+            font-semibold rounded-xl transition-colors"
+        >
+          Use a different {contactLabel}
+        </button>
+        <p className="text-xs text-gray-500 text-center">
+          Signing up a friend? Start again with their {verifyMethod === "email" ? "email address" : "mobile number"}.
+        </p>
+      </div>
+    );
+  };
+
   const renderPaymentStep = () => (
     <div className="space-y-6">
       {/* Verified indicator */}
@@ -785,13 +904,24 @@ function MembershipCheckoutPageContent() {
           <Check className="w-4 h-4 text-white" />
         </div>
         <span className="text-sm text-green-800">
-          Verified as{" "}
-          <span className="font-medium">
-            {verifyMethod === "email" ? contact : `•••• ${contact.slice(-4)}`}
-          </span>
+          {continuingAsExisting
+            ? `Continuing as ${existingUser?.firstName || "member"}`
+            : (
+              <>
+                Verified as{" "}
+                <span className="font-medium">
+                  {verifyMethod === "email" ? contact : `•••• ${contact.slice(-4)}`}
+                </span>
+              </>
+            )}
         </span>
         <button
           onClick={() => {
+            if (continuingAsExisting) {
+              setStep("existing_account");
+              setClientSecret(null);
+              return;
+            }
             setStep("verify");
             setCodeSent(false);
             setCode("");
@@ -813,51 +943,82 @@ function MembershipCheckoutPageContent() {
       {/* Name before payment */}
       {!clientSecret && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                First name
-              </label>
-              <input
-                type="text"
-                autoComplete="given-name"
-                placeholder="First"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-                  px-4 py-3.5 text-base outline-none transition-colors"
-              />
+          {continuingAsExisting ? (
+            <div className="rounded-xl border border-[#e6ebe3] bg-[#f7f4ed] px-4 py-3 space-y-1.5 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#5c7a52]">
+                Account details locked
+              </p>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Name</span>
+                <span className="font-medium text-gray-900">
+                  {[firstName, lastName].filter(Boolean).join(" ") || "—"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Email</span>
+                <span className="font-medium text-gray-900 break-all">{email || "—"}</span>
+              </div>
+              {(phone || contact) && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">Mobile</span>
+                  <span className="font-medium text-gray-900">
+                    {phone || (verifyMethod === "phone" ? contact : "—")}
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-gray-500 pt-1">
+                Profile details stay with this account. Update them later in your portal settings.
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Last name
-              </label>
-              <input
-                type="text"
-                autoComplete="family-name"
-                placeholder="Last"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-                  px-4 py-3.5 text-base outline-none transition-colors"
-              />
-            </div>
-          </div>
-          {verifyMethod === "phone" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-                  px-4 py-3.5 text-base outline-none transition-colors"
-              />
-            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    First name
+                  </label>
+                  <input
+                    type="text"
+                    autoComplete="given-name"
+                    placeholder="First"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                      px-4 py-3.5 text-base outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Last name
+                  </label>
+                  <input
+                    type="text"
+                    autoComplete="family-name"
+                    placeholder="Last"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                      px-4 py-3.5 text-base outline-none transition-colors"
+                  />
+                </div>
+              </div>
+              {verifyMethod === "phone" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
+                      px-4 py-3.5 text-base outline-none transition-colors"
+                  />
+                </div>
+              )}
+            </>
           )}
           {error && (
             <p className="text-sm text-red-600">{error}</p>
@@ -959,6 +1120,12 @@ function MembershipCheckoutPageContent() {
                 <dd className="font-medium text-gray-900 break-all">{email}</dd>
               </div>
             ) : null}
+            {continuingAsExisting && verifyMethod === "email" && phone.trim() ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-gray-500">Mobile</dt>
+                <dd className="font-medium text-gray-900">{phone}</dd>
+              </div>
+            ) : null}
           </dl>
         </div>
 
@@ -987,7 +1154,7 @@ function MembershipCheckoutPageContent() {
           </div>
         </div>
 
-        {verifyMethod === "phone" && !email.trim() && (
+        {verifyMethod === "phone" && !email.trim() && !continuingAsExisting && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
@@ -1001,7 +1168,7 @@ function MembershipCheckoutPageContent() {
           </div>
         )}
 
-        {verifyMethod !== "phone" && (
+        {verifyMethod !== "phone" && !continuingAsExisting && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
             <input
@@ -1280,6 +1447,7 @@ function MembershipCheckoutPageContent() {
 
               {/* Form steps */}
               {step === "verify" && renderVerificationStep()}
+              {step === "existing_account" && renderExistingAccountStep()}
               {step === "payment" && renderPaymentStep()}
               {step === "onboard" && renderOnboardingStep()}
               {step === "booking" && renderBookingStep()}

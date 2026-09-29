@@ -6,6 +6,7 @@ import {
   bindCheckoutEmail,
   verifyVerifiedContactToken,
 } from "@/lib/auth/verified-contact-token";
+import { assertPhoneAvailableForAccount } from "@/lib/auth/assert-phone-available";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
   enforceIpRateLimit,
@@ -61,6 +62,20 @@ export async function POST(req: NextRequest) {
 
     if (!resolvedEmail) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    try {
+      await assertPhoneAvailableForAccount(resolvedPhone, identity.userId);
+    } catch (phoneError) {
+      return NextResponse.json(
+        {
+          error:
+            phoneError instanceof Error
+              ? phoneError.message
+              : "This mobile number is already in use",
+        },
+        { status: 409 }
+      );
     }
 
     const { stripePriceId, pricing } = await resolveSanativeMembershipStripePriceId();
