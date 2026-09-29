@@ -138,6 +138,7 @@ model User {
   consentRecords                  ConsentRecord[]
   passkeys                        Passkey[]
   webAuthnChallenges              WebAuthnChallenge[]
+  careSupportThreads              CareSupportThread[]
 
   @@index([email])
   @@index([role])
@@ -1272,6 +1273,38 @@ model CareCommunication {
   @@index([status])
   @@index([priority])
   @@index([dueDate])
+}
+
+model CareSupportThread {
+  id            String               @id @default(cuid())
+  userId        String
+  subject       String
+  status        String               @default("OPEN")
+  lastMessageAt DateTime             @default(now())
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages      CareSupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([lastMessageAt])
+}
+
+model CareSupportMessage {
+  id           String            @id @default(cuid())
+  threadId     String
+  senderId     String
+  senderRole   String
+  body         String
+  readByStaff  Boolean           @default(false)
+  readByMember Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  thread       CareSupportThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([senderId])
+  @@index([createdAt])
 }
 
 model AutomationLog {

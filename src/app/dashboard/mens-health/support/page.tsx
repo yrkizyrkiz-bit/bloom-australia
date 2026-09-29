@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   MessageSquare,
@@ -40,6 +41,30 @@ const RING = {
   coral: "#F87171",
 } as const;
 
+type SupportMessage = {
+  id: string;
+  senderRole: string;
+  body: string;
+  createdAt: string;
+};
+
+type SupportThread = {
+  id: string;
+  subject: string;
+  status: string;
+  lastMessageAt: string;
+  messages: SupportMessage[];
+};
+
+function formatWhen(iso: string) {
+  return new Date(iso).toLocaleString("en-AU", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function SupportPage() {
   const pathname = usePathname() || "";
   const { data: portal } = usePortalContext();
@@ -50,6 +75,8 @@ export default function SupportPage() {
   const [subject, setSubject] = useState("");
   const [sending, setSending] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [threads, setThreads] = useState<SupportThread[]>([]);
+  const [loadingThreads, setLoadingThreads] = useState(true);
 
   useEffect(() => {
     const fromPath = mensHealthShellFromPathname(pathname);
@@ -74,6 +101,23 @@ export default function SupportPage() {
       ? "Get help with your sexual health journey"
       : "Get help with your hair health journey";
 
+  const loadThreads = useCallback(async () => {
+    try {
+      const res = await fetch("/api/care-support/messages", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setThreads(data.threads || []);
+    } catch (error) {
+      console.error("Failed to load support messages", error);
+    } finally {
+      setLoadingThreads(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadThreads();
+  }, [loadThreads]);
+
   const handleSubmit = async () => {
     if (!message.trim() || !subject.trim()) {
       toast.error("Please fill in all fields");
@@ -81,11 +125,25 @@ export default function SupportPage() {
     }
 
     setSending(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setSending(false);
-    toast.success("Message sent! We'll respond within 24 hours.");
-    setMessage("");
-    setSubject("");
+    try {
+      const res = await fetch("/api/care-support/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, body: message }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send message");
+      }
+      toast.success("Message sent! We'll respond within 24 hours.");
+      setMessage("");
+      setSubject("");
+      await loadThreads();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -231,6 +289,75 @@ export default function SupportPage() {
             <Shield className="h-4 w-4" />
             <span>Your message is encrypted and confidential</span>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-[#cdd8c6]">
+        <CardContent className="space-y-4 p-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-serif text-lg font-semibold text-[#2c3628]">Your messages</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setLoadingThreads(true);
+                void loadThreads();
+              }}
+              className="text-[#5c7a52]"
+            >
+              Refresh
+            </Button>
+          </div>
+
+          {loadingThreads ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-[#5c7a52]" />
+            </div>
+          ) : threads.length === 0 ? (
+            <p className="text-sm text-[#5c7a52]">
+              No messages yet. Send a note above and your care team will reply here.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {threads.map((thread) => (
+                <div
+                  key={thread.id}
+                  className="rounded-xl border border-[#cdd8c6] bg-[#f8f4ec]/60 p-4"
+                >
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-[#2c3628]">{thread.subject}</p>
+                      <p className="text-xs text-[#5c7a52]">
+                        Updated {formatWhen(thread.lastMessageAt)}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="bg-[#e6ebe3] text-[#4a6243]">
+                      {thread.status}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {thread.messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`rounded-lg px-3 py-2 text-sm ${
+                          msg.senderRole === "MEMBER"
+                            ? "ml-6 bg-[#4a6243] text-white"
+                            : "mr-6 bg-white text-[#2c3628] border border-[#cdd8c6]"
+                        }`}
+                      >
+                        <p className="mb-1 text-[10px] uppercase tracking-wide opacity-70">
+                          {msg.senderRole === "MEMBER" ? "You" : "Care team"} ·{" "}
+                          {formatWhen(msg.createdAt)}
+                        </p>
+                        <p className="whitespace-pre-wrap">{msg.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
