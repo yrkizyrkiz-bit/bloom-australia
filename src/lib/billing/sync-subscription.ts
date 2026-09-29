@@ -38,6 +38,29 @@ function mapStripeStatus(status: Stripe.Subscription.Status): MembershipStatus {
   }
 }
 
+/**
+ * Keep the existing legacy subscriptionTier when the member already has another
+ * ACTIVE clinical PROGRAM entitlement. Portal upsells must not steal the tier
+ * used by the first program's journey display.
+ */
+export function resolveSubscriptionTierOnSync(input: {
+  existingTier: string | null | undefined;
+  proposedTier: string;
+  activeProgramKeys: Array<string | null | undefined>;
+  incomingProgramKey: ProgramKey | null;
+}): string {
+  if (!input.existingTier) return input.proposedTier;
+
+  const hasOtherActiveClinical = input.activeProgramKeys.some((raw) => {
+    const key = normalizeProgramKey(raw);
+    if (!key) return false;
+    if (!input.incomingProgramKey) return true;
+    return key !== input.incomingProgramKey;
+  });
+
+  return hasOtherActiveClinical ? input.existingTier : input.proposedTier;
+}
+
 export async function syncMemberSubscriptionFromStripe(
   subscription: Stripe.Subscription,
   options?: {
@@ -244,12 +267,28 @@ export async function syncMemberSubscriptionFromStripe(
     const programFromMetadata = normalizeProgramKey(
       subscription.metadata?.programKey || subscription.metadata?.sanativeProgram
     );
-    const subscriptionTier =
+    const proposedTier =
       programFromMetadata && programFromMetadata !== "WEIGHT_MANAGEMENT"
         ? PROGRAM_SLUG[programFromMetadata as ProgramKey]
         : programFromMetadata === "WEIGHT_MANAGEMENT"
           ? `sanative_${planTier.toLowerCase()}`
           : user.subscriptionTier || `sanative_${planTier.toLowerCase()}`;
+
+    const activeProgramEntitlements = await prisma.entitlement.findMany({
+      where: {
+        userId,
+        type: "PROGRAM",
+        status: "ACTIVE",
+      },
+      select: { key: true },
+    });
+
+    const subscriptionTier = resolveSubscriptionTierOnSync({
+      existingTier: user.subscriptionTier,
+      proposedTier,
+      activeProgramKeys: activeProgramEntitlements.map((row) => row.key),
+      incomingProgramKey: programFromMetadata,
+    });
 
     await prisma.user.update({
       where: { id: userId },

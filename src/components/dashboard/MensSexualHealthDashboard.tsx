@@ -346,7 +346,7 @@ export function MensSexualHealthDashboard() {
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4a6243] via-[#3d4f38] to-[#34412f] p-6 text-white">
           <div className="absolute top-0 right-0 h-40 w-40 -translate-y-1/2 translate-x-1/3 rounded-full bg-white/5" />
           <div className="relative z-10">
-            <p className="mb-1 text-sm text-[#cdd8c6]">Sexual Health · Erectile Dysfunction</p>
+            <p className="mb-1 text-sm text-[#cdd8c6]">Men&apos;s Health · Erectile Dysfunction</p>
             <h1 className="mb-1 font-serif text-2xl font-semibold md:text-3xl">
               {data?.user.firstName || "Your"} ED care
             </h1>

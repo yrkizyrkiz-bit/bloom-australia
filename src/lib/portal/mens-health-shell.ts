@@ -62,5 +62,5 @@ export function mensHealthShellHome(shell: MensHealthShell): string {
 }
 
 export function mensHealthShellLabel(shell: MensHealthShell): string {
-  return shell === "sexual" ? "Sexual Health" : "Hair Restoration";
+  return shell === "sexual" ? "Men's Health" : "Hair Restoration";
 }

@@ -13,6 +13,7 @@ import {
 } from "@/lib/mens-sexual-health/portal-data";
 import {
   getSexualJourneyStageDescription,
+  pickMensSexualHealthBooking,
   resolveSexualJourneyStatus,
 } from "@/lib/program-journey/sexual-journey";
 import { normalizeProgramKey } from "@/lib/membership/keys";
@@ -30,7 +31,7 @@ export async function GET() {
       user,
       entitlements,
       quizSubmission,
-      booking,
+      bookingCandidates,
       prescriptions,
       treatments,
       programMembers,
@@ -56,7 +57,7 @@ export async function GET() {
         where: { userId, programKey: "MENS_HEALTH_SEXUAL" },
         orderBy: { submittedAt: "desc" },
       }),
-      prisma.consultationBooking.findFirst({
+      prisma.consultationBooking.findMany({
         where: {
           userId,
           OR: [
@@ -64,9 +65,14 @@ export async function GET() {
             { notes: { contains: "MENS_HEALTH_SEXUAL", mode: "insensitive" } },
             { notes: { contains: "Erectile", mode: "insensitive" } },
             { notes: { contains: "mens_health_sexual", mode: "insensitive" } },
+            { notes: { contains: "Men's Health", mode: "insensitive" } },
+            { notes: { contains: "Mens Health", mode: "insensitive" } },
+            { notes: { contains: "mens_health", mode: "insensitive" } },
+            { notes: { contains: "MENS_HEALTH", mode: "insensitive" } },
           ],
         },
         orderBy: { scheduledAt: "desc" },
+        take: 10,
         select: {
           id: true,
           status: true,
@@ -74,6 +80,7 @@ export async function GET() {
           doctorName: true,
           appointmentType: true,
           completedAt: true,
+          notes: true,
         },
       }),
       prisma.prescription.findMany({
@@ -107,6 +114,8 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    const booking = pickMensSexualHealthBooking(bookingCandidates);
 
     const answers = (quizSubmission?.answers as Record<string, string> | null) || null;
     const treatmentFocus = answers?.treatmentFocus;

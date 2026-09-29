@@ -6,7 +6,11 @@ import { OPEN_CONSULTATION_BOOKING_STATUSES } from "@/lib/program-journey/upcomi
 import {
   getHairJourneyStageDescription,
   resolveHairJourneyStatus,
+  resolveHairOnlyEnrollment,
+  resolveHairPortalBooking,
 } from "@/lib/program-journey/hair-journey";
+import { resolvePublicConsultProgramFromBookingNotes } from "@/lib/funnel/public-consult-programs";
+import { normalizeProgramKey } from "@/lib/membership/keys";
 import {
   isDoctorCompletedHairPrescription,
   repairHairTreatmentScheduleIfNeeded,
@@ -57,6 +61,7 @@ export async function GET() {
       programMember,
       wmMember,
       sexualMember,
+      entitlements,
       hairNoteBooking,
       openBooking,
       completedBooking,
@@ -103,6 +108,14 @@ export async function GET() {
           },
           select: { id: true },
         }),
+        prisma.entitlement.findMany({
+          where: {
+            userId,
+            type: "PROGRAM",
+            status: { in: ["ACTIVE", "PENDING"] },
+          },
+          select: { key: true },
+        }),
         prisma.consultationBooking.findFirst({
           where: {
             userId,
@@ -123,6 +136,7 @@ export async function GET() {
             doctorName: true,
             appointmentType: true,
             completedAt: true,
+            notes: true,
           },
         }),
         prisma.consultationBooking.findFirst({
@@ -139,6 +153,7 @@ export async function GET() {
             doctorName: true,
             appointmentType: true,
             completedAt: true,
+            notes: true,
           },
         }),
         prisma.consultationBooking.findFirst({
@@ -247,24 +262,37 @@ export async function GET() {
     const isHairMember =
       user.subscriptionTier === "hair_loss" ||
       user.subscriptionTier === "HAIR_LOSS" ||
-      programMember?.id != null;
+      programMember?.id != null ||
+      entitlements.some((row) => normalizeProgramKey(row.key) === "HAIR_LOSS");
     // Shared user.approvalStatus / journeyStatus must not advance Hair when
-    // another clinical program (sexual/WM) owns those fields.
-    const hairOnly = Boolean(programMember) && !wmMember && !sexualMember;
-    const booking = hairNoteBooking ?? (isHairMember ? openBooking : null);
+    // another clinical program (sexual/WM) owns those fields — including via entitlements.
+    const hairOnly = resolveHairOnlyEnrollment({
+      hasHairProgramMember: Boolean(programMember),
+      hasWeightProgramMember: Boolean(wmMember),
+      hasSexualProgramMember: Boolean(sexualMember),
+      entitlementKeys: entitlements.map((row) => row.key),
+    });
+    const booking = resolveHairPortalBooking({
+      hairNoteBooking,
+      openBooking,
+      hairOnly,
+      isHairMember,
+    });
     const hasHairPrescription = hairPrescriptions.length > 0;
     const hasActiveTreatment =
       isHairMember && (hairTreatments.length > 0 || hasHairPrescription);
+    const completedIsHair =
+      Boolean(completedBooking) &&
+      (hairOnly ||
+        resolvePublicConsultProgramFromBookingNotes(completedBooking?.notes)?.slug ===
+          "hair_loss" ||
+        /hair|bald/i.test(completedBooking?.notes || ""));
     const hairJourneyStatus = resolveHairJourneyStatus({
       journeyStatus: hairOnly ? user.journeyStatus : null,
       approvalStatus: hairOnly ? user.approvalStatus : null,
       programMemberStatus: programMember?.membershipStatus,
       hasUpcomingBooking: Boolean(booking),
-      consultCompleted:
-        Boolean(completedBooking) &&
-        (hairOnly ||
-          !wmMember ||
-          /hair|bald/i.test(completedBooking.notes || "")),
+      consultCompleted: completedIsHair,
       hasHairPrescription: isHairMember && hasHairPrescription,
       hasActiveTreatment: isHairMember && hairTreatments.length > 0,
       hairOnly,

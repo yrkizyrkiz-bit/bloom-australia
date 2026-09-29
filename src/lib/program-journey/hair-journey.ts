@@ -1,5 +1,7 @@
 import { CheckCircle2, Phone, Sparkles } from "lucide-react";
 import type { JourneyTimelineStep } from "@/lib/program-journey/timeline";
+import { resolvePublicConsultProgramFromBookingNotes } from "@/lib/funnel/public-consult-programs";
+import { normalizeProgramKey } from "@/lib/membership/keys";
 
 export const HAIR_LOSS_JOURNEY_STEPS: JourneyTimelineStep[] = [
   {
@@ -163,4 +165,50 @@ export function resolveHairApprovalUserJourney(input: {
 }): { journeyStatus?: "ACTIVE" } {
   if (input.hasWeightManagementEnrollment || input.hasSexualHealthEnrollment) return {};
   return { journeyStatus: "ACTIVE" };
+}
+
+/**
+ * True only when Hair is enrolled and no competing clinical program is present
+ * via ProgramMember or ACTIVE/PENDING PROGRAM entitlements.
+ */
+export function resolveHairOnlyEnrollment(input: {
+  hasHairProgramMember: boolean;
+  hasWeightProgramMember?: boolean;
+  hasSexualProgramMember?: boolean;
+  entitlementKeys?: Array<string | null | undefined>;
+}): boolean {
+  if (!input.hasHairProgramMember) return false;
+
+  const keys = (input.entitlementKeys || [])
+    .map((key) => normalizeProgramKey(key))
+    .filter((key): key is NonNullable<typeof key> => Boolean(key));
+
+  const hasWeight =
+    Boolean(input.hasWeightProgramMember) || keys.includes("WEIGHT_MANAGEMENT");
+  const hasSexual =
+    Boolean(input.hasSexualProgramMember) ||
+    keys.includes("MENS_HEALTH_SEXUAL") ||
+    keys.includes("MENS_HEALTH_VITALITY");
+
+  return !hasWeight && !hasSexual;
+}
+
+/**
+ * Never attribute another program's consult to Hair. Prefer hair-tagged bookings;
+ * only fall back to a generic open booking when the member is truly hair-only and
+ * booking notes do not resolve to a different public consult program.
+ */
+export function resolveHairPortalBooking<T extends { notes?: string | null }>(input: {
+  hairNoteBooking: T | null | undefined;
+  openBooking: T | null | undefined;
+  hairOnly: boolean;
+  isHairMember: boolean;
+}): T | null {
+  if (input.hairNoteBooking) return input.hairNoteBooking;
+  if (!input.hairOnly || !input.isHairMember || !input.openBooking) return null;
+
+  const resolved = resolvePublicConsultProgramFromBookingNotes(input.openBooking.notes);
+  if (resolved && resolved.slug !== "hair_loss") return null;
+
+  return input.openBooking;
 }

@@ -99,7 +99,7 @@ export default function MensHealthLayout({
   });
   const isSexualHealthShell = shell === "sexual";
   const navItems = isSexualHealthShell ? sexualHealthNavItems : hairNavItems;
-  const navLabel = isSexualHealthShell ? "Sexual Health" : "Hair Restoration";
+  const navLabel = isSexualHealthShell ? "Men's Health" : "Hair Restoration";
   const layoutGroupId = isSexualHealthShell ? "nav-mens-sexual" : "nav-mens-hair";
 
   const hasMensHealthEntitlement =

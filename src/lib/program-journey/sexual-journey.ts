@@ -1,5 +1,6 @@
 import { CheckCircle2, Heart, Phone } from "lucide-react";
 import type { JourneyTimelineStep } from "@/lib/program-journey/timeline";
+import { resolvePublicConsultProgramFromBookingNotes } from "@/lib/funnel/public-consult-programs";
 
 export const MENS_SEXUAL_JOURNEY_STEPS: JourneyTimelineStep[] = [
   {
@@ -167,4 +168,26 @@ export function resolveSexualApprovalUserJourney(input: {
 }): { journeyStatus?: "ACTIVE" } {
   if (input.hasWeightManagementEnrollment || input.hasHairLossEnrollment) return {};
   return { journeyStatus: "ACTIVE" };
+}
+
+/** Match Sexual Health portal bookings, including men's public funnel notes. */
+export function isMensSexualHealthBookingNotes(notes?: string | null): boolean {
+  if (resolvePublicConsultProgramFromBookingNotes(notes)?.slug === "mens_health") {
+    return true;
+  }
+  const n = (notes || "").toLowerCase();
+  return (
+    n.includes("sexual health") ||
+    n.includes("erectile") ||
+    n.includes("mens_health_sexual") ||
+    n.includes("mens health") ||
+    n.includes("men's health") ||
+    n.includes("mens_health")
+  );
+}
+
+export function pickMensSexualHealthBooking<T extends { notes?: string | null }>(
+  candidates: T[]
+): T | null {
+  return candidates.find((row) => isMensSexualHealthBookingNotes(row.notes)) ?? null;
 }

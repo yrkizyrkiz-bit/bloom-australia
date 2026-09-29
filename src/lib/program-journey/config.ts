@@ -70,7 +70,7 @@ export const PROGRAM_JOURNEY_CONFIG: Partial<Record<ProgramKey, ProgramJourneyCo
   },
   MENS_HEALTH_SEXUAL: {
     programKey: "MENS_HEALTH_SEXUAL",
-    programLabel: "Sexual Health",
+    programLabel: "Men's Health",
     prepTitle: "Prepare for your confidential doctor call",
     prepItems: [
       "Find a quiet, private place with good phone reception",
