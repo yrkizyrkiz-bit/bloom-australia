@@ -50,35 +50,46 @@ export function bookingMatchesProgram(
 }
 
 /**
- * True when the member has at least one pending portal program upsell that still
- * needs a care-arranged consult for *that* program. An open booking for a
- * different program (e.g. Weight Management) must not suppress the banner for
- * a new Hair / Men's / Women's portal add.
+ * Program keys from pending portal upsells that still need a care-arranged consult.
+ * An open booking for another program does not clear a different upsell.
  */
-export function computeAwaitingConsultationArrangement(input: {
+export function listAwaitingConsultationPrograms(input: {
   pendingPortalUpsells: Array<{ notes?: string | null }>;
   openBookings: Array<{ notes?: string | null }>;
-}): boolean {
-  const upsells = input.pendingPortalUpsells;
-  if (upsells.length === 0) return false;
+}): ProgramKey[] {
+  const awaiting: ProgramKey[] = [];
+  const seen = new Set<ProgramKey>();
 
-  for (const task of upsells) {
-    const programKey =
-      parsePortalUpsellProgramKey(task.notes) ??
-      // Notes without parseable JSON still contain "portal_upsell" (query filter);
-      // treat as awaiting unless somehow already covered — prefer showing the banner.
-      null;
-
-    if (!programKey) {
-      // Cannot attribute a booking to an unknown program; keep banner on.
-      return true;
-    }
+  for (const task of input.pendingPortalUpsells) {
+    const programKey = parsePortalUpsellProgramKey(task.notes);
+    if (!programKey || seen.has(programKey)) continue;
 
     const hasMatchingBooking = input.openBookings.some((booking) =>
       bookingMatchesProgram(booking.notes, programKey)
     );
-    if (!hasMatchingBooking) return true;
+    if (hasMatchingBooking) continue;
+
+    seen.add(programKey);
+    awaiting.push(programKey);
   }
 
-  return false;
+  return awaiting;
 }
+
+/** @deprecated Prefer listAwaitingConsultationPrograms for program-scoped UI. */
+export function computeAwaitingConsultationArrangement(input: {
+  pendingPortalUpsells: Array<{ notes?: string | null }>;
+  openBookings: Array<{ notes?: string | null }>;
+}): boolean {
+  return listAwaitingConsultationPrograms(input).length > 0;
+}
+
+export function isProgramAwaitingConsultation(
+  programs: ProgramKey[] | null | undefined,
+  programKey: ProgramKey
+): boolean {
+  return Boolean(programs?.includes(programKey));
+}
+
+export const AWAITING_CONSULTATION_HERO_COPY =
+  "A Sanative care partner will review your intake questions and contact you to arrange a doctor consultation to discuss your treatment options.";

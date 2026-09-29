@@ -3,6 +3,7 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { isWeightProgressPath } from "@/lib/portal-context";
+import { isProgramAwaitingConsultation } from "@/lib/portal/awaiting-consultation";
 import { ProgramFeatureGate } from "./ProgramFeatureGate";
 import { PostCheckoutWelcome } from "./PostCheckoutWelcome";
 
@@ -19,7 +20,7 @@ export function WeightManagementPortalShell({
 
   const showPostCheckout =
     searchParams.get("onboarding") === "post-checkout" &&
-    !portal?.awaitingConsultationArrangement;
+    !isProgramAwaitingConsultation(portal?.awaitingConsultationPrograms, "WEIGHT_MANAGEMENT");
   const progressLocked =
     !isLoading && portal && isWeightProgressPath(pathname) && !portal.features.weightProgress;
 

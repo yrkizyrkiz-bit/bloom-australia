@@ -4,7 +4,7 @@
  */
 
 import type { DerivedMembershipEntitlements } from "@/lib/membership/entitlements";
-import { normalizeProgramKey } from "@/lib/membership/keys";
+import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
 import { isProgramEntitled } from "@/lib/membership/program-access";
 
 export type PortalMode =
@@ -42,8 +42,11 @@ export interface PortalContextPayload {
   features: PortalFeatures;
   /** Derived membership entitlements (persisted Entitlement layer + biomarker readiness). */
   membership?: DerivedMembershipEntitlements;
-  /** True when member added a clinical program in-portal and still needs care to book consult. */
-  awaitingConsultationArrangement?: boolean;
+  /**
+   * Clinical programs the member added in-portal that still need care to arrange a consult.
+   * Scoped per program — do not show this copy on programs that already have a booking.
+   */
+  awaitingConsultationPrograms?: ProgramKey[];
 }
 
 const ACTIVE_JOURNEY_STATUSES = ["ONBOARDING_COMPLETE", "ACTIVE"] as const;

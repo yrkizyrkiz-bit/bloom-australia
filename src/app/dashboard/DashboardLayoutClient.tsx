@@ -9,7 +9,6 @@ import { PortalContextProvider } from "@/contexts/PortalContextProvider";
 import { FaceIdEnrollPrompt } from "@/components/account/FaceIdEnrollPrompt";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 import { MobileNav } from "@/components/dashboard/MobileNav";
-import { PortalAwaitingConsultationBanner } from "@/components/portal/PortalAwaitingConsultationBanner";
 import { Heart } from "lucide-react";
 
 const SESSION_RELOAD_KEY = "sanative_session_document_reload";
@@ -116,7 +115,6 @@ export default function DashboardLayoutClient({
         <div className="min-h-screen bg-gradient-to-br from-[#fdfbf7] via-white to-[#f0f7f4]">
           <DashboardNav />
           <main className="mx-auto min-w-0 max-w-7xl overflow-x-hidden px-4 py-6 pb-24 sm:px-6 md:pb-8 lg:px-8">
-            <PortalAwaitingConsultationBanner />
             {children}
           </main>
           <MobileNav />

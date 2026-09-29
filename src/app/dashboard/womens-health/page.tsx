@@ -16,6 +16,7 @@ import {
   Sparkles,
   TestTubes,
 } from "lucide-react";
+import { AwaitingConsultationHeroNote } from "@/components/portal/AwaitingConsultationHeroNote";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -86,6 +87,9 @@ export default function WomensHealthPage() {
           <p className="text-white/85 text-base md:text-lg max-w-2xl">
             Your dedicated space for menopause support and biomarker-guided insights.
           </p>
+          <AwaitingConsultationHeroNote
+            programKeys={["WOMENS_HEALTH_SEXUAL", "WOMENS_HEALTH_VITALITY"]}
+          />
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button asChild className="bg-white text-rose-700 hover:bg-white/90">
               <Link href="/dashboard/womens-health/check-in">

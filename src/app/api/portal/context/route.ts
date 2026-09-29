@@ -12,7 +12,7 @@ import {
   mergeSubscriptionSignalsIntoEntitlements,
 } from "@/lib/membership/subscription-access";
 import { OPEN_CONSULTATION_BOOKING_STATUSES } from "@/lib/program-journey/upcoming-consultation";
-import { computeAwaitingConsultationArrangement } from "@/lib/portal/awaiting-consultation";
+import { listAwaitingConsultationPrograms } from "@/lib/portal/awaiting-consultation";
 
 const PAID_JOURNEY_STATUSES = Array.from(PAID_WEIGHT_JOURNEY_STATUSES);
 
@@ -90,7 +90,7 @@ export async function GET() {
       console.error("[portal/context] membership derivation failed", membershipError);
     }
 
-    const awaitingConsultationArrangement = computeAwaitingConsultationArrangement({
+    const awaitingConsultationPrograms = listAwaitingConsultationPrograms({
       pendingPortalUpsells,
       openBookings,
     });
@@ -107,7 +107,7 @@ export async function GET() {
 
     return NextResponse.json({
       ...context,
-      awaitingConsultationArrangement,
+      awaitingConsultationPrograms,
     });
   } catch (error) {
     console.error("[portal/context]", error);

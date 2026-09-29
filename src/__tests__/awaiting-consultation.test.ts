@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   bookingMatchesProgram,
   computeAwaitingConsultationArrangement,
+  isProgramAwaitingConsultation,
+  listAwaitingConsultationPrograms,
   parsePortalUpsellProgramKey,
   programKeyToConsultSlug,
 } from "@/lib/portal/awaiting-consultation";
@@ -10,6 +12,12 @@ const hairUpsellNotes = JSON.stringify({
   source: "portal_upsell",
   programKey: "HAIR_LOSS",
   paymentIntentId: "pi_test",
+});
+
+const womensUpsellNotes = JSON.stringify({
+  source: "portal_upsell",
+  programKey: "WOMENS_HEALTH_SEXUAL",
+  paymentIntentId: "pi_w",
 });
 
 describe("awaiting consultation arrangement", () => {
@@ -46,35 +54,45 @@ describe("awaiting consultation arrangement", () => {
     );
   });
 
-  it("shows banner for hair portal upsell even with an open weight booking (Luna case)", () => {
-    expect(
-      computeAwaitingConsultationArrangement({
-        pendingPortalUpsells: [{ notes: hairUpsellNotes }],
-        openBookings: [
-          {
-            notes:
-              "Weight Management Program - Doctor to be assigned during triage by care partner",
-          },
-        ],
-      })
-    ).toBe(true);
+  it("lists only programs that still need a consult (Luna case)", () => {
+    const programs = listAwaitingConsultationPrograms({
+      pendingPortalUpsells: [{ notes: hairUpsellNotes }, { notes: womensUpsellNotes }],
+      openBookings: [
+        {
+          notes:
+            "Weight Management Program - Doctor to be assigned during triage by care partner",
+        },
+      ],
+    });
+    expect(programs).toEqual(["HAIR_LOSS", "WOMENS_HEALTH_SEXUAL"]);
+    expect(isProgramAwaitingConsultation(programs, "HAIR_LOSS")).toBe(true);
+    expect(isProgramAwaitingConsultation(programs, "WEIGHT_MANAGEMENT")).toBe(false);
+    expect(computeAwaitingConsultationArrangement({
+      pendingPortalUpsells: [{ notes: hairUpsellNotes }],
+      openBookings: [
+        {
+          notes:
+            "Weight Management Program - Doctor to be assigned during triage by care partner",
+        },
+      ],
+    })).toBe(true);
   });
 
-  it("clears banner when the upsold program already has an open booking", () => {
+  it("clears a program when it already has an open booking", () => {
     expect(
-      computeAwaitingConsultationArrangement({
+      listAwaitingConsultationPrograms({
         pendingPortalUpsells: [{ notes: hairUpsellNotes }],
         openBookings: [{ notes: "Hair Loss Program - Booked via care partner" }],
       })
-    ).toBe(false);
+    ).toEqual([]);
   });
 
-  it("stays false with no pending portal upsells", () => {
+  it("stays empty with no pending portal upsells", () => {
     expect(
-      computeAwaitingConsultationArrangement({
+      listAwaitingConsultationPrograms({
         pendingPortalUpsells: [],
         openBookings: [],
       })
-    ).toBe(false);
+    ).toEqual([]);
   });
 });

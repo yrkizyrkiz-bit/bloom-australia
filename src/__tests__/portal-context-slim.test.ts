@@ -101,14 +101,14 @@ describe("GET /api/portal/context (slim)", () => {
     expect(body.gender).toBe("male");
     expect(body.membership.programs.HAIR_LOSS.hasEntitlement).toBe(true);
     expect(body.membership.programs.HAIR_LOSS.state).toBe("ready");
-    expect(body.awaitingConsultationArrangement).toBe(false);
+    expect(body.awaitingConsultationPrograms).toEqual([]);
     expect(findManyEntitlement).toHaveBeenCalled();
     expect(findManyMemberSubscription).toHaveBeenCalled();
     expect(biomarkerGroupBy).not.toHaveBeenCalled();
     expect(labReportCount).not.toHaveBeenCalled();
   });
 
-  it("sets awaitingConsultationArrangement when pending portal_upsell and no open booking", async () => {
+  it("lists awaitingConsultationPrograms when pending portal_upsell and no open booking", async () => {
     findManyPreTriageTask.mockResolvedValue([
       {
         id: "task-1",
@@ -122,10 +122,10 @@ describe("GET /api/portal/context (slim)", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.awaitingConsultationArrangement).toBe(true);
+    expect(body.awaitingConsultationPrograms).toEqual(["HAIR_LOSS"]);
   });
 
-  it("keeps awaitingConsultationArrangement when open booking is for a different program", async () => {
+  it("keeps hair in awaitingConsultationPrograms when open booking is for a different program", async () => {
     findManyPreTriageTask.mockResolvedValue([
       {
         id: "task-1",
@@ -144,10 +144,11 @@ describe("GET /api/portal/context (slim)", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.awaitingConsultationArrangement).toBe(true);
+    expect(body.awaitingConsultationPrograms).toEqual(["HAIR_LOSS"]);
+    expect(body.awaitingConsultationPrograms).not.toContain("WEIGHT_MANAGEMENT");
   });
 
-  it("clears awaitingConsultationArrangement when an open booking matches the upsold program", async () => {
+  it("clears awaitingConsultationPrograms when an open booking matches the upsold program", async () => {
     findManyPreTriageTask.mockResolvedValue([
       {
         id: "task-1",
@@ -163,6 +164,6 @@ describe("GET /api/portal/context (slim)", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.awaitingConsultationArrangement).toBe(false);
+    expect(body.awaitingConsultationPrograms).toEqual([]);
   });
 });

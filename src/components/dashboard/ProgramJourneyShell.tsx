@@ -25,6 +25,7 @@ import {
 import { isAwaitingDoctorConsultation } from "@/lib/program-journey/upcoming-consultation";
 import { programSlugFromProgramKey } from "@/lib/billing/program-slugs";
 import { ProgramSubscriptionGate } from "@/components/portal/ProgramSubscriptionGate";
+import { AwaitingConsultationHeroNote } from "@/components/portal/AwaitingConsultationHeroNote";
 
 export type ProgramJourneyViewModel = {
   journeyStatus: string;
@@ -102,6 +103,7 @@ export function ProgramJourneyShell({
           )}
           <p className={`text-sm ${theme.mutedText}`}>{config.programLabel}</p>
           <p className={`mt-1 text-sm ${theme.mutedText}`}>{journey.stageDescription}</p>
+          <AwaitingConsultationHeroNote programKeys={programKey} />
         </div>
       </div>
 

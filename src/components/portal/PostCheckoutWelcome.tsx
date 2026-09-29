@@ -3,14 +3,17 @@
 import { X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { usePortalContext } from "@/hooks/usePortalContext";
+import { isProgramAwaitingConsultation } from "@/lib/portal/awaiting-consultation";
 
-/** Public-funnel post-checkout welcome. Dashboard awaiting-consult copy lives in PortalAwaitingConsultationBanner. */
+/** Public-funnel post-checkout welcome. Program-scoped awaiting-consult copy lives in the program hero. */
 export function PostCheckoutWelcome() {
   const [dismissed, setDismissed] = useState(false);
   const { data: portal } = usePortalContext();
 
-  // Dashboard shell owns the awaiting-consultation message — avoid doubles.
-  if (portal?.awaitingConsultationArrangement) return null;
+  // Weight journey shell owns awaiting-consultation copy for a WM portal upsell.
+  if (isProgramAwaitingConsultation(portal?.awaitingConsultationPrograms, "WEIGHT_MANAGEMENT")) {
+    return null;
+  }
   if (dismissed) return null;
 
   return (
