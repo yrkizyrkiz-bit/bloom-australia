@@ -61,11 +61,6 @@ interface JourneyStatus {
 // GAP-027: Status timeline steps
 const TIMELINE_STEPS = [
   { key: "APPROVED", label: "Doctor approved", icon: CheckCircle2 },
-  { key: "SCRIPT_WRITTEN", label: "Script written", icon: FileText },
-  { key: "PHARMACY_PENDING", label: "Pharmacy preparing treatment", icon: Package },
-  { key: "SHIPPED", label: "Dispatched", icon: Truck },
-  { key: "DELIVERED", label: "Delivered", icon: CheckCircle2 },
-  { key: "ONBOARDING_COMPLETE", label: "Onboarding complete", icon: CheckCircle2 },
   { key: "ACTIVE", label: "Program active", icon: CheckCircle2 },
 ];
 
@@ -74,15 +69,15 @@ function getStepIndex(status: string): number {
   const statusMap: Record<string, number> = {
     APPROVED: 0,
     SCRIPT_DRAFT: 0,
-    SCRIPT_WRITTEN: 1,
-    SCRIPT_SENT_TO_PHARMACY: 1,
-    PHARMACY_PENDING: 2,
-    DISPENSING: 2,
-    SHIPPED: 3,
-    DELIVERED: 4,
-    ONBOARDING_PENDING: 4,
-    ONBOARDING_COMPLETE: 5,
-    ACTIVE: 6,
+    SCRIPT_WRITTEN: 0,
+    SCRIPT_SENT_TO_PHARMACY: 0,
+    PHARMACY_PENDING: 0,
+    DISPENSING: 0,
+    SHIPPED: 0,
+    DELIVERED: 0,
+    ONBOARDING_PENDING: 0,
+    ONBOARDING_COMPLETE: 0,
+    ACTIVE: 1,
   };
   return statusMap[status] ?? -1;
 }

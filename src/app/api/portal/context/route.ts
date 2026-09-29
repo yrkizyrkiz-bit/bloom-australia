@@ -11,6 +11,7 @@ import {
   deriveAccessMembership,
   mergeSubscriptionSignalsIntoEntitlements,
 } from "@/lib/membership/subscription-access";
+import { OPEN_CONSULTATION_BOOKING_STATUSES } from "@/lib/program-journey/upcoming-consultation";
 
 const PAID_JOURNEY_STATUSES = Array.from(PAID_WEIGHT_JOURNEY_STATUSES);
 
@@ -27,27 +28,45 @@ export async function GET() {
     }
     const userId = session.user.id;
 
-    const [user, entitlements, memberSubscriptions] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          journeyStatus: true,
-          approvalStatus: true,
-          passwordHash: true,
-          subscriptionTier: true,
-          memberStatus: true,
-          gender: true,
-        },
-      }),
-      getAllEntitlements(userId),
-      prisma.memberSubscription.findMany({
-        where: { userId },
-        select: {
-          status: true,
-          product: { select: { program: true, slug: true, name: true, planTier: true } },
-        },
-      }),
-    ]);
+    const [user, entitlements, memberSubscriptions, pendingPortalUpsell, openBooking] =
+      await Promise.all([
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            journeyStatus: true,
+            approvalStatus: true,
+            passwordHash: true,
+            subscriptionTier: true,
+            memberStatus: true,
+            gender: true,
+          },
+        }),
+        getAllEntitlements(userId),
+        prisma.memberSubscription.findMany({
+          where: { userId },
+          select: {
+            status: true,
+            product: { select: { program: true, slug: true, name: true, planTier: true } },
+          },
+        }),
+        prisma.preTriageTask.findFirst({
+          where: {
+            patientId: userId,
+            status: "PENDING",
+            appointmentConfirmed: false,
+            notes: { contains: "portal_upsell" },
+          },
+          select: { id: true },
+        }),
+        prisma.consultationBooking.findFirst({
+          where: {
+            userId,
+            completedAt: null,
+            status: { in: [...OPEN_CONSULTATION_BOOKING_STATUSES] },
+          },
+          select: { id: true },
+        }),
+      ]);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -70,6 +89,9 @@ export async function GET() {
       console.error("[portal/context] membership derivation failed", membershipError);
     }
 
+    const awaitingConsultationArrangement =
+      Boolean(pendingPortalUpsell) && !openBooking;
+
     const context = derivePortalContext({
       journeyStatus: user.journeyStatus,
       approvalStatus: user.approvalStatus,
@@ -80,7 +102,10 @@ export async function GET() {
       membership,
     });
 
-    return NextResponse.json(context);
+    return NextResponse.json({
+      ...context,
+      awaitingConsultationArrangement,
+    });
   } catch (error) {
     console.error("[portal/context]", error);
     return NextResponse.json(

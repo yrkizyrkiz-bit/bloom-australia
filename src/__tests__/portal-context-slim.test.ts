@@ -7,6 +7,8 @@ const {
   findUniqueUser,
   findManyEntitlement,
   findManyMemberSubscription,
+  findFirstPreTriageTask,
+  findFirstConsultationBooking,
   biomarkerGroupBy,
   labReportCount,
   getServerSession,
@@ -14,6 +16,8 @@ const {
   findUniqueUser: vi.fn(),
   findManyEntitlement: vi.fn(),
   findManyMemberSubscription: vi.fn(),
+  findFirstPreTriageTask: vi.fn(),
+  findFirstConsultationBooking: vi.fn(),
   biomarkerGroupBy: vi.fn(),
   labReportCount: vi.fn(),
   getServerSession: vi.fn(),
@@ -32,6 +36,8 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: findUniqueUser },
     entitlement: { findMany: findManyEntitlement },
     memberSubscription: { findMany: findManyMemberSubscription },
+    preTriageTask: { findFirst: findFirstPreTriageTask },
+    consultationBooking: { findFirst: findFirstConsultationBooking },
     biomarkerResult: { groupBy: biomarkerGroupBy },
     labReport: { count: labReportCount },
   },
@@ -48,6 +54,8 @@ describe("GET /api/portal/context (slim)", () => {
     findUniqueUser.mockReset();
     findManyEntitlement.mockReset();
     findManyMemberSubscription.mockReset();
+    findFirstPreTriageTask.mockReset();
+    findFirstConsultationBooking.mockReset();
     biomarkerGroupBy.mockReset();
     labReportCount.mockReset();
     getServerSession.mockReset();
@@ -80,6 +88,8 @@ describe("GET /api/portal/context (slim)", () => {
         },
       },
     ]);
+    findFirstPreTriageTask.mockResolvedValue(null);
+    findFirstConsultationBooking.mockResolvedValue(null);
   });
 
   it("returns membership access without querying BiomarkerResult or LabReport", async () => {
@@ -91,9 +101,34 @@ describe("GET /api/portal/context (slim)", () => {
     expect(body.gender).toBe("male");
     expect(body.membership.programs.HAIR_LOSS.hasEntitlement).toBe(true);
     expect(body.membership.programs.HAIR_LOSS.state).toBe("ready");
+    expect(body.awaitingConsultationArrangement).toBe(false);
     expect(findManyEntitlement).toHaveBeenCalled();
     expect(findManyMemberSubscription).toHaveBeenCalled();
     expect(biomarkerGroupBy).not.toHaveBeenCalled();
     expect(labReportCount).not.toHaveBeenCalled();
+  });
+
+  it("sets awaitingConsultationArrangement when pending portal_upsell and no open booking", async () => {
+    findFirstPreTriageTask.mockResolvedValue({ id: "task-1" });
+    findFirstConsultationBooking.mockResolvedValue(null);
+
+    const { GET } = await import("@/app/api/portal/context/route");
+    const res = await GET();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.awaitingConsultationArrangement).toBe(true);
+  });
+
+  it("clears awaitingConsultationArrangement when an open booking exists", async () => {
+    findFirstPreTriageTask.mockResolvedValue({ id: "task-1" });
+    findFirstConsultationBooking.mockResolvedValue({ id: "booking-1" });
+
+    const { GET } = await import("@/app/api/portal/context/route");
+    const res = await GET();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.awaitingConsultationArrangement).toBe(false);
   });
 });

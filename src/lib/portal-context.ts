@@ -42,6 +42,8 @@ export interface PortalContextPayload {
   features: PortalFeatures;
   /** Derived membership entitlements (persisted Entitlement layer + biomarker readiness). */
   membership?: DerivedMembershipEntitlements;
+  /** True when member added a clinical program in-portal and still needs care to book consult. */
+  awaitingConsultationArrangement?: boolean;
 }
 
 const ACTIVE_JOURNEY_STATUSES = ["ONBOARDING_COMPLETE", "ACTIVE"] as const;

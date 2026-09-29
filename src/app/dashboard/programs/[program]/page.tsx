@@ -286,9 +286,8 @@ export default function InPortalProgramPage() {
         {sexualHealth ? (
           <>
             <p className="mx-auto max-w-md text-[#5c7a52] leading-relaxed">
-              You&apos;re all set, thank you for trusting us with your care. Your subscription
-              includes a private doctor consultation, and our care team will reach out shortly to
-              book a time that suits you.
+              A Sanative care partner will review your intake questions and contact you to arrange
+              a doctor consultation to discuss your treatment options.
             </p>
             <p className="mx-auto mt-4 max-w-md text-sm text-[#5c7a52]/90 leading-relaxed">
               If treatment is recommended, your doctor will only prescribe after confirming
@@ -297,7 +296,8 @@ export default function InPortalProgramPage() {
           </>
         ) : (
           <p className="mx-auto max-w-md text-[#5c7a52] leading-relaxed">
-            Thank you for joining. Our care team will be in touch shortly to help you get started.
+            A Sanative care partner will review your intake questions and contact you to arrange a
+            doctor consultation to discuss your treatment options.
           </p>
         )}
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
