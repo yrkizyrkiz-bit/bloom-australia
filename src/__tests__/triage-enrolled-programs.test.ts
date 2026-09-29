@@ -36,15 +36,19 @@ describe("collectEnrolledPrograms", () => {
     ]);
   });
 
-  it("maps bare mens_health to Sexual Health and keeps Vitality distinct", () => {
+  it("unions membership tier with multiple clinical entitlements", () => {
     expect(
-      collectEnrolledPrograms([
-        { program: "mens_health", membershipStatus: "ACTIVE" },
-        { program: "MENS_HEALTH_VITALITY", membershipStatus: "PENDING" },
-      ])
+      collectEnrolledPrograms(
+        [
+          { program: "WOMENS_HEALTH_SEXUAL", membershipStatus: "ACTIVE" },
+          { program: "WEIGHT_MANAGEMENT", membershipStatus: "ACTIVE" },
+        ],
+        "membership"
+      )
     ).toEqual([
-      { key: "MENS_HEALTH_SEXUAL", label: "Men's Sexual Health", status: "ACTIVE" },
-      { key: "MENS_HEALTH_VITALITY", label: "Men's Vitality", status: "PENDING" },
+      { key: "WOMENS_HEALTH_SEXUAL", label: "Women's Wellness", status: "ACTIVE" },
+      { key: "WEIGHT_MANAGEMENT", label: "Weight Management", status: "ACTIVE" },
+      { key: "membership", label: "Membership", status: "ACTIVE" },
     ]);
   });
 });
@@ -54,5 +58,10 @@ describe("enrolledProgramLabel", () => {
     expect(enrolledProgramLabel("MENS_HEALTH_SEXUAL")).toBe("Men's Sexual Health");
     expect(enrolledProgramLabel("WOMENS_HEALTH_SEXUAL")).toBe("Women's Wellness");
     expect(enrolledProgramLabel("WOMENS_HEALTH_VITALITY")).toBe("Menopause Care");
+  });
+
+  it("labels membership tiers", () => {
+    expect(enrolledProgramLabel("membership")).toBe("Membership");
+    expect(enrolledProgramLabel("sanative_membership")).toBe("Membership");
   });
 });

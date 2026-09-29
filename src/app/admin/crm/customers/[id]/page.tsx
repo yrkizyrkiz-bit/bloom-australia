@@ -72,6 +72,9 @@ import { MemberWeightPlanPanel } from "@/components/admin/MemberWeightPlanPanel"
 import { ageFromDateOfBirth } from "@/lib/weight-management/calorie-calculator";
 import { HolisticReportReviewDialog } from "@/components/admin/HolisticReportReviewDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { EnrolledProgramBadges } from "@/components/admin/EnrolledProgramBadges";
+import type { EnrolledProgram } from "@/lib/triage/enrolled-programs";
+import { collectEnrolledPrograms } from "@/lib/triage/enrolled-programs";
 
 interface CustomerData {
   id: string;
@@ -721,6 +724,17 @@ export default function CustomerDetailPage() {
         ? [subscription]
         : [];
 
+  const enrolledPrograms: EnrolledProgram[] =
+    (assessmentData?.enrolledPrograms as EnrolledProgram[] | undefined)?.length
+      ? (assessmentData!.enrolledPrograms as EnrolledProgram[])
+      : collectEnrolledPrograms(
+          programSubscriptions.map((programSub) => ({
+            program: programSub.program,
+            membershipStatus: programSub.status,
+          })),
+          customer.subscriptionTier
+        );
+
   const assessment = assessmentData?.assessment as AssessmentData | null;
   const rawSurveyData =
     (assessmentData?.rawSurveyData as Record<string, unknown> | null) || null;
@@ -820,9 +834,11 @@ export default function CustomerDetailPage() {
                 {formatMemberStatus(customer.memberStatus || "POTENTIAL_MEMBER")}
               </Badge>
               <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
-              {customer.subscriptionTier && (
+              {enrolledPrograms.length > 0 ? (
+                <EnrolledProgramBadges programs={enrolledPrograms} />
+              ) : customer.subscriptionTier ? (
                 <Badge variant="outline">{formatPlanLabel(customer.subscriptionTier)}</Badge>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

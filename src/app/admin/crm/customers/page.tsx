@@ -37,6 +37,8 @@ import {
   formatMemberStatus,
   isPortalMemberStatus,
 } from "@/lib/member-status";
+import { EnrolledProgramBadges } from "@/components/admin/EnrolledProgramBadges";
+import type { EnrolledProgram } from "@/lib/triage/enrolled-programs";
 
 interface Customer {
   id: string;
@@ -51,6 +53,7 @@ interface Customer {
   subscriptionStatus: string;
   subscriptionTier: string | null;
   journeyStatus?: string;
+  enrolledPrograms?: EnrolledProgram[];
   createdAt: string;
   _count?: {
     biomarkerResults: number;
@@ -147,7 +150,12 @@ function MembersPageContent() {
           (customer.subscriptionTier?.toLowerCase() || "free") === tierFilter.toLowerCase();
 
         const matchesProgram = programFilter === "all" ||
-          (customer.subscriptionTier?.toLowerCase() || "") === programFilter.toLowerCase();
+          (customer.subscriptionTier?.toLowerCase() || "") === programFilter.toLowerCase() ||
+          (customer.enrolledPrograms || []).some((program) => {
+            const key = program.key.toLowerCase();
+            const filter = programFilter.toLowerCase();
+            return key === filter || key.includes(filter);
+          });
 
         return matchesSearch && matchesMemberStatus && matchesTier && matchesProgram;
       })
@@ -220,6 +228,13 @@ function MembersPageContent() {
         {programInfo.label}
       </Badge>
     );
+  };
+
+  const renderProgramBadges = (customer: Customer) => {
+    if (customer.enrolledPrograms && customer.enrolledPrograms.length > 0) {
+      return <EnrolledProgramBadges programs={customer.enrolledPrograms} />;
+    }
+    return getProgramBadge(customer.subscriptionTier);
   };
 
   const handleDelete = async (customerId: string, customerName: string) => {
@@ -618,7 +633,7 @@ function MembersPageContent() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{getProgramBadge(customer.subscriptionTier)}</TableCell>
+                    <TableCell>{renderProgramBadges(customer)}</TableCell>
                     <TableCell>{getMemberStatusBadge(customer.memberStatus)}</TableCell>
                     <TableCell>{getSubscriptionBadge(customer.subscriptionStatus)}</TableCell>
                     <TableCell>

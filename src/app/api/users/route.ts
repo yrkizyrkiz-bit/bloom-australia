@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { generateRandomPassword } from "@/lib/password";
+import { collectEnrolledPrograms } from "@/lib/triage/enrolled-programs";
 
 // GET /api/users - List all users (admin, care partner, doctor)
 export async function GET(request: NextRequest) {
@@ -73,8 +74,36 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ]);
 
+    const userIds = users.map((u) => u.id);
+    const programEntitlements =
+      userIds.length > 0
+        ? await prisma.entitlement.findMany({
+            where: {
+              userId: { in: userIds },
+              type: "PROGRAM",
+              status: { in: ["ACTIVE", "PENDING"] },
+            },
+            select: { userId: true, key: true, status: true },
+          })
+        : [];
+
+    const entitlementsByUser = new Map<string, Array<{ program: string; membershipStatus: string }>>();
+    for (const row of programEntitlements) {
+      const list = entitlementsByUser.get(row.userId) ?? [];
+      list.push({ program: row.key, membershipStatus: row.status });
+      entitlementsByUser.set(row.userId, list);
+    }
+
+    const usersWithPrograms = users.map((user) => ({
+      ...user,
+      enrolledPrograms: collectEnrolledPrograms(
+        entitlementsByUser.get(user.id) ?? [],
+        user.subscriptionTier
+      ),
+    }));
+
     return NextResponse.json({
-      users,
+      users: usersWithPrograms,
       pagination: {
         page,
         limit,

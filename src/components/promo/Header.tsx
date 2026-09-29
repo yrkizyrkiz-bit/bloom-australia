@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
 
 export function Header({
@@ -11,6 +11,55 @@ export function Header({
 } = {}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  // Lock page scroll while the mobile overhead menu is open so gestures
+  // scroll the menu panel instead of the page underneath.
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const { body, documentElement } = document;
+    const scrollY = window.scrollY;
+    const previous = {
+      bodyOverflow: body.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      htmlOverflow: documentElement.style.overflow,
+    };
+
+    body.style.overflow = "hidden";
+    documentElement.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+
+    return () => {
+      body.style.overflow = previous.bodyOverflow;
+      body.style.position = previous.bodyPosition;
+      body.style.top = previous.bodyTop;
+      body.style.left = previous.bodyLeft;
+      body.style.right = previous.bodyRight;
+      body.style.width = previous.bodyWidth;
+      documentElement.style.overflow = previous.htmlOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isMenuOpen]);
+
+  // Close on desktop breakpoint so body lock cannot stick after rotate/resize.
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const media = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => {
+      if (media.matches) setIsMenuOpen(false);
+    };
+    onChange();
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [isMenuOpen]);
 
   const navItems = [
     {
@@ -180,7 +229,10 @@ export function Header({
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden absolute top-full left-0 right-0 bg-[#fdfbf7] border-b border-[#e6ebe3] animate-fade-in">
+          <div
+            className="lg:hidden absolute top-full left-0 right-0 z-50 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain bg-[#fdfbf7] border-b border-[#e6ebe3] animate-fade-in"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             <div className="px-4 py-6 space-y-4">
               {navItems.map((item) => (
                 <div key={item.label}>

@@ -21,6 +21,10 @@ const ADMIN_PROGRAM_LABELS: Record<ProgramKey, string> = {
 export function enrolledProgramLabel(program: string): string {
   const key = normalizeProgramKey(program);
   if (key) return ADMIN_PROGRAM_LABELS[key] ?? PROGRAM_LABELS[key];
+  const lower = program.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (lower === "membership" || lower === "sanative_membership") {
+    return "Membership";
+  }
   return program.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
@@ -56,6 +60,7 @@ export function collectEnrolledPrograms(
 
 export function enrolledProgramBadgeClass(key: string): string {
   const k = key.toUpperCase();
+  if (k.includes("MEMBERSHIP")) return "border-teal-200 bg-teal-50 text-teal-800";
   if (k.includes("WEIGHT")) return "border-green-200 bg-green-50 text-green-800";
   if (k.includes("HAIR")) return "border-amber-200 bg-amber-50 text-amber-800";
   if (k.includes("WOMEN")) return "border-rose-200 bg-rose-50 text-rose-800";

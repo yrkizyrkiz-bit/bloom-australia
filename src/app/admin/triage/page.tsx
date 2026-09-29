@@ -1014,9 +1014,6 @@ export default function TriageQueuePage() {
               {memberProgramItems.map((item) => {
                 const hasBooking = Boolean(item.booking?.id);
                 const hasDoctor = Boolean(item.booking?.doctorId || item.booking?.doctorName);
-                const isPortalProgramUptake =
-                  Boolean(item.purchase.memberAddedProgram) ||
-                  item.purchase.source === "portal_upsell";
                 const programBadgeKey =
                   item.purchase.programKey ||
                   item.purchase.programSlug ||
@@ -1041,7 +1038,7 @@ export default function TriageQueuePage() {
                                 ? `${item.patient.firstName} ${item.patient.lastName}`
                                 : "Unknown member"}
                             </p>
-                            {isPortalProgramUptake && programBadgeLabel && (
+                            {programBadgeLabel && (
                               <Badge
                                 variant="outline"
                                 className={`text-xs font-medium ${enrolledProgramBadgeClass(programBadgeKey)}`}

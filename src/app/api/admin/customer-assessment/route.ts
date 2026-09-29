@@ -23,6 +23,7 @@ import {
 } from "@/lib/funnel/member-enrollment-phase";
 import { syncMemberQuizArtifacts } from "@/lib/portal/persist-prior-program-quiz";
 import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
+import { collectEnrolledPrograms } from "@/lib/triage/enrolled-programs";
 
 export async function GET(req: NextRequest) {
   try {
@@ -315,6 +316,7 @@ export async function GET(req: NextRequest) {
       portalQuizzes,
       portalQuizAllSubmissions,
       billingOverview,
+      programEntitlements,
     ] = await Promise.all([
       prisma.biomarkerResult.findMany({
         where: { userId },
@@ -356,7 +358,28 @@ export async function GET(req: NextRequest) {
         console.error("Billing summary failed for customer assessment:", billingError);
         return null;
       }),
+      prisma.entitlement.findMany({
+        where: {
+          userId,
+          type: "PROGRAM",
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+        select: { key: true, status: true },
+      }),
     ]);
+
+    const enrolledPrograms = collectEnrolledPrograms(
+      [
+        ...programEntitlements.map((row) => ({
+          program: row.key,
+          membershipStatus: row.status,
+        })),
+        ...(programMember
+          ? [{ program: programMember.program, membershipStatus: programMember.membershipStatus }]
+          : []),
+      ],
+      user.subscriptionTier
+    );
 
     const biomarkersForResponse = biomarkerResults.map((result) => ({
       ...result,
@@ -470,6 +493,7 @@ export async function GET(req: NextRequest) {
       billingSummary,
       billingOverview,
       programSubscriptions,
+      enrolledPrograms,
       isProspectiveEnrollment: isProspectiveEnrollment({
         memberStatus: user.memberStatus,
         journeyStatus: user.journeyStatus,

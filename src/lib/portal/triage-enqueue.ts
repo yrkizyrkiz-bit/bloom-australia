@@ -14,8 +14,8 @@ export type PortalPurchaseTriagePayload = {
 /**
  * True when the member already has a consult in care-partner triage
  * (`PRE_TRIAGE_PENDING` + held/confirmed booking). Used to:
- * - enqueue portal upsells into Pre-Triage Queue only when a consult exists
- * - skip biomarker/program add-on tasks when they belong to that first booking
+ * - attach biomarker/organ-care add-ons to an existing In Triage consult
+ * - tailor notification copy when a clinical upsell lands beside a booked consult
  */
 export async function memberHasConsultInTriage(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
@@ -35,13 +35,39 @@ export async function memberHasConsultInTriage(userId: string): Promise<boolean>
 }
 
 /**
+ * Clinical portal program purchases always need a Pre-Triage Queue row so care
+ * can book (or review alongside an existing consult). Biomarkers / organ-care
+ * add-ons only enqueue when a consult is already In Triage.
+ */
+function shouldEnqueuePortalPurchase(
+  payload: PortalPurchaseTriagePayload,
+  inTriage: boolean
+): boolean {
+  if (payload.source === "portal_upsell" && payload.programKey) {
+    return true;
+  }
+  return inTriage;
+}
+
+/**
  * Enqueue care-partner Pre-Triage Queue for an in-portal paid purchase.
- * Only when the member already has a consult In Triage, otherwise the purchase
- * is access-only and does not need a booking task.
+ * Clinical program upsells always enqueue. Biomarkers / organ-care only enqueue
+ * when the member already has a consult In Triage. Never mutates bookings.
  */
 export async function enqueuePortalPurchaseTriage(payload: PortalPurchaseTriagePayload) {
+  const existing = await prisma.preTriageTask.findFirst({
+    where: {
+      patientId: payload.userId,
+      notes: { contains: payload.paymentIntentId },
+    },
+    select: { id: true },
+  });
+  if (existing) {
+    return { enqueued: false as const, reason: "already_enqueued" as const };
+  }
+
   const inTriage = await memberHasConsultInTriage(payload.userId);
-  if (!inTriage) {
+  if (!shouldEnqueuePortalPurchase(payload, inTriage)) {
     return { enqueued: false as const, reason: "no_consult_in_triage" as const };
   }
 
@@ -79,13 +105,17 @@ export async function enqueuePortalPurchaseTriage(payload: PortalPurchaseTriageP
   });
 
   if (assignedOwnerId) {
+    const message = inTriage
+      ? `${user?.firstName ?? "Member"} ${user?.lastName ?? ""} purchased ${payload.label}. Review with their existing consult in triage.`
+      : `${user?.firstName ?? "Member"} ${user?.lastName ?? ""} purchased ${payload.label}. Book their included consultation.`;
+
     await prisma.notification
       .create({
         data: {
           userId: assignedOwnerId,
           type: "INFO",
           title: "Member added program",
-          message: `${user?.firstName ?? "Member"} ${user?.lastName ?? ""} purchased ${payload.label}. Review with their existing consult in triage.`,
+          message,
           actionUrl: "/admin/triage",
         },
       })
