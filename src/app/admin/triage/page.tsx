@@ -591,6 +591,10 @@ export default function TriageQueuePage() {
     }
     setPreTriageAssigning(true);
     try {
+      // Membership Pre-Triage rows often have an unlinked booked consult; link first
+      // so the queue stays tied to the appointment care is assigning.
+      await linkPreTriageBooking(preTriageAssignItem.taskId, preTriageAssignItem.bookingId);
+
       const res = await fetch(`/api/admin/bookings/${preTriageAssignItem.bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1027,6 +1031,21 @@ export default function TriageQueuePage() {
                 const unlinkedUpcoming = upcomingAppointments.filter(
                   (appt) => appt.id !== item.booking?.id
                 );
+                const assignableUpcoming = upcomingAppointments.find(
+                  (appt) => !appt.doctorId && !appt.doctorName
+                );
+                const patientLabel = item.patient
+                  ? `${item.patient.firstName} ${item.patient.lastName}`
+                  : "this member";
+                const openAssignDoctor = (bookingId: string) => {
+                  if (!item.patient) return;
+                  setPreTriageAssignItem({
+                    taskId: item.taskId,
+                    bookingId,
+                    patientName: patientLabel,
+                  });
+                  setPreTriageAssignDoctorId("");
+                };
                 return (
                   <Card key={item.taskId}>
                     <CardContent className="space-y-3 p-4">
@@ -1068,6 +1087,8 @@ export default function TriageQueuePage() {
                                   hour: "numeric",
                                   minute: "2-digit",
                                 })}`
+                              : assignableUpcoming
+                                ? ` · Booked consult (not linked) · Doctor unassigned`
                               : " · No linked appointment"}
                             {item.booking?.doctorName
                               ? ` · ${item.booking.doctorName}`
@@ -1077,7 +1098,7 @@ export default function TriageQueuePage() {
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          {item.patient && !hasBooking && (
+                          {item.patient && !hasBooking && !assignableUpcoming && (
                             <Button
                               size="sm"
                               onClick={() =>
@@ -1095,14 +1116,17 @@ export default function TriageQueuePage() {
                             <Button
                               size="sm"
                               variant="secondary"
-                              onClick={() => {
-                                setPreTriageAssignItem({
-                                  taskId: item.taskId,
-                                  bookingId: item.booking!.id,
-                                  patientName: `${item.patient!.firstName} ${item.patient!.lastName}`,
-                                });
-                                setPreTriageAssignDoctorId("");
-                              }}
+                              onClick={() => openAssignDoctor(item.booking!.id)}
+                            >
+                              <Stethoscope className="mr-1.5 h-4 w-4" />
+                              Assign doctor
+                            </Button>
+                          )}
+                          {item.patient && !hasBooking && assignableUpcoming && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => openAssignDoctor(assignableUpcoming.id)}
                             >
                               <Stethoscope className="mr-1.5 h-4 w-4" />
                               Assign doctor
@@ -1124,6 +1148,7 @@ export default function TriageQueuePage() {
                           <div className="space-y-2">
                             {upcomingAppointments.map((appt) => {
                               const isLinked = item.booking?.id === appt.id;
+                              const apptHasDoctor = Boolean(appt.doctorId || appt.doctorName);
                               const when = new Date(appt.scheduledAt).toLocaleString("en-AU", {
                                 weekday: "short",
                                 day: "numeric",
@@ -1147,40 +1172,52 @@ export default function TriageQueuePage() {
                                         : " · Doctor unassigned"}
                                     </p>
                                   </div>
-                                  {isLinked ? (
-                                    <Badge
-                                      variant="outline"
-                                      className="border-green-300 bg-green-50 text-xs text-green-800"
-                                    >
-                                      Linked to this task
-                                    </Badge>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      disabled={linkingAppointmentId === appt.id}
-                                      onClick={() =>
-                                        handleUseExistingAppointment(
-                                          item.taskId,
-                                          appt.id,
-                                          item.purchase.label || programBadgeLabel || undefined
-                                        )
-                                      }
-                                    >
-                                      {linkingAppointmentId === appt.id && (
-                                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                                      )}
-                                      Add to this appointment
-                                    </Button>
-                                  )}
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {isLinked ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="border-green-300 bg-green-50 text-xs text-green-800"
+                                      >
+                                        Linked to this task
+                                      </Badge>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={linkingAppointmentId === appt.id}
+                                        onClick={() =>
+                                          handleUseExistingAppointment(
+                                            item.taskId,
+                                            appt.id,
+                                            item.purchase.label || programBadgeLabel || undefined
+                                          )
+                                        }
+                                      >
+                                        {linkingAppointmentId === appt.id && (
+                                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                        )}
+                                        Link to task
+                                      </Button>
+                                    )}
+                                    {item.patient && !apptHasDoctor && (
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => openAssignDoctor(appt.id)}
+                                      >
+                                        <Stethoscope className="mr-1.5 h-3.5 w-3.5" />
+                                        Assign doctor
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })}
                           </div>
                           {!hasBooking && unlinkedUpcoming.length > 0 && (
                             <p className="mt-2 text-xs text-sky-800/80">
-                              Use an existing consult instead of booking a new one when this program
-                              should be reviewed in the same call.
+                              Assign a doctor to the booked consult, or link it to this Pre-Triage
+                              task so care stays on one appointment.
                             </p>
                           )}
                         </div>

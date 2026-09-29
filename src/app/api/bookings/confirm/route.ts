@@ -28,7 +28,7 @@ import {
   resolveWomensHealthCanonicalKey,
   type PublicConsultProgram,
 } from "@/lib/funnel/public-consult-programs";
-import { createProgramPreTriageTask, isWeightManagementMembershipFunnel, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
+import { createProgramPreTriageTask, isWeightManagementMembershipFunnel, linkOpenOnboardingPreTriageTasksToBooking, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
 import { isClinicalProgramMembershipFunnel } from "@/lib/funnel/clinical-program-funnel";
 import { appendPublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
 import { grantProgramPanelEntitlementsAtPayment } from "@/lib/portal/grant-program-panel-at-payment";
@@ -1259,6 +1259,13 @@ export async function POST(req: NextRequest) {
             paymentMetadata: paymentMeta,
           }),
         });
+      } else {
+        // Keep membership in Pre-Triage Queue, but attach this consult so care
+        // can assign a doctor without a manual link step.
+        await linkOpenOnboardingPreTriageTasksToBooking(bookingUserId, booking.id).catch(
+          (err) =>
+            console.error("[bookings/confirm] pre-triage booking link failed:", err)
+        );
       }
 
       if (!consultProgram.isWeightManagement && !isMembershipStyleBooking) {

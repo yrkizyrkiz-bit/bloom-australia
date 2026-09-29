@@ -26,6 +26,8 @@ import {
   isFaceIdSetupOnThisDevice,
   markFaceIdSetupOnThisDevice,
 } from "@/lib/webauthn/device";
+import { getSession } from "next-auth/react";
+import { isFirstPortalSignIn } from "@/lib/portal/first-visit-greeting";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -157,6 +159,15 @@ export default function LoginPage() {
     window.location.assign(targetPath);
   };
 
+  const showLoginSuccessToast = async () => {
+    const session = await getSession();
+    const userId = session?.user?.id;
+    const first = isFirstPortalSignIn(userId);
+    toast.success(first ? "Welcome to Sanative!" : "Welcome back!", {
+      description: "You're being redirected to your dashboard.",
+    });
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -184,9 +195,7 @@ export default function LoginPage() {
         localStorage.removeItem("sanative_remembered_email");
       }
 
-      toast.success("Welcome back!", {
-        description: "You're being redirected to your dashboard."
-      });
+      await showLoginSuccessToast();
       redirectAfterLogin(result.role);
     } else {
       const readableError = getReadableError(result.error || "Login failed");
@@ -217,9 +226,7 @@ export default function LoginPage() {
         if (rememberMe) {
           localStorage.setItem("sanative_remembered_email", trimmedEmail);
         }
-        toast.success("Welcome back!", {
-          description: "You're being redirected to your dashboard.",
-        });
+        await showLoginSuccessToast();
         redirectAfterLogin(result.role);
         return;
       }

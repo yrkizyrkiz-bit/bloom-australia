@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { usePortalReadiness } from "@/hooks/usePortalReadiness";
 import { prefetchWmHome } from "@/lib/weight-management/wm-client-cache";
+import {
+  isFirstPortalSignIn,
+  markPortalSignInComplete,
+} from "@/lib/portal/first-visit-greeting";
 import {
   BIOMARKERS_HERO,
   SUPPLEMENTS_CARD,
@@ -404,12 +408,20 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
   const router = useRouter();
   const { data: portal, isLoading: portalLoading } = usePortalContext();
   const membership = portal?.membership;
+  const [isFirstSignIn, setIsFirstSignIn] = useState(false);
 
   useEffect(() => {
     if (!hasProgramMembership(membership, "WEIGHT_MANAGEMENT")) return;
     void router.prefetch("/dashboard/weight-management");
     void prefetchWmHome();
   }, [membership, router]);
+
+  useLayoutEffect(() => {
+    if (!user?.id) return;
+    const first = isFirstPortalSignIn(user.id);
+    setIsFirstSignIn(first);
+    if (first) markPortalSignInComplete(user.id);
+  }, [user?.id]);
 
   const entitledProgramKeys = (Object.keys(membership?.programs ?? {}) as ProgramKey[]).filter(
     (key) => membership?.programs?.[key]?.hasEntitlement
@@ -422,7 +434,17 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
       <div>
         <div className="flex items-center justify-between gap-3 sm:gap-4">
           <h1 className="min-w-0 text-left font-serif text-2xl text-[#2c3628] sm:text-3xl md:text-4xl">
-            {firstName ? (
+            {isFirstSignIn ? (
+              firstName ? (
+                <>
+                  Welcome to Sanative, <span className="text-gradient italic">{firstName}</span>
+                </>
+              ) : (
+                <>
+                  Welcome to <span className="text-gradient italic">Sanative</span>
+                </>
+              )
+            ) : firstName ? (
               <>
                 Welcome back, <span className="text-gradient italic">{firstName}</span>
               </>

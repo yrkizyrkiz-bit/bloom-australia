@@ -271,6 +271,32 @@ export async function completeOnboardingPreTriageTasksForPatient(userId: string)
   });
 }
 
+/**
+ * Attach a confirmed consult to open membership Pre-Triage Queue rows so care
+ * can assign a doctor without a separate "link" step.
+ */
+export async function linkOpenOnboardingPreTriageTasksToBooking(
+  userId: string,
+  bookingId: string
+): Promise<number> {
+  const result = await prisma.preTriageTask.updateMany({
+    where: {
+      patientId: userId,
+      status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
+      bookingId: null,
+      OR: [
+        { notes: { contains: '"source":"public_subscription"' } },
+        { notes: { contains: '"source":"portal_biomarkers"' } },
+      ],
+    },
+    data: {
+      bookingId,
+      appointmentConfirmed: true,
+    },
+  });
+  return result.count;
+}
+
 /** Move booked public WM funnel members from Pre-Triage Queue into In Triage. */
 export async function promoteBookedWeightManagementFunnelMembersToTriage(): Promise<number> {
   const tasks = await prisma.preTriageTask.findMany({
