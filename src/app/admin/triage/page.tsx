@@ -605,7 +605,27 @@ export default function TriageQueuePage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to assign doctor");
-      toast.success("Doctor assigned");
+
+      // Same as In Triage complete: leave the Pre-Triage queue once a doctor owns the consult.
+      const completeRes = await fetch("/api/admin/pre-triage", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: preTriageAssignItem.taskId,
+          bookingId: preTriageAssignItem.bookingId,
+          appointmentConfirmed: true,
+          readyForDoctor: true,
+          status: "COMPLETED",
+        }),
+      });
+      if (!completeRes.ok) {
+        const completeData = await completeRes.json().catch(() => ({}));
+        throw new Error(
+          completeData.error || "Doctor assigned but failed to clear Pre-Triage queue"
+        );
+      }
+
+      toast.success("Doctor assigned — removed from Pre-Triage");
       setPreTriageAssignItem(null);
       setPreTriageAssignDoctorId("");
       fetchTriageQueue();

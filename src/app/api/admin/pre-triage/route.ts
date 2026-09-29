@@ -161,6 +161,7 @@ export async function PATCH(req: NextRequest) {
     // If marking as completed
     if (status === "COMPLETED") {
       updateData.completedAt = new Date();
+      updateData.readyForDoctor = true;
     }
 
     const task = await prisma.preTriageTask.update({
@@ -192,11 +193,11 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    // If task is now ready for doctor, update patient journey status
-    if (readyForDoctor === true) {
+    // Hand off to doctor the same way In Triage complete does.
+    if (status === "COMPLETED" || readyForDoctor === true) {
       await prisma.user.update({
         where: { id: task.patientId },
-        data: { journeyStatus: "PRE_TRIAGE_COMPLETE" },
+        data: { journeyStatus: "AWAITING_DOCTOR_DECISION" },
       });
     }
 
