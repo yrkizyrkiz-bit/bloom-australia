@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { notifyStaffOfCareChatRequest } from "@/lib/notifications/staff-care-chat";
 
 export const ESCALATE_MARKER = "[ESCALATE_CARE_TEAM]";
 
@@ -39,6 +40,13 @@ export async function escalateChatToCareTeam(
   }
 
   if (chatSession.status === "WAITING" && !chatSession.coachId) {
+    // Re-ping staff (deduped server-side) if the member asks again while queued.
+    await notifyStaffOfCareChatRequest({
+      memberId: chatSession.memberId,
+      sessionId,
+    }).catch((err) => {
+      console.error("[escalate] staff notify failed:", err);
+    });
     return {
       escalated: false,
       alreadyWaiting: true,
@@ -87,6 +95,14 @@ export async function escalateChatToCareTeam(
       senderType: "SYSTEM",
       message,
     },
+  });
+
+  // In-app + Web Push for care partners / admins (mobile + desktop).
+  await notifyStaffOfCareChatRequest({
+    memberId: chatSession.memberId,
+    sessionId,
+  }).catch((err) => {
+    console.error("[escalate] staff notify failed:", err);
   });
 
   return {

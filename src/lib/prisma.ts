@@ -47,6 +47,7 @@ const REQUIRED_PRISMA_MODELS = [
   "weightManagementPlan",
   "passkey",
   "hairWeeklyCheckIn",
+  "pushSubscription",
 ] as const;
 
 function hasCurrentPrismaSchema(client: PrismaClient): boolean {

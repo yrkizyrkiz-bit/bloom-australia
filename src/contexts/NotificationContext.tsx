@@ -55,7 +55,14 @@ function mapNotification(row: ApiNotification): RealTimeNotification {
   };
 }
 
-export function NotificationProvider({ children }: { children: ReactNode }) {
+export function NotificationProvider({
+  children,
+  /** Poll interval in ms (default 60s; staff care-chat uses a shorter window). */
+  pollIntervalMs = 60_000,
+}: {
+  children: ReactNode;
+  pollIntervalMs?: number;
+}) {
   const [notifications, setNotifications] = useState<RealTimeNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
@@ -81,12 +88,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     refresh();
     const onFocus = () => refresh();
     window.addEventListener("focus", onFocus);
-    const interval = setInterval(refresh, 60_000);
+    const interval = setInterval(refresh, Math.max(5_000, pollIntervalMs));
     return () => {
       window.removeEventListener("focus", onFocus);
       clearInterval(interval);
     };
-  }, [refresh]);
+  }, [refresh, pollIntervalMs]);
 
   const addNotification = useCallback((_notification: Omit<RealTimeNotification, "id" | "timestamp" | "read">) => {
     refresh();

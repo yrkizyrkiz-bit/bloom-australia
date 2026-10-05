@@ -1,7 +1,7 @@
 {
   "name": "Sanative",
   "short_name": "Sanative",
-  "description": "Sanative member portal — doctor-led care and biomarker insights.",
+  "description": "Sanative — member portal and staff care alerts.",
   "start_url": "/login",
   "scope": "/",
   "display": "standalone",

@@ -44,6 +44,9 @@ import {
   Inbox,
 } from "lucide-react";
 import { FaceIdEnrollPrompt } from "@/components/account/FaceIdEnrollPrompt";
+import { StaffPushEnable } from "@/components/admin/StaffPushEnable";
+import { RealTimeNotificationBell } from "@/components/dashboard/RealTimeNotificationBell";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DOCTOR_PORTAL_HOME } from "@/lib/portal/staff-home";
 
 type AdminNavItem = {
@@ -155,6 +158,7 @@ export default function AdminLayout({
   const isCareCommsActive = isGroupActive(careCommsNavItems);
 
   return (
+    <NotificationProvider pollIntervalMs={15_000}>
     <div className="min-h-screen bg-muted/30">
       {/* Admin Nav */}
       <nav className="border-b border-border bg-slate-900 text-white sticky top-0 z-50">
@@ -340,6 +344,8 @@ export default function AdminLayout({
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
+              <StaffPushEnable />
+              <RealTimeNotificationBell triggerClassName="text-slate-300 hover:text-white hover:bg-slate-800" />
               {/* Mobile Nav */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -530,5 +536,6 @@ export default function AdminLayout({
         </div>
       </nav>
     </div>
+    </NotificationProvider>
   );
 }

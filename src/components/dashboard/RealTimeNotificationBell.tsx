@@ -53,7 +53,12 @@ function getNotificationBg(type: RealTimeNotification["type"], read: boolean) {
   }
 }
 
-export function RealTimeNotificationBell() {
+export function RealTimeNotificationBell({
+  triggerClassName,
+}: {
+  /** Optional classes for the bell trigger (e.g. dark admin nav). */
+  triggerClassName?: string;
+} = {}) {
   const {
     notifications,
     unreadCount,
@@ -90,7 +95,7 @@ export function RealTimeNotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative"
+          className={`relative ${triggerClassName || ""}`}
           aria-label="Notifications"
         >
           {animate ? (
