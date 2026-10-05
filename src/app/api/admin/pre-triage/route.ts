@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  bookingHasAssignedDoctor,
+  completePreTriageHandoff,
+} from "@/lib/admin/complete-pre-triage-task";
 
 // GAP-026: Care partner pre-triage task queue API
 
@@ -135,13 +139,14 @@ export async function PATCH(req: NextRequest) {
       status,
       assignedOwnerId,
       bookingId,
+      complete,
     } = body;
 
     if (!taskId) {
       return NextResponse.json({ error: "Task ID required" }, { status: 400 });
     }
 
-    // Build update data
+    // Build update data (non-completion fields first)
     const updateData: Record<string, unknown> = {};
 
     if (quizComplete !== undefined) updateData.quizComplete = quizComplete;
@@ -154,17 +159,15 @@ export async function PATCH(req: NextRequest) {
     if (briefAttached !== undefined) updateData.briefAttached = briefAttached;
     if (readyForDoctor !== undefined) updateData.readyForDoctor = readyForDoctor;
     if (notes !== undefined) updateData.notes = notes;
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined && status !== "COMPLETED") updateData.status = status;
     if (assignedOwnerId !== undefined) updateData.assignedOwnerId = assignedOwnerId;
     if (bookingId !== undefined) updateData.bookingId = bookingId || null;
 
-    // If marking as completed
-    if (status === "COMPLETED") {
-      updateData.completedAt = new Date();
-      updateData.readyForDoctor = true;
-    }
+    const explicitComplete =
+      complete === true || status === "COMPLETED" || readyForDoctor === true;
 
-    const task = await prisma.preTriageTask.update({
+    // Apply link / checklist updates before handoff completion.
+    let task = await prisma.preTriageTask.update({
       where: { id: taskId },
       data: updateData,
     });
@@ -193,17 +196,40 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    // Hand off to doctor the same way In Triage complete does.
-    if (status === "COMPLETED" || readyForDoctor === true) {
-      await prisma.user.update({
-        where: { id: task.patientId },
-        data: { journeyStatus: "AWAITING_DOCTOR_DECISION" },
+    const linkedBookingId =
+      (typeof bookingId === "string" && bookingId) || task.bookingId || null;
+    const linkingBookingNow = typeof bookingId === "string" && Boolean(bookingId);
+
+    // Auto-complete only when this request links a consult that already has a doctor.
+    // (Avoid completing on unrelated checklist PATCHes.)
+    let autoCompleted = false;
+    if (!explicitComplete && linkingBookingNow && linkedBookingId) {
+      autoCompleted = await bookingHasAssignedDoctor(linkedBookingId);
+    }
+
+    let completedTaskIds: string[] = [];
+    if (explicitComplete || autoCompleted) {
+      if (explicitComplete && !linkedBookingId && complete === true) {
+        return NextResponse.json(
+          { error: "Link or book an appointment before marking Pre-Triage complete" },
+          { status: 400 }
+        );
+      }
+
+      const handoff = await completePreTriageHandoff({
+        taskId,
+        bookingId: linkedBookingId,
       });
+      completedTaskIds = handoff.completedTaskIds;
+      task = await prisma.preTriageTask.findUniqueOrThrow({ where: { id: taskId } });
     }
 
     return NextResponse.json({
       success: true,
       task,
+      completed: completedTaskIds.length > 0,
+      autoCompleted,
+      completedTaskIds,
     });
   } catch (error) {
     console.error("Error updating pre-triage task:", error);
@@ -269,21 +295,20 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Complete the task
-    const updatedTask = await prisma.preTriageTask.update({
-      where: { id: taskId },
-      data: {
-        status: "COMPLETED",
-        readyForDoctor: true,
-        completedAt: new Date(),
-        notes: notes || task.notes,
-      },
+    if (notes) {
+      await prisma.preTriageTask.update({
+        where: { id: taskId },
+        data: { notes },
+      });
+    }
+
+    const handoff = await completePreTriageHandoff({
+      taskId,
+      bookingId: task.bookingId,
     });
 
-    // Update patient journey status
-    await prisma.user.update({
-      where: { id: task.patientId },
-      data: { journeyStatus: "PRE_TRIAGE_COMPLETE" },
+    const updatedTask = await prisma.preTriageTask.findUniqueOrThrow({
+      where: { id: taskId },
     });
 
     // Log the action
@@ -296,6 +321,7 @@ export async function POST(req: NextRequest) {
         details: {
           completedBy: `${user.firstName} ${user.lastName}`,
           completedAt: new Date().toISOString(),
+          completedTaskIds: handoff.completedTaskIds,
         },
       },
     });
@@ -303,6 +329,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       task: updatedTask,
+      completedTaskIds: handoff.completedTaskIds,
       message: "Pre-triage completed. Patient is ready for doctor call.",
     });
   } catch (error) {

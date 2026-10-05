@@ -19,6 +19,18 @@ describe("doctor consult programs", () => {
     ]);
   });
 
+  it("tags membership-only from subscription tier without a Weight Management badge", () => {
+    const programs = resolveDoctorEnrolledPrograms([], [], "membership", [
+      { key: "MEMBERSHIP", status: "ACTIVE" },
+    ]);
+
+    expect(programs).toEqual([
+      expect.objectContaining({ key: "membership", label: "Membership" }),
+    ]);
+    expect(programs.some((p) => p.key === "WEIGHT_MANAGEMENT")).toBe(false);
+    expect(defaultDoctorProgramTab(programs)).toBe("MEMBERSHIP");
+  });
+
   it("defaults a hair-only member to the Hair tab", () => {
     expect(
       defaultDoctorProgramTab([{ key: "HAIR_LOSS", label: "Hair", status: "PENDING" }], true)
@@ -29,6 +41,10 @@ describe("doctor consult programs", () => {
         false
       )
     ).toBe("WEIGHT_MANAGEMENT");
+  });
+
+  it("does not default empty enrollment to Weight Management", () => {
+    expect(defaultDoctorProgramTab([])).toBe("MEMBERSHIP");
   });
 
   it("defaults a sexual-health-only member to the Men's ED tab", () => {

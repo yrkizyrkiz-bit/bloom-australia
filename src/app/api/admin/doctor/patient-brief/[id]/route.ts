@@ -209,7 +209,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       orderBy: { createdAt: "desc" },
     });
 
-    const [programMembers, programEntitlements, hairQuiz, sexualQuiz, womensQuiz] =
+    const [programMembers, programEntitlements, membershipScopeEntitlements, hairQuiz, sexualQuiz, womensQuiz] =
       await Promise.all([
       prisma.programMember.findMany({
         where: {
@@ -224,6 +224,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }),
       prisma.entitlement.findMany({
         where: { userId, type: "PROGRAM" },
+        select: { key: true, status: true },
+      }),
+      prisma.entitlement.findMany({
+        where: { userId, type: "SCOPE", key: "MEMBERSHIP" },
         select: { key: true, status: true },
       }),
       prisma.portalQuizSubmission.findFirst({
@@ -258,7 +262,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }),
     ]);
 
-    const enrolledPrograms = resolveDoctorEnrolledPrograms(programMembers, programEntitlements);
+    const enrolledPrograms = resolveDoctorEnrolledPrograms(
+      programMembers,
+      programEntitlements,
+      user.subscriptionTier,
+      membershipScopeEntitlements
+    );
     const wmMember = programMembers.find(
       (member) => normalizeProgramKey(member.program) === "WEIGHT_MANAGEMENT"
     );

@@ -8,7 +8,8 @@ export type DoctorProgramTab =
   | "WEIGHT_MANAGEMENT"
   | "HAIR_LOSS"
   | "MENS_HEALTH_SEXUAL"
-  | "WOMENS_HEALTH_SEXUAL";
+  | "WOMENS_HEALTH_SEXUAL"
+  | "MEMBERSHIP";
 
 export type DoctorPrescriptionCategory =
   | "WEIGHT_MANAGEMENT"
@@ -128,22 +129,42 @@ export const WOMENS_WELLNESS_MEDICATION_SUGGESTIONS = [
   },
 ] as const;
 
+export function isMembershipEnrollmentKey(key?: string | null): boolean {
+  const lower = (key || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return lower === "membership" || lower === "sanative_membership";
+}
+
+export function hasMembershipEnrollment(programs: EnrolledProgram[] | undefined): boolean {
+  return (programs ?? []).some((program) => isMembershipEnrollmentKey(program.key));
+}
+
 export function resolveDoctorEnrolledPrograms(
   members: Array<{ program?: string | null; membershipStatus?: string | null }>,
-  programEntitlements: Array<{ key?: string | null; status?: string | null }> = []
+  programEntitlements: Array<{ key?: string | null; status?: string | null }> = [],
+  subscriptionTier?: string | null,
+  membershipScopeEntitlements: Array<{ key?: string | null; status?: string | null }> = []
 ): EnrolledProgram[] {
-  return collectEnrolledPrograms([
-    ...members,
-    ...programEntitlements.map((row) => ({
-      program: row.key,
-      membershipStatus: row.status,
-    })),
-  ]);
+  return collectEnrolledPrograms(
+    [
+      ...members,
+      ...programEntitlements.map((row) => ({
+        program: row.key,
+        membershipStatus: row.status,
+      })),
+      ...membershipScopeEntitlements
+        .filter((row) => (row.key || "").toUpperCase() === "MEMBERSHIP")
+        .map((row) => ({
+          program: "membership",
+          membershipStatus: row.status,
+        })),
+    ],
+    subscriptionTier
+  );
 }
 
 export function hasDoctorProgram(
   programs: EnrolledProgram[] | undefined,
-  key: DoctorProgramTab
+  key: Exclude<DoctorProgramTab, "MEMBERSHIP">
 ): boolean {
   return (programs ?? []).some((program) => normalizeProgramKey(program.key) === key);
 }
@@ -165,7 +186,9 @@ export function defaultDoctorProgramTab(
   if (womens && !weight && !hair && !sexual) return "WOMENS_HEALTH_SEXUAL";
   if (sexual && !weight && !hair) return "MENS_HEALTH_SEXUAL";
   if (hair && !weight) return "HAIR_LOSS";
-  return "WEIGHT_MANAGEMENT";
+  if (weight) return "WEIGHT_MANAGEMENT";
+  // Membership-only (or no clinical program) must not fall through to Weight Management.
+  return "MEMBERSHIP";
 }
 
 export function resolveDoctorPrescriptionCategory(

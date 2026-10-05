@@ -75,6 +75,7 @@ import {
   WOMENS_WELLNESS_MEDICATION_SUGGESTIONS,
   defaultDoctorProgramTab,
   hasDoctorProgram,
+  hasMembershipEnrollment,
   resolveDoctorPrescriptionCategory,
   type DoctorProgramTab,
 } from "@/lib/admin/doctor-consult-programs";
@@ -319,7 +320,7 @@ export default function DoctorDashboardPage() {
   const [showDecisionDialog, setShowDecisionDialog] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
-  const [programConsultTab, setProgramConsultTab] = useState<DoctorProgramTab>("WEIGHT_MANAGEMENT");
+  const [programConsultTab, setProgramConsultTab] = useState<DoctorProgramTab>("MEMBERSHIP");
   const [counts, setCounts] = useState({
     total: 0,
     pending: 0,
@@ -1093,7 +1094,9 @@ export default function DoctorDashboardPage() {
                   onValueChange={(value) => setProgramConsultTab(value as DoctorProgramTab)}
                 >
                   <TabsList className="h-auto flex flex-wrap justify-start gap-1">
-                    <TabsTrigger value="WEIGHT_MANAGEMENT">Weight Management</TabsTrigger>
+                    {hasDoctorProgram(patientBrief.enrolledPrograms, "WEIGHT_MANAGEMENT") && (
+                      <TabsTrigger value="WEIGHT_MANAGEMENT">Weight Management</TabsTrigger>
+                    )}
                     {(patientBrief.hairBrief?.enrolled ||
                       hasDoctorProgram(patientBrief.enrolledPrograms, "HAIR_LOSS")) && (
                       <TabsTrigger value="HAIR_LOSS">Hair</TabsTrigger>
@@ -1106,6 +1109,17 @@ export default function DoctorDashboardPage() {
                       hasDoctorProgram(patientBrief.enrolledPrograms, "WOMENS_HEALTH_SEXUAL")) && (
                       <TabsTrigger value="WOMENS_HEALTH_SEXUAL">Women&apos;s Wellness</TabsTrigger>
                     )}
+                    {(hasMembershipEnrollment(patientBrief.enrolledPrograms) ||
+                      programConsultTab === "MEMBERSHIP") &&
+                      !hasDoctorProgram(patientBrief.enrolledPrograms, "WEIGHT_MANAGEMENT") &&
+                      !hasDoctorProgram(patientBrief.enrolledPrograms, "HAIR_LOSS") &&
+                      !hasDoctorProgram(patientBrief.enrolledPrograms, "MENS_HEALTH_SEXUAL") &&
+                      !hasDoctorProgram(patientBrief.enrolledPrograms, "WOMENS_HEALTH_SEXUAL") &&
+                      !patientBrief.hairBrief?.enrolled &&
+                      !patientBrief.sexualBrief?.enrolled &&
+                      !patientBrief.womensBrief?.enrolled && (
+                        <TabsTrigger value="MEMBERSHIP">Membership</TabsTrigger>
+                      )}
                   </TabsList>
                   <TabsContent value="WEIGHT_MANAGEMENT" className="mt-4 space-y-4">
                 {patientBrief.riskAssessment.riskFlags.length > 0 && (
@@ -1258,6 +1272,40 @@ export default function DoctorDashboardPage() {
                       </Card>
                     )}
                   </TabsContent>
+                  <TabsContent value="MEMBERSHIP" className="mt-4 space-y-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <Users className="w-4 h-4 text-teal-600" />
+                          Membership consult
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 text-sm text-slate-600">
+                        This member has Sanative Membership without a clinical treatment program
+                        enrollment. Use this consult for general review, pathology, and care
+                        decisions — Weight Management prescribing tools are not shown.
+                      </CardContent>
+                    </Card>
+                    {patientBrief.riskAssessment.riskFlags.length > 0 && (
+                      <Card className="bg-red-50 border-red-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                            <div>
+                              <h3 className="font-semibold text-red-800">Risk Flags</h3>
+                              <ul className="mt-1 space-y-1">
+                                {patientBrief.riskAssessment.riskFlags.map((f, i) => (
+                                  <li key={i} className="text-sm text-red-700">
+                                    • {f}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
                 </Tabs>
 
                 {patientBrief.clinicalNotes.length > 0 && (
@@ -1298,7 +1346,30 @@ export default function DoctorDashboardPage() {
                       <div className="space-y-3">
                         <p className="text-sm text-slate-500 mb-4">Select decision:</p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                          <Button onClick={() => openDecisionDialog("APPROVED")} className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">{programConsultTab === "HAIR_LOSS" ? "Hair script" : programConsultTab === "MENS_HEALTH_SEXUAL" ? "ED script" : programConsultTab === "WOMENS_HEALTH_SEXUAL" ? "Wellness script" : "Prescribe"}</span></Button>
+                          <Button
+                            onClick={() =>
+                              openDecisionDialog(
+                                programConsultTab === "MEMBERSHIP"
+                                  ? "APPROVED_NO_TREATMENT"
+                                  : "APPROVED"
+                              )
+                            }
+                            className="bg-green-600 hover:bg-green-700 h-auto py-4 flex-col"
+                          >
+                            <CheckCircle2 className="w-6 h-6 mb-1" />
+                            <span className="font-semibold">Approve</span>
+                            <span className="text-xs opacity-80">
+                              {programConsultTab === "HAIR_LOSS"
+                                ? "Hair script"
+                                : programConsultTab === "MENS_HEALTH_SEXUAL"
+                                  ? "ED script"
+                                  : programConsultTab === "WOMENS_HEALTH_SEXUAL"
+                                    ? "Wellness script"
+                                    : programConsultTab === "MEMBERSHIP"
+                                      ? "Membership"
+                                      : "Prescribe"}
+                            </span>
+                          </Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_NO_TREATMENT")} className="bg-blue-600 hover:bg-blue-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">No Treatment</span></Button>
                           <Button onClick={() => openDecisionDialog("DECLINED")} variant="destructive" className="h-auto py-4 flex-col"><XCircle className="w-6 h-6 mb-1" /><span className="font-semibold">Decline</span><span className="text-xs opacity-80">Refund</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_PENDING_TESTS")} className="bg-amber-600 hover:bg-amber-700 h-auto py-4 flex-col"><FlaskConical className="w-6 h-6 mb-1" /><span className="font-semibold">Tests</span><span className="text-xs opacity-80">Blood work</span></Button>
@@ -1489,7 +1560,10 @@ export default function DoctorDashboardPage() {
                     : programConsultTab === "WOMENS_HEALTH_SEXUAL"
                       ? "Approve Patient — Women's Wellness"
                       : "Approve Patient")}
-              {decisionType === "APPROVED_NO_TREATMENT" && "Approve Patient (No Treatment)"}
+              {decisionType === "APPROVED_NO_TREATMENT" &&
+                (programConsultTab === "MEMBERSHIP"
+                  ? "Approve Patient — Membership"
+                  : "Approve Patient (No Treatment)")}
               {decisionType === "DECLINED" && "Decline Patient"}
               {decisionType === "APPROVED_PENDING_TESTS" && (
                 <span className="flex items-center gap-2">

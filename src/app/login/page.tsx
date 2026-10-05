@@ -254,7 +254,7 @@ export default function LoginPage() {
   const features = [
     { icon: FlaskConical, title: "85+ Biomarkers", desc: "Comprehensive health tracking" },
     { icon: TrendingUp, title: "Trend Analysis", desc: "Track progress over time" },
-    { icon: Shield, title: "Secure & Private", desc: "Bank-level encryption" },
+    { icon: Shield, title: "Secure & Private", desc: "Encrypted and securely protected" },
     { icon: CheckCircle2, title: "Expert Insights", desc: "Personalized recommendations" },
   ];
 

@@ -7,7 +7,7 @@ const trustItems = [
   {
     icon: Lock,
     title: "Secure & confidential",
-    description: "Your health data is protected with bank-level encryption",
+    description: "Your health data is encrypted and securely protected",
   },
   {
     icon: Users,

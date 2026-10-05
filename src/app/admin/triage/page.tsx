@@ -268,6 +268,7 @@ export default function TriageQueuePage() {
     }>
   >([]);
   const [linkingAppointmentId, setLinkingAppointmentId] = useState<string | null>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [preTriageBookingItem, setPreTriageBookingItem] = useState<{
     taskId: string;
     patient: { id: string; firstName: string; lastName: string; email: string };
@@ -555,10 +556,15 @@ export default function TriageQueuePage() {
         ...(appendBookingNote ? { appendBookingNote } : {}),
       }),
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       throw new Error(data.error || "Failed to link booking to pre-triage task");
     }
+    return data as {
+      completed?: boolean;
+      autoCompleted?: boolean;
+      completedTaskIds?: string[];
+    };
   };
 
   const handleUseExistingAppointment = async (
@@ -568,19 +574,69 @@ export default function TriageQueuePage() {
   ) => {
     setLinkingAppointmentId(bookingId);
     try {
-      await linkPreTriageBooking(
+      const result = await linkPreTriageBooking(
         taskId,
         bookingId,
         programLabel
           ? `Also review portal program: ${programLabel}`
           : "Also review linked portal program purchase"
       );
-      toast.success("Consultation linked to existing appointment");
+      if (result.autoCompleted || result.completed) {
+        const n = result.completedTaskIds?.length ?? 1;
+        toast.success(
+          n > 1
+            ? `Linked and cleared ${n} Pre-Triage items (doctor already assigned)`
+            : "Linked and cleared from Pre-Triage (doctor already assigned)"
+        );
+      } else {
+        toast.success("Consultation linked to existing appointment");
+      }
       fetchTriageQueue();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to link appointment");
     } finally {
       setLinkingAppointmentId(null);
+    }
+  };
+
+  const handleMarkPreTriageComplete = async (taskId: string, bookingId: string | null, hasDoctor: boolean) => {
+    if (!bookingId) {
+      toast.error("Link or book an appointment before marking complete");
+      return;
+    }
+    if (!hasDoctor) {
+      const proceed = window.confirm(
+        "This appointment has no doctor assigned yet. Mark Pre-Triage complete anyway?"
+      );
+      if (!proceed) return;
+    }
+    setCompletingTaskId(taskId);
+    try {
+      const res = await fetch("/api/admin/pre-triage", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId,
+          bookingId,
+          appointmentConfirmed: true,
+          complete: true,
+          status: "COMPLETED",
+          readyForDoctor: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to mark Pre-Triage complete");
+      const n = Array.isArray(data.completedTaskIds) ? data.completedTaskIds.length : 1;
+      toast.success(
+        n > 1
+          ? `Cleared ${n} Pre-Triage items linked to this appointment`
+          : "Removed from Pre-Triage — ready for doctor"
+      );
+      fetchTriageQueue();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to mark complete");
+    } finally {
+      setCompletingTaskId(null);
     }
   };
 
@@ -1150,6 +1206,27 @@ export default function TriageQueuePage() {
                             >
                               <Stethoscope className="mr-1.5 h-4 w-4" />
                               Assign doctor
+                            </Button>
+                          )}
+                          {item.patient && hasBooking && (
+                            <Button
+                              size="sm"
+                              variant={hasDoctor ? "default" : "outline"}
+                              disabled={completingTaskId === item.taskId}
+                              onClick={() =>
+                                handleMarkPreTriageComplete(
+                                  item.taskId,
+                                  item.booking!.id,
+                                  hasDoctor
+                                )
+                              }
+                            >
+                              {completingTaskId === item.taskId ? (
+                                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                              )}
+                              Mark complete
                             </Button>
                           )}
                           {item.patient && (
@@ -1900,8 +1977,17 @@ export default function TriageQueuePage() {
             return;
           }
           try {
-            await linkPreTriageBooking(taskId, booking.id);
-            toast.success("Appointment linked to pre-triage task");
+            const result = await linkPreTriageBooking(taskId, booking.id);
+            if (result.autoCompleted || result.completed) {
+              const n = result.completedTaskIds?.length ?? 1;
+              toast.success(
+                n > 1
+                  ? `Appointment booked — cleared ${n} Pre-Triage items`
+                  : "Appointment booked — removed from Pre-Triage"
+              );
+            } else {
+              toast.success("Appointment linked to pre-triage task");
+            }
           } catch (error) {
             toast.error(
               error instanceof Error

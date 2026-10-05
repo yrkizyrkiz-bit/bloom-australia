@@ -90,7 +90,7 @@ export function GetTheAppCard() {
   return (
     <div className="mx-auto flex min-h-[560px] w-full max-w-[320px] flex-col overflow-hidden rounded-[2rem] bg-[#3d4f38] sm:min-h-[640px]">
       <div className="flex flex-col px-5 pb-3 pt-8 text-center sm:px-6 sm:pt-10">
-        <p className="text-sm text-[#a8bb9e]">Get the Sanative app</p>
+        <p className="text-sm text-[#a8bb9e]">Sanative Portal</p>
         <h2 className="mt-3 font-serif text-3xl leading-tight text-white sm:text-[2rem]">
           Care built
           <br />
@@ -102,7 +102,7 @@ export function GetTheAppCard() {
           onClick={handleGetTheApp}
           className="mx-auto mt-8 flex w-full max-w-[240px] items-center justify-between gap-3 rounded-2xl bg-[#2c3628] px-4 py-3 text-left transition-colors hover:bg-[#243028] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8bb9e] focus-visible:ring-offset-2 focus-visible:ring-offset-[#3d4f38]"
         >
-          <span className="text-sm font-medium text-white">Get the app</span>
+          <span className="text-sm font-medium text-white">Portal Access</span>
           <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-1">
             {qrDataUrl ? (
               <img src={qrDataUrl} alt="QR code to Sanative login" className="h-full w-full" />

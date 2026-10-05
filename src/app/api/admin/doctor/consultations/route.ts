@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
             journeyStatus: true,
             approvalStatus: true,
             triageScore: true,
+            subscriptionTier: true,
             healthProfile: {
               select: {
                 systolicBP: true,
@@ -126,7 +127,7 @@ export async function GET(request: NextRequest) {
     const userIds = [...new Set(users.map((user) => user.id))];
     const emails = [...new Set(users.map((user) => user.email).filter(Boolean))];
 
-    const [programMembers, programEntitlements] = userIds.length
+    const [programMembers, programEntitlements, membershipScopeEntitlements] = userIds.length
       ? await Promise.all([
           prisma.programMember.findMany({
             where: {
@@ -141,8 +142,12 @@ export async function GET(request: NextRequest) {
             where: { userId: { in: userIds }, type: "PROGRAM" },
             select: { userId: true, key: true, status: true },
           }),
+          prisma.entitlement.findMany({
+            where: { userId: { in: userIds }, type: "SCOPE", key: "MEMBERSHIP" },
+            select: { userId: true, key: true, status: true },
+          }),
         ])
-      : [[], []];
+      : [[], [], []];
 
     const enrolledByUserId = new Map<string, ReturnType<typeof resolveDoctorEnrolledPrograms>>();
     for (const user of users) {
@@ -151,7 +156,16 @@ export async function GET(request: NextRequest) {
         (row) => row.userId === user.id || row.email.toLowerCase() === user.email.toLowerCase()
       );
       const entitlements = programEntitlements.filter((row) => row.userId === user.id);
-      enrolledByUserId.set(user.id, resolveDoctorEnrolledPrograms(members, entitlements));
+      const membershipScopes = membershipScopeEntitlements.filter((row) => row.userId === user.id);
+      enrolledByUserId.set(
+        user.id,
+        resolveDoctorEnrolledPrograms(
+          members,
+          entitlements,
+          user.subscriptionTier,
+          membershipScopes
+        )
+      );
     }
 
     // Transform data for frontend - GAP-012: Filter out consultations without users

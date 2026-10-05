@@ -21,11 +21,13 @@ export function PrivacyContent() {
           the &quot;Services&quot;).
         </LegalP>
         <LegalP>
-          Sanative provides doctor-led metabolic and general health programs in Australia. Because
-          our Services involve health assessments, telehealth, and clinical care coordination, we
-          routinely collect <strong>sensitive information</strong>, including health information, as
-          defined under the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles
-          (APPs).
+          We provide a digital Platform that enables healthcare practitioners to run their practice
+          and patient-care workflows, and that connects members with those practitioners. Through
+          the Platform, practitioners and members may submit patient details and other sensitive
+          information, including health information. We recognise that
+          such information is subject to rigorous privacy obligations under Australian law. This
+          Privacy Policy explains how we collect, use, store, and safeguard personal information in
+          line with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).
         </LegalP>
         <LegalP>
           <strong>
