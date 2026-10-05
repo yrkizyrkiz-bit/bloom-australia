@@ -30,6 +30,7 @@ import {
   Grid3X3,
 } from "lucide-react";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { PushEnable } from "@/components/notifications/PushEnable";
 import { RealTimeNotificationBell } from "./RealTimeNotificationBell";
 
 const navItems = [
@@ -120,6 +121,7 @@ export function DashboardNav() {
 
           {/* Notifications & User Menu */}
           <div className="flex items-center gap-2">
+            <PushEnable variant="member" showLabel={false} className="hidden sm:inline-flex" />
             <RealTimeNotificationBell />
 
             <DropdownMenu>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { sendWebPushToUser } from "@/lib/notifications/web-push";
 
 // GET /api/notifications - Get user's notifications
 export async function GET(request: NextRequest) {
@@ -73,6 +74,15 @@ export async function POST(request: NextRequest) {
         category: (category || "SYSTEM").toUpperCase(),
         actionUrl,
       },
+    });
+
+    await sendWebPushToUser(targetUserId, {
+      title,
+      body: message,
+      url: actionUrl || "/dashboard",
+      tag: "sanative-notification",
+    }).catch((error) => {
+      console.error("[notifications] push failed", error);
     });
 
     return NextResponse.json({ notification }, { status: 201 });

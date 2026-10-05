@@ -143,6 +143,7 @@ export default function AdminUploadPage() {
     lastRequest?: string;
     lastResponse?: Record<string, unknown>;
     lastError?: string;
+    partErrors?: string[];
   }>({});
 
   // Historical data options
@@ -313,13 +314,16 @@ export default function AdminUploadPage() {
     const seenKeys = new Set<string>();
     let hardFailures = 0;
     let emptyBatches = 0;
+    const partErrors: string[] = [];
+    const MAX_PART_ATTEMPTS = 3;
+
+    const isRetryableStatus = (status: number) =>
+      status === 408 || status === 429 || status === 502 || status === 503 || status === 504 || status === 529;
 
     for (let batchIndex = 0; batchIndex < chunks.length; batchIndex++) {
       const chunk = chunks[batchIndex];
-      const formData = new FormData();
-      formData.append("file", chunk);
-
       const fileSizeMB = (chunk.size / (1024 * 1024)).toFixed(1);
+      const partLabel = `Part ${batchIndex + 1}/${chunks.length}`;
       console.log(
         `[Upload] 🚀 Chunk ${batchIndex + 1}/${chunks.length}: ${chunk.name} (${fileSizeMB}MB)`
       );
@@ -328,136 +332,169 @@ export default function AdminUploadPage() {
           ? `Analyzing PDF with AI… (part ${batchIndex + 1}/${chunks.length})`
           : "Analyzing document with AI…"
       );
-      setDebugInfo({
-        lastRequest: `Part ${batchIndex + 1}/${chunks.length}: ${chunk.name} (${fileSizeMB}MB)`,
-      });
+      setDebugInfo((prev) => ({
+        ...prev,
+        lastRequest: `${partLabel}: ${chunk.name} (${fileSizeMB}MB)`,
+        partErrors: prev.partErrors,
+      }));
 
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 110000);
+      // Brief pause between parts reduces Anthropic / gateway pressure on long reports.
+      if (batchIndex > 0) {
+        await new Promise((r) => setTimeout(r, 1200));
+      }
 
-        const response = await fetch("/api/parse-blood-test", {
-          method: "POST",
-          body: formData,
-          signal: controller.signal,
-        });
+      for (let attempt = 1; attempt <= MAX_PART_ATTEMPTS; attempt++) {
+        const formData = new FormData();
+        formData.append("file", chunk);
 
-        clearTimeout(timeoutId);
-        console.log(
-          `[Upload] 📥 Part ${batchIndex + 1} status:`,
-          response.status,
-          response.statusText
-        );
-
-        const errorText = response.ok ? "" : await response.text();
-        let result: any = null;
-        if (response.ok) {
-          result = await response.json();
-        } else {
-          try {
-            result = JSON.parse(errorText);
-          } catch {
-            result = { error: errorText || `HTTP ${response.status}` };
+        try {
+          if (attempt > 1) {
+            setProcessingStep(
+              `Retrying ${partLabel} (attempt ${attempt}/${MAX_PART_ATTEMPTS})…`
+            );
+            await new Promise((r) => setTimeout(r, 1500 * attempt));
           }
-        }
 
-        // Empty extract on a chunk is common (cover/admin pages) — soft-skip.
-        if (response.status === 422 || (result && result.success === false && !result.data?.biomarkers?.length)) {
-          emptyBatches++;
-          console.warn(
-            `[Upload] Part ${batchIndex + 1} had no readable biomarkers (soft skip)`
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 110000);
+
+          const response = await fetch("/api/parse-blood-test", {
+            method: "POST",
+            body: formData,
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+          console.log(
+            `[Upload] 📥 ${partLabel} status:`,
+            response.status,
+            response.statusText,
+            attempt > 1 ? `(attempt ${attempt})` : ""
           );
+
+          const errorText = response.ok ? "" : await response.text();
+          let result: any = null;
+          if (response.ok) {
+            result = await response.json();
+          } else {
+            try {
+              result = JSON.parse(errorText);
+            } catch {
+              result = { error: errorText || `HTTP ${response.status}` };
+            }
+          }
+
+          // Empty extract (cover/admin pages) — soft-skip, do not retry.
+          if (response.status === 422) {
+            emptyBatches++;
+            console.warn(`[Upload] ${partLabel} had no readable biomarkers (soft skip)`);
+            setDebugInfo((prev) => ({
+              ...prev,
+              lastResponse: {
+                batch: `${batchIndex + 1}/${chunks.length}`,
+                softSkip: true,
+                error: result?.error,
+              },
+            }));
+            break;
+          }
+
+          if (!response.ok) {
+            const apiError = result?.error || `API request failed: ${response.status}`;
+            if (isRetryableStatus(response.status) && attempt < MAX_PART_ATTEMPTS) {
+              console.warn(`[Upload] ${partLabel} retryable error:`, response.status, apiError);
+              continue;
+            }
+            hardFailures++;
+            const errMsg = `${partLabel}: ${apiError}`;
+            partErrors.push(errMsg);
+            console.error("[Upload] ❌ Part failed:", response.status, apiError);
+            setDebugInfo((prev) => ({
+              ...prev,
+              lastError: errMsg,
+              partErrors: [...partErrors],
+            }));
+            break;
+          }
+
           setDebugInfo((prev) => ({
             ...prev,
             lastResponse: {
+              mode: result.mode,
+              aiProvider: result.aiProvider,
+              aiModel: result.aiModel,
+              biomarkersCount: result.data?.biomarkers?.length || 0,
+              message: result.message,
               batch: `${batchIndex + 1}/${chunks.length}`,
-              softSkip: true,
-              error: result?.error,
+              firstBiomarker: result.data?.biomarkers?.[0] || null,
             },
           }));
-          continue;
-        }
 
-        if (!response.ok) {
-          hardFailures++;
-          const apiError = result?.error || `API request failed: ${response.status}`;
-          console.error("[Upload] ❌ Part failed:", response.status, apiError);
-          setDebugInfo((prev) => ({
-            ...prev,
-            lastError: `Part ${batchIndex + 1}: ${apiError}`,
-          }));
-          continue;
-        }
-
-        setDebugInfo((prev) => ({
-          ...prev,
-          lastError: undefined,
-          lastResponse: {
-            mode: result.mode,
-            aiProvider: result.aiProvider,
-            aiModel: result.aiModel,
-            biomarkersCount: result.data?.biomarkers?.length || 0,
-            message: result.message,
-            batch: `${batchIndex + 1}/${chunks.length}`,
-            firstBiomarker: result.data?.biomarkers?.[0] || null,
-          },
-        }));
-
-        if (result.mode === "ai" && result.aiModel) {
-          lastAiModel = result.aiModel;
-          setAiMode(`Claude AI (${result.aiModel})`);
-        } else if (result.mode === "demo") {
-          throw new Error(
-            result.error ||
-              "AI extraction fell back to demo mode. Check Anthropic configuration and try again."
-          );
-        }
-
-        if (result.success && result.data?.biomarkers?.length) {
-          if (result.data.hasHistoricalData) hasHistoricalData = true;
-          for (const date of result.data.testDates || []) {
-            if (date) mergedDates.add(date);
+          if (result.mode === "ai" && result.aiModel) {
+            lastAiModel = result.aiModel;
+            setAiMode(`Claude AI (${result.aiModel})`);
+          } else if (result.mode === "demo") {
+            throw new Error(
+              result.error ||
+                "AI extraction fell back to demo mode. Check Anthropic configuration and try again."
+            );
           }
 
-          for (const b of result.data.biomarkers as Array<{
-            biomarkerId: string;
-            name: string;
-            value: number;
-            unit: string;
-            confidence: number;
-            testDate?: string;
-            isHistorical?: boolean;
-          }>) {
-            const key = `${b.biomarkerId}|${b.testDate || ""}|${b.value}`;
-            if (seenKeys.has(key)) continue;
-            seenKeys.add(key);
-            mergedBiomarkers.push({
-              id: `extracted_${mergedBiomarkers.length}`,
-              name: b.name,
-              value: b.value,
-              unit: b.unit,
-              confidence: b.confidence,
-              status: "matched",
-              matchedBiomarkerId: b.biomarkerId,
-              testDate: b.testDate || null,
-              isHistorical: b.isHistorical || false,
-              selected: true,
-            });
+          if (result.success && result.data?.biomarkers?.length) {
+            if (result.data.hasHistoricalData) hasHistoricalData = true;
+            for (const date of result.data.testDates || []) {
+              if (date) mergedDates.add(date);
+            }
+
+            for (const b of result.data.biomarkers as Array<{
+              biomarkerId: string;
+              name: string;
+              value: number;
+              unit: string;
+              confidence: number;
+              testDate?: string;
+              isHistorical?: boolean;
+            }>) {
+              const key = `${b.biomarkerId}|${b.testDate || ""}|${b.value}`;
+              if (seenKeys.has(key)) continue;
+              seenKeys.add(key);
+              mergedBiomarkers.push({
+                id: `extracted_${mergedBiomarkers.length}`,
+                name: b.name,
+                value: b.value,
+                unit: b.unit,
+                confidence: b.confidence,
+                status: "matched",
+                matchedBiomarkerId: b.biomarkerId,
+                testDate: b.testDate || null,
+                isHistorical: b.isHistorical || false,
+                selected: true,
+              });
+            }
+          } else {
+            emptyBatches++;
           }
-        } else {
-          emptyBatches++;
+          break;
+        } catch (error) {
+          if (error instanceof Error && error.name === "AbortError") {
+            if (attempt < MAX_PART_ATTEMPTS) {
+              console.warn(`[Upload] ${partLabel} timed out — retrying`);
+              continue;
+            }
+            hardFailures++;
+            const errMsg = `${partLabel} timed out after ${MAX_PART_ATTEMPTS} attempts`;
+            partErrors.push(errMsg);
+            setDebugInfo((prev) => ({
+              ...prev,
+              lastError: errMsg,
+              partErrors: [...partErrors],
+            }));
+            break;
+          }
+          throw error;
         }
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-          hardFailures++;
-          setDebugInfo((prev) => ({
-            ...prev,
-            lastError: `Part ${batchIndex + 1} timed out`,
-          }));
-          continue;
-        }
-        throw error;
       }
+
     }
 
     if (lastAiModel) {
@@ -465,13 +502,27 @@ export default function AdminUploadPage() {
     }
 
     console.log(
-      `[Upload] 📊 Merged ${mergedBiomarkers.length} biomarkers from ${chunks.length} part(s); empty=${emptyBatches}, hardFailures=${hardFailures}`
+      `[Upload] 📊 Merged ${mergedBiomarkers.length} biomarkers from ${chunks.length} part(s); empty=${emptyBatches}, hardFailures=${hardFailures}`,
+      partErrors
     );
 
     if (mergedBiomarkers.length === 0) {
       throw new Error(
-        "AI could not read biomarkers from this PDF. If it keeps failing, try exporting the results pages as images."
+        partErrors.length > 0
+          ? `AI could not read biomarkers from this PDF (${partErrors[partErrors.length - 1]}). Try again, or export results pages as images.`
+          : "AI could not read biomarkers from this PDF. If it keeps failing, try exporting the results pages as images."
       );
+    }
+
+    if (hardFailures > 0) {
+      toast.warning(
+        `Extracted ${mergedBiomarkers.length} markers, but ${hardFailures} PDF part(s) failed (e.g. part 6). Re-run or check those pages — liver/lipid blocks are often on later pages.`
+      );
+      setDebugInfo((prev) => ({
+        ...prev,
+        lastError: partErrors[partErrors.length - 1],
+        partErrors,
+      }));
     }
 
     // Final AU date pass across merged chunks (catches US day/month swaps like 03/09).
@@ -856,7 +907,7 @@ export default function AdminUploadPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-serif text-foreground">AI Blood Test Upload</h1>
+        <h1 className="text-2xl sm:text-3xl font-serif text-foreground">Blood Test Upload — AI-assisted</h1>
         <p className="text-muted-foreground mt-1">Upload blood tests and let AI extract biomarker values</p>
       </div>
 
@@ -912,6 +963,16 @@ export default function AdminUploadPage() {
               <div className="flex gap-2 text-red-600">
                 <span>Error:</span>
                 <span>{debugInfo.lastError}</span>
+              </div>
+            )}
+            {debugInfo.partErrors && debugInfo.partErrors.length > 0 && (
+              <div className="space-y-1 text-red-600">
+                <span className="font-medium">Failed parts:</span>
+                <ul className="list-disc pl-5">
+                  {debugInfo.partErrors.map((err) => (
+                    <li key={err}>{err}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>

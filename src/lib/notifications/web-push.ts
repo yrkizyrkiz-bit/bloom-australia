@@ -6,6 +6,7 @@ export type PushPayload = {
   body: string;
   url?: string;
   tag?: string;
+  requireInteraction?: boolean;
 };
 
 function getVapidConfig() {
@@ -55,8 +56,9 @@ export async function sendWebPushToUser(
           JSON.stringify({
             title: payload.title,
             body: payload.body,
-            url: payload.url || "/admin/chat",
-            tag: payload.tag || "sanative-staff",
+            url: payload.url || "/dashboard",
+            tag: payload.tag || "sanative",
+            requireInteraction: Boolean(payload.requireInteraction),
           })
         );
         sent += 1;

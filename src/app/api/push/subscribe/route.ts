@@ -4,12 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVapidPublicKey } from "@/lib/notifications/web-push";
 
-const STAFF_ROLES = new Set(["ADMIN", "admin", "CARE_PARTNER", "DOCTOR", "SUPER_ADMIN"]);
-
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !STAFF_ROLES.has(session.user.role || "")) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     if (!getVapidPublicKey()) {
@@ -56,7 +54,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !STAFF_ROLES.has(session.user.role || "")) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

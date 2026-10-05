@@ -3,11 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getVapidPublicKey } from "@/lib/notifications/web-push";
 
-const STAFF_ROLES = new Set(["ADMIN", "admin", "CARE_PARTNER", "DOCTOR", "SUPER_ADMIN"]);
-
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !STAFF_ROLES.has(session.user.role || "")) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

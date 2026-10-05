@@ -1,4 +1,4 @@
-/* Sanative staff service worker — Web Push for care partner / admin alerts */
+/* Sanative service worker — Web Push for members and staff */
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -12,8 +12,8 @@ self.addEventListener("push", (event) => {
   let data = {
     title: "Sanative",
     body: "You have a new notification",
-    url: "/admin/chat",
-    tag: "sanative-staff",
+    url: "/dashboard",
+    tag: "sanative",
   };
 
   try {
@@ -34,22 +34,24 @@ self.addEventListener("push", (event) => {
       body: data.body || "",
       icon: "/icons/sanative-192.png",
       badge: "/icons/sanative-192.png",
-      tag: data.tag || "sanative-staff",
-      data: { url: data.url || "/admin/chat" },
-      requireInteraction: true,
+      tag: data.tag || "sanative",
+      data: { url: data.url || "/dashboard" },
+      requireInteraction: Boolean(data.requireInteraction),
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/admin/chat";
+  const url = event.notification.data?.url || "/dashboard";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes("/admin") && "focus" in client) {
-          client.navigate(url);
+        if ("focus" in client) {
+          if ("navigate" in client) {
+            client.navigate(url);
+          }
           return client.focus();
         }
       }

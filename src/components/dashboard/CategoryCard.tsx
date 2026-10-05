@@ -54,8 +54,12 @@ export function CategoryCard({
           <h4 className="font-medium text-foreground truncate">{name}</h4>
           <p className="text-xs text-muted-foreground">{total} markers</p>
         </div>
-        <div className={`ml-auto text-2xl font-serif font-bold ${getScoreColor(score)}`}>
-          {score}
+        <div
+          className={`ml-auto text-2xl font-serif font-bold ${
+            total === 0 ? "text-muted-foreground" : getScoreColor(score)
+          }`}
+        >
+          {total === 0 ? "—" : score}
         </div>
       </div>
 

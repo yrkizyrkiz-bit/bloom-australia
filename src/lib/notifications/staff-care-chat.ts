@@ -86,6 +86,7 @@ export async function notifyStaffOfCareChatRequest(input: {
         body: message,
         url: actionUrl,
         tag: `care-chat-${input.sessionId}`,
+        requireInteraction: true,
       }).catch((err) => {
         console.error("[staff-care-chat] push failed", userId, err);
         return { sent: 0, failed: 0 };

@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { FaceIdSettingsCard } from "@/components/account/FaceIdSettingsCard";
 import { ProgramMembershipCard } from "@/components/account/ProgramMembershipCard";
 import { MemberBillingPanel } from "@/components/account/MemberBillingPanel";
+import { PushEnable } from "@/components/notifications/PushEnable";
 import type { MembershipSummary } from "@/lib/membership-display";
 import type { MemberBillingOverview } from "@/lib/billing/member-billing-summary";
 
@@ -544,6 +545,16 @@ export default function SettingsPage() {
               onCheckedChange={(checked) => handleNotificationChange({ dailyTrackingPing: checked })}
               disabled={savingNotifications}
             />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-muted/50">
+            <div className="min-w-0">
+              <p className="font-medium text-sm">This device</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Get alerts on your phone or computer when something needs you. On iPhone, add Sanative to your Home Screen first, then enable push.
+              </p>
+            </div>
+            <PushEnable variant="member" className="shrink-0" />
           </div>
         </CardContent>
       </Card>

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import type { NotificationCategory, NotificationType } from "@prisma/client";
+import { sendWebPushToUser } from "@/lib/notifications/web-push";
 import {
   allowsEmail,
   allowsNotification,
@@ -59,13 +60,16 @@ export async function notifyMember(input: {
 
   const { start } = timeZoneDayBounds(settings.timezone);
   const dedupeDays = input.dedupeDays ?? 1;
-  const since = new Date(start.getTime() - (dedupeDays - 1) * 24 * 60 * 60 * 1000);
 
-  const existing = await prisma.notification.findFirst({
-    where: { userId: input.userId, title: input.title, createdAt: { gte: since } },
-    select: { id: true },
-  });
-  if (existing) return { sent: false, reason: "duplicate" };
+  // dedupeDays <= 0 disables title dedupe (e.g. each care-team reply should notify).
+  if (dedupeDays > 0) {
+    const since = new Date(start.getTime() - (dedupeDays - 1) * 24 * 60 * 60 * 1000);
+    const existing = await prisma.notification.findFirst({
+      where: { userId: input.userId, title: input.title, createdAt: { gte: since } },
+      select: { id: true },
+    });
+    if (existing) return { sent: false, reason: "duplicate" };
+  }
 
   if (isCappedExtra(input.intent)) {
     const cap = extraDailyCap(settings.frequency);
@@ -99,9 +103,26 @@ export async function notifyMember(input: {
     },
   });
 
+  const actionUrl = input.actionUrl || "/dashboard";
+
+  // Device push when the member has opted in on that browser / home-screen PWA.
+  await sendWebPushToUser(input.userId, {
+    title: input.title,
+    body: input.message,
+    url: actionUrl,
+    tag: `member-${input.intent}`,
+    requireInteraction:
+      input.intent === "RESULTS_READY" ||
+      input.intent === "CARE_MESSAGE" ||
+      input.intent === "PROGRAM_STEP" ||
+      input.type === "ALERT",
+  }).catch((error) => {
+    console.error("[notifyMember] push failed", error);
+  });
+
   if (input.email !== false && allowsEmail(settings.frequency, input.intent) && settings.email) {
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const link = input.actionUrl ? `${baseUrl}${input.actionUrl}` : `${baseUrl}/dashboard`;
+    const link = `${baseUrl}${actionUrl}`;
     try {
       await sendEmail({
         to: settings.email,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCareSupportStaff } from "@/lib/care-support/auth";
+import { notifyMember } from "@/lib/notifications/member-notify";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,18 +45,15 @@ export async function POST(request: NextRequest, { params }: Params) {
       }),
     ]);
 
-    await prisma.notification
-      .create({
-        data: {
-          userId: thread.userId,
-          type: "INFO",
-          title: "Reply from your care team",
-          message: `Re: ${thread.subject}`,
-          actionUrl: "/dashboard/mens-health/support",
-          category: "SYSTEM",
-        },
-      })
-      .catch((err) => console.error("[care-support] notify member", err));
+    await notifyMember({
+      userId: thread.userId,
+      intent: "CARE_MESSAGE",
+      title: "Reply from your care team",
+      message: `Re: ${thread.subject}`,
+      actionUrl: "/dashboard/mens-health/support",
+      category: "SYSTEM",
+      dedupeDays: 0,
+    }).catch((err) => console.error("[care-support] notify member", err));
 
     return NextResponse.json({
       message: {

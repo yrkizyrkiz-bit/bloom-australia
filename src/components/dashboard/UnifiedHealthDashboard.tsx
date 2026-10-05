@@ -55,7 +55,7 @@ interface HealthTestScore {
   normal: number;
   outOfRange: number;
   href: string;
-  lastTested: string;
+  lastTested: string | null;
   biomarkerIds: string[];
   hasData?: boolean;
 }
@@ -106,7 +106,7 @@ export function UnifiedHealthDashboard({
   const testScores = useMemo(() => {
     return healthTestsWithIcons.map(test => {
       const { score, optimal, normal, outOfRange, trend, hasData, lastTested } = calculateTestScore(test.id, test.biomarkerIds, gender, biomarkerResults);
-      return { ...test, score, optimal, normal, outOfRange, trend, hasData, lastTested: lastTested || new Date().toISOString() };
+      return { ...test, score, optimal, normal, outOfRange, trend, hasData, lastTested: lastTested || null };
     });
   }, [gender, biomarkerResults]);
 
@@ -192,12 +192,14 @@ export function UnifiedHealthDashboard({
                       <test.icon className="w-4 h-4" style={{ color: test.color }} />
                       {test.name}
                     </span>
-                    <span className={getScoreColor(test.score)}>{test.score}</span>
+                    <span className={test.hasData ? getScoreColor(test.score) : "text-slate-500"}>
+                      {test.hasData ? test.score : "—"}
+                    </span>
                   </div>
                   <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${getProgressColor(test.score)}`}
-                      style={{ width: `${test.score}%` }}
+                      className={`h-full rounded-full transition-all ${test.hasData ? getProgressColor(test.score) : "bg-slate-600"}`}
+                      style={{ width: `${test.hasData ? test.score : 0}%` }}
                     />
                   </div>
                 </div>
@@ -223,7 +225,9 @@ export function UnifiedHealthDashboard({
               <div className="h-[250px] animate-pulse rounded-md bg-muted/40" />
             ) : (
               <HealthScoreRadarChart
-                scores={testScores.map(t => ({ category: t.name, score: t.score }))}
+                scores={testScores
+                  .filter((t) => t.hasData)
+                  .map((t) => ({ category: t.name, score: t.score }))}
                 height={250}
                 color="#10b981"
               />
@@ -251,18 +255,22 @@ export function UnifiedHealthDashboard({
                   <div className="flex-1">
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${getProgressColor(test.score)}`}
-                        style={{ width: `${test.score}%` }}
+                        className={`h-full rounded-full transition-all ${test.hasData ? getProgressColor(test.score) : "bg-muted-foreground/20"}`}
+                        style={{ width: `${test.hasData ? test.score : 0}%` }}
                       />
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium w-8 text-right ${getScoreColor(test.score)}`}>
-                      {test.score}
+                    <span
+                      className={`text-sm font-medium w-8 text-right ${
+                        test.hasData ? getScoreColor(test.score) : "text-muted-foreground"
+                      }`}
+                    >
+                      {test.hasData ? test.score : "—"}
                     </span>
-                    {test.trend === "improving" && <TrendingUp className="w-3 h-3 text-green-500" />}
-                    {test.trend === "declining" && <TrendingDown className="w-3 h-3 text-red-500" />}
-                    {test.trend === "stable" && <Minus className="w-3 h-3 text-muted-foreground" />}
+                    {test.hasData && test.trend === "improving" && <TrendingUp className="w-3 h-3 text-green-500" />}
+                    {test.hasData && test.trend === "declining" && <TrendingDown className="w-3 h-3 text-red-500" />}
+                    {test.hasData && test.trend === "stable" && <Minus className="w-3 h-3 text-muted-foreground" />}
                   </div>
                 </div>
               ))}
@@ -282,13 +290,22 @@ export function UnifiedHealthDashboard({
                     <test.icon className="w-6 h-6" style={{ color: test.color }} />
                   </div>
                   <div className="text-right">
-                    <p className={`text-3xl font-bold ${getScoreColor(test.score)}`}>{test.score}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {test.trend === "improving" && <TrendingUp className="w-3 h-3 text-green-600" />}
-                      {test.trend === "declining" && <TrendingDown className="w-3 h-3 text-red-600" />}
-                      {test.trend === "stable" && <Minus className="w-3 h-3" />}
-                      <span className="capitalize">{test.trend}</span>
-                    </div>
+                    {test.hasData ? (
+                      <>
+                        <p className={`text-3xl font-bold ${getScoreColor(test.score)}`}>{test.score}</p>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          {test.trend === "improving" && <TrendingUp className="w-3 h-3 text-green-600" />}
+                          {test.trend === "declining" && <TrendingDown className="w-3 h-3 text-red-600" />}
+                          {test.trend === "stable" && <Minus className="w-3 h-3" />}
+                          <span className="capitalize">{test.trend}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-3xl font-bold text-muted-foreground">—</p>
+                        <p className="text-xs text-muted-foreground">No data</p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <h3 className="font-semibold mb-2">{test.name}</h3>
@@ -309,7 +326,9 @@ export function UnifiedHealthDashboard({
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    Last: {new Date(test.lastTested).toLocaleDateString('en-AU', { month: 'short', day: 'numeric' })}
+                    {test.lastTested
+                      ? `Last: ${new Date(test.lastTested).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}`
+                      : "No markers on this panel yet"}
                   </span>
                   <span className="flex items-center gap-1 text-primary">
                     View details <ArrowRight className="w-3 h-3" />
