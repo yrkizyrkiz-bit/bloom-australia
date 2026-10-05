@@ -9,8 +9,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MessageCircle, Send, X, Minimize2, Maximize2,
-  User, Loader2, Clock, Sparkles, Shield
+  User, Loader2, Clock, Sparkles, Shield, ChevronUp
 } from "lucide-react";
+
+const RECENT_MESSAGE_COUNT = 8;
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { GeorgeMascot } from "@/components/george/GeorgeMascot";
@@ -82,6 +84,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
   const [sending, setSending] = useState(false);
   const [coachesAvailable, setCoachesAvailable] = useState(false);
   const [requestingCareTeam, setRequestingCareTeam] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
@@ -95,9 +98,20 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
     sendingRef.current = sending;
   }, [sending]);
 
+  useEffect(() => {
+    if (isOpen) setShowHistory(false);
+  }, [isOpen]);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
+
+  const hiddenHistoryCount =
+    !showHistory && messages.length > RECENT_MESSAGE_COUNT
+      ? messages.length - RECENT_MESSAGE_COUNT
+      : 0;
+  const visibleMessages =
+    hiddenHistoryCount > 0 ? messages.slice(-RECENT_MESSAGE_COUNT) : messages;
 
   // Fetch or create chat session
   const initializeChat = useCallback(async () => {
@@ -354,21 +368,29 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.95 }}
-        className={`fixed z-50 ${minimized ? 'bottom-4 right-4' : 'bottom-4 right-4 sm:bottom-6 sm:right-6'}`}
+        className={
+          minimized
+            ? "fixed z-[60] bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 md:bottom-4"
+            : "fixed z-[60] inset-x-3 top-[calc(4.25rem+env(safe-area-inset-top,0px))] bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] flex flex-col sm:inset-auto sm:top-auto sm:bottom-6 sm:right-6 sm:h-[min(560px,calc(100dvh-3rem))] sm:w-[400px]"
+        }
       >
-        <Card className={`shadow-2xl border-0 overflow-hidden ${
-          minimized ? 'w-72' : 'w-[360px] sm:w-[400px] h-[600px] max-h-[80vh]'
-        }`}>
+        <Card
+          className={
+            minimized
+              ? "w-72 overflow-hidden border-0 shadow-2xl"
+              : "flex h-full min-h-0 w-full flex-col overflow-hidden border-0 shadow-2xl"
+          }
+        >
           {/* Header */}
-          <CardHeader className="p-4 bg-gradient-to-r from-[#4a6243] to-[#5c7a52] text-white">
+          <CardHeader className="shrink-0 p-4 bg-gradient-to-r from-[#4a6243] to-[#5c7a52] text-white">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
                   <GeorgeMascot size="sm" cropFace />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <CardTitle className="text-base">{GEORGE_NAME}</CardTitle>
-                  <p className="text-xs text-white/80">
+                  <p className="truncate text-xs text-white/80">
                     {session?.status === "WAITING" && `${GEORGE_NAME} + care team notified`}
                     {session?.status === "ACTIVE" && "Care partner online"}
                     {session?.status === "AI_HANDLING" && "Your first point of contact"}
@@ -376,7 +398,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 {onMinimize && (
                   <Button
                     variant="ghost"
@@ -400,7 +422,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
           </CardHeader>
 
           {!minimized && (
-            <CardContent className="p-0 flex flex-col h-[calc(100%-80px)]">
+            <CardContent className="flex min-h-0 flex-1 flex-col p-0">
               {/* Loading State */}
               {loading && (
                 <div className="flex-1 flex items-center justify-center">
@@ -435,9 +457,24 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
               {/* Chat Messages */}
               {!loading && session && (
                 <>
-                  <ScrollArea className="flex-1 p-4">
+                  <ScrollArea className="min-h-0 flex-1 p-4">
                     <div className="space-y-4">
-                      {messages.map((msg) => {
+                      {hiddenHistoryCount > 0 && (
+                        <div className="flex justify-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => setShowHistory(true)}
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                            Show {hiddenHistoryCount} earlier message
+                            {hiddenHistoryCount === 1 ? "" : "s"}
+                          </Button>
+                        </div>
+                      )}
+                      {visibleMessages.map((msg) => {
                         const senderInfo = getSenderInfo(msg);
                         const isMe = msg.senderType === "MEMBER";
                         const isSystem = msg.senderType === "SYSTEM";
@@ -500,7 +537,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
                   </ScrollArea>
 
                   {/* Input Area */}
-                  <div className="p-4 border-t bg-white dark:bg-slate-950">
+                  <div className="shrink-0 border-t bg-white p-3 sm:p-4 dark:bg-slate-950">
                     {session.status === "WAITING" && (
                       <div className="flex items-center gap-2 mb-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
                         <Clock className="w-4 h-4 text-amber-600 shrink-0" />
@@ -571,7 +608,7 @@ export function ChatButton({ onClick, hasUnread = false }: { onClick: () => void
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       aria-label={`Chat with ${GEORGE_NAME}`}
-      className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-white text-[#4a6243] shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow border border-[#cdd8c6] overflow-hidden"
+      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-[60] md:bottom-6 md:right-6 w-14 h-14 rounded-full bg-white text-[#4a6243] shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow border border-[#cdd8c6] overflow-hidden"
     >
       <GeorgeMascot size="sm" cropFace />
       {hasUnread && (

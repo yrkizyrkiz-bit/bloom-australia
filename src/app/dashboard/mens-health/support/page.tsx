@@ -96,6 +96,7 @@ export default function SupportPage() {
   });
   const homeHref = mensHealthShellHome(shell);
   const programLabel = mensHealthShellLabel(shell);
+  const isHairShell = shell === "hair";
   const journeyCopy =
     shell === "sexual"
       ? "Get help with your sexual health journey"
@@ -198,41 +199,43 @@ export default function SupportPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Link href="/dashboard/messages">
-          <div className="group relative flex h-full min-h-[100px] flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0e8d8] to-[#e5d7bf] p-4 transition-transform duration-300 md:hover:scale-[1.02]">
+      {!isHairShell && (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Link href="/dashboard/messages">
+            <div className="group relative flex h-full min-h-[100px] flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0e8d8] to-[#e5d7bf] p-4 transition-transform duration-300 md:hover:scale-[1.02]">
+              <div className="relative z-10 mb-2 flex items-center justify-between gap-2">
+                <p className="font-serif text-sm text-[#2c3628]">Message care partner</p>
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
+                  style={{ backgroundColor: RING.coral }}
+                >
+                  <MessageCircle className="h-4 w-4" strokeWidth={2.25} />
+                </span>
+              </div>
+              <p className="relative z-10 text-xs text-[#5c7a52]">
+                Ongoing conversation with your assigned coordinator
+              </p>
+            </div>
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className="group relative flex h-full min-h-[100px] w-full flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#e6ebe3] to-[#cdd8c6] p-4 text-left transition-transform duration-300 md:hover:scale-[1.02]"
+          >
             <div className="relative z-10 mb-2 flex items-center justify-between gap-2">
-              <p className="font-serif text-sm text-[#2c3628]">Message care partner</p>
+              <p className="font-serif text-sm text-[#2c3628]">Live Chat</p>
               <span
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
-                style={{ backgroundColor: RING.coral }}
+                style={{ backgroundColor: RING.teal }}
               >
-                <MessageCircle className="h-4 w-4" strokeWidth={2.25} />
+                <MessageSquare className="h-4 w-4" strokeWidth={2.25} />
               </span>
             </div>
-            <p className="relative z-10 text-xs text-[#5c7a52]">
-              Ongoing conversation with your assigned coordinator
-            </p>
-          </div>
-        </Link>
-
-        <button
-          type="button"
-          onClick={() => setChatOpen(true)}
-          className="group relative flex h-full min-h-[100px] w-full flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#e6ebe3] to-[#cdd8c6] p-4 text-left transition-transform duration-300 md:hover:scale-[1.02]"
-        >
-          <div className="relative z-10 mb-2 flex items-center justify-between gap-2">
-            <p className="font-serif text-sm text-[#2c3628]">Live Chat</p>
-            <span
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
-              style={{ backgroundColor: RING.teal }}
-            >
-              <MessageSquare className="h-4 w-4" strokeWidth={2.25} />
-            </span>
-          </div>
-          <p className="relative z-10 text-xs text-[#5c7a52]">Quick questions via the care team</p>
-        </button>
-      </div>
+            <p className="relative z-10 text-xs text-[#5c7a52]">Quick questions via the care team</p>
+          </button>
+        </div>
+      )}
 
       <Card className="overflow-hidden border-[#cdd8c6] bg-gradient-to-br from-[#f8f4ec] to-[#e6ebe3]">
         <CardContent className="space-y-4 p-5">

@@ -1,132 +1,135 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useCallback, useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, HelpCircle, MessageSquare, MessageCircle, Phone, Mail, Clock, CheckCircle2, Loader2, Send, ExternalLink, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  HelpCircle,
+  MessageSquare,
+  MessageCircle,
+  Loader2,
+  Send,
+  Sparkles,
+  Shield,
+} from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { LiveChat, ChatButton } from "@/components/chat/LiveChat";
 import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_NAME } from "@/lib/george";
 
-interface Ticket {
-  id: string;
-  subject: string;
-  category: string;
-  message: string;
-  status: string;
-  response: string | null;
-  createdAt: string;
-}
-
 const FAQ_ITEMS = [
   {
     question: "How do I track my weight?",
-    answer: "Go to the Weight Tracking section from the main menu. You can manually enter your weight or connect a smart scale for automatic tracking. We recommend weighing yourself at the same time each day for consistent results."
+    answer:
+      "Go to the Weight Tracking section from the main menu. You can manually enter your weight or connect a smart scale for automatic tracking. We recommend weighing yourself at the same time each day for consistent results.",
   },
   {
     question: "How often should I take my medication?",
-    answer: "Your medication schedule is set by your healthcare provider. Check the Treatment section to see your dosing schedule. If you have questions about your medication, please contact your doctor or pharmacist."
+    answer:
+      "Your medication schedule is set by your healthcare provider. Check the Treatment section to see your dosing schedule. If you have questions about your medication, please contact your doctor or pharmacist.",
   },
   {
     question: "What should I do if I miss a dose?",
-    answer: "If you miss a scheduled dose, take it as soon as you remember if it's within 48 hours. If it's been longer, skip the missed dose and continue with your regular schedule. Contact your healthcare provider if you're unsure."
+    answer:
+      "If you miss a scheduled dose, take it as soon as you remember if it's within 48 hours. If it's been longer, skip the missed dose and continue with your regular schedule. Contact your healthcare provider if you're unsure.",
   },
   {
     question: "How do I log my meals?",
-    answer: "Use the Meal Diary in the Weight Management section. You can search our food database with over 100 foods, or add custom meals. Track your calories and macronutrients to stay on target."
+    answer:
+      "Use the Meal Diary in the Weight Management section. You can search our food database with over 100 foods, or add custom meals. Track your calories and macronutrients to stay on target.",
   },
   {
     question: "Can I change my weight unit preference?",
-    answer: "Yes! Go to your Account settings and look for the Units section. You can switch between kilograms (kg) and pounds (lbs) at any time."
+    answer:
+      "Yes! Go to your Account settings and look for the Units section. You can switch between kilograms (kg) and pounds (lbs) at any time.",
   },
   {
     question: "How do weekly check-ins work?",
-    answer: "Weekly check-ins help you reflect on your progress. You'll rate your energy, sleep, and stress levels, and set goals for the upcoming week. Consistent check-ins help build healthy habits."
+    answer:
+      "Weekly check-ins help you reflect on your progress. You'll rate your energy, sleep, and stress levels, and set goals for the upcoming week. Consistent check-ins help build healthy habits.",
   },
 ];
 
-const CATEGORIES = [
-  { value: "MEDICATION", label: "Medication" },
-  { value: "TRACKING", label: "Tracking & Progress" },
-  { value: "TECHNICAL", label: "Technical Issues" },
-  { value: "BILLING", label: "Billing & Account" },
-  { value: "OTHER", label: "Other" },
-];
+type SupportMessage = {
+  id: string;
+  senderRole: string;
+  body: string;
+  createdAt: string;
+};
+
+type SupportThread = {
+  id: string;
+  subject: string;
+  status: string;
+  lastMessageAt: string;
+  messages: SupportMessage[];
+};
+
+function formatWhen(iso: string) {
+  return new Date(iso).toLocaleString("en-AU", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-
-  const [subject, setSubject] = useState("");
-  const [category, setCategory] = useState("");
   const [message, setMessage] = useState("");
+  const [subject, setSubject] = useState("");
+  const [sending, setSending] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [threads, setThreads] = useState<SupportThread[]>([]);
+  const [loadingThreads, setLoadingThreads] = useState(true);
 
-  useEffect(() => {
-    fetchTickets();
+  const loadThreads = useCallback(async () => {
+    try {
+      const res = await fetch("/api/care-support/messages", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setThreads(data.threads || []);
+    } catch (error) {
+      console.error("Failed to load support messages", error);
+    } finally {
+      setLoadingThreads(false);
+    }
   }, []);
 
-  const fetchTickets = async () => {
-    try {
-      const res = await fetch("/api/weight-management/support");
-      if (res.ok) {
-        const data = await res.json();
-        setTickets(data.tickets);
-      }
-    } catch (error) {
-      console.error("Error fetching tickets:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    void loadThreads();
+  }, [loadThreads]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!subject || !category || !message) {
+  const handleSubmit = async () => {
+    if (!message.trim() || !subject.trim()) {
       toast.error("Please fill in all fields");
       return;
     }
 
-    setSubmitting(true);
+    setSending(true);
     try {
-      const res = await fetch("/api/weight-management/support", {
+      const res = await fetch("/api/care-support/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, category, message }),
+        body: JSON.stringify({ subject, body: message }),
       });
-
-      if (res.ok) {
-        toast.success("Support request submitted!");
-        setSubject("");
-        setCategory("");
-        setMessage("");
-        setShowForm(false);
-        fetchTickets();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send message");
       }
+      toast.success("Message sent! We'll respond within 24 hours.");
+      setMessage("");
+      setSubject("");
+      await loadThreads();
     } catch (error) {
-      toast.error("Failed to submit request");
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
     } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "OPEN": return <Badge variant="secondary">Open</Badge>;
-      case "IN_PROGRESS": return <Badge className="bg-blue-500">In Progress</Badge>;
-      case "RESOLVED": return <Badge className="bg-green-500">Resolved</Badge>;
-      case "CLOSED": return <Badge variant="outline">Closed</Badge>;
-      default: return <Badge variant="secondary">{status}</Badge>;
+      setSending(false);
     }
   };
 
@@ -134,7 +137,9 @@ export default function SupportPage() {
     <div className="space-y-6 pb-20 md:pb-6">
       <div className="flex items-center gap-4">
         <Link href="/dashboard/weight-management">
-          <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
         </Link>
         <div>
           <h1 className="text-2xl font-bold">My Care Team</h1>
@@ -142,53 +147,55 @@ export default function SupportPage() {
         </div>
       </div>
 
-      {/* Live Chat CTA */}
-      <Card className="bg-gradient-to-r from-[#4a6243] to-[#5c7a52] border-0 text-white overflow-hidden">
+      <Card className="overflow-hidden border-0 bg-gradient-to-r from-[#4a6243] to-[#5c7a52] text-white">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
                 <GeorgeMascot size="md" cropFace />
               </div>
               <div>
                 <h3 className="text-xl font-bold">Chat with {GEORGE_NAME}</h3>
-                <p className="text-white/80">Your care companion — plus Sanative support when you need a human</p>
+                <p className="text-white/80">
+                  Your care companion — plus Sanative support when you need a human
+                </p>
               </div>
             </div>
             <Button
               onClick={() => setChatOpen(true)}
               className="bg-white text-[#2c3628] hover:bg-[#f8f4ec]"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
+              <Sparkles className="mr-2 h-4 w-4" />
               Start Chat
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Quick Contact */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Link href="/dashboard/messages">
-          <Card className="h-full bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 border-pink-200 hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-white" />
+          <Card className="h-full cursor-pointer border-pink-200 bg-gradient-to-br from-pink-50 to-rose-50 transition-shadow hover:shadow-md dark:from-pink-950/20 dark:to-rose-950/20">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-pink-500">
+                <MessageCircle className="h-6 w-6 text-white" />
               </div>
               <div>
                 <p className="font-semibold">Message your care partner</p>
-                <p className="text-sm text-pink-700">Ongoing conversation with your assigned coordinator</p>
+                <p className="text-sm text-pink-700">
+                  Ongoing conversation with your assigned coordinator
+                </p>
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Card
-          className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 cursor-pointer hover:shadow-md transition-shadow h-full"
+          className="h-full cursor-pointer border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 transition-shadow hover:shadow-md dark:from-blue-950/20 dark:to-indigo-950/20"
           onClick={() => setChatOpen(true)}
         >
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
-              <MessageSquare className="w-6 h-6 text-white" />
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500">
+              <MessageSquare className="h-6 w-6 text-white" />
             </div>
             <div>
               <p className="font-semibold">Live Chat</p>
@@ -196,145 +203,154 @@ export default function SupportPage() {
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-              <Phone className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="font-semibold">Phone Support</p>
-              <p className="text-sm text-muted-foreground">1800 123 456</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-              <Mail className="w-6 h-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="font-semibold">Email</p>
-              <p className="text-sm text-muted-foreground">support@sanative.com.au</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* FAQ Section */}
+      <Card className="overflow-hidden border-[#cdd8c6] bg-gradient-to-br from-[#f8f4ec] to-[#e6ebe3]">
+        <CardContent className="space-y-4 p-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0D9488] text-white">
+              <Send className="h-4 w-4" strokeWidth={2.25} />
+            </span>
+            <div>
+              <p className="font-serif text-lg font-semibold text-[#2c3628]">Send a Message</p>
+              <p className="text-xs text-[#5c7a52]">We usually respond within 24 hours</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#2c3628]">Subject</label>
+            <Input
+              placeholder="What can we help with?"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="border-[#cdd8c6] bg-white/80"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#2c3628]">Message</label>
+            <Textarea
+              placeholder="Describe your question or concern..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              className="border-[#cdd8c6] bg-white/80"
+            />
+          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={sending}
+            className="w-full bg-[#4a6243] text-white hover:bg-[#3d4f38]"
+          >
+            {sending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Send Message
+              </>
+            )}
+          </Button>
+          <div className="flex items-center gap-2 text-xs text-[#5c7a52]">
+            <Shield className="h-4 w-4" />
+            <span>Your message is encrypted and confidential</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-[#cdd8c6]">
+        <CardContent className="space-y-4 p-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-serif text-lg font-semibold text-[#2c3628]">Your messages</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setLoadingThreads(true);
+                void loadThreads();
+              }}
+              className="text-[#5c7a52]"
+            >
+              Refresh
+            </Button>
+          </div>
+
+          {loadingThreads ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-[#5c7a52]" />
+            </div>
+          ) : threads.length === 0 ? (
+            <p className="text-sm text-[#5c7a52]">
+              No messages yet. Send a note above and your care team will reply here.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {threads.map((thread) => (
+                <div
+                  key={thread.id}
+                  className="rounded-xl border border-[#cdd8c6] bg-[#f8f4ec]/60 p-4"
+                >
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-[#2c3628]">{thread.subject}</p>
+                      <p className="text-xs text-[#5c7a52]">
+                        Updated {formatWhen(thread.lastMessageAt)}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="bg-[#e6ebe3] text-[#4a6243]">
+                      {thread.status}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {thread.messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`rounded-lg px-3 py-2 text-sm ${
+                          msg.senderRole === "MEMBER"
+                            ? "ml-6 bg-[#4a6243] text-white"
+                            : "mr-6 border border-[#cdd8c6] bg-white text-[#2c3628]"
+                        }`}
+                      >
+                        <p className="mb-1 text-[10px] uppercase tracking-wide opacity-70">
+                          {msg.senderRole === "MEMBER" ? "You" : "Care team"} ·{" "}
+                          {formatWhen(msg.createdAt)}
+                        </p>
+                        <p className="whitespace-pre-wrap">{msg.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <HelpCircle className="w-5 h-5" />
+            <HelpCircle className="h-5 w-5" />
             Frequently Asked Questions
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Accordion type="single" collapsible className="w-full">
             {FAQ_ITEMS.map((item, index) => (
-              <AccordionItem key={index} value={`item-${index}`}>
+              <AccordionItem key={item.question} value={`item-${index}`}>
                 <AccordionTrigger className="text-left">{item.question}</AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
-                  {item.answer}
-                </AccordionContent>
+                <AccordionContent className="text-muted-foreground">{item.answer}</AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
         </CardContent>
       </Card>
 
-      {/* Submit Ticket */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Need More Help?</CardTitle>
-              <CardDescription>Submit a support request and we&apos;ll get back to you</CardDescription>
-            </div>
-            {!showForm && (
-              <Button onClick={() => setShowForm(true)}>
-                <Send className="w-4 h-4 mr-2" /> New Request
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        {showForm && (
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Subject *</Label>
-                  <Input placeholder="Brief description of your issue" value={subject} onChange={(e) => setSubject(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Category *</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Message *</Label>
-                <Textarea placeholder="Describe your issue in detail..." value={message} onChange={(e) => setMessage(e.target.value)} rows={4} required />
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={submitting}>
-                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Submit
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
-              </div>
-            </form>
-          </CardContent>
-        )}
-      </Card>
+      <LiveChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />
 
-      {/* My Tickets */}
-      {tickets.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>My Support Requests</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {tickets.map((ticket) => (
-                <div key={ticket.id} className="p-4 bg-muted/50 rounded-lg">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-medium">{ticket.subject}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(ticket.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    {getStatusBadge(ticket.status)}
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{ticket.message}</p>
-                  {ticket.response && (
-                    <div className="mt-3 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                      <p className="text-xs font-medium text-green-700 mb-1">Response:</p>
-                      <p className="text-sm">{ticket.response}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Live Chat */}
-      <LiveChat
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-      />
-
-      {/* Floating Chat Button (when chat is closed) */}
-      {!chatOpen && (
-        <ChatButton onClick={() => setChatOpen(true)} />
-      )}
+      {!chatOpen && <ChatButton onClick={() => setChatOpen(true)} />}
     </div>
   );
 }

@@ -266,55 +266,64 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      <div>
+    <div className="mx-auto min-w-0 max-w-4xl space-y-6 sm:space-y-8">
+      <div className="min-w-0">
         <h1 className="text-2xl sm:text-3xl font-serif text-foreground">
           Account Settings
         </h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
           Manage your personal information and preferences
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Avatar className="w-20 h-20">
-                <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+      <Card className="min-w-0 overflow-hidden">
+        <CardHeader className="space-y-4 p-4 sm:p-6">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+              <Avatar className="h-14 w-14 shrink-0 sm:h-20 sm:w-20">
+                <AvatarFallback className="bg-primary/10 text-lg text-primary sm:text-2xl">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <CardTitle className="text-xl">
+              <div className="min-w-0">
+                <CardTitle className="truncate text-lg sm:text-xl">
                   {user?.firstName} {user?.lastName}
                 </CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-1">
-                  <Mail className="w-4 h-4" />
-                  {user?.email}
+                <CardDescription className="mt-1 flex min-w-0 items-center gap-2">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{user?.email}</span>
                 </CardDescription>
               </div>
             </div>
             {!isEditing ? (
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                <Edit2 className="w-4 h-4 mr-2" />
+              <Button
+                variant="outline"
+                onClick={() => setIsEditing(true)}
+                className="w-full shrink-0 sm:w-auto"
+              >
+                <Edit2 className="mr-2 h-4 w-4" />
                 Edit Profile
               </Button>
             ) : (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
-                  <X className="w-4 h-4 mr-2" />
+              <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="w-full sm:w-auto"
+                >
+                  <X className="mr-2 h-4 w-4" />
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
+                <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto">
                   {isSaving ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4 mr-2" />
+                      <Save className="mr-2 h-4 w-4" />
                       Save Changes
                     </>
                   )}
@@ -323,11 +332,11 @@ export default function SettingsPage() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="min-w-0 space-y-6 p-4 pt-0 sm:p-6 sm:pt-0">
           <Separator />
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-2">
+          <div className="grid min-w-0 gap-4 sm:gap-6 md:grid-cols-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="firstName">First Name</Label>
               {isEditing ? (
                 <Input
@@ -336,10 +345,10 @@ export default function SettingsPage() {
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 />
               ) : (
-                <p className="text-sm py-2 px-3 bg-muted rounded-md">{user?.firstName}</p>
+                <p className="break-words rounded-md bg-muted px-3 py-2 text-sm">{user?.firstName}</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
               {isEditing ? (
                 <Input
@@ -348,25 +357,25 @@ export default function SettingsPage() {
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 />
               ) : (
-                <p className="text-sm py-2 px-3 bg-muted rounded-md">{user?.lastName}</p>
+                <p className="break-words rounded-md bg-muted px-3 py-2 text-sm">{user?.lastName}</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="email">Email Address</Label>
-              <p className="text-sm py-2 px-3 bg-muted rounded-md">{user?.email}</p>
+              <p className="break-all rounded-md bg-muted px-3 py-2 text-sm">{user?.email}</p>
               {isEditing && (
                 <p className="text-xs text-muted-foreground">Email cannot be changed. Contact support if needed.</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="dob">Date of Birth</Label>
               {isEditing ? (
-                <div className="flex gap-2">
+                <div className="grid min-w-0 grid-cols-3 gap-2">
                   <Select
                     value={formData.dobDay}
                     onValueChange={(value) => setFormData({ ...formData, dobDay: value })}
                   >
-                    <SelectTrigger className="w-24">
+                    <SelectTrigger className="min-w-0 w-full">
                       <SelectValue placeholder="Day" />
                     </SelectTrigger>
                     <SelectContent>
@@ -379,23 +388,23 @@ export default function SettingsPage() {
                     value={formData.dobMonth}
                     onValueChange={(value) => setFormData({ ...formData, dobMonth: value })}
                   >
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="min-w-0 w-full">
                       <SelectValue placeholder="Month" />
                     </SelectTrigger>
                     <SelectContent>
                       {[
-                        { value: "1", label: "January" },
-                        { value: "2", label: "February" },
-                        { value: "3", label: "March" },
-                        { value: "4", label: "April" },
+                        { value: "1", label: "Jan" },
+                        { value: "2", label: "Feb" },
+                        { value: "3", label: "Mar" },
+                        { value: "4", label: "Apr" },
                         { value: "5", label: "May" },
-                        { value: "6", label: "June" },
-                        { value: "7", label: "July" },
-                        { value: "8", label: "August" },
-                        { value: "9", label: "September" },
-                        { value: "10", label: "October" },
-                        { value: "11", label: "November" },
-                        { value: "12", label: "December" },
+                        { value: "6", label: "Jun" },
+                        { value: "7", label: "Jul" },
+                        { value: "8", label: "Aug" },
+                        { value: "9", label: "Sep" },
+                        { value: "10", label: "Oct" },
+                        { value: "11", label: "Nov" },
+                        { value: "12", label: "Dec" },
                       ].map(month => (
                         <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
                       ))}
@@ -405,7 +414,7 @@ export default function SettingsPage() {
                     value={formData.dobYear}
                     onValueChange={(value) => setFormData({ ...formData, dobYear: value })}
                   >
-                    <SelectTrigger className="w-28">
+                    <SelectTrigger className="min-w-0 w-full">
                       <SelectValue placeholder="Year" />
                     </SelectTrigger>
                     <SelectContent>
@@ -416,7 +425,7 @@ export default function SettingsPage() {
                   </Select>
                 </div>
               ) : (
-                <p className="text-sm py-2 px-3 bg-muted rounded-md">
+                <p className="break-words rounded-md bg-muted px-3 py-2 text-sm">
                   {profileData?.dateOfBirth ? (
                     <>
                       {new Date(profileData.dateOfBirth).toLocaleDateString('en-AU', {
@@ -432,14 +441,14 @@ export default function SettingsPage() {
                 </p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label>Gender</Label>
               {isEditing ? (
                 <Select
                   value={formData.gender.toLowerCase()}
                   onValueChange={(value) => setFormData({ ...formData, gender: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -449,12 +458,12 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="text-sm py-2 px-3 bg-muted rounded-md capitalize">
+                <p className="rounded-md bg-muted px-3 py-2 text-sm capitalize">
                   {profileData?.gender?.toLowerCase() || user?.gender?.toLowerCase() || <span className="text-muted-foreground italic">Not set</span>}
                 </p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
               {isEditing ? (
                 <Input
@@ -465,14 +474,14 @@ export default function SettingsPage() {
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               ) : (
-                <p className="text-sm py-2 px-3 bg-muted rounded-md">
+                <p className="break-words rounded-md bg-muted px-3 py-2 text-sm">
                   {profileData?.phone || <span className="text-muted-foreground italic">Not set</span>}
                 </p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label>Member Since</Label>
-              <p className="text-sm py-2 px-3 bg-muted rounded-md">
+              <p className="break-words rounded-md bg-muted px-3 py-2 text-sm">
                 {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-AU', {
                   day: 'numeric',
                   month: 'long',
@@ -547,14 +556,14 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-muted/50">
+          <div className="flex flex-col gap-3 rounded-lg bg-muted/50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="font-medium text-sm">This device</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-sm font-medium">This device</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 Get alerts on your phone or computer when something needs you. On iPhone, add Sanative to your Home Screen first, then enable push.
               </p>
             </div>
-            <PushEnable variant="member" className="shrink-0" />
+            <PushEnable variant="member" className="w-full shrink-0 justify-center sm:w-auto" />
           </div>
         </CardContent>
       </Card>
