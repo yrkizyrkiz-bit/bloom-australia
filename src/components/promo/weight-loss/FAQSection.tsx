@@ -19,11 +19,11 @@ const faqs: FAQ[] = [
   },
   {
     question: "How much does the program cost?",
-    answer: "We offer two plans: Sanative Core starts at $249 for your first month (then from $349/month ongoing), and Sanative Precision starts at $399 for your first month (then from $499/month ongoing). Both include doctor consultations, Care Partner support, portal access, and ongoing clinical monitoring. Precision includes more frequent doctor check-ins and enhanced biomarker monitoring. No hidden fees or lock-in contracts, cancel anytime.",
+    answer: "Sanative Membership is $365/year ($1 a day) and includes your comprehensive biomarker panel plus your first 30 days of Weight Management Care. After that, continue Weight Management Care for $360 every three months. Medication cost is not included.",
   },
   {
-    question: "What does the monthly fee cover?",
-    answer: "Your monthly fee covers doctor consultations, clinical monitoring, Care Partner support, and portal access. Some care options may involve additional costs, discussed before proceeding.",
+    question: "What does the membership and care fee cover?",
+    answer: "Your annual membership covers the biomarker panel, doctor review, personalised report, and portal access, plus the first 30 days of an eligible care program. Ongoing Weight Management Care covers doctor consultations, clinical monitoring, Care Partner support, and portal access. Some care options may involve additional costs, discussed before proceeding.",
   },
   {
     question: "Who is eligible for the program?",
@@ -48,10 +48,6 @@ const faqs: FAQ[] = [
   {
     question: "Can I cancel my subscription?",
     answer: "Yes, you can cancel anytime with no penalties or cancellation fees. Simply contact our support team or cancel through the app. Your subscription ends at the end of your current billing period. We believe in earning your trust every month.",
-  },
-  {
-    question: "What is your refund policy?",
-    answer: "If your Sanative doctor determines after assessment that the program is not clinically appropriate for you, your first-month payment will be refunded in accordance with our Refund Policy.",
   },
   {
     question: "Is my information kept private?",

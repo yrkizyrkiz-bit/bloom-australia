@@ -2,13 +2,14 @@ import { LegalPageLayout } from "@/components/legal/LegalPageLayout";
 import { RefundPolicyContent } from "@/lib/legal/pages/refund-policy-content";
 
 export const metadata = {
-  title: "Refund Policy | Sanative",
-  description: "Sanative refund policy for program fees and subscriptions.",
+  title: "Refunds, Cancellations and Program Payments | Sanative",
+  description:
+    "Sanative membership and program refund, cancellation and payment terms.",
 };
 
 export default function RefundPolicyPage() {
   return (
-    <LegalPageLayout title="Refund Policy">
+    <LegalPageLayout title="Refunds, Cancellations and Program Payments">
       <RefundPolicyContent />
     </LegalPageLayout>
   );

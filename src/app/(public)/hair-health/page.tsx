@@ -535,7 +535,7 @@ function HairHealthPageContent() {
             </Link>
             {/* GAP-026: Removed 'No commitment' - payment required */}
             <p className="mt-6 text-sm text-[#7e9a72]">
-              Free assessment · Refund if not suitable · Results in 48 hours
+              Free assessment · Results in 48 hours
             </p>
           </div>
         </section>

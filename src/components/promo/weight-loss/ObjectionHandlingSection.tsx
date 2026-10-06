@@ -22,8 +22,8 @@ const questionsAndAnswers: QA[] = [
     answer: "Our doctors assess underlying factors that may be contributing to weight management challenges. Your care plan is guided by your health profile and biomarkers, not BMI alone.",
   },
   {
-    question: "What about side effects?",
-    answer: "Your doctor will discuss potential side effects during your consultation. Ongoing clinical monitoring allows your doctor to adjust your care plan as needed. Your safety is our priority.",
+    question: "What medical treatments are available for weight loss?",
+    answer: "Treatment depends on your individual needs and clinical suitability. Australian regulations prevent us from going into further detail outside a consultation with a registered professional. Your practitioner will cover all options and answer questions during your appointment.",
   },
   {
     question: "What is a Care Partner and how do they help?",

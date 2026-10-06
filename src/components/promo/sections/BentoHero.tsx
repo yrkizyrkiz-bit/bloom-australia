@@ -171,10 +171,6 @@ export function BentoHero() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />
-            <span>Pharmacy dispensing when prescribed</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />
             <span>100% Australian</span>
           </div>
         </div>

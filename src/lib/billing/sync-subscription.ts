@@ -134,7 +134,7 @@ export async function syncMemberSubscriptionFromStripe(
     "CORE";
 
   if (!billingPrice) {
-    billingPrice = await findDefaultRecurringPrice(planTier, "MONTHLY");
+    billingPrice = await findDefaultRecurringPrice(planTier, "QUARTERLY");
   }
 
   if (!billingPrice) {

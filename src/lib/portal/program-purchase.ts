@@ -37,12 +37,10 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
     throw new Error("Invalid billing term");
   }
 
-  const planTier =
-    programKey === "WEIGHT_MANAGEMENT" ? input.planTier ?? "CORE" : null;
-
-  const quote = await resolveProgramCheckoutQuote(programKey, input.billingTerm, planTier);
+  const quote = await resolveProgramCheckoutQuote(programKey, input.billingTerm, null);
   const { customerId, user } = await getOrCreateStripeCustomer(input.userId);
   const label = PROGRAM_LABELS[programKey];
+  const isAnnual = input.billingTerm === "12m";
 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: quote.firstMonth.amountCents,
@@ -56,13 +54,16 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
       customerEmail: user.email,
       programKey,
       billingTerm: input.billingTerm,
-      planTier: planTier ?? "",
+      planTier: "",
       intent: input.intent ?? "program_subscription",
       priceLabel: quote.priceLabel,
       firstMonthBillingPriceId: quote.firstMonth.id,
       recurringBillingPriceId: quote.recurring.id,
+      savingsLabel: quote.savingsLabel ?? "",
     },
-    description: `${label}, first month (includes consultation)`,
+    description: isAnnual
+      ? `${label}, annual care (save 10%, includes consultation)`
+      : `${label}, first billing period (includes consultation)`,
   });
 
   if (!paymentIntent.client_secret) {
@@ -75,11 +76,12 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
     amountAud: quote.dueTodayAud,
     programKey,
     billingTerm: input.billingTerm,
-    planTier,
+    planTier: null,
     label,
     priceLabel: quote.priceLabel,
     dueTodayLabel: quote.dueTodayLabel,
     recurringLabel: quote.recurringLabel,
+    savingsLabel: quote.savingsLabel,
     includesConsultation: true,
   };
 }
@@ -120,7 +122,16 @@ async function scheduleRecurringSubscription(params: {
     });
   }
 
-  const billingAnchor = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+  // First period was collected via PaymentIntent — next Stripe charge after that period.
+  const periodDays =
+    billingPrice.billingInterval === "YEARLY"
+      ? 365
+      : billingPrice.billingInterval === "BIANNUAL"
+        ? 182
+        : billingPrice.billingInterval === "QUARTERLY"
+          ? 90
+          : 30;
+  const billingAnchor = Math.floor(Date.now() / 1000) + periodDays * 24 * 60 * 60;
 
   const subscription = await stripe.subscriptions.create({
     customer: params.customerId,
@@ -134,6 +145,7 @@ async function scheduleRecurringSubscription(params: {
       sanativeProgram: params.programKey,
       source: "portal_upsell",
       billingPriceId: billingPrice.id,
+      billingInterval: billingPrice.billingInterval,
     },
   });
 

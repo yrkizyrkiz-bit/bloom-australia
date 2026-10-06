@@ -13,7 +13,7 @@ import {
 import {
   isBiomarkersPanelTier,
   isOrganCareBillingTerm,
-  PROGRAM_BILLING_TERM_OPTIONS,
+  PORTAL_PROGRAM_BILLING_TERM_OPTIONS,
   BIOMARKERS_PANEL_META,
   ORGAN_CARE_UPSELL_META,
 } from "@/lib/programs/offers";
@@ -145,7 +145,7 @@ export async function GET(request: Request) {
 
     const catalog = await getProgramProductPricing(programKey as ProgramKey);
     const terms = await Promise.all(
-      PROGRAM_BILLING_TERM_OPTIONS.map(async (opt) => {
+      PORTAL_PROGRAM_BILLING_TERM_OPTIONS.map(async (opt) => {
         try {
           const quote = await resolveProgramCheckoutQuote(programKey as ProgramKey, opt.term);
           return {
@@ -157,6 +157,9 @@ export async function GET(request: Request) {
             priceLabel: quote.priceLabel,
             recurringBillingPriceId: quote.recurring.id,
             firstMonthBillingPriceId: quote.firstMonth.id,
+            compareAtAud: quote.compareAtAud,
+            savingsPercent: quote.savingsPercent,
+            savingsLabel: quote.savingsLabel,
           };
         } catch {
           return { term: opt.term, label: opt.label, error: true };

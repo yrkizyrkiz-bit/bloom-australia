@@ -99,7 +99,7 @@ export default function HeartHealthPage() {
 
   const processSteps = [
     { icon: Eye, title: "Assess", subtitle: "Comprehensive Lipid Panel", description: "Standard lipid profile plus inflammation and metabolic markers." },
-    { icon: Wrench, title: "Plan", subtitle: "Personalised Protocol", description: "Evidence-based care plan with dietary, lifestyle, and medication options." },
+    { icon: Wrench, title: "Plan", subtitle: "Personalised Protocol", description: "Evidence-based care plan with dietary, lifestyle, and clinical care." },
     { icon: Check, title: "Monitor", subtitle: "Track Progress", description: "Regular biomarker testing to guide treatment adjustments." },
     { icon: RefreshCw, title: "Follow-up", subtitle: "Long-term Management", description: "Ongoing doctor-led review of cardiovascular markers as your situation changes." },
   ];
@@ -113,7 +113,7 @@ export default function HeartHealthPage() {
   const faqs = [
     { question: "What is dyslipidemia?", answer: "Dyslipidemia refers to abnormal levels of lipids in the blood. According to the Heart Foundation, it's a major risk factor for cardiovascular disease, Australia's leading cause of death." },
     { question: "How does obesity affect cholesterol?", answer: "The AIHW reports two-thirds of Australian adults are overweight or obese. Excess body fat increases LDL cholesterol and triglycerides while lowering HDL. Studies show 5-10% weight loss significantly improves lipid profiles." },
-    { question: "Can lifestyle change affect cholesterol?", answer: "The AIHW notes that diet, activity and weight can influence lipid levels, and some people also need medicine, especially those with genetic conditions such as familial hypercholesterolemia. Your Sanative doctor discusses what is clinically appropriate for you. Individual results vary." },
+    { question: "Can lifestyle change affect cholesterol?", answer: "The AIHW notes that diet, activity and weight can influence lipid levels. Your Sanative doctor discusses what is clinically appropriate for you. Individual results vary." },
     { question: "What biomarkers do you test?", answer: "The Heart Health Panel on Essential measures high-sensitivity CRP, total cholesterol, LDL, HDL and triglycerides. Non-HDL cholesterol and the cholesterol/HDL ratio are calculated from that same draw. Apolipoprotein B and lipoprotein (a) are not on the routine panel. Your doctor may add them when risk factors exist, such as a strong family history of premature heart disease." },
   ];
 

@@ -2,10 +2,6 @@ import {
   getPublicConsultProgram,
   type UnifiedCheckoutProgramSlug,
 } from "@/lib/funnel/public-consult-programs";
-import { WEIGHT_MANAGEMENT_PRICES } from "@/lib/stripe";
-
-export const WM_CORE_FIRST_MONTH_CENTS = WEIGHT_MANAGEMENT_PRICES.core.firstMonth.amount;
-export const WM_PRECISION_FIRST_MONTH_CENTS = WEIGHT_MANAGEMENT_PRICES.precision.firstMonth.amount;
 
 /** Annual Sanative Membership, current public funnel checkout. */
 export const SANATIVE_MEMBERSHIP_CENTS = 36500;
@@ -16,7 +12,8 @@ export function isSanativeMembershipPaymentMetadata(
   return (metadata?.purchaseType || "").trim() === "sanative_membership";
 }
 
-const NON_WM_ONGOING_CENTS = 7900; // $79/mo, men's / women's / hair public funnel pricing
+/** Fallback only — prefer per-program ongoing amounts from resolveFirstMonthCheckoutCharge. */
+const NON_WM_ONGOING_CENTS = 24000;
 
 export type CheckoutProgramType =
   | "weight_management"
@@ -64,32 +61,17 @@ export function resolveFirstMonthCheckoutCharge(
     return null;
   }
 
+  // Public clinical funnels charge Sanative Membership ($365/yr). Legacy Core/Precision SKUs retired.
   if (programType === "weight_management") {
-    const precision = isPrecisionPlanId(planId);
-    const wm = precision
-      ? WEIGHT_MANAGEMENT_PRICES.precision
-      : WEIGHT_MANAGEMENT_PRICES.core;
-    const selectedPlan = precision ? "precision" : "core";
-    const effectivePlanId = precision
-      ? "sanative_precision_first_month"
-      : "sanative_core_first_month";
-
     return {
-      amountCents: wm.firstMonth.amount,
+      amountCents: SANATIVE_MEMBERSHIP_CENTS,
       currency: "aud",
-      planName: wm.firstMonth.name.replace(" - First Month", ""),
-      selectedPlan,
-      effectivePlanId,
-      ongoingAmountCents: wm.monthly.amount,
-      discountCents: wm.firstMonth.discount ?? 0,
-      stripePriceId: process.env[
-        precision
-          ? "STRIPE_WM_PRECISION_FIRST_MONTH_PRICE_ID"
-          : "STRIPE_WM_CORE_FIRST_MONTH_PRICE_ID"
-      ],
-      stripeOngoingPriceId: process.env[
-        precision ? "STRIPE_WM_PRECISION_MONTHLY_PRICE_ID" : "STRIPE_WM_CORE_MONTHLY_PRICE_ID"
-      ],
+      planName: "Sanative Membership",
+      selectedPlan: "membership",
+      effectivePlanId: "sanative_membership",
+      ongoingAmountCents: 36000,
+      discountCents: 0,
+      stripePriceId: process.env.STRIPE_MEMBERSHIP_PRICE_ID,
     };
   }
 
@@ -99,27 +81,29 @@ export function resolveFirstMonthCheckoutCharge(
     return null;
   }
 
+  const ongoingByProgram: Record<string, number> = {
+    hair_loss: 9000,
+    mens_health: 24000,
+    womens_health: 24000,
+  };
+
   return {
-    amountCents: program.firstMonthAud * 100,
+    amountCents: SANATIVE_MEMBERSHIP_CENTS,
     currency: "aud",
-    planName: program.label,
+    planName: "Sanative Membership",
     selectedPlan: program.slug,
-    effectivePlanId: program.slug,
-    ongoingAmountCents: NON_WM_ONGOING_CENTS,
-    discountCents: 3000,
+    effectivePlanId: "sanative_membership",
+    ongoingAmountCents: ongoingByProgram[program.slug] ?? NON_WM_ONGOING_CENTS,
+    discountCents: 0,
   };
 }
 
 export function expectedFirstMonthCentsForConsultProgram(
   consultProgram: { isWeightManagement: boolean; firstMonthAud: number },
-  selectedPlan: string | null | undefined
+  _selectedPlan: string | null | undefined
 ): number {
-  if (consultProgram.isWeightManagement) {
-    return isPrecisionPlanId(selectedPlan || "core")
-      ? WM_PRECISION_FIRST_MONTH_CENTS
-      : WM_CORE_FIRST_MONTH_CENTS;
-  }
-  return consultProgram.firstMonthAud * 100;
+  // Public entry is always Sanative Membership; consultProgram.firstMonthAud is 365.
+  return consultProgram.firstMonthAud * 100 || SANATIVE_MEMBERSHIP_CENTS;
 }
 
 /** Amount the doctor-approval / booking verifier should accept for this PI. */

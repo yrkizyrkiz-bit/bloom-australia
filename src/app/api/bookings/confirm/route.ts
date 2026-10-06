@@ -341,9 +341,7 @@ async function sendConfirmationEmail(
   const tz = data.patientTimezone ?? CLINIC_TIMEZONE;
   const { formatted, clinicFootnote } = formatPatientAppointmentTime(data.scheduledAt, tz);
 
-  const planDisplay = data.selectedPlan?.toUpperCase() === "PRECISION"
-    ? "Sanative Precision"
-    : "Sanative Core";
+  const planDisplay = "Sanative Membership";
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://sanative.com.au";
   const portalCtaHref = data.magicLink
@@ -1159,13 +1157,7 @@ export async function POST(req: NextRequest) {
         // Membership / panel purchases already record their own invoice at activation,
         // never create a treatment-program fallback invoice for those bookings.
         if (!existingInvoice && !isMembershipStyleBooking) {
-          // Determine amount based on plan
-          const planSelected = selectedPlan || updatedBooking.selectedPlan;
-          const amount = consultProgram.isWeightManagement
-            ? planSelected?.toUpperCase() === "PRECISION"
-              ? 399
-              : 249
-            : consultProgram.firstMonthAud;
+          const amount = consultProgram.firstMonthAud;
 
           await prisma.invoice.create({
             data: {
@@ -1177,7 +1169,7 @@ export async function POST(req: NextRequest) {
               paidAt: new Date(),
               paymentMethod: "card",
               description: consultProgram.isWeightManagement
-                ? `Weight Management - First Month (${planSelected || "Core"} Plan)`
+                ? "Sanative Membership"
                 : consultProgram.invoiceDescription,
             },
           });

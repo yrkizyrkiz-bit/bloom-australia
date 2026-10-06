@@ -20,37 +20,40 @@ export type PublicConsultProgram = {
   isWeightManagement: boolean;
 };
 
+/** Public clinical funnels enter via Sanative Membership ($365/yr), not legacy first-month SKUs. */
+const MEMBERSHIP_ENTRY_AUD = 365;
+
 const PROGRAMS: Record<UnifiedCheckoutProgramSlug, PublicConsultProgram> = {
   weight_management: {
     slug: "weight_management",
     label: "Weight Management",
     subscriptionTier: "weight_management",
-    firstMonthAud: 249,
-    invoiceDescription: "Weight Management - First Month",
+    firstMonthAud: MEMBERSHIP_ENTRY_AUD,
+    invoiceDescription: "Sanative Membership (includes first 30 days of Weight Management Care)",
     isWeightManagement: true,
   },
   hair_loss: {
     slug: "hair_loss",
     label: "Hair Loss",
     subscriptionTier: "hair_loss",
-    firstMonthAud: 49,
-    invoiceDescription: "Hair Loss - First Month (Hair Care Plan)",
+    firstMonthAud: MEMBERSHIP_ENTRY_AUD,
+    invoiceDescription: "Sanative Membership (includes first 30 days of Hair Health Care)",
     isWeightManagement: false,
   },
   mens_health: {
     slug: "mens_health",
     label: "Men's Health",
     subscriptionTier: "mens_health_sexual",
-    firstMonthAud: 49,
-    invoiceDescription: "Men's Health - Consultation & First Month",
+    firstMonthAud: MEMBERSHIP_ENTRY_AUD,
+    invoiceDescription: "Sanative Membership (includes first 30 days of Men's Health Care)",
     isWeightManagement: false,
   },
   womens_health: {
     slug: "womens_health",
     label: "Women's Health",
     subscriptionTier: "womens_health_sexual",
-    firstMonthAud: 49,
-    invoiceDescription: "Women's Health - Consultation & First Month",
+    firstMonthAud: MEMBERSHIP_ENTRY_AUD,
+    invoiceDescription: "Sanative Membership (includes first 30 days of Women's Health Care)",
     isWeightManagement: false,
   },
 };
@@ -208,17 +211,17 @@ export function resolveWomensHealthCanonicalKey(
 }
 
 export const MENS_CHECKOUT_PRICING = {
-  planName: "Men's Health Program",
-  firstMonthList: 79,
-  dueToday: 49,
-  ongoingPrice: 79,
-  discount: 30,
+  planName: "Sanative Membership",
+  firstMonthList: MEMBERSHIP_ENTRY_AUD,
+  dueToday: MEMBERSHIP_ENTRY_AUD,
+  ongoingPrice: 240,
+  discount: 0,
 };
 
 export const WOMENS_CHECKOUT_PRICING = {
-  planName: "Women's Wellness Program",
-  firstMonthList: 79,
-  dueToday: 49,
-  ongoingPrice: 79,
-  discount: 30,
+  planName: "Sanative Membership",
+  firstMonthList: MEMBERSHIP_ENTRY_AUD,
+  dueToday: MEMBERSHIP_ENTRY_AUD,
+  ongoingPrice: 240,
+  discount: 0,
 };

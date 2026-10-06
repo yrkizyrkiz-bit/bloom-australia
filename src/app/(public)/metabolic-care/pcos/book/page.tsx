@@ -152,7 +152,6 @@ function BookingPageContent() {
     phone: "",
     dateOfBirth: "",
     concerns: "",
-    consultationRequired: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
@@ -239,12 +238,6 @@ function BookingPageContent() {
                   <Check className="w-4 h-4 text-rose-500 mt-0.5" />
                   <span>Results will be available in your portal within 48-72 hours</span>
                 </li>
-                {formData.consultationRequired && (
-                  <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-rose-500 mt-0.5" />
-                    <span>Our care team will contact you to schedule your consultation</span>
-                  </li>
-                )}
               </ul>
             </div>
 
@@ -628,23 +621,15 @@ function BookingPageContent() {
                   />
                 </div>
 
-                <div className="mt-4">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.consultationRequired}
-                      onChange={(e) => handleFormChange("consultationRequired", e.target.checked)}
-                      className="mt-1 w-5 h-5 rounded border-gray-300 text-rose-600 focus:ring-rose-500"
-                    />
-                    <div>
-                      <span className="font-medium text-gray-900">
-                        Add doctor consultation (+$49)
-                      </span>
-                      <p className="text-sm text-gray-500">
-                        Book a telehealth consultation with our PCOS specialist to review your results and discuss treatment options.
-                      </p>
-                    </div>
-                  </label>
+                <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/60 p-4">
+                  <p className="font-medium text-gray-900">Doctor review</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Doctor consultations are included with{" "}
+                    <Link href="/membership/checkout" className="font-medium text-rose-700 underline-offset-2 hover:underline">
+                      Sanative Membership ($365/year)
+                    </Link>
+                    , not sold as a separate add-on on this booking.
+                  </p>
                 </div>
               </div>
 
@@ -653,7 +638,7 @@ function BookingPageContent() {
                 <Shield className="w-5 h-5 text-gray-400 mt-0.5" />
                 <div className="text-sm text-gray-600">
                   <p className="font-medium text-gray-900">Secure Payment</p>
-                  <p>Payment of ${panel.price + (formData.consultationRequired ? 49 : 0)} will be processed securely. You can cancel or reschedule up to 24 hours before your appointment.</p>
+                  <p>Payment of ${panel.price} will be processed securely. You can cancel or reschedule up to 24 hours before your appointment.</p>
                 </div>
               </div>
 
@@ -677,7 +662,7 @@ function BookingPageContent() {
                     </>
                   ) : (
                     <>
-                      Confirm Booking - ${panel.price + (formData.consultationRequired ? 49 : 0)}
+                      Confirm Booking - ${panel.price}
                       <ArrowRight className="w-5 h-5" />
                     </>
                   )}

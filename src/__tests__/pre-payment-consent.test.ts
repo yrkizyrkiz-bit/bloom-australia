@@ -12,7 +12,10 @@ describe("pre-payment consent", () => {
   });
 
   it("exports validatePrePaymentConsent helper", async () => {
-    const { validatePrePaymentConsent } = await import("@/lib/legal/consent-record");
+    const { validatePrePaymentConsent, findLatestValidPrePaymentConsent } = await import(
+      "@/lib/legal/consent-record"
+    );
     expect(typeof validatePrePaymentConsent).toBe("function");
+    expect(typeof findLatestValidPrePaymentConsent).toBe("function");
   });
 });

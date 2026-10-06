@@ -423,7 +423,7 @@ export default function PCOSPage() {
     },
     {
       question: "Can diet really help manage PCOS?",
-      answer: "Yes, research strongly supports dietary interventions for PCOS management. A diet focused on regulating blood sugar and insulin levels (low glycemic index foods, adequate protein, healthy fats, and high fiber) can significantly improve PCOS symptoms. Studies show that even modest weight loss (5-10%) can restore menstrual regularity and improve fertility in many women with PCOS. Key nutrients like inositol, chromium, and omega-3s have also shown benefits.",
+      answer: "Yes, research strongly supports dietary interventions for PCOS management. A diet focused on regulating blood sugar and insulin levels (low glycemic index foods, adequate protein, healthy fats, and high fiber) can significantly improve PCOS symptoms. Studies show that even modest weight loss (5-10%) can restore menstrual regularity and improve fertility in many women with PCOS. Your doctor may discuss nutrition and other care options privately if clinically appropriate.",
     },
     {
       question: "How often should I retest my biomarkers?",

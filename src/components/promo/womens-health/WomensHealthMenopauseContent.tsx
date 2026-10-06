@@ -102,7 +102,7 @@ export function WomensHealthMenopauseContent() {
                       "Mood changes, anxiety, or brain fog that feel new or persistent",
                       "Irregular periods or heavy bleeding in perimenopause",
                       "Vaginal dryness, discomfort, or urinary symptoms",
-                      "You want a doctor to review whether MHT or other options suit you",
+                      "You want a doctor to review your symptoms and care options",
                     ].map((item) => (
                       <li key={item} className="flex items-start gap-3 text-[#5c7a52]">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#c17a58] mt-2 flex-shrink-0" />
@@ -178,21 +178,17 @@ export function WomensHealthMenopauseContent() {
                 Treat the cause, not just the signs
               </h2>
               <p className="text-lg text-[#5c7a52] max-w-3xl mx-auto">
-                Declining oestrogen drives many menopause symptoms. Your doctor may discuss lifestyle
-                changes, non-hormonal options, or medical and clinical therapy, based on your
-                symptoms, age, and medical history. Nothing is one-size-fits-all.
+                Your doctor will discuss suitable care options based on your symptoms, age, medical
+                history and individual health needs. Where clinical treatment is appropriate, this
+                will be discussed privately during your consultation.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
               {[
                 {
                   title: "Lifestyle & self-care",
                   body: "Sleep hygiene, exercise, stress management, and dietary support, practical foundations your doctor can help personalise.",
-                },
-                {
-                  title: "Non-hormonal options",
-                  body: "Some women benefit from non-hormonal medicines or topical treatments for specific symptoms. Your doctor explains what may suit you.",
                 },
                 {
                   title: "Medical and clinical therapy",
@@ -208,11 +204,6 @@ export function WomensHealthMenopauseContent() {
                 </div>
               ))}
             </div>
-
-            <p className="mt-10 text-center text-sm text-[#7e9a72] max-w-2xl mx-auto">
-              Sanative does not advertise prescription products on this website. Suitable care options,
-              if any, are discussed privately with your doctor. PBS and private prescription costs vary.
-            </p>
           </div>
         </section>
 

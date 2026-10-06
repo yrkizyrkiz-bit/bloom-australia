@@ -43,14 +43,10 @@ const copy: Record<ConsentVariant, React.ReactNode> = {
       By completing payment, you agree to our{" "}
       <Link href={LEGAL_LINKS.terms} className="underline text-[#5c7a52]">
         Terms &amp; Conditions
-      </Link>
-      ,{" "}
-      <Link href={LEGAL_LINKS.subscriptionTerms} className="underline text-[#5c7a52]">
-        Subscription Terms
       </Link>{" "}
       and{" "}
-      <Link href={LEGAL_LINKS.refundPolicy} className="underline text-[#5c7a52]">
-        Refund Policy
+      <Link href={LEGAL_LINKS.subscriptionTerms} className="underline text-[#5c7a52]">
+        Subscription Terms
       </Link>
       . Your payment is for clinical assessment, program onboarding, and care coordination. No
       specific treatment, prescription, medication, or health outcome is guaranteed.

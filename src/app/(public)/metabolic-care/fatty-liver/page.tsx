@@ -25,7 +25,6 @@ import {
   Utensils,
   Moon,
   Wine,
-  Pill,
   Eye,
   Wrench,
   Check,
@@ -35,7 +34,6 @@ import {
   Users,
   Microscope,
   LineChart,
-  FlaskConical,
 } from "lucide-react";
 
 // Liver Icon Component
@@ -139,7 +137,7 @@ export default function FattyLiverPage() {
       icon: Wrench,
       title: "Support",
       subtitle: "Personalised Care Plan",
-      description: "Based on your results, our doctors develop a care plan that may include lifestyle modifications, nutritional guidance, and when clinically appropriate, medications that have been studied for liver fat management.",
+      description: "Based on your results, our doctors develop a care plan that may include lifestyle modifications and nutritional guidance. Suitable options, if any, are discussed privately in consultation.",
     },
     {
       icon: Check,
@@ -155,12 +153,11 @@ export default function FattyLiverPage() {
     },
   ];
 
-  // GAP-017: Removed public medication names for TGA compliance
+  // Lifestyle and guideline references only — no prescription-medicine trial citations
   const outcomes = [
-    { metric: "59%", description: "of study participants showed NASH resolution in a published clinical trial (research context only, not a treatment advertisement)", citation: "Newsome PN, et al. NEJM 2021;384(12):1113-1124" },
-    { metric: "90%", description: "NASH resolution observed in trial participants achieving ≥10% weight loss through lifestyle changes", citation: "Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378" },
+    { metric: "≥7%", description: "weight reduction has been associated with improvement in steatohepatitis in clinical practice guidelines (individual results vary)", citation: "EASL–EASD–EASO. J Hepatol. 2024;81(3):492-542" },
+    { metric: "90%", description: "NASH resolution observed in study participants achieving ≥10% weight loss through lifestyle changes", citation: "Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378" },
     { metric: "45%", description: "of participants showed fibrosis improvement with lifestyle changes in study", citation: "Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378" },
-    { metric: ">65%", description: "reduction in liver fat observed in some clinical research studies (individual results vary)", citation: "Loomba R, et al. Lancet Gastroenterol Hepatol 2023;8(6):511-522" },
   ];
 
   const treatmentOptions = [
@@ -175,14 +172,9 @@ export default function FattyLiverPage() {
       description: "Movement recommendations based on research. Studies suggest certain exercise protocols may support liver health markers.¹",
     },
     {
-      icon: Pill,
-      title: "Medical Options",
-      description: "When clinically appropriate, treatment options may be discussed privately with your doctor based on individual assessment and published clinical research.²",
-    },
-    {
-      icon: FlaskConical,
-      title: "Supplement Considerations",
-      description: "Discussion of supplementation options based on your biomarker profile, including vitamin E and omega-3s, which have been studied in clinical research.³",
+      icon: Stethoscope,
+      title: "Doctor review",
+      description: "Your doctor reviews your results and discusses suitable options privately if clinically appropriate. Options are not advertised on this page.",
     },
   ];
 
@@ -197,7 +189,7 @@ export default function FattyLiverPage() {
     },
     {
       question: "Can fatty liver improve?",
-      answer: "Research suggests that fatty liver, particularly in early stages, may be responsive to intervention. Studies have shown that lifestyle modifications including weight management, dietary changes, and in some cases medication, have been associated with reductions in liver fat (Vilar-Gomez E, et al. Gastroenterology 2015). Individual responses vary, and outcomes depend on multiple factors.",
+      answer: "Research suggests that fatty liver, particularly in early stages, may be responsive to intervention. Studies have shown that lifestyle modifications including weight management and dietary changes have been associated with reductions in liver fat (Vilar-Gomez E, et al. Gastroenterology 2015). Individual responses vary, and outcomes depend on multiple factors.",
     },
     {
       question: "What factors are associated with fatty liver disease?",
@@ -209,7 +201,7 @@ export default function FattyLiverPage() {
     },
     {
       question: "What approaches are available for fatty liver management?",
-      answer: "Management typically includes lifestyle modifications (dietary changes, physical activity, weight management). When clinically appropriate, prescription medications have been studied in clinical trials for their effects on liver fat (Newsome PN, et al. NEJM 2021). Specific treatment options are discussed privately with your doctor based on individual assessment.",
+      answer: "Management typically includes lifestyle modifications (dietary changes, physical activity, weight management). Weight loss through lifestyle change has been associated with improvement in liver fat and, in some people, inflammation (Vilar-Gomez E, et al. Gastroenterology 2015; EASL–EASD–EASO. J Hepatol. 2024). Suitable options, if any, are discussed privately with your doctor based on individual assessment.",
     },
     {
       question: "What does research say about timeframes for improvement?",
@@ -579,7 +571,7 @@ export default function FattyLiverPage() {
                   ))}
                 </div>
                 <p className="mt-4 text-[10px] text-[#7e9a72] border-t border-white/10 pt-4">
-                  Results from peer-reviewed clinical trials. Individual outcomes may vary based on treatment adherence and baseline health status.
+                  Findings from lifestyle research and clinical guidelines. Individual outcomes vary and are not guaranteed.
                 </p>
               </div>
             </div>
@@ -602,7 +594,7 @@ export default function FattyLiverPage() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {treatmentOptions.map((option) => (
                 <div
                   key={option.title}
@@ -621,9 +613,8 @@ export default function FattyLiverPage() {
             {/* GAP-017: References updated for TGA compliance - medication names removed */}
             <div className="mt-10 bg-[#f4f7f2] rounded-2xl p-5 text-xs text-[#5c7a52]">
               <p className="font-medium mb-2">References:</p>
-              <p className="mb-1"><sup>1</sup> Hashida R, et al. "Aerobic vs. resistance exercise in non-alcoholic fatty liver disease: A systematic review." J Hepatol. 2017;66(1):142-152.</p>
-              <p className="mb-1"><sup>2</sup> Newsome PN, et al. "A Placebo-Controlled Trial in Nonalcoholic Steatohepatitis." NEJM. 2021;384(12):1113-1124.</p>
-              <p><sup>3</sup> Sanyal AJ, et al. "Treatment Options for Nonalcoholic Steatohepatitis." NEJM. 2010;362(18):1675-1685.</p>
+              <p className="mb-1"><sup>1</sup> Hashida R, et al. &quot;Aerobic vs. resistance exercise in non-alcoholic fatty liver disease: A systematic review.&quot; J Hepatol. 2017;66(1):142-152.</p>
+              <p>Vilar-Gomez E, et al. &quot;Weight Loss Through Lifestyle Modification Significantly Reduces Features of Nonalcoholic Steatohepatitis.&quot; Gastroenterology. 2015;149(2):367-378.</p>
             </div>
           </div>
         </section>
@@ -738,7 +729,7 @@ export default function FattyLiverPage() {
               <strong className="text-[#a8bb9e]">Medical Disclaimer:</strong> This information is for educational purposes only and does not constitute medical advice, diagnosis, or treatment recommendations. Fatty liver disease requires proper medical diagnosis by a qualified healthcare professional. All consultations and any treatments are provided by AHPRA-registered medical practitioners following individual clinical assessment. Results and outcomes vary between individuals and are not guaranteed. Always consult a qualified healthcare professional for medical concerns.
             </p>
             <p className="text-xs text-[#7e9a72] leading-relaxed text-center">
-              <strong className="text-[#a8bb9e]">References:</strong> Statistics and research findings cited on this page are from peer-reviewed publications including: Pujia R, et al. Hepatol Commun. 2019;3(10):1347-1355 (PMC6771160); Younossi ZM, et al. Hepatology. 2016;64(1):73-84; Vilar-Gomez E, et al. Gastroenterology 2015;149(2):367-378; Newsome PN, et al. NEJM 2021;384(12):1113-1124. Individual study results may not be representative of all patients.
+              <strong className="text-[#a8bb9e]">References:</strong> Statistics and research findings cited on this page are from peer-reviewed publications including: Pujia R, et al. Hepatol Commun. 2019;3(10):1347-1355 (PMC6771160); Younossi ZM, et al. Hepatology. 2016;64(1):73-84; Vilar-Gomez E, et al. Gastroenterology. 2015;149(2):367-378; EASL–EASD–EASO Clinical Practice Guidelines on the management of MASLD. J Hepatol. 2024;81(3):492-542. Individual study results may not be representative of all patients.
             </p>
           </div>
         </section>

@@ -39,7 +39,7 @@ export function CTASection() {
               </div>
 
               <p className="mt-6 text-sm text-[#7e9a72]">
-                Free health assessment. Refund if not clinically suitable.
+                Free health assessment.
               </p>
             </div>
           </div>

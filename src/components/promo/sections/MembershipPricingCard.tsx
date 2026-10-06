@@ -108,6 +108,9 @@ export function MembershipPricingCard({
           <p className="mt-2 text-sm text-[#7e9a72]">
             ${annualPrice}/year
           </p>
+          <p className="mt-2 text-sm font-medium text-[#2c3628]">
+            Join with confidence · 100% refundable*
+          </p>
 
           <Link
             href={checkoutHref}

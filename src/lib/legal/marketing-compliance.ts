@@ -15,9 +15,6 @@ export const NO_TESTIMONIALS_DISCLAIMER =
 export const PHARMACY_DISPENSING_COPY =
   "Where clinically appropriate, items may be dispensed by Australian-registered pharmacies. Delivery and packaging options are discussed in consultation.";
 
-export const REFUND_POLICY_PUBLIC_COPY =
-  "If your Sanative doctor determines after assessment that a program is not clinically appropriate for you, your first-month payment will be refunded in accordance with our Refund Policy.";
-
 /** Terms that must not appear on public marketing pages */
 export const BANNED_PUBLIC_MEDICATION_TERMS = [
   "semaglutide",
@@ -71,7 +68,6 @@ export const BANNED_TESTIMONIAL_OUTCOME_CLAIMS = [
 
 export const PUBLIC_VERTICAL_PATHS = [
   "/",
-  "/services",
   "/hair-health",
   "/mens-health",
   "/mens-health/sexual-health",

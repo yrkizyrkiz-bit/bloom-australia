@@ -44,12 +44,10 @@ import {
   Star,
   AlertTriangle,
   Shield,
-  Tag,
   Calendar,
   Clock,
   CreditCard,
   Sparkles,
-  Gift,
   CheckCircle2,
   FlaskConical,
   Timer,
@@ -119,47 +117,6 @@ interface DaySlots {
   dayName: string;
   slots: UnifiedSlot[];
 }
-
-// Biomarker panels - DEPRECATED in pre-approval flow (GAP-028)
-// These panels are now offered post-consult when clinically indicated by doctor
-// Kept for future use in post-consult care partner recommendation flow
-const BIOMARKER_PANELS = [
-  {
-    id: "metabolic",
-    name: "Metabolic Health Panel",
-    description: "HbA1c, Fasting Glucose, Insulin, HOMA-IR",
-    icon: "🔬",
-    relevantConditions: ["insulin resistance", "type 2 diabetes", "prediabetes"],
-  },
-  {
-    id: "thyroid",
-    name: "Thyroid Function Panel",
-    description: "TSH, Free T4, Free T3, Thyroid Antibodies",
-    icon: "🦋",
-    relevantConditions: ["thyroid", "hypothyroidism", "hyperthyroidism"],
-  },
-  {
-    id: "liver",
-    name: "Liver Health Panel",
-    description: "ALT, AST, GGT, Albumin, Bilirubin",
-    icon: "🫀",
-    relevantConditions: ["fatty liver", "liver"],
-  },
-  {
-    id: "inflammation",
-    name: "Inflammation Markers",
-    description: "CRP, ESR, Ferritin, Homocysteine",
-    icon: "🔥",
-    relevantConditions: ["inflammation", "chronic"],
-  },
-  {
-    id: "hormones",
-    name: "Hormone Balance Panel",
-    description: "Testosterone, Estrogen, Cortisol, DHEA",
-    icon: "⚖️",
-    relevantConditions: ["pcos", "hormonal", "hormone"],
-  },
-];
 
 // Helper to get next available consultation days (Thu, Fri, Sat only)
 function getNextAvailableDays(): { date: Date; dayName: string; dateStr: string }[] {
@@ -2110,9 +2067,6 @@ function WelcomeAndPasswordScreen({
 
 export default function WeightLossAssessmentPage() {
   const [step, setStep] = useState(1);
-  // UAT8-GAP-010: Disabled legacy $50 intro offer popup - conflicts with $100 first-month discount
-  // The $100 discount ($349→$249 Core, $499→$399 Precision) is already shown in payment step
-  const [showIntroOffer, setShowIntroOffer] = useState(false);
   const [animationDirection, setAnimationDirection] = useState<'forward' | 'backward'>('forward');
   const [isAnimating, setIsAnimating] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -2187,7 +2141,7 @@ export default function WeightLossAssessmentPage() {
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
   const [membershipPaid, setMembershipPaid] = useState(false);
-  const [biomarkersPaid, setBiomarkersPaid] = useState(false);
+  const [biomarkersPaid] = useState(false);
   const [offerCountdown, setOfferCountdown] = useState(300); // 5 minutes in seconds
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -2471,100 +2425,6 @@ export default function WeightLossAssessmentPage() {
     } catch (error) {
       console.error("[Quiz] Error saving final data:", error);
     }
-  };
-
-  // ─── UAT8-GAP-009: LEGACY CODE - DO NOT USE ───────────────────────────────
-  // This function is dead code from the old $49 consultation flow.
-  // It is NO LONGER CALLED - the quiz now uses:
-  // - Step 20: Membership payment ($365/yr, Superpower-style layout)
-  // - Step 21: Book doctor (hold + /api/bookings/confirm → triage)
-  // - handleCheckoutPaymentSuccess() for payment confirmation
-  //
-  // This function creates a $49 PaymentIntent and redirects to /payment which
-  // is the old flow. It's kept here for reference only and should be removed
-  // after UAT confirms the new flow is working correctly.
-  // ────────────────────────────────────────────────────────────────────────────
-  const handleSubmit_LEGACY_DEAD_CODE = async () => {
-    console.error("[Quiz] LEGACY handleSubmit called - this should not happen!");
-    // Instead of running the old $49 flow, redirect to the proper booking step
-    animateToStep(20, 'forward');
-    return;
-
-    /* ORIGINAL CODE PRESERVED FOR REFERENCE - DO NOT UNCOMMENT
-    setIsSubmitting(true);
-    setSubmissionError(null);
-
-    try {
-      // STEP 1: Send assessment data to portal, create patient record
-      const intakeResponse = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          programType: "WEIGHT_MANAGEMENT",
-          ...formData,
-          hasContraindications,
-          bmi: calculateBMI(),
-        }),
-      });
-
-      if (!intakeResponse.ok) {
-        const err = await intakeResponse.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to create patient record. Please try again.");
-      }
-
-      const { userId: newUserId } = await intakeResponse.json();
-      setUserId(newUserId);
-
-      // STEP 2: Create Stripe PaymentIntent - check for new member discount
-      const hasNewMemberDiscount = sessionStorage.getItem('newMemberDiscountApplied') === 'true';
-      const discountAmount = hasNewMemberDiscount ? 5000 : 0; // $50 in cents
-      const baseAmount = 4900; // $49.00 AUD in cents
-      const finalAmount = Math.max(0, baseAmount - discountAmount);
-
-      const stripeResponse = await fetch("/api/stripe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: finalAmount,
-          userId: newUserId,
-          program: "weight_management",
-          discount: hasNewMemberDiscount ? 50 : 0,
-          discountType: hasNewMemberDiscount ? "new_member_promotion" : null,
-        }),
-      });
-
-      if (!stripeResponse.ok) {
-        throw new Error("Payment setup failed. Please try again.");
-      }
-
-      const { clientSecret } = await stripeResponse.json();
-
-      // STEP 3: Redirect to payment page with client secret
-      if (clientSecret) {
-        // Store in sessionStorage for payment page
-        sessionStorage.setItem("paymentClientSecret", clientSecret);
-        sessionStorage.setItem("paymentUserId", newUserId);
-        sessionStorage.setItem("paymentProgram", "weight_management");
-        if (hasNewMemberDiscount) {
-          sessionStorage.setItem("paymentDiscount", "50");
-          sessionStorage.setItem("paymentOriginalAmount", "49");
-        }
-
-        // Redirect to payment page
-        window.location.href = `/payment?program=weight_management`;
-      }
-
-      setSubmissionSuccess(true);
-      setStep(totalSteps);
-
-    } catch (error: unknown) {
-      console.error("Submission error:", error);
-      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
-      setSubmissionError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-    */
   };
 
   const hasContraindications = formData.seriousConditions.some(
@@ -2942,8 +2802,7 @@ export default function WeightLossAssessmentPage() {
             </button>
 
             <p className="text-center text-[10px] leading-snug text-[#7e9a72] sm:text-xs">
-              AHPRA-registered Australian doctors · Cancel anytime · Full refund if the program
-              isn&apos;t clinically suitable for you
+              AHPRA-registered Australian doctors · Cancel anytime
             </p>
           </div>
         </div>
@@ -3278,183 +3137,6 @@ export default function WeightLossAssessmentPage() {
     </div>
   );
 
-
-  // ─── Step 22: Biomarker Upsell Screen (DEPRECATED - GAP-028) ─────────────────
-  // REMOVED from pre-approval checkout flow per compliance requirements.
-  // Biomarkers are now positioned as doctor-reviewed and clinically indicated post-consult.
-  // This function is kept for reference but is no longer called in the quiz flow.
-  // TODO: Move to post-consult doctor/care-partner recommendation flow
-  const renderBiomarkerUpsellScreen = () => {
-    // Determine relevant biomarkers based on user's conditions
-    const getRelevantPanels = () => {
-      const conditions = [
-        ...formData.metabolicConditions,
-        ...formData.digestiveConditions,
-        ...formData.cardiovascularConditions,
-      ].map(c => c.toLowerCase());
-
-      // Filter panels that match user's conditions, or show top 3 if no matches
-      const relevant = BIOMARKER_PANELS.filter(panel =>
-        panel.relevantConditions.some(rc =>
-          conditions.some(c => c.includes(rc) || rc.includes(c.split(' ')[0]))
-        )
-      );
-
-      return relevant.length > 0 ? relevant.slice(0, 3) : BIOMARKER_PANELS.slice(0, 3);
-    };
-
-    const relevantPanels = getRelevantPanels();
-    const selectedCount = formData.selectedBiomarkers.length;
-    const totalPrice = selectedCount * 49;
-
-    const toggleBiomarker = (id: string) => {
-      const current = formData.selectedBiomarkers || [];
-      const updated = current.includes(id)
-        ? current.filter(b => b !== id)
-        : [...current, id];
-      updateFormData('selectedBiomarkers', updated);
-    };
-
-    const handleBiomarkerPayment = async () => {
-      if (selectedCount === 0) {
-        // Still save final state even if no biomarkers selected
-        await saveFinalQuizData();
-        animateToStep(21, 'forward');
-        return;
-      }
-
-      setIsSubmitting(true);
-      try {
-        // Save biomarker selection to database
-        await saveFinalQuizData();
-        setBiomarkersPaid(true);
-        toast.success("Biomarker panels added!", { description: `${selectedCount} panel(s) added to your order.` });
-        animateToStep(21, 'forward');
-      } catch (error) {
-        console.error("Biomarker save error:", error);
-        toast.error("Payment failed. Please try again.");
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
-
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-[#fdfbf7] to-white">
-        <div className="px-6 pt-6 pb-40">
-          {/* Success Banner - Compliant copy */}
-          <div className="flex items-center justify-center gap-2 mb-6 py-3 px-4 bg-[#5c7a52]/10 border border-[#5c7a52]/20 rounded-full">
-            <CheckCircle2 className="w-5 h-5 text-[#5c7a52]" />
-            <span className="text-sm font-medium text-[#5c7a52]">Payment received, consultation booked</span>
-          </div>
-
-          {/* Upsell Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full mb-4">
-              <Sparkles className="w-4 h-4 text-amber-600" />
-              <span className="text-sm font-semibold text-amber-800">Optional add-on</span>
-            </div>
-
-            <h1 className="text-2xl font-serif text-[#2c3628] mb-3">
-              Unlock deeper insights
-            </h1>
-            <p className="text-[#5c7a52] leading-relaxed">
-              Based on your assessment, these biomarker panels may provide useful information for your doctor during your consultation.
-            </p>
-          </div>
-
-          {/* Special Offer Badge */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-[#c17a58]/10 to-[#c17a58]/5 rounded-2xl p-4 mb-6 border border-[#c17a58]/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#c17a58] flex items-center justify-center">
-                <Tag className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-[#2c3628]">Bundle & Save 50%</p>
-                <p className="text-sm text-[#7e9a72]">$49 each (normally $99)</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Biomarker Panel Cards */}
-          <div className="space-y-4 mb-6">
-            {relevantPanels.map((panel) => {
-              const isSelected = formData.selectedBiomarkers.includes(panel.id);
-              return (
-                <button
-                  key={panel.id}
-                  onClick={() => toggleBiomarker(panel.id)}
-                  className={`w-full text-left rounded-2xl border-2 p-5 transition-all ${
-                    isSelected
-                      ? 'border-[#5c7a52] bg-[#5c7a52]/5 shadow-md'
-                      : 'border-[#e6ebe3] bg-white hover:border-[#5c7a52]/50'
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="text-3xl">{panel.icon}</div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold text-[#2c3628] mb-1">{panel.name}</p>
-                          <p className="text-sm text-[#7e9a72]">{panel.description}</p>
-                        </div>
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? 'border-[#5c7a52] bg-[#5c7a52]' : 'border-[#cdd8c6]'
-                        }`}>
-                          {isSelected && <Check className="w-4 h-4 text-white" />}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 mt-3">
-                        <span className="font-bold text-[#5c7a52]">$49</span>
-                        <span className="text-sm text-[#a8bb9e] line-through">$99</span>
-                        <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Save 50%</span>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Fixed Bottom CTAs */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e6ebe3] p-4 space-y-3">
-          {selectedCount > 0 ? (
-            <button
-              onClick={handleBiomarkerPayment}
-              disabled={isSubmitting}
-              className="w-full py-4 bg-[#5c7a52] hover:bg-[#4a6343] text-white font-semibold rounded-full text-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  Add {selectedCount} panel{selectedCount > 1 ? 's' : ''} · ${totalPrice}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={() => animateToStep(21, 'forward')}
-              className="w-full py-4 bg-[#2c3628] hover:bg-[#34412f] text-white font-semibold rounded-full text-lg transition-colors"
-            >
-              Continue without biomarkers
-            </button>
-          )}
-
-          <button
-            onClick={() => animateToStep(21, 'forward')}
-            className="w-full py-3 text-[#7e9a72] font-medium text-sm hover:text-[#5c7a52] transition-colors"
-          >
-            I&apos;ll decide later
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   // ─── Step 22: Welcome + set password ────────────────────────────────────────
   const renderThankYouScreen = () => (
@@ -4231,16 +3913,6 @@ export default function WeightLossAssessmentPage() {
       }
       style={lockToViewport ? undefined : { WebkitOverflowScrolling: "touch" }}
     >
-      {/* UAT8-GAP-010: Legacy Intro Offer Popup - REMOVED
-       * The old $50 promotion conflicted with the current $100 first-month discount.
-       * The $100 discount is already shown in the payment step:
-       * - Core: $349 → $249 (save $100)
-       * - Precision: $499 → $399 (save $100)
-       *
-       * This popup was confusing users by mentioning a different discount amount.
-       * The showIntroOffer state is now set to false by default.
-       */}
-
       {!isThankYouStep && (
       <header
         className={`${useViewportLayout || useFullscreenImmersive || useCreamTheme || isPaymentStep ? "flex-shrink-0" : "sticky top-0"} ${
@@ -4316,7 +3988,7 @@ export default function WeightLossAssessmentPage() {
       </main>
 
       {/* Bottom navigation - hide on screens with their own fixed buttons AND when intro offer is open */}
-      {step < totalSteps && ![5, 6, 7, 16, 18, 19, 20, 21, 22].includes(step) && !showIntroOffer && (
+      {step < totalSteps && ![5, 6, 7, 16, 18, 19, 20, 21, 22].includes(step) && (
         <div
           className={
             useViewportLayout
@@ -4472,12 +4144,6 @@ export default function WeightLossAssessmentPage() {
                 <h4 className="font-semibold text-[#2c3628] mb-2">Are there side effects?</h4>
                 <p className="text-sm text-[#5c7a52]">
                   Your doctor will discuss potential side effects and how to manage them during your consultation. Ongoing clinical monitoring supports your safety throughout the program.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-semibold text-[#2c3628] mb-2">What if I&apos;m not suitable?</h4>
-                <p className="text-sm text-[#5c7a52]">
-                  If our doctors determine the program isn&apos;t right for you, we&apos;ll refund your first-month payment and may suggest alternative approaches.
                 </p>
               </div>
             </div>

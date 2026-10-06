@@ -25,6 +25,12 @@ export const PROGRAM_BILLING_TERM_OPTIONS: ProgramBillingTermOption[] = [
   { term: "12m", label: "Annual", periodLabel: "per year", months: 12 },
 ];
 
+/** Cadences offered inside the member portal (not the public funnel). */
+export const PORTAL_PROGRAM_BILLING_TERM_OPTIONS: ProgramBillingTermOption[] = [
+  { term: "3m", label: "Every 3 months", periodLabel: "every 3 months", months: 3 },
+  { term: "12m", label: "Annual", periodLabel: "per year", months: 12 },
+];
+
 export type ProgramOffer = {
   programKey: ProgramKey;
   headline: string;

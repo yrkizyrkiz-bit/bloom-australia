@@ -810,7 +810,7 @@ function WomensHealthAssessmentContent() {
               <button type="button" onClick={() => setShowFAQ(false)} className="p-2 hover:bg-[#fef4f0] rounded-full"><X className="w-5 h-5 text-[#c17a58]" /></button>
             </div>
             <div className="p-6 space-y-6">
-              {[["Who are your doctors?", "AHPRA-registered Australian practitioners."], ["Is it private?", "Yes, protected by Australian privacy laws."], ["Can I get prescriptions?", "If appropriate, delivered to your door."], ["Reschedule?", "Up to 24 hours before via dashboard."]].map(([q, a]) => <div key={q}><h4 className="font-semibold text-[#2c3628] mb-2">{q}</h4><p className="text-sm text-[#5c7a52]">{a}</p></div>)}
+              {[["Who are your doctors?", "AHPRA-registered Australian practitioners."], ["Is it private?", "Yes, protected by Australian privacy laws."], ["What happens after my assessment?", "Your doctor discusses suitable options privately if clinically appropriate."], ["Reschedule?", "Up to 24 hours before via dashboard."]].map(([q, a]) => <div key={q}><h4 className="font-semibold text-[#2c3628] mb-2">{q}</h4><p className="text-sm text-[#5c7a52]">{a}</p></div>)}
             </div>
           </div>
         </div>

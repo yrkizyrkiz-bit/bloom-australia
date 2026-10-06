@@ -8,28 +8,26 @@ import {
   paymentMetadataMatchesSelectedPlan,
   resolveFirstMonthCheckoutCharge,
   SANATIVE_MEMBERSHIP_CENTS,
-  WM_CORE_FIRST_MONTH_CENTS,
-  WM_PRECISION_FIRST_MONTH_CENTS,
 } from "@/lib/stripe/plan-pricing";
 
 describe("stripe plan-pricing", () => {
-  it("resolves WM core at 24900 cents server-side", () => {
+  it("resolves public WM checkout as Sanative Membership $365", () => {
     const charge = resolveFirstMonthCheckoutCharge("weight_management", "core");
-    expect(charge?.amountCents).toBe(24900);
-    expect(charge?.selectedPlan).toBe("core");
+    expect(charge?.amountCents).toBe(SANATIVE_MEMBERSHIP_CENTS);
+    expect(charge?.selectedPlan).toBe("membership");
+    expect(charge?.ongoingAmountCents).toBe(36000);
   });
 
-  it("resolves WM precision at 39900 cents server-side", () => {
-    const charge = resolveFirstMonthCheckoutCharge("weight_management", "precision");
-    expect(charge?.amountCents).toBe(39900);
-    expect(charge?.selectedPlan).toBe("precision");
-  });
-
-  it("ignores client tampering, amounts are fixed per program", () => {
+  it("resolves hair / men's / women's public checkout as membership $365", () => {
     const mens = resolveFirstMonthCheckoutCharge("mens_health", "core");
-    expect(mens?.amountCents).toBe(4900);
+    expect(mens?.amountCents).toBe(SANATIVE_MEMBERSHIP_CENTS);
+    expect(mens?.ongoingAmountCents).toBe(24000);
     const hair = resolveFirstMonthCheckoutCharge("hair_loss", "core");
-    expect(hair?.amountCents).toBe(4900);
+    expect(hair?.amountCents).toBe(SANATIVE_MEMBERSHIP_CENTS);
+    expect(hair?.ongoingAmountCents).toBe(9000);
+    const womens = resolveFirstMonthCheckoutCharge("womens_health", "core");
+    expect(womens?.amountCents).toBe(SANATIVE_MEMBERSHIP_CENTS);
+    expect(womens?.ongoingAmountCents).toBe(24000);
   });
 
   it("rejects legacy plan ids", () => {
@@ -49,25 +47,19 @@ describe("stripe plan-pricing", () => {
     ).toBe(false);
   });
 
-  it("expectedFirstMonthCentsForConsultProgram uses WM tiers", () => {
+  it("expectedFirstMonthCentsForConsultProgram uses membership entry amounts", () => {
     expect(
       expectedFirstMonthCentsForConsultProgram(
-        { isWeightManagement: true, firstMonthAud: 249 },
+        { isWeightManagement: true, firstMonthAud: 365 },
         "CORE"
       )
-    ).toBe(WM_CORE_FIRST_MONTH_CENTS);
+    ).toBe(SANATIVE_MEMBERSHIP_CENTS);
     expect(
       expectedFirstMonthCentsForConsultProgram(
-        { isWeightManagement: true, firstMonthAud: 249 },
-        "PRECISION"
-      )
-    ).toBe(WM_PRECISION_FIRST_MONTH_CENTS);
-    expect(
-      expectedFirstMonthCentsForConsultProgram(
-        { isWeightManagement: false, firstMonthAud: 49 },
+        { isWeightManagement: false, firstMonthAud: 365 },
         null
       )
-    ).toBe(4900);
+    ).toBe(SANATIVE_MEMBERSHIP_CENTS);
   });
 
   it("accepts the $365 membership charge for current public-funnel payments", () => {
@@ -77,24 +69,17 @@ describe("stripe plan-pricing", () => {
     expect(
       expectedVerifiedPaymentCents({
         metadata: { purchaseType: "sanative_membership" },
-        consultProgram: { isWeightManagement: true, firstMonthAud: 249 },
+        consultProgram: { isWeightManagement: true, firstMonthAud: 365 },
         selectedPlan: "CORE",
       })
     ).toBe(SANATIVE_MEMBERSHIP_CENTS);
     expect(
       expectedVerifiedPaymentCents({
-        metadata: { purchaseType: "sanative_membership" },
-        consultProgram: { isWeightManagement: false, firstMonthAud: 49 },
-        selectedPlan: null,
-      })
-    ).toBe(36500);
-    expect(
-      expectedVerifiedPaymentCents({
         metadata: {},
-        consultProgram: { isWeightManagement: true, firstMonthAud: 249 },
+        consultProgram: { isWeightManagement: true, firstMonthAud: 365 },
         selectedPlan: "CORE",
       })
-    ).toBe(WM_CORE_FIRST_MONTH_CENTS);
+    ).toBe(SANATIVE_MEMBERSHIP_CENTS);
   });
 
   it("identifies precision plan ids", () => {

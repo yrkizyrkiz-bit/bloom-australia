@@ -130,11 +130,6 @@ const faqs = [
     answer:
       "Absolutely. All consultations, test results, and care plans are confidential. Your health information is protected under Australian privacy laws and stored securely.",
   },
-  {
-    question: "What if the program isn't suitable for me?",
-    answer:
-      "If your Sanative doctor determines after assessment that a program is not clinically appropriate for you, your first-month payment will be refunded in accordance with our Refund Policy.",
-  },
 ];
 
 export default function SexualHealthPage() {
@@ -441,7 +436,7 @@ export default function SexualHealthPage() {
               <ArrowRight className="w-5 h-5" />
             </Link>
             <p className="mt-6 text-sm text-[#7e9a72]">
-              Refund if not suitable · Australian doctors · Confidential care
+              Australian doctors · Confidential care
             </p>
           </div>
         </section>

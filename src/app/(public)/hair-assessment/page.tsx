@@ -1047,12 +1047,6 @@ export default function HairAssessmentPage() {
                 </p>
               </div>
               <div>
-                <h4 className="font-semibold text-[#2c3628] mb-2">What if I'm not suitable?</h4>
-                <p className="text-sm text-[#5c7a52]">
-                  If your Sanative doctor determines after assessment that care is not clinically appropriate for you, your first-month payment will be refunded in accordance with our Refund Policy.
-                </p>
-              </div>
-              <div>
                 <h4 className="font-semibold text-[#2c3628] mb-2">Is my information secure?</h4>
                 <p className="text-sm text-[#5c7a52]">
                   Absolutely. All health information is encrypted and stored securely. We never share your data with third parties without your explicit consent.

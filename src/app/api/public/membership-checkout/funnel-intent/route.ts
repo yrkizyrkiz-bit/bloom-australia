@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { resolveSanativeMembershipStripePriceId } from "@/lib/portal/sanative-membership";
-import { createIncompleteSubscription } from "@/lib/portal/stripe-subscription";
+import { resumeOrCreateMembershipCheckoutPayment } from "@/lib/portal/stripe-subscription";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
   enforceIpRateLimit,
@@ -64,10 +64,7 @@ export async function POST(req: NextRequest) {
       select: { status: true },
     });
     if (existing?.status === "ACTIVE") {
-      return NextResponse.json(
-        { error: "You already have an active membership" },
-        { status: 400 }
-      );
+      return NextResponse.json({ alreadyPaid: true });
     }
 
     const { stripePriceId, pricing } = await resolveSanativeMembershipStripePriceId();
@@ -112,22 +109,38 @@ export async function POST(req: NextRequest) {
       source: source || "weight_management_assessment",
     };
 
-    const { subscriptionId, clientSecret, paymentIntentId } =
-      await createIncompleteSubscription({
-        customerId,
-        items: [{ priceId: stripePriceId }],
-        metadata,
-        description: `${pricing.productName}, annual membership (auto-renews)`,
-      });
+    const payment = await resumeOrCreateMembershipCheckoutPayment({
+      customerId,
+      userId: user.id,
+      stripePriceId,
+      metadata,
+      description: `${pricing.productName}, annual membership (auto-renews)`,
+    });
 
-    await stripe.paymentIntents
-      .update(paymentIntentId, { receipt_email: resolvedEmail })
-      .catch(() => undefined);
+    if (payment.paymentIntentId && !payment.alreadyPaid) {
+      await stripe.paymentIntents
+        .update(payment.paymentIntentId, { receipt_email: resolvedEmail })
+        .catch(() => undefined);
+    }
+
+    if (payment.alreadyPaid) {
+      return NextResponse.json({
+        alreadyPaid: true,
+        paymentIntentId: payment.paymentIntentId,
+        subscriptionId: payment.subscriptionId,
+        customerId,
+        amountAud: pricing.amountAud,
+        priceLabel: pricing.priceLabel,
+        productName: pricing.productName,
+        autoRenew: true,
+      });
+    }
 
     return NextResponse.json({
-      clientSecret,
-      paymentIntentId,
-      subscriptionId,
+      alreadyPaid: false,
+      clientSecret: payment.clientSecret,
+      paymentIntentId: payment.paymentIntentId,
+      subscriptionId: payment.subscriptionId,
       customerId,
       amountAud: pricing.amountAud,
       priceLabel: pricing.priceLabel,

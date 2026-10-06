@@ -37,14 +37,14 @@ export async function GET() {
 
     // 2. Test creating a PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: 24900, // $249.00 AUD (Sanative Core first month)
+      amount: 36500, // $365.00 AUD (Sanative Membership)
       currency: "aud",
       metadata: {
         test: "true",
-        plan: "sanative_core_first_month",
+        purchaseType: "sanative_membership",
         timestamp: new Date().toISOString(),
       },
-      description: "Stripe Integration Test - Sanative Weight Management",
+      description: "Stripe Integration Test - Sanative Membership",
       payment_method_types: ["card"],
     });
 

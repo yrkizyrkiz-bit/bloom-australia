@@ -18,20 +18,31 @@ export type CatalogProductSeed = {
   }>;
 };
 
-const QUARTERLY = (
-  amountCents: number
+/** 10% off committing to 12 months vs four quarterly payments. */
+export function annualCareAmountFromQuarterlyCents(quarterlyCents: number): number {
+  return Math.round(quarterlyCents * 4 * 0.9);
+}
+
+const CARE_CADENCES = (
+  quarterlyCents: number
 ): CatalogProductSeed["prices"] => [
   {
     billingInterval: "QUARTERLY",
-    amountCents,
+    amountCents: quarterlyCents,
     isDefault: true,
     label: "Every 3 months",
+  },
+  {
+    billingInterval: "YEARLY",
+    amountCents: annualCareAmountFromQuarterlyCents(quarterlyCents),
+    isDefault: false,
+    label: "Annual (save 10%)",
   },
 ];
 
 /**
  * Current catalog: membership is annual; eligible care programs bill quarterly
- * after the included first 30 days. Organ Care and the Essential 85+ panel are
+ * (default) or yearly at 10% off. Organ Care and the Essential 85+ panel are
  * included with membership, not sold as separate products.
  */
 const ALL_CATALOG: CatalogProductSeed[] = [
@@ -56,7 +67,7 @@ const ALL_CATALOG: CatalogProductSeed[] = [
     program: "WEIGHT_MANAGEMENT",
     planTier: null,
     sortOrder: 1,
-    prices: QUARTERLY(36000),
+    prices: CARE_CADENCES(36000),
   },
   {
     slug: "hair_loss",
@@ -64,7 +75,7 @@ const ALL_CATALOG: CatalogProductSeed[] = [
     program: "HAIR_LOSS",
     planTier: null,
     sortOrder: 2,
-    prices: QUARTERLY(9000),
+    prices: CARE_CADENCES(9000),
   },
   {
     slug: "mens_health_vitality",
@@ -72,7 +83,7 @@ const ALL_CATALOG: CatalogProductSeed[] = [
     program: "MENS_HEALTH_VITALITY",
     planTier: null,
     sortOrder: 3,
-    prices: QUARTERLY(24000),
+    prices: CARE_CADENCES(24000),
   },
   {
     slug: "mens_health_sexual",
@@ -80,7 +91,7 @@ const ALL_CATALOG: CatalogProductSeed[] = [
     program: "MENS_HEALTH_SEXUAL",
     planTier: null,
     sortOrder: 4,
-    prices: QUARTERLY(24000),
+    prices: CARE_CADENCES(24000),
   },
   {
     slug: "womens_health_vitality",
@@ -88,7 +99,7 @@ const ALL_CATALOG: CatalogProductSeed[] = [
     program: "WOMENS_HEALTH_VITALITY",
     planTier: null,
     sortOrder: 5,
-    prices: QUARTERLY(24000),
+    prices: CARE_CADENCES(24000),
   },
   {
     slug: "womens_health_sexual",
@@ -96,9 +107,21 @@ const ALL_CATALOG: CatalogProductSeed[] = [
     program: "WOMENS_HEALTH_SEXUAL",
     planTier: null,
     sortOrder: 6,
-    prices: QUARTERLY(24000),
+    prices: CARE_CADENCES(24000),
   },
 ];
+
+const CARE_PROGRAM_SLUGS = [
+  "weight_management",
+  "hair_loss",
+  "mens_health_vitality",
+  "mens_health_sexual",
+  "womens_health_vitality",
+  "womens_health_sexual",
+] as const;
+
+/** Retired SKUs — kept for history but never used for new billing. */
+const RETIRED_PRODUCT_SLUGS = ["wm_core", "wm_precision", "wm_care"] as const;
 
 let catalogReady = false;
 
@@ -158,7 +181,76 @@ export async function ensureBillingCatalog() {
     }
   }
 
+  // Existing DBs may already have care products with only QUARTERLY — add YEARLY if missing.
+  await ensureAnnualCarePricesForExistingProducts();
+  await deactivateRetiredProducts();
+
   catalogReady = true;
+}
+
+/** Keep legacy Core/Precision and duplicate wm_care inactive. */
+export async function deactivateRetiredProducts() {
+  if (!billingModelsAvailable()) return;
+  await prisma.product.updateMany({
+    where: { slug: { in: [...RETIRED_PRODUCT_SLUGS] }, isActive: true },
+    data: { isActive: false },
+  });
+}
+
+/**
+ * Ensure each care product with a quarterly price also has a yearly price at 10% off.
+ * Does not overwrite admin-edited yearly rows.
+ */
+export async function ensureAnnualCarePricesForExistingProducts() {
+  if (!billingModelsAvailable()) return;
+
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { slug: { in: [...CARE_PROGRAM_SLUGS] } },
+        {
+          program: {
+            in: [
+              "WEIGHT_MANAGEMENT",
+              "HAIR_LOSS",
+              "MENS_HEALTH_VITALITY",
+              "MENS_HEALTH_SEXUAL",
+              "WOMENS_HEALTH_VITALITY",
+              "WOMENS_HEALTH_SEXUAL",
+            ],
+          },
+          OR: [{ planTier: null }, { planTier: "" }],
+          NOT: { slug: { in: ["wm_core", "wm_precision"] } },
+        },
+      ],
+    },
+    include: {
+      billingPrices: {
+        where: { isActive: true, isFirstMonth: false },
+      },
+    },
+  });
+
+  for (const product of products) {
+    const quarterly = product.billingPrices.find((p) => p.billingInterval === "QUARTERLY");
+    if (!quarterly) continue;
+    const hasYearly = product.billingPrices.some((p) => p.billingInterval === "YEARLY");
+    if (hasYearly) continue;
+
+    await prisma.billingPrice.create({
+      data: {
+        productId: product.id,
+        billingInterval: "YEARLY",
+        amountCents: annualCareAmountFromQuarterlyCents(quarterly.amountCents),
+        currency: quarterly.currency || "AUD",
+        isDefault: false,
+        isFirstMonth: false,
+        isActive: true,
+        label: "Annual (save 10%)",
+      },
+    });
+  }
 }
 
 export async function findProductByPlanTier(planTier: "CORE" | "PRECISION") {
@@ -219,24 +311,54 @@ export async function findBillingPriceByStripeId(stripePriceId: string) {
 
 export async function findDefaultRecurringPrice(
   planTier: "CORE" | "PRECISION",
-  interval: BillingInterval = "MONTHLY"
+  interval: BillingInterval = "QUARTERLY"
 ) {
   await ensureBillingCatalog();
   if (!billingModelsAvailable()) return null;
+
+  // Prefer canonical membership-era care product ($360 / 3 months), never legacy Core/Precision.
+  for (const slug of ["weight_management", "wm_care"] as const) {
+    const care = await prisma.product.findFirst({
+      where: { slug, program: "WEIGHT_MANAGEMENT", isActive: true },
+    });
+    if (!care) continue;
+    const carePrice = await prisma.billingPrice.findFirst({
+      where: {
+        productId: care.id,
+        billingInterval: interval === "MONTHLY" ? "QUARTERLY" : interval,
+        isFirstMonth: false,
+        isActive: true,
+      },
+      include: { product: true },
+    });
+    if (carePrice) return carePrice;
+  }
+
   const product = await prisma.product.findFirst({
-    where: { planTier, program: "WEIGHT_MANAGEMENT" },
+    where: {
+      program: "WEIGHT_MANAGEMENT",
+      isActive: true,
+      OR: [{ planTier: null }, { planTier: "" }],
+      NOT: { slug: { in: ["wm_core", "wm_precision"] } },
+    },
+    orderBy: { sortOrder: "asc" },
   });
   const wmProduct =
     product ??
     (await prisma.product.findFirst({
-      where: { program: "WEIGHT_MANAGEMENT", isActive: true },
+      where: {
+        program: "WEIGHT_MANAGEMENT",
+        isActive: true,
+        planTier,
+      },
     }));
   if (!wmProduct) return null;
 
+  const preferredInterval = interval === "MONTHLY" ? "QUARTERLY" : interval;
   const matchInterval = await prisma.billingPrice.findFirst({
     where: {
       productId: wmProduct.id,
-      billingInterval: interval,
+      billingInterval: preferredInterval,
       isFirstMonth: false,
       isActive: true,
     },

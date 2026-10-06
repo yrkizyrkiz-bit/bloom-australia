@@ -1371,7 +1371,7 @@ export default function DoctorDashboardPage() {
                             </span>
                           </Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_NO_TREATMENT")} className="bg-blue-600 hover:bg-blue-700 h-auto py-4 flex-col"><CheckCircle2 className="w-6 h-6 mb-1" /><span className="font-semibold">Approve</span><span className="text-xs opacity-80">No Treatment</span></Button>
-                          <Button onClick={() => openDecisionDialog("DECLINED")} variant="destructive" className="h-auto py-4 flex-col"><XCircle className="w-6 h-6 mb-1" /><span className="font-semibold">Decline</span><span className="text-xs opacity-80">Refund</span></Button>
+                          <Button onClick={() => openDecisionDialog("DECLINED")} variant="destructive" className="h-auto py-4 flex-col"><XCircle className="w-6 h-6 mb-1" /><span className="font-semibold">Decline</span><span className="text-xs opacity-80">Program only</span></Button>
                           <Button onClick={() => openDecisionDialog("APPROVED_PENDING_TESTS")} className="bg-amber-600 hover:bg-amber-700 h-auto py-4 flex-col"><FlaskConical className="w-6 h-6 mb-1" /><span className="font-semibold">Tests</span><span className="text-xs opacity-80">Blood work</span></Button>
                         </div>
                       </div>
@@ -1564,7 +1564,7 @@ export default function DoctorDashboardPage() {
                 (programConsultTab === "MEMBERSHIP"
                   ? "Approve Patient — Membership"
                   : "Approve Patient (No Treatment)")}
-              {decisionType === "DECLINED" && "Decline Patient"}
+              {decisionType === "DECLINED" && "Decline program"}
               {decisionType === "APPROVED_PENDING_TESTS" && (
                 <span className="flex items-center gap-2">
                   <FlaskConical className="w-5 h-5 text-amber-600" />
@@ -1913,7 +1913,7 @@ export default function DoctorDashboardPage() {
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {decisionType === "APPROVED" && "Approve & Prescribe"}
               {decisionType === "APPROVED_NO_TREATMENT" && "Approve (No Treatment)"}
-              {decisionType === "DECLINED" && "Decline & Refund"}
+              {decisionType === "DECLINED" && "Decline program"}
               {decisionType === "APPROVED_PENDING_TESTS" && "Submit & Order Tests"}
             </Button>
           </DialogFooter>

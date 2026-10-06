@@ -95,27 +95,42 @@ function toPriceRow(row: {
 
 export async function getProgramProductPricing(
   programKey: ProgramKey,
-  planTier: "CORE" | "PRECISION" | null = "CORE"
+  _planTier: "CORE" | "PRECISION" | null = null
 ): Promise<ProgramProductPricing | null> {
   await ensureBillingCatalog();
   if (!billingModelsAvailable()) return null;
 
-  const product = await prisma.product.findFirst({
-    where: {
-      program: programKey,
-      isActive: true,
-      ...(programKey === "WEIGHT_MANAGEMENT" && planTier
-        ? { OR: [{ planTier }, { planTier: null }, { planTier: "" }] }
-        : { OR: [{ planTier: null }, { planTier: "" }] }),
-    },
-    orderBy: { sortOrder: "asc" },
-    include: {
-      billingPrices: {
-        where: { isActive: true },
-        orderBy: [{ isFirstMonth: "desc" }, { amountCents: "asc" }],
+  // Prefer membership-era care products (no Core/Precision tier).
+  const product =
+    (await prisma.product.findFirst({
+      where: {
+        program: programKey,
+        isActive: true,
+        OR: [{ planTier: null }, { planTier: "" }],
+        NOT: { slug: { in: ["wm_core", "wm_precision"] } },
       },
-    },
-  });
+      orderBy: { sortOrder: "asc" },
+      include: {
+        billingPrices: {
+          where: { isActive: true },
+          orderBy: [{ isFirstMonth: "desc" }, { amountCents: "asc" }],
+        },
+      },
+    })) ??
+    (await prisma.product.findFirst({
+      where: {
+        program: programKey,
+        isActive: true,
+        NOT: { slug: { in: ["wm_core", "wm_precision"] } },
+      },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        billingPrices: {
+          where: { isActive: true },
+          orderBy: [{ isFirstMonth: "desc" }, { amountCents: "asc" }],
+        },
+      },
+    }));
 
   if (!product) return null;
 
@@ -129,28 +144,50 @@ export async function getProgramProductPricing(
   };
 }
 
+export type ProgramCheckoutQuoteWithSavings = ProgramCheckoutQuote & {
+  compareAtAud: number | null;
+  savingsPercent: number | null;
+  savingsLabel: string | null;
+};
+
 export async function resolveProgramCheckoutQuote(
   programKey: ProgramKey,
   billingTerm: ProgramBillingTerm,
-  planTier: "CORE" | "PRECISION" | null = "CORE"
-): Promise<ProgramCheckoutQuote> {
+  planTier: "CORE" | "PRECISION" | null = null
+): Promise<ProgramCheckoutQuoteWithSavings> {
   const catalog = await getProgramProductPricing(programKey, planTier);
   if (!catalog) {
     throw new Error(`No pricing configured for ${programKey}`);
   }
 
   const interval = programBillingTermToInterval(billingTerm);
-  const recurring =
-    catalog.prices.find((p) => !p.isFirstMonth && p.billingInterval === interval) ??
-    catalog.prices.find((p) => !p.isFirstMonth && p.isDefault) ??
-    catalog.prices.find((p) => !p.isFirstMonth) ??
-    catalog.prices[0];
+  const recurring = catalog.prices.find(
+    (p) => !p.isFirstMonth && p.billingInterval === interval
+  );
 
   if (!recurring) {
-    throw new Error(`Incomplete pricing for ${programKey}, configure a recurring price in admin`);
+    throw new Error(
+      `No ${billingIntervalLabel(interval).toLowerCase()} price configured for ${programKey}`
+    );
   }
 
-  const firstMonth = catalog.prices.find((p) => p.isFirstMonth) ?? recurring;
+  // Portal care: charge the selected cadence up front (no separate first-month SKU).
+  const firstMonth = recurring;
+
+  const quarterly = catalog.prices.find(
+    (p) => !p.isFirstMonth && p.billingInterval === "QUARTERLY"
+  );
+  let compareAtAud: number | null = null;
+  let savingsPercent: number | null = null;
+  let savingsLabel: string | null = null;
+  if (billingTerm === "12m" && quarterly) {
+    compareAtAud = (quarterly.amountCents * 4) / 100;
+    const saveAud = compareAtAud - recurring.amountAud;
+    if (saveAud > 0) {
+      savingsPercent = Math.round((saveAud / compareAtAud) * 100);
+      savingsLabel = `Save ${savingsPercent}% vs quarterly`;
+    }
+  }
 
   const dueTodayLabel = `${formatAudFromCents(firstMonth.amountCents)} today`;
   const recurringLabel = `then ${formatRecurringPriceLabel(recurring.amountCents, recurring.billingInterval)}`;
@@ -158,7 +195,7 @@ export async function resolveProgramCheckoutQuote(
   return {
     programKey,
     billingTerm,
-    planTier: programKey === "WEIGHT_MANAGEMENT" ? planTier ?? "CORE" : null,
+    planTier: null,
     firstMonth,
     recurring,
     dueTodayAud: firstMonth.amountAud,
@@ -166,6 +203,9 @@ export async function resolveProgramCheckoutQuote(
     recurringLabel,
     priceLabel: `${dueTodayLabel}, ${recurringLabel}`,
     includesConsultation: true,
+    compareAtAud,
+    savingsPercent,
+    savingsLabel,
   };
 }
 

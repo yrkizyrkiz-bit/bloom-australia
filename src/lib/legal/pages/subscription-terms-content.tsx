@@ -13,45 +13,49 @@ export function SubscriptionTermsContent() {
     <>
       <LegalSection title="Introduction">
         <LegalP>
-          These Subscription Terms apply to recurring Sanative program memberships, including Sanative
-          Core and Sanative Precision Weight Management plans (and other subscription programs where
-          stated at checkout). They supplement our{" "}
+          These Subscription Terms apply to Sanative Membership and to continuing Sanative care
+          programs billed on a recurring basis (typically quarterly in advance after any included
+          membership period), as stated at checkout. They supplement our{" "}
           <Link href={LEGAL_LINKS.terms} className="underline text-[#5c7a52]">
             Terms &amp; Conditions
           </Link>{" "}
-          and{" "}
+          and our{" "}
           <Link href={LEGAL_LINKS.refundPolicy} className="underline text-[#5c7a52]">
             Refund Policy
           </Link>
           . If there is a conflict, these Subscription Terms prevail for subscription-specific matters.
         </LegalP>
         <LegalP>
-          By purchasing a subscription plan, you agree to these Subscription Terms and authorise
-          recurring charges as described at checkout.
+          By purchasing Sanative Membership or a continuing care program subscription, you agree to
+          these Subscription Terms and authorise recurring charges as described at checkout.
         </LegalP>
       </LegalSection>
 
       <LegalSection title="What your subscription includes">
         <LegalP>
-          Program membership fees cover access to Sanative&apos;s doctor-led program Services as
-          applicable to your plan. Depending on your selected plan, this may include:
+          Sanative Membership fees principally cover access to the Sanative digital health platform and
+          membership features, as described in our Terms &amp; Conditions. Continuing care program fees
+          cover access to Sanative&apos;s doctor-led program Services as applicable to the program you
+          continue. Depending on your membership and program, this may include:
         </LegalP>
         <LegalUl>
-          <li>Initial and ongoing telehealth consultations with AHPRA-registered practitioners (up to
-            the limits stated for your plan)</li>
+          <li>
+            Telehealth consultations with AHPRA-registered practitioners (as included for your membership
+            or program)
+          </li>
           <li>Secure messaging and care partner support between consultations where offered</li>
           <li>Patient portal access, progress tracking, and program resources</li>
           <li>Doctor-reviewed biomarker monitoring and care plan updates where clinically appropriate</li>
           <li>Onboarding and program curriculum materials</li>
         </LegalUl>
         <LegalP>
-          <strong>Program fees do not include:</strong>
+          <strong>Fees do not include (unless expressly stated otherwise):</strong>
         </LegalP>
         <LegalUl>
           <li>Prescription medicines, supplements, or pharmacy dispensing fees</li>
           <li>Pathology, laboratory, or diagnostic testing fees</li>
           <li>Third-party delivery or courier charges</li>
-          <li>Additional consultations beyond plan limits (where additional fees apply)</li>
+          <li>Additional consultations beyond what is included with your membership or program</li>
         </LegalUl>
         <LegalP>
           Some care options discussed with your doctor may involve separate costs. You will be informed
@@ -147,7 +151,11 @@ export function SubscriptionTermsContent() {
         <LegalP>
           To avoid charge for the next billing cycle, cancel at least <strong>48 hours</strong> before
           your renewal date. Cancellation stops future automatic charges but does not refund the
-          current period except as stated in our Refund Policy or required by law.
+          current period except as stated in our{" "}
+          <Link href={LEGAL_LINKS.refundPolicy} className="underline text-[#5c7a52]">
+            Refund Policy
+          </Link>{" "}
+          or required by law.
         </LegalP>
         <LegalP>
           After cancellation, you retain access through the end of the paid billing period. Prescription
@@ -158,36 +166,26 @@ export function SubscriptionTermsContent() {
 
       <LegalSection title="Pausing membership">
         <LegalP>
-          Pause options may be available for certain plans at our discretion or as stated at checkout.
+          Pause options may be available for membership or care programs at our discretion or as stated
+          at checkout.
           Pausing stops billing for the pause period but may also suspend clinical Services and
           prescription renewals. Contact support for eligibility.
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="Plan changes">
+      <LegalSection title="Program changes">
         <LegalP>
-          You may request to upgrade or downgrade your plan (e.g. Core to Precision) subject to
-          clinical suitability and availability. Price differences will be explained before any change
-          takes effect. Plan changes may require a new clinical assessment.
+          You may request to change or add an eligible Sanative care program subject to clinical
+          suitability and availability. Any price differences will be explained before a change takes
+          effect. Changing programs may require a new clinical assessment.
         </LegalP>
       </LegalSection>
 
       <LegalSection title="Consultation limits and additional fees">
         <LegalP>
-          Your plan may include a defined number of medical consultations per year or billing period.
-          Additional consultations or tests ordered beyond plan inclusions may incur separate fees,
-          which will be communicated before charging where practicable.
-        </LegalP>
-      </LegalSection>
-
-      <LegalSection title="Clinical unsuitability">
-        <LegalP>
-          If your doctor determines the program is not clinically suitable following your initial
-          consultation, your first-month fee may be refunded in accordance with our{" "}
-          <Link href={LEGAL_LINKS.refundPolicy} className="underline text-[#5c7a52]">
-            Refund Policy
-          </Link>
-          . Your subscription will not continue unless you are accepted into ongoing care.
+          Your membership or care program may include a defined number of medical consultations per
+          year or billing period. Additional consultations or tests ordered beyond those inclusions may
+          incur separate fees, which will be communicated before charging where practicable.
         </LegalP>
       </LegalSection>
 

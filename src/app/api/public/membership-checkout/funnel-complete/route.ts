@@ -97,20 +97,26 @@ export async function POST(request: NextRequest) {
     if (paymentIntent.status !== "succeeded") {
       return NextResponse.json({ error: "Payment not completed" }, { status: 400 });
     }
-    if (paymentIntent.metadata?.purchaseType !== "sanative_membership") {
-      return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
-    }
-    if (paymentIntent.metadata?.userId && paymentIntent.metadata.userId !== user.id) {
-      return NextResponse.json({ error: "Payment does not belong to this account" }, { status: 403 });
-    }
 
     const stripeSubscriptionId =
       bodySubscriptionId || paymentIntent.metadata?.subscriptionId || null;
+    const subscription = stripeSubscriptionId
+      ? await stripe.subscriptions.retrieve(stripeSubscriptionId)
+      : null;
+    const purchaseType =
+      paymentIntent.metadata?.purchaseType || subscription?.metadata?.purchaseType;
+    const paymentUserId =
+      paymentIntent.metadata?.userId || subscription?.metadata?.userId;
+    if (purchaseType !== "sanative_membership") {
+      return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
+    }
+    if (paymentUserId && paymentUserId !== user.id) {
+      return NextResponse.json({ error: "Payment does not belong to this account" }, { status: 403 });
+    }
 
     let periodStart: Date | null = null;
     let periodEnd: Date | null = null;
-    if (stripeSubscriptionId) {
-      const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    if (subscription) {
       const period = getStripeSubscriptionPeriod(subscription);
       periodStart = period.start;
       periodEnd = period.end;
@@ -143,8 +149,7 @@ export async function POST(request: NextRequest) {
       currentPeriodEnd: periodEnd,
     });
 
-    if (stripeSubscriptionId) {
-      const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    if (subscription) {
       await syncMemberSubscriptionFromStripe(subscription, {
         userId: result.userId,
         changeType: "SANATIVE_MEMBERSHIP_ACTIVATED",

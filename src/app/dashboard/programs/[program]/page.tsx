@@ -14,7 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { normalizeProgramKey, PROGRAM_LABELS, type ProgramKey } from "@/lib/membership/keys";
-import { getProgramOffer, PROGRAM_BILLING_TERM_OPTIONS, type ProgramBillingTerm } from "@/lib/programs/offers";
+import {
+  getProgramOffer,
+  PORTAL_PROGRAM_BILLING_TERM_OPTIONS,
+  type ProgramBillingTerm,
+} from "@/lib/programs/offers";
 import { PROGRAM_CARDS } from "@/lib/programs/catalog";
 import { isHiddenVitalityProgram } from "@/lib/programs/release-flags";
 import { GENERIC_PROGRAM_QUIZ } from "@/lib/programs/quizzes/generic-program-quiz";
@@ -48,6 +52,9 @@ type TermQuote = {
   dueTodayLabel?: string;
   recurringLabel?: string;
   priceLabel?: string;
+  compareAtAud?: number | null;
+  savingsPercent?: number | null;
+  savingsLabel?: string | null;
   error?: boolean;
 };
 
@@ -138,7 +145,7 @@ export default function InPortalProgramPage() {
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(false);
-  const [billingTerm, setBillingTerm] = useState<ProgramBillingTerm>("1m");
+  const [billingTerm, setBillingTerm] = useState<ProgramBillingTerm>("3m");
   const [termQuotes, setTermQuotes] = useState<TermQuote[]>([]);
   const [pricingLoading, setPricingLoading] = useState(true);
 
@@ -411,16 +418,17 @@ export default function InPortalProgramPage() {
               </>
             )}
 
-            <h2 className="mb-1 text-lg font-medium text-[#2c3628]">Choose your plan</h2>
+            <h2 className="mb-1 text-lg font-medium text-[#2c3628]">Choose your billing</h2>
             <p className="mb-4 text-sm text-[#5c7a52]">
-              All plans are subscriptions. Your first billing period includes your doctor
-              consultation and program access, not a separate consultation fee.
+              Pay every 3 months, or save 10% with annual billing. Your first period includes
+              your doctor consultation and program access.
             </p>
 
             <div className="mb-4 space-y-2">
-              {PROGRAM_BILLING_TERM_OPTIONS.map((option) => {
+              {PORTAL_PROGRAM_BILLING_TERM_OPTIONS.map((option) => {
                 const quote = termQuotes.find((t) => t.term === option.term);
                 const selected = billingTerm === option.term;
+                const isAnnual = option.term === "12m";
                 return (
                   <button
                     key={option.term}
@@ -436,7 +444,21 @@ export default function InPortalProgramPage() {
                         : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"
                     }`}
                   >
-                    <span className="font-medium text-[#2c3628]">{option.label}</span>
+                    <span className="flex flex-col gap-0.5">
+                      <span className="flex items-center gap-2 font-medium text-[#2c3628]">
+                        {option.label}
+                        {isAnnual && !quote?.error && (
+                          <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                            Save 10%
+                          </span>
+                        )}
+                      </span>
+                      {isAnnual && quote?.compareAtAud != null && !quote.error && (
+                        <span className="text-xs text-[#7e9a72]">
+                          Usually ${quote.compareAtAud.toFixed(0)}/year if billed quarterly
+                        </span>
+                      )}
+                    </span>
                     <span className="text-sm text-emerald-800">
                       {pricingLoading ? (
                         "Loading…"
@@ -444,8 +466,17 @@ export default function InPortalProgramPage() {
                         "Not configured"
                       ) : (
                         <>
-                          <span className="font-semibold">{quote?.dueTodayLabel}</span>
-                          {quote?.recurringLabel && (
+                          {isAnnual && quote?.compareAtAud != null && (
+                            <span className="mr-2 text-[#a8bb9e] line-through">
+                              ${quote.compareAtAud.toFixed(0)}
+                            </span>
+                          )}
+                          <span className="font-semibold">
+                            {isAnnual
+                              ? `$${quote?.dueTodayAud?.toFixed(0) ?? "—"}/year`
+                              : quote?.dueTodayLabel}
+                          </span>
+                          {!isAnnual && quote?.recurringLabel && (
                             <span className="ml-1 text-[#5c7a52]">{quote.recurringLabel}</span>
                           )}
                         </>
@@ -460,16 +491,23 @@ export default function InPortalProgramPage() {
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <span className="font-medium text-[#2c3628]">{label}</span>
                 <span className="font-semibold text-emerald-800">
-                  {selectedQuote?.dueTodayLabel ?? "—"} {selectedQuote?.recurringLabel}
+                  {billingTerm === "12m"
+                    ? `$${selectedQuote?.dueTodayAud?.toFixed(0) ?? "—"}/year`
+                    : `${selectedQuote?.dueTodayLabel ?? "—"} ${selectedQuote?.recurringLabel ?? ""}`}
                 </span>
               </div>
+              {billingTerm === "12m" && selectedQuote?.savingsLabel && (
+                <p className="mt-1 text-sm font-medium text-emerald-800">
+                  {selectedQuote.savingsLabel}
+                </p>
+              )}
               <p className="mt-2 text-xs text-[#5c7a52]">
-                {programKey === "WEIGHT_MANAGEMENT"
-                  ? "First month includes your doctor consultation, then ongoing billing at the cadence you selected."
-                  : "First month includes your consultation. After your doctor confirms your treatment plan, ongoing pricing may be adjusted."}
+                {billingTerm === "12m"
+                  ? "Billed once a year. Includes your doctor consultation in this period."
+                  : "Billed every 3 months. Includes your doctor consultation in the first period."}
               </p>
               <p className="mt-2 flex items-center gap-1.5 text-xs text-[#5c7a52]">
-                <Shield className="h-3.5 w-3.5" /> Consultation included in first period · AHPRA doctor
+                <Shield className="h-3.5 w-3.5" /> Consultation included · AHPRA doctor
               </p>
             </div>
 

@@ -521,7 +521,7 @@ export default function MensHealthPage() {
             </div>
             {/* GAP-026: Removed 'No commitment' - payment required */}
             <p className="mt-6 text-sm text-[#7e9a72]">
-              Refund if not suitable · Australian doctors · Confidential care
+              Australian doctors · Confidential care
             </p>
           </div>
         </section>

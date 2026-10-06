@@ -19,6 +19,10 @@ import { resolveSexualApprovalUserJourney } from "@/lib/program-journey/sexual-j
 import { resolveWomensApprovalUserJourney } from "@/lib/program-journey/womens-journey";
 import { grantEntitlement } from "@/lib/membership/entitlement-service";
 import { isNonWeightDoctorApproval } from "@/lib/admin/doctor-consult-programs";
+import { createWeightManagementCareSubscription } from "@/lib/billing/care-subscription";
+
+/** Display/fallback only — live billing uses Product.BillingPrice via care-subscription. */
+const WM_CARE_AMOUNT_CENTS = 36000;
 
 async function auditDoctorDecision(
   request: NextRequest,
@@ -53,18 +57,6 @@ function getStripeClient(): Stripe | null {
   }
   return stripeClient;
 }
-
-// GAP-005: Stripe Price IDs for ongoing monthly subscriptions (set in Stripe dashboard)
-const STRIPE_ONGOING_PRICES = {
-  CORE: process.env.STRIPE_WM_CORE_MONTHLY_PRICE_ID,
-  PRECISION: process.env.STRIPE_WM_PRECISION_MONTHLY_PRICE_ID,
-};
-
-// Plan amounts in cents for ongoing billing
-const PLAN_AMOUNTS = {
-  CORE: 34900, // $349/month
-  PRECISION: 49900, // $499/month
-};
 
 // Decision types
 type DecisionType = "APPROVED" | "APPROVED_NO_TREATMENT" | "DECLINED" | "APPROVED_PENDING_TESTS";
@@ -107,158 +99,24 @@ const DECISIONS_REQUIRING_VERIFIED_FIRST_MONTH_PAYMENT = new Set([
   "APPROVED_NO_TREATMENT",
   "APPROVED_PENDING_TESTS",
 ]);
-// This creates the recurring monthly subscription ($349/$499) starting 30 days after first payment
-// First month was already charged via PaymentIntent at checkout
+/**
+ * Schedule Weight Management Care from the Product / BillingPrice catalog
+ * ($360 every 3 months after the included first 30 days). Never hardcodes Core/Precision.
+ */
 async function createOngoingSubscription(
   userId: string,
   userEmail: string,
   userName: string,
-  selectedPlan: "CORE" | "PRECISION",
+  _selectedPlan: "CORE" | "PRECISION",
   firstPaymentIntentId?: string | null
-): Promise<{ success: boolean; subscriptionId?: string; error?: string }> {
-  try {
-    const stripe = getStripeClient();
-    if (!stripe) {
-      return { success: false, error: "Stripe not configured" };
-    }
-
-    // Get or create Stripe customer
-    let customerId: string;
-    const existingCustomers = await stripe.customers.list({ email: userEmail, limit: 1 });
-
-    if (existingCustomers.data.length > 0) {
-      customerId = existingCustomers.data[0].id;
-    } else {
-      // Create new customer
-      const customer = await stripe.customers.create({
-        email: userEmail,
-        name: userName,
-        metadata: {
-          userId,
-          sanativePatient: "true",
-        },
-      });
-      customerId = customer.id;
-    }
-
-    // Calculate billing anchor: 30 days from now (after first month is complete)
-    const billingAnchor = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
-
-    // Get the Stripe price ID for the plan
-    const stripePriceId = STRIPE_ONGOING_PRICES[selectedPlan];
-
-    // Create the subscription
-    let subscription: Stripe.Subscription;
-
-    if (stripePriceId) {
-      // Use pre-configured price from Stripe dashboard
-      subscription = await stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ price: stripePriceId }],
-        billing_cycle_anchor: billingAnchor,
-        proration_behavior: "none",
-        metadata: {
-          userId,
-          selectedPlan,
-          sanativeProgram: "WEIGHT_MANAGEMENT",
-          firstPaymentIntentId: firstPaymentIntentId || "",
-          createdBy: "doctor_approval",
-        },
-      });
-    } else {
-      // Create product and price inline (fallback if no Price ID configured)
-      console.warn(`[GAP-005] No Stripe Price ID configured for ${selectedPlan}, creating with inline pricing`);
-
-      const product = await stripe.products.create({
-        name: `Sanative ${selectedPlan === "CORE" ? "Core" : "Precision"} - Monthly`,
-        metadata: {
-          sanative_plan: selectedPlan,
-          type: "weight_management",
-        },
-      });
-
-      const price = await stripe.prices.create({
-        product: product.id,
-        unit_amount: PLAN_AMOUNTS[selectedPlan],
-        currency: "aud",
-        recurring: { interval: "month" },
-      });
-
-      subscription = await stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ price: price.id }],
-        billing_cycle_anchor: billingAnchor,
-        proration_behavior: "none",
-        metadata: {
-          userId,
-          selectedPlan,
-          sanativeProgram: "WEIGHT_MANAGEMENT",
-          firstPaymentIntentId: firstPaymentIntentId || "",
-          createdBy: "doctor_approval",
-        },
-      });
-    }
-
-    // Update user with subscription info
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        subscriptionStatus: "ACTIVE",
-        subscriptionTier: `sanative_${selectedPlan.toLowerCase()}`,
-      },
-    });
-
-    // Log the subscription creation
-    await prisma.activityLog.create({
-      data: {
-        userId,
-        action: "SUBSCRIPTION_CREATED",
-        entity: "stripe_subscription",
-        entityId: subscription.id,
-        details: {
-          selectedPlan,
-          monthlyAmount: PLAN_AMOUNTS[selectedPlan],
-          billingAnchor: new Date(billingAnchor * 1000).toISOString(),
-          firstPaymentIntentId,
-          stripeSubscriptionId: subscription.id,
-          stripeCustomerId: customerId,
-        },
-      },
-    });
-
-    // Create internal note
-    await prisma.internalNote.create({
-      data: {
-        userId,
-        category: "BILLING",
-        title: "Ongoing Subscription Created",
-        content: `Monthly subscription created for Sanative ${selectedPlan}. Billing starts ${new Date(billingAnchor * 1000).toLocaleDateString("en-AU")}. Monthly amount: $${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}. Subscription ID: ${subscription.id}`,
-        createdBy: "system",
-      },
-    });
-
-    const { syncMemberSubscriptionFromStripe } = await import(
-      "@/lib/billing/sync-subscription"
-    );
-    await syncMemberSubscriptionFromStripe(subscription, {
-      userId,
-      changedBy: "doctor_approval",
-      changeType: "created",
-    });
-
-    console.log(`[GAP-005] Created subscription ${subscription.id} for user ${userId} (${selectedPlan})`);
-
-    return {
-      success: true,
-      subscriptionId: subscription.id,
-    };
-  } catch (error) {
-    console.error("[GAP-005] Failed to create subscription:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
+): Promise<{ success: boolean; subscriptionId?: string; error?: string; amountLabel?: string }> {
+  return createWeightManagementCareSubscription({
+    userId,
+    userEmail,
+    userName,
+    firstPaymentIntentId,
+    createdBy: "doctor_approval",
+  });
 }
 
 // POST /api/admin/doctor/decision - Submit doctor decision
@@ -736,7 +594,7 @@ export async function POST(request: NextRequest) {
                   subject: `MANUAL SUBSCRIPTION REQUIRED: ${user.firstName} ${user.lastName}`,
                   notes: `Patient was approved but automatic subscription creation failed.
 
-Please manually create the ${selectedPlan} subscription ($${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}/month).
+Please manually create the Weight Management Care subscription ($360 every 3 months).
 
 Error: ${subscriptionResult.error}
 Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
@@ -784,7 +642,7 @@ Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
 ${isNonWeightApproval ? "" : `
 **Billing:**
 - Plan: ${selectedPlan}
-- Monthly Amount: $${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}
+- Care billing: $360 every 3 months (from Product catalog)
 - Subscription Created: ${subscriptionResult.success ? "Yes" : "No (manual setup required)"}
 `}
 
@@ -922,7 +780,7 @@ Welcome call / onboarding walkthrough:
                 selectedPlan,
                 subscriptionCreated: subscriptionResult.success,
                 subscriptionId: subscriptionResult.subscriptionId,
-                monthlyAmount: PLAN_AMOUNTS[selectedPlan],
+                careAmountCents: WM_CARE_AMOUNT_CENTS,
                 timestamp: new Date().toISOString(),
                 // Medication details stored in prescription, not in activity log
               },
@@ -977,7 +835,7 @@ Welcome call / onboarding walkthrough:
           selectedPlan,
           subscriptionCreated: subscriptionResult.success,
           subscriptionId: subscriptionResult.subscriptionId,
-          monthlyAmount: PLAN_AMOUNTS[selectedPlan],
+          careAmountCents: WM_CARE_AMOUNT_CENTS,
           programActivated: activation.activated || activation.alreadyActive,
           message: activation.activated || activation.alreadyActive
             ? "Patient approved and program activated. Script is in DRAFT. First dose is week 2. Monthly subscription " +
@@ -1056,7 +914,7 @@ Welcome call / onboarding walkthrough:
                 subject: `MANUAL SUBSCRIPTION REQUIRED: ${user.firstName} ${user.lastName}`,
                 notes: `Patient was approved (lifestyle program) but automatic subscription creation failed.
 
-Please manually create the ${selectedPlan} subscription ($${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}/month).
+Please manually create the Weight Management Care subscription ($360 every 3 months).
 
 Error: ${subscriptionResult.error}`,
                 status: "PENDING",
@@ -1084,7 +942,7 @@ Error: ${subscriptionResult.error}`,
 
 **Billing:**
 - Plan: ${selectedPlan}
-- Monthly Amount: $${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}
+- Care billing: $360 every 3 months (from Product catalog)
 - Subscription Created: ${subscriptionResult.success ? "Yes" : "No (manual setup required)"}
 
 **Clinical Notes:**
@@ -1148,7 +1006,7 @@ Tasks:
               selectedPlan,
               subscriptionCreated: subscriptionResult.success,
               subscriptionId: subscriptionResult.subscriptionId,
-              monthlyAmount: PLAN_AMOUNTS[selectedPlan],
+              careAmountCents: WM_CARE_AMOUNT_CENTS,
               timestamp: new Date().toISOString(),
             },
           },
@@ -1164,13 +1022,13 @@ Tasks:
           selectedPlan,
           subscriptionCreated: subscriptionResult.success,
           subscriptionId: subscriptionResult.subscriptionId,
-          monthlyAmount: PLAN_AMOUNTS[selectedPlan],
+          careAmountCents: WM_CARE_AMOUNT_CENTS,
           programActivated: activation.activated || activation.alreadyActive,
           message: activation.activated || activation.alreadyActive
             ? "Patient approved for lifestyle program and program activated. " +
-              (subscriptionResult.success ? "Monthly subscription created." : "Subscription requires manual setup.")
+              (subscriptionResult.success ? "Weight Management Care subscription created." : "Subscription requires manual setup.")
             : "Patient approved for lifestyle program. " +
-              (subscriptionResult.success ? "Monthly subscription created." : "Subscription requires manual setup.") +
+              (subscriptionResult.success ? "Weight Management Care subscription created." : "Subscription requires manual setup.") +
               (activation.error ? ` Program was not activated: ${activation.error}` : ""),
         });
       }
@@ -1192,12 +1050,12 @@ Tasks:
 
         const reasonText = DECLINE_REASONS[declineReason as keyof typeof DECLINE_REASONS] || declineReasonOther || declineReason;
 
-        // Update user status
+        // Update user status — program declined; membership remains (no membership refund).
         await prisma.user.update({
           where: { id: userId },
           data: {
             approvalStatus: "DECLINED",
-            journeyStatus: "REFUND_PENDING",
+            journeyStatus: "DECLINED",
           },
         });
 
@@ -1221,7 +1079,7 @@ Tasks:
             createdBy: session.user.id,
             category: "MEDICAL",
             title: "Doctor Decision: DECLINED",
-            content: `**Decision:** Declined for treatment
+            content: `**Decision:** Declined for this program
 
 **Reason:** ${reasonText}
 
@@ -1235,49 +1093,10 @@ ${clinicalNotes}
 - Care partner follow-up: ${carePartnerFollowUpRequired ? "Yes" : "No"}
 - GP referral suggested: ${gpReferralSuggested ? "Yes" : "No"}
 
-**NOTE:** Subscription NOT created for declined patients.`,
+**NOTE:** Program billing will not commence. Sanative Membership remains active. No membership refund.`,
             isPinned: true,
           },
         });
-
-        // Trigger refund workflow
-        let refundInitiated = false;
-        if (consultation.paymentIntentId && stripe) {
-          try {
-            await stripe.refunds.create({
-              payment_intent: consultation.paymentIntentId,
-              reason: "requested_by_customer",
-              metadata: {
-                userId,
-                reason: "doctor_declined",
-                declineReason: reasonText,
-              },
-            });
-            refundInitiated = true;
-
-            await prisma.user.update({
-              where: { id: userId },
-              data: { journeyStatus: "REFUNDED" },
-            });
-          } catch (stripeError) {
-            console.error("Stripe refund error:", stripeError);
-            await prisma.careCommunication.create({
-              data: {
-                userId,
-                type: "REFUND_REQUEST",
-                priority: "HIGH",
-                subject: `MANUAL REFUND REQUIRED: ${user.firstName} ${user.lastName}`,
-                notes: `Patient was declined by doctor. Automatic refund failed.
-
-Please process refund manually.
-Payment Intent: ${consultation.paymentIntentId}
-Reason: ${reasonText}`,
-                status: "PENDING",
-                dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-              },
-            });
-          }
-        }
 
         if (carePartnerFollowUpRequired) {
           await prisma.careCommunication.create({
@@ -1285,8 +1104,8 @@ Reason: ${reasonText}`,
               userId,
               type: "FOLLOW_UP",
               priority: "NORMAL",
-              subject: `Declined Patient Follow-up: ${user.firstName} ${user.lastName}`,
-              notes: `Patient was declined for treatment.
+              subject: `Declined program follow-up: ${user.firstName} ${user.lastName}`,
+              notes: `Patient was declined for this program (membership continues).
 
 Reason: ${reasonText}
 
@@ -1295,7 +1114,7 @@ ${safeNextStepGuidance}
 
 ${gpReferralSuggested ? "Note: GP referral was suggested." : ""}
 
-Please contact patient to provide support and guidance.`,
+Please contact the patient to provide support and guidance.`,
               status: "PENDING",
               dueDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
               assignedTo: user.assignedCarePartnerId || undefined,
@@ -1308,11 +1127,12 @@ Please contact patient to provide support and guidance.`,
           subject: "Important update about your Sanative consultation",
           body: `
             <h2>Hi ${user.firstName},</h2>
-            <p>After reviewing your assessment, your Sanative doctor has determined that this program is not clinically suitable at this time.</p>
-            <p>Your first-month payment will be refunded${refundInitiated ? " and should appear in your account within 5-10 business days" : ""}.</p>
+            <p>The first month of an eligible Sanative program is included with your Sanative Membership.</p>
+            <p>After reviewing your assessment, your Sanative doctor has determined that this particular program is not clinically suitable for you at this time. Billing for this program will therefore not commence.</p>
+            <p>Your Sanative Membership remains active. You can continue to enjoy your membership benefits, including your health check and access to the Sanative digital health platform.</p>
             ${carePartnerFollowUpRequired ? "<p>Our team will contact you with safe next steps where appropriate.</p>" : ""}
-            ${gpReferralSuggested ? "<p>We recommend discussing your health goals with your regular GP, who can provide personalized guidance.</p>" : ""}
-            <p>If you have any questions, please don't hesitate to contact our support team.</p>
+            ${gpReferralSuggested ? "<p>We recommend discussing your health goals with your regular GP, who can provide personalised guidance.</p>" : ""}
+            <p>If you have any questions, please contact our support team.</p>
             <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
           `,
         });
@@ -1328,9 +1148,10 @@ Please contact patient to provide support and guidance.`,
               decidedBy: session.user.id,
               doctorName,
               declineReason: reasonText,
-              refundInitiated,
+              refundInitiated: false,
+              membershipRetained: true,
               consultationId,
-              subscriptionCreated: false, // GAP-005: Never create subscription for declined
+              subscriptionCreated: false,
             },
           },
         });
@@ -1349,8 +1170,9 @@ Please contact patient to provide support and guidance.`,
               safeNextStepGuidance,
               carePartnerFollowUp: carePartnerFollowUpRequired,
               gpReferral: gpReferralSuggested,
-              refundInitiated,
-              subscriptionCreated: false, // GAP-005: Never create subscription for declined
+              refundInitiated: false,
+              membershipRetained: true,
+              subscriptionCreated: false,
               timestamp: new Date().toISOString(),
             },
           },
@@ -1361,9 +1183,11 @@ Please contact patient to provide support and guidance.`,
         return NextResponse.json({
           success: true,
           decision: "DECLINED",
-          refundInitiated,
-          subscriptionCreated: false, // GAP-005: Explicitly state no subscription created
-          message: "Patient declined. Refund workflow initiated and patient notified. No subscription created.",
+          refundInitiated: false,
+          membershipRetained: true,
+          subscriptionCreated: false,
+          message:
+            "Program declined. Membership retained; program billing will not commence. Patient notified.",
         });
       }
 
@@ -1529,7 +1353,7 @@ Please contact patient to provide support and guidance.`,
                 subject: `MANUAL SUBSCRIPTION REQUIRED: ${user.firstName} ${user.lastName}`,
                 notes: `Patient was approved (with testing) but automatic subscription creation failed.
 
-Please manually create the ${selectedPlan} subscription ($${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}/month).
+Please manually create the Weight Management Care subscription ($360 every 3 months).
 
 Error: ${subscriptionResult.error}
 Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
@@ -1572,7 +1396,7 @@ ${prescriptionId ? `**Prescription Created:** ${prescriptionId}
 
 **Billing:**
 - Plan: ${selectedPlan}
-- Monthly Amount: $${(PLAN_AMOUNTS[selectedPlan] / 100).toFixed(2)}
+- Care billing: $360 every 3 months (from Product catalog)
 - Subscription Created: ${subscriptionResult.success ? "Yes" : "No (manual setup required)"}
 
 **Clinical Notes:**
@@ -1774,7 +1598,7 @@ Tasks:
               selectedPlan,
               subscriptionCreated: subscriptionResult.success,
               subscriptionId: subscriptionResult.subscriptionId,
-              monthlyAmount: PLAN_AMOUNTS[selectedPlan],
+              careAmountCents: WM_CARE_AMOUNT_CENTS,
               programActive: true, // UAT8-GAP-006: Program proceeds
               timestamp: new Date().toISOString(),
             },
@@ -1791,7 +1615,7 @@ Tasks:
           selectedPlan,
           subscriptionCreated: subscriptionResult.success,
           subscriptionId: subscriptionResult.subscriptionId,
-          monthlyAmount: PLAN_AMOUNTS[selectedPlan],
+          careAmountCents: WM_CARE_AMOUNT_CENTS,
           programActive: true,
           message: "Patient approved with testing. Program is active and subscription created. Blood tests will be tracked separately.",
         });
@@ -1869,8 +1693,7 @@ export async function GET() {
       ],
       // GAP-005: Monthly billing amounts
       billingAmounts: {
-        CORE: PLAN_AMOUNTS.CORE,
-        PRECISION: PLAN_AMOUNTS.PRECISION,
+        WEIGHT_MANAGEMENT_CARE_CENTS: WM_CARE_AMOUNT_CENTS,
       },
     });
   } catch (error) {

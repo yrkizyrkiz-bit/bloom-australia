@@ -8,7 +8,6 @@ const relatedLinks = [
   { href: LEGAL_LINKS.terms, label: "Terms & Conditions" },
   { href: LEGAL_LINKS.medicalDisclaimer, label: "Medical Disclaimer" },
   { href: LEGAL_LINKS.telehealthConsent, label: "Telehealth Consent" },
-  { href: LEGAL_LINKS.refundPolicy, label: "Refund Policy" },
   { href: LEGAL_LINKS.subscriptionTerms, label: "Subscription Terms" },
   { href: LEGAL_LINKS.contact, label: "Contact" },
   { href: LEGAL_LINKS.faqs, label: "FAQs" },

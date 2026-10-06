@@ -215,7 +215,6 @@ export default function ForgotPasswordPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-center items-center gap-6 text-xs text-muted-foreground">
             <span>AHPRA Compliant</span>
-            <span>TGA Registered</span>
             <span>Australian Owned</span>
           </div>
         </div>

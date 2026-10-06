@@ -132,7 +132,7 @@ export function Header({
             ) : (
               <>
                 <span className="font-serif text-[15px] sm:text-base tracking-wide italic">
-                  Australia&apos;s only biomarker-first telehealth clinic
+                  Preventative medcine + Precice care = Longevity * built for Australians
                 </span>
                 <span className="hidden sm:inline text-[#a8bb9e] mx-1">·</span>
                 <span className="text-[13px] sm:text-sm font-light text-[#cdd8c6]">

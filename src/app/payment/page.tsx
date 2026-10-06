@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Legacy $49 consultation payment page, replaced by in-assessment checkout. */
+/** Legacy consultation payment page — replaced by in-assessment membership checkout. */
 export default function LegacyPaymentPage() {
   redirect("/weight-management/assessment");
 }

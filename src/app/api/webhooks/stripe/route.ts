@@ -405,22 +405,28 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
         // Send order confirmation email
         const programName = program || consultationType || "Weight Management";
 
-        // Check if this is a Weight Management plan with new pricing structure
-        const isNewWMPlan = selectedPlan && (selectedPlan === 'core' || selectedPlan === 'precision');
+        // Membership-era clinical funnels (legacy core/precision metadata still accepted)
+        const isMembershipFunnelPayment =
+          (metadata?.purchaseType || "").trim() === "sanative_membership" ||
+          (selectedPlan &&
+            (selectedPlan === "core" ||
+              selectedPlan === "precision" ||
+              selectedPlan === "membership" ||
+              selectedPlan.includes("membership")));
 
-        if (isNewWMPlan) {
-          // Send WM-specific confirmation email with plan details
-          const wmPlanName = selectedPlan === 'precision' ? 'Sanative Precision' : 'Sanative Core';
+        if (isMembershipFunnelPayment) {
           await sendWeightManagementConfirmationEmail(userForInvoice.email, {
             firstName: userForInvoice.firstName,
             lastName: userForInvoice.lastName,
-            planName: wmPlanName as 'Sanative Core' | 'Sanative Precision',
-            consultationDate: consultationDate || 'TBA',
-            consultationTime: consultationTime || 'TBA',
-            firstMonthPrice: firstMonthAmount ? parseFloat(firstMonthAmount) / 100 : (selectedPlan === 'precision' ? 499 : 349),
-            discount: metaDiscountAmount ? parseFloat(metaDiscountAmount) / 100 : 100,
+            planName: "Sanative Membership",
+            consultationDate: consultationDate || "TBA",
+            consultationTime: consultationTime || "TBA",
+            firstMonthPrice: firstMonthAmount
+              ? parseFloat(firstMonthAmount) / 100
+              : amountReceived,
+            discount: metaDiscountAmount ? parseFloat(metaDiscountAmount) / 100 : 0,
             dueToday: amountReceived,
-            ongoingPrice: ongoingAmount ? parseFloat(ongoingAmount) / 100 : (selectedPlan === 'precision' ? 499 : 349),
+            ongoingPrice: ongoingAmount ? parseFloat(ongoingAmount) / 100 : 360,
           });
         } else {
           // Send generic order confirmation

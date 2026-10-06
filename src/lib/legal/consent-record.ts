@@ -121,3 +121,30 @@ export async function validatePrePaymentConsent(
 
   return { ok: true, recordId: record.id };
 }
+
+/** Most recent PRE_PAYMENT consent for this member, if still valid. Used after a 3DS return. */
+export async function findLatestValidPrePaymentConsent(input: {
+  userId: string;
+  email?: string;
+}): Promise<ValidatePrePaymentConsentResult> {
+  const record = await prisma.consentRecord.findFirst({
+    where: {
+      consentType: "PRE_PAYMENT",
+      OR: [
+        { userId: input.userId },
+        ...(input.email ? [{ email: { equals: input.email, mode: "insensitive" as const } }] : []),
+      ],
+    },
+    orderBy: { acceptedAt: "desc" },
+  });
+
+  if (!record) {
+    return { ok: false, error: "Payment consent is required before completing checkout", status: 400 };
+  }
+
+  return validatePrePaymentConsent({
+    consentRecordId: record.id,
+    userId: input.userId,
+    email: input.email,
+  });
+}

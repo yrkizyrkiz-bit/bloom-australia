@@ -1,5 +1,9 @@
 import type Stripe from "stripe";
 import type { BillingInterval } from "@prisma/client";
+import {
+  stripePaymentIntentCanInitializeElements,
+  stripePaymentIntentIsSucceeded,
+} from "@/lib/checkout/stripe-payment-intent-state";
 import { getStripe } from "@/lib/stripe";
 
 export type StripeRecurringSpec = {
@@ -61,12 +65,19 @@ export async function getOrCreateRecurringPrice(params: {
   const amountCents = Math.round(params.amountAud * 100);
   const lookupKey = [
     "portal",
-    params.productMetadata.programKey ?? params.productMetadata.scope ?? "item",
+    params.productMetadata.productSlug ||
+      params.productMetadata.programKey ||
+      params.productMetadata.scope ||
+      "item",
     params.productMetadata.billingTerm ?? params.recurring.interval,
+    params.productMetadata.billingPriceId || "price",
     String(amountCents),
     params.recurring.interval,
     String(params.recurring.intervalCount),
-  ].join("_");
+  ]
+    .join("_")
+    .replace(/[^a-zA-Z0-9_]/g, "_")
+    .slice(0, 200);
 
   const existing = await stripe.prices.list({ lookup_keys: [lookupKey], limit: 1 });
   if (existing.data[0]) return existing.data[0].id;
@@ -202,6 +213,7 @@ export async function createIncompleteSubscription(params: {
   subscriptionId: string;
   clientSecret: string;
   paymentIntentId: string;
+  paymentIntentStatus: string;
 }> {
   const stripe = getStripe();
   if (!stripe) throw new Error("Stripe is not configured");
@@ -230,15 +242,136 @@ export async function createIncompleteSubscription(params: {
   const payment = await resolveInvoicePaymentDetails(stripe, latestInvoice);
   if (!payment) throw new Error("Could not initialise subscription payment");
 
+  const paymentIntent = await stripe.paymentIntents.retrieve(payment.paymentIntentId);
+
   // Invoice-created PaymentIntents cannot have payment_method_types modified, metadata only.
-  await stripe.paymentIntents.update(payment.paymentIntentId, {
-    metadata: { ...params.metadata, subscriptionId: subscription.id },
-  });
+  if (stripePaymentIntentCanInitializeElements(paymentIntent.status)) {
+    await stripe.paymentIntents.update(payment.paymentIntentId, {
+      metadata: { ...params.metadata, subscriptionId: subscription.id },
+    });
+  }
 
   return {
     subscriptionId: subscription.id,
-    clientSecret: payment.clientSecret,
+    clientSecret: paymentIntent.client_secret || payment.clientSecret,
     paymentIntentId: payment.paymentIntentId,
+    paymentIntentStatus: paymentIntent.status,
+  };
+}
+
+export type MembershipCheckoutPayment = {
+  alreadyPaid: boolean;
+  subscriptionId: string;
+  paymentIntentId: string;
+  clientSecret: string | null;
+};
+
+function isMembershipSubscription(
+  subscription: Stripe.Subscription,
+  userId: string
+): boolean {
+  return (
+    subscription.metadata?.purchaseType === "sanative_membership" &&
+    subscription.metadata?.userId === userId
+  );
+}
+
+async function paymentFromSubscription(
+  stripe: Stripe,
+  subscription: Stripe.Subscription
+): Promise<{ clientSecret: string; paymentIntentId: string; status: string } | null> {
+  if (!subscription.latest_invoice) return null;
+  const payment = await resolveInvoicePaymentDetails(stripe, subscription.latest_invoice);
+  if (!payment) return null;
+  const paymentIntent = await stripe.paymentIntents.retrieve(payment.paymentIntentId);
+  return {
+    clientSecret: paymentIntent.client_secret || payment.clientSecret,
+    paymentIntentId: paymentIntent.id,
+    status: paymentIntent.status,
+  };
+}
+
+/**
+ * Reuse an open membership PaymentIntent, or recognise a just-completed pay,
+ * instead of handing Stripe Elements a secret that is already succeeded.
+ */
+export async function resumeOrCreateMembershipCheckoutPayment(params: {
+  customerId: string;
+  userId: string;
+  stripePriceId: string;
+  metadata: Record<string, string>;
+  description?: string;
+}): Promise<MembershipCheckoutPayment> {
+  const stripe = getStripe();
+  if (!stripe) throw new Error("Stripe is not configured");
+
+  const [active, incomplete] = await Promise.all([
+    stripe.subscriptions.list({ customer: params.customerId, status: "active", limit: 20 }),
+    stripe.subscriptions.list({ customer: params.customerId, status: "incomplete", limit: 20 }),
+  ]);
+
+  const activeMembership = active.data.find((sub) => isMembershipSubscription(sub, params.userId));
+  if (activeMembership) {
+    const payment = await paymentFromSubscription(stripe, activeMembership);
+    return {
+      alreadyPaid: true,
+      subscriptionId: activeMembership.id,
+      paymentIntentId: payment?.paymentIntentId || "",
+      clientSecret: null,
+    };
+  }
+
+  for (const subscription of incomplete.data.filter((sub) =>
+    isMembershipSubscription(sub, params.userId)
+  )) {
+    const payment = await paymentFromSubscription(stripe, subscription);
+    if (!payment) continue;
+    if (stripePaymentIntentIsSucceeded(payment.status)) {
+      return {
+        alreadyPaid: true,
+        subscriptionId: subscription.id,
+        paymentIntentId: payment.paymentIntentId,
+        clientSecret: null,
+      };
+    }
+    if (stripePaymentIntentCanInitializeElements(payment.status) && payment.clientSecret) {
+      return {
+        alreadyPaid: false,
+        subscriptionId: subscription.id,
+        paymentIntentId: payment.paymentIntentId,
+        clientSecret: payment.clientSecret,
+      };
+    }
+  }
+
+  const created = await createIncompleteSubscription({
+    customerId: params.customerId,
+    items: [{ priceId: params.stripePriceId }],
+    metadata: params.metadata,
+    description: params.description,
+  });
+
+  if (stripePaymentIntentIsSucceeded(created.paymentIntentStatus)) {
+    return {
+      alreadyPaid: true,
+      subscriptionId: created.subscriptionId,
+      paymentIntentId: created.paymentIntentId,
+      clientSecret: null,
+    };
+  }
+
+  if (
+    !stripePaymentIntentCanInitializeElements(created.paymentIntentStatus) ||
+    !created.clientSecret
+  ) {
+    throw new Error("Could not initialise a payable membership invoice");
+  }
+
+  return {
+    alreadyPaid: false,
+    subscriptionId: created.subscriptionId,
+    paymentIntentId: created.paymentIntentId,
+    clientSecret: created.clientSecret,
   };
 }
 

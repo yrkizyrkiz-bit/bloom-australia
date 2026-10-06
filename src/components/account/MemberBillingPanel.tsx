@@ -185,9 +185,8 @@ export function MemberBillingPanel({
   const programs = overview?.programs ?? [];
   const weightProgram = programs.find((p) => p.program === "weight_management");
   const isPastDue = programs.some((p) => p.recurring.status === "past_due");
-  const canRequestPrecision =
-    showUpgradeRequest &&
-    weightProgram?.selectedPlan === "CORE";
+  // Legacy Core→Precision upgrade UI is retired; care bills from the Product catalog.
+  const canRequestPrecision = false && showUpgradeRequest && !!weightProgram;
 
   const openPortal = async () => {
     setPortalLoading(true);
@@ -320,25 +319,20 @@ export function MemberBillingPanel({
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-violet-600" />
-              Upgrade to Precision
+              Weight Management Care
             </CardTitle>
             <CardDescription>
-              Closer clinical monitoring, priority support, and enhanced program features.
+              Ongoing doctor-led care after your included first 30 days.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-3 text-sm">
+            <div className="grid sm:grid-cols-1 gap-3 text-sm">
               <div className="rounded-lg border bg-white p-3">
-                <p className="font-medium">Sanative Core</p>
-                <p className="text-muted-foreground mt-1">Your current plan</p>
+                <p className="font-medium">{weightProgram.programLabel || "Weight Management"}</p>
+                <p className="text-muted-foreground mt-1">Your care program</p>
                 <p className="font-semibold mt-2">
-                  {formatAud(weightProgram.recurring.amountAud ?? 349)}/mo
+                  {formatAud(weightProgram.recurring.amountAud ?? 360)} every 3 months
                 </p>
-              </div>
-              <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-3">
-                <p className="font-medium text-violet-900">Sanative Precision</p>
-                <p className="text-violet-700/80 mt-1">Enhanced monitoring</p>
-                <p className="font-semibold mt-2 text-violet-900">from $499/mo</p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">

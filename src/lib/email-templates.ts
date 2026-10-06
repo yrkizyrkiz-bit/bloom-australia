@@ -472,23 +472,25 @@ export function orderConfirmationEmail(data: OrderConfirmationData): EmailTempla
 interface WeightManagementOrderData {
   firstName: string;
   lastName: string;
-  planName: 'Sanative Core' | 'Sanative Precision';
+  /** Display name for the product purchased — typically Sanative Membership. */
+  planName: string;
   consultationDate: string;
   consultationTime: string;
   firstMonthPrice: number;
   discount: number;
   dueToday: number;
+  /** Quarterly care price after the included membership period, when applicable. */
   ongoingPrice: number;
   orderDate: string;
   dashboardUrl: string;
 }
 
 // GAP-017: Friendlier post-payment email wording
-// Avoids: "consultation fee", "membership active", "medication confirmed", "treatment approved"
-// Focuses on: doctor assessment, conditional approval, clear refund policy
+// Avoids: "consultation fee", "medication confirmed", "treatment approved"
+// Focuses on: doctor assessment, conditional program suitability, membership entry
 export function weightManagementOrderConfirmationEmail(data: WeightManagementOrderData): EmailTemplate {
-  const isPrecision = data.planName === 'Sanative Precision';
-  const planColor = isPrecision ? '#c17a58' : '#5c7a52';
+  const planColor = '#5c7a52';
+  const productLabel = data.planName || 'Sanative Membership';
 
   const content = `
     <h2 style="margin: 0 0 16px 0; font-size: 24px; color: #34412f; font-family: Georgia, serif;">
@@ -496,13 +498,13 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
     </h2>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #5c7a52; line-height: 1.6;">
-      Welcome to Sanative. We're excited to support you on your doctor-led weight management journey.
+      Welcome to Sanative. We're excited to support you on your doctor-led health journey.
     </p>
 
     <!-- Payment Confirmation -->
     <div style="background-color: #f0fdf4; border-radius: 12px; padding: 16px; margin-bottom: 24px; border: 1px solid #bbf7d0;">
       <p style="margin: 0; font-size: 14px; color: #166534;">
-        ✓ We've received your first-month payment of <strong>${data.dueToday.toFixed(0)} AUD</strong>
+        ✓ We've received your ${productLabel} payment of <strong>${data.dueToday.toFixed(0)} AUD</strong>
       </p>
     </div>
 
@@ -531,7 +533,7 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
         </li>
         <li style="padding: 8px 0; font-size: 14px; color: #5c7a52; display: flex; align-items: flex-start;">
           <span style="color: ${planColor}; margin-right: 10px; font-size: 16px;">•</span>
-          Confirm whether the program is clinically suitable for you
+          Confirm whether a care program is clinically suitable for you
         </li>
       </ul>
     </div>
@@ -541,18 +543,12 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
       <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #34412f;">What happens after your consultation:</h3>
 
       <div style="margin-bottom: 16px;">
-        <p style="margin: 0 0 4px 0; font-size: 14px; color: #34412f; font-weight: 600;">If approved:</p>
+        <p style="margin: 0 0 4px 0; font-size: 14px; color: #34412f; font-weight: 600;">If a program is clinically suitable:</p>
         <p style="margin: 0; font-size: 13px; color: #5c7a52; line-height: 1.5;">
-          Our care team will help you get started with your portal, onboarding, and your personalised care plan.
+          Your membership includes the first month of an eligible care program. Our care team will help you get started with your portal, onboarding, and personalised care plan. Ongoing program fees (billed every three months) apply only if you choose to continue after the included period.
         </p>
       </div>
 
-      <div>
-        <p style="margin: 0 0 4px 0; font-size: 14px; color: #34412f; font-weight: 600;">If your doctor determines the program is not suitable:</p>
-        <p style="margin: 0; font-size: 13px; color: #5c7a52; line-height: 1.5;">
-          Your first-month payment will be refunded.
-        </p>
-      </div>
     </div>
 
     <!-- Order Details (simplified) -->
@@ -560,12 +556,12 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
       <h4 style="margin: 0 0 12px 0; font-size: 13px; color: #7e9a72; text-transform: uppercase; letter-spacing: 0.5px;">Payment Details</h4>
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
-          <td style="padding: 4px 0; font-size: 14px; color: #5c7a52;">${data.planName}: first month</td>
+          <td style="padding: 4px 0; font-size: 14px; color: #5c7a52;">${productLabel}</td>
           <td style="padding: 4px 0; font-size: 14px; color: #2c3628; text-align: right;">${data.dueToday.toFixed(0)} AUD</td>
         </tr>
       </table>
       <p style="margin: 12px 0 0 0; font-size: 11px; color: #a8bb9e;">
-        If approved, ongoing billing of ${data.ongoingPrice.toFixed(0)}/month begins after your first month.
+        If you continue a care program after the included first month, ongoing care is billed every three months at the rate shown for that program (for example $${data.ongoingPrice.toFixed(0)} every 3 months for Weight Management Care).
       </p>
     </div>
 
@@ -598,18 +594,16 @@ export function weightManagementOrderConfirmationEmail(data: WeightManagementOrd
   // Plain text version with GAP-017 compliant wording
   const textContent = `Hi ${data.firstName},
 
-Welcome to Sanative. We're excited to support you on your doctor-led weight management journey.
+Welcome to Sanative. We're excited to support you on your doctor-led health journey.
 
-We've received your first-month payment of ${data.dueToday.toFixed(0)} AUD and your phone consultation with a Sanative doctor is now booked for ${data.consultationDate} at ${data.consultationTime}.
+We've received your ${productLabel} payment of ${data.dueToday.toFixed(0)} AUD and your phone consultation with a Sanative doctor is now booked for ${data.consultationDate} at ${data.consultationTime}.
 
 During the call, your doctor will:
 • Review your health assessment and medical history
 • Discuss your health goals and any concerns
-• Confirm whether the program is clinically suitable for you
+• Confirm whether a care program is clinically suitable for you
 
-If approved, our care team will help you get started with your portal, onboarding, and your personalised care plan.
-
-If your doctor determines the program is not suitable, your first-month payment will be refunded.
+If a program is clinically suitable, your membership includes the first month of an eligible care program. Ongoing program fees (billed every three months) apply only if you choose to continue after the included period.
 
 We look forward to speaking with you soon.
 

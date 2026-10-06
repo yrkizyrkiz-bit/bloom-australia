@@ -21,10 +21,6 @@ const faqs = [
     a: "Program fees cover clinical assessment, consultations, care coordination, portal access, and monitoring as described in your plan. Some care options may involve separate costs, discussed with your doctor if clinically appropriate.",
   },
   {
-    q: "Can I get a refund?",
-    a: "If your doctor determines the program is not clinically suitable after your initial consultation, your first-month fee is refunded in accordance with our Refund Policy.",
-  },
-  {
     q: "How do I cancel?",
     a: "You can cancel anytime through your patient portal or by emailing support. See our Subscription Terms for billing details.",
   },
@@ -69,8 +65,8 @@ export default function FaqsPage() {
           </div>
 
           <div className="mt-10 flex flex-wrap gap-4 text-sm">
-            <Link href={LEGAL_LINKS.refundPolicy} className="text-[#5c7a52] underline">
-              Refund Policy
+            <Link href={LEGAL_LINKS.terms} className="text-[#5c7a52] underline">
+              Terms &amp; Conditions
             </Link>
             <Link href={LEGAL_LINKS.privacy} className="text-[#5c7a52] underline">
               Privacy Policy

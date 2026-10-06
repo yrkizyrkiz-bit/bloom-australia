@@ -7,7 +7,7 @@ export function HomeLifestyleBanner() {
   return (
     <section
       className="bg-[#fdfbf7] max-md:px-[22px] max-md:py-6"
-      aria-label="Advanced biomarker reporting and AI insights to help you live healthier, longer"
+      aria-label="See what's happening. Change what happens next."
     >
       <div className="relative w-full overflow-hidden max-md:aspect-[9/16] max-md:rounded-[30px]">
         <picture>
@@ -58,7 +58,10 @@ export function HomeLifestyleBanner() {
             textShadow: "0 1px 3px rgba(40, 22, 10, 0.4)",
           }}
         >
-          <span className="text-[#2c3628] [text-shadow:none] text-[0.9em]">Live healthier, longer</span>
+          <span className="block">See what&apos;s happening.</span>
+          <span className="block text-[#2c3628] [text-shadow:none] text-[0.9em]">
+            Change what happens next.
+          </span>
         </p>
 
         <p
@@ -70,10 +73,9 @@ export function HomeLifestyleBanner() {
             textShadow: "0 1px 3px rgba(40, 22, 10, 0.4)",
           }}
         >
-          <span className="block whitespace-nowrap">Advanced biomarker</span>
-          <span className="block whitespace-nowrap">reporting and AI insights</span>
+          <span className="block whitespace-nowrap">See what&apos;s happening.</span>
           <span className="block whitespace-nowrap text-[#2c3628] [text-shadow:none] text-[0.9em]">
-            to help you live healthier, longer.
+            Change what happens next.
           </span>
         </p>
       </div>

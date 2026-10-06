@@ -383,8 +383,17 @@ export function TermsContent() {
           resolved.
         </LegalP>
         <LegalP>
-          Except as stated in our Refund Policy or required by the Australian Consumer Law, fees are
-          generally non-refundable once Services for a billing period have commenced.
+          Join Sanative, access your digital health platform and speak with a participating doctor. If
+          you decide it&apos;s not for you before your initial consultation, we&apos;ll refund your{" "}
+          <strong>$365 membership in full</strong>. Your Sanative annual membership fee is{" "}
+          <strong>fully refundable before your first doctor consultation</strong>. For the
+          before-and-after consultation rules, missed or unavailable consultations, clinical
+          decisions, and quarterly program cancellation and refund rules, please refer to our{" "}
+          <Link href={LEGAL_LINKS.refundPolicy} className="underline text-[#5c7a52]">
+            Refund Policy
+          </Link>
+          . Nothing in these Terms limits any rights or remedies you may have under the Australian
+          Consumer Law.
         </LegalP>
       </LegalSection>
 

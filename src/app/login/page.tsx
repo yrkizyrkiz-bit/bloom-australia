@@ -499,10 +499,6 @@ export default function LoginPage() {
               </span>
               <span className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52]" />
-                TGA Registered
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52]" />
                 Australian Owned
               </span>
             </div>

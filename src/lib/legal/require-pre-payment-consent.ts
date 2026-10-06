@@ -1,4 +1,4 @@
-import { validatePrePaymentConsent } from "@/lib/legal/consent-record";
+import { validatePrePaymentConsent, findLatestValidPrePaymentConsent } from "@/lib/legal/consent-record";
 
 export async function requirePrePaymentConsent(input: {
   consentRecordId?: string | null;
@@ -6,6 +6,14 @@ export async function requirePrePaymentConsent(input: {
   email?: string;
 }) {
   if (!input.consentRecordId) {
+    if (input.userId) {
+      const latest = await findLatestValidPrePaymentConsent({
+        userId: input.userId,
+        email: input.email,
+      });
+      if (latest.ok) return { ok: true as const, recordId: latest.recordId };
+      return { ok: false as const, error: latest.error, status: latest.status };
+    }
     return {
       ok: false as const,
       error: "Payment consent is required before completing checkout",

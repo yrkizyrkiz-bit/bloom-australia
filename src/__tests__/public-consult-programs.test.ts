@@ -69,7 +69,7 @@ describe("public consult program resolution", () => {
       subscriptionTier: "mens_health",
     });
     expect(program.slug).toBe("mens_health");
-    expect(getPublicConsultProgram("mens_health").firstMonthAud).toBe(49);
+    expect(getPublicConsultProgram("mens_health").firstMonthAud).toBe(365);
   });
 });
 

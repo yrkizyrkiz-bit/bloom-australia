@@ -686,7 +686,6 @@ export function ErectileDysfunctionContent({
                     "AHPRA-registered doctors",
                     "Australian privacy protections",
                     "Care team messaging in your portal",
-                    "Refund if not clinically suitable",
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-3 text-[#cdd8c6] text-sm">
                       <CheckCircle className="w-4 h-4 text-[#a8bb9e] flex-shrink-0" />
@@ -851,7 +850,7 @@ export function ErectileDysfunctionContent({
               <ArrowRight className="w-5 h-5" />
             </Link>
             <p className="mt-6 text-sm text-[#7e9a72]">
-              Refund if not suitable · Australian doctors · Confidential care
+              Australian doctors · Confidential care
             </p>
           </div>
         </section>

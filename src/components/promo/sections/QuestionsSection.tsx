@@ -24,7 +24,7 @@ const questions: QuestionCard[] = [
   {
     id: 1,
     question: "Why can't I lose weight despite my efforts?",
-    description: "Hormone imbalances, thyroid function, or metabolic markers may be affecting your progress. Our tests identify the underlying causes.",
+    description: "Hormone imbalances, thyroid function, or metabolic markers may be affecting your progress. Your results can help your doctor identify factors that may be relevant to your weight and overall health.",
     image: "/images/membership/Main_man.webp",
     biomarker: {
       name: "TSH",
@@ -38,7 +38,7 @@ const questions: QuestionCard[] = [
   {
     id: 2,
     question: "Why am I always exhausted?",
-    description: "Iron deficiency, vitamin D levels, or thyroid imbalance could be the culprit. Our panel screens for these so you can take action.",
+    description: "Iron deficiency, vitamin D levels, or thyroid imbalance could be the culprit. Your results can help your doctor assess whether these factors may be relevant.",
     image: "/images/membership/Why_tired.webp",
     biomarker: {
       name: "Ferritin",

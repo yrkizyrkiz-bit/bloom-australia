@@ -13,7 +13,6 @@ export function Footer() {
     ],
     resources: [
       { label: "FAQs", href: "/faqs" },
-      { label: "Pricing", href: "/pricing" },
       { label: "Member Login", href: "/login" },
       { label: "Contact", href: "/contact" },
     ],
@@ -23,7 +22,6 @@ export function Footer() {
       { label: "Terms & Conditions", href: "/terms" },
       { label: "Medical Disclaimer", href: "/medical-disclaimer" },
       { label: "Telehealth Consent", href: "/telehealth-consent" },
-      { label: "Refund Policy", href: "/refund-policy" },
       { label: "Subscription Terms", href: "/subscription-terms" },
     ],
   };

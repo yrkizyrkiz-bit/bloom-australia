@@ -57,7 +57,7 @@ const questionsAndAnswers: QA[] = [
   {
     question: "Can I cancel before I’m charged for a program?",
     answer:
-      "Yes. You may cancel an eligible care program before your first paid renewal so that ongoing program fees do not begin after the included 30 days. Cancel in your patient portal or by contacting support from your registered email. Your separate Sanative Membership billing is governed by our Subscription Terms and Refund Policy.",
+      "Yes. You may cancel an eligible care program before your first paid renewal so that ongoing program fees do not begin after the included 30 days. Cancel in your patient portal or by contacting support from your registered email. Your separate Sanative Membership billing is governed by our Subscription Terms and Terms & Conditions.",
   },
   {
     question: "What if a program isn’t clinically right for me?",

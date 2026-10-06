@@ -444,7 +444,7 @@ export async function sendWeightManagementConfirmationEmail(
   data: {
     firstName: string;
     lastName: string;
-    planName: 'Sanative Core' | 'Sanative Precision';
+    planName?: string;
     consultationDate: string;
     consultationTime: string;
     firstMonthPrice: number;
@@ -457,7 +457,7 @@ export async function sendWeightManagementConfirmationEmail(
   const template = weightManagementOrderConfirmationEmail({
     firstName: data.firstName,
     lastName: data.lastName,
-    planName: data.planName,
+    planName: data.planName || "Sanative Membership",
     consultationDate: data.consultationDate,
     consultationTime: data.consultationTime,
     firstMonthPrice: data.firstMonthPrice,

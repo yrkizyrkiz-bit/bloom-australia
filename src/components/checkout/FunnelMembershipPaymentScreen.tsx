@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { Component, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -13,6 +13,12 @@ import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentC
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
 import { STRIPE_CHECKOUT_WALLETS } from "@/lib/checkout/stripe-payment-methods";
+import {
+  consentStorageKey,
+  isStripeTerminalElementsError,
+  stripePaymentIntentCanInitializeElements,
+  stripePaymentIntentIsSucceeded,
+} from "@/lib/checkout/stripe-payment-intent-state";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -82,6 +88,14 @@ class StripeFormErrorBoundary extends Component<
   }
 }
 
+function readStoredConsentId(userId?: string, email?: string): string | undefined {
+  try {
+    return sessionStorage.getItem(consentStorageKey(userId || email || "anon")) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function ImageMarquee() {
   const loop = [...MEMBERSHIP_MARQUEE, ...MEMBERSHIP_MARQUEE];
   return (
@@ -107,6 +121,7 @@ function CardPaymentForm({
   customerEmail,
   customerName,
   userId,
+  clientSecret,
   returnPath,
   onSuccess,
 }: {
@@ -114,6 +129,7 @@ function CardPaymentForm({
   customerEmail?: string;
   customerName?: string;
   userId?: string;
+  clientSecret: string;
   returnPath: string;
   onSuccess: (result: CheckoutPaymentSuccess) => void;
 }) {
@@ -122,6 +138,7 @@ function CardPaymentForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [completed, setCompleted] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -143,6 +160,12 @@ function CardPaymentForm({
       return;
     }
 
+    try {
+      sessionStorage.setItem(consentStorageKey(userId || customerEmail || "anon"), consentResult.consentRecordId);
+    } catch {
+      /* ignore */
+    }
+
     const { error: submitError, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
@@ -162,6 +185,7 @@ function CardPaymentForm({
     }
 
     if (paymentIntent?.status === "succeeded") {
+      setCompleted(true);
       onSuccess({
         paymentIntentId: paymentIntent.id,
         consentRecordId: consentResult.consentRecordId,
@@ -188,12 +212,29 @@ function CardPaymentForm({
       </div>
 
       <div className="w-full min-w-0 overflow-x-hidden [&_iframe]:max-w-full">
-        <PaymentElement
-          options={PAYMENT_ELEMENT_OPTIONS}
-          onLoadError={(event) => {
-            setError(event.error?.message || "Payment form failed to load");
-          }}
-        />
+        {!completed ? (
+          <PaymentElement
+            options={PAYMENT_ELEMENT_OPTIONS}
+            onLoadError={(event) => {
+              const message = event.error?.message || "Payment form failed to load";
+              if (!isStripeTerminalElementsError(message) || !stripe) {
+                setError(message);
+                return;
+              }
+              void stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
+                if (stripePaymentIntentIsSucceeded(paymentIntent?.status) && paymentIntent) {
+                  setCompleted(true);
+                  onSuccess({
+                    paymentIntentId: paymentIntent.id,
+                    consentRecordId: readStoredConsentId(userId, customerEmail),
+                  });
+                  return;
+                }
+                setError(message);
+              });
+            }}
+          />
+        ) : null}
       </div>
 
       <PrePaymentConsentCheckbox
@@ -289,6 +330,7 @@ export function FunnelMembershipPaymentScreen({
   const [loading, setLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
   const [activating, setActivating] = useState(false);
+  const completingRef = useRef(false);
 
   const elementsOptions = useMemo(
     () =>
@@ -307,64 +349,26 @@ export function FunnelMembershipPaymentScreen({
     [clientSecret]
   );
 
-  useEffect(() => {
-    if (alreadyPaid) return;
-
-    let cancelled = false;
-    const run = async () => {
-      setLoading(true);
-      setInitError(null);
-      try {
-        const res = await fetch("/api/public/membership-checkout/funnel-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId,
-            email,
-            phone,
-            firstName,
-            lastName,
-            postcode,
-            intentProgram,
-            source,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to initialise payment");
-        if (cancelled) return;
-        setClientSecret(data.clientSecret);
-        setSubscriptionId(data.subscriptionId ?? null);
-        if (typeof data.amountAud === "number") setAmountAud(data.amountAud);
-        if (typeof data.priceLabel === "string") setPriceLabel(data.priceLabel);
-      } catch (err) {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : "Failed to initialise payment";
-        setInitError(message);
-        onError(message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-    // onError is unstable from the parent; only re-init when the account identity changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alreadyPaid, userId, email]);
-
-  const handlePaid = async (result: CheckoutPaymentSuccess) => {
+  const handlePaid = async (
+    result: CheckoutPaymentSuccess & { stripeSubscriptionId?: string | null }
+  ) => {
+    if (completingRef.current) return;
+    completingRef.current = true;
     setActivating(true);
+    setClientSecret(null);
     try {
+      if (!result.paymentIntentId) {
+        onSuccess(result);
+        return;
+      }
       const res = await fetch("/api/public/membership-checkout/funnel-complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
           paymentIntentId: result.paymentIntentId,
-          subscriptionId,
-          consentRecordId: result.consentRecordId,
+          subscriptionId: result.stripeSubscriptionId ?? subscriptionId,
+          consentRecordId: result.consentRecordId || readStoredConsentId(userId, email),
           firstName,
           lastName,
           email,
@@ -383,12 +387,114 @@ export function FunnelMembershipPaymentScreen({
       if (!res.ok) throw new Error(data.error || "Payment succeeded but membership could not be activated");
       onSuccess(result);
     } catch (err) {
+      completingRef.current = false;
       const message = err instanceof Error ? err.message : "Could not activate membership";
       onError(message);
     } finally {
       setActivating(false);
     }
   };
+
+  useEffect(() => {
+    if (alreadyPaid) return;
+
+    let cancelled = false;
+    const run = async () => {
+      setLoading(true);
+      setInitError(null);
+      try {
+        const stripe = await stripePromise;
+        const params = new URLSearchParams(window.location.search);
+        const redirectSecret = params.get("payment_intent_client_secret");
+        const redirectIntentId = params.get("payment_intent");
+        if (stripe && redirectSecret) {
+          const { paymentIntent } = await stripe.retrievePaymentIntent(redirectSecret);
+          if (cancelled) return;
+          if (stripePaymentIntentIsSucceeded(paymentIntent?.status) && paymentIntent) {
+            window.history.replaceState({}, "", window.location.pathname);
+            await handlePaid({
+              paymentIntentId: paymentIntent.id,
+              consentRecordId: readStoredConsentId(userId, email),
+            });
+            return;
+          }
+        } else if (params.get("redirect_status") === "succeeded" && redirectIntentId) {
+          window.history.replaceState({}, "", window.location.pathname);
+          await handlePaid({
+            paymentIntentId: redirectIntentId,
+            consentRecordId: readStoredConsentId(userId, email),
+          });
+          return;
+        }
+
+        const res = await fetch("/api/public/membership-checkout/funnel-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            email,
+            phone,
+            firstName,
+            lastName,
+            postcode,
+            intentProgram,
+            source,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to initialise payment");
+        if (cancelled) return;
+        setSubscriptionId(data.subscriptionId ?? null);
+        if (typeof data.amountAud === "number") setAmountAud(data.amountAud);
+        if (typeof data.priceLabel === "string") setPriceLabel(data.priceLabel);
+
+        if (data.alreadyPaid) {
+          await handlePaid({
+            paymentIntentId: data.paymentIntentId,
+            stripeSubscriptionId: data.subscriptionId,
+            consentRecordId: readStoredConsentId(userId, email),
+          });
+          return;
+        }
+
+        if (!data.clientSecret) {
+          throw new Error("Failed to initialise payment");
+        }
+
+        if (stripe) {
+          const { paymentIntent } = await stripe.retrievePaymentIntent(data.clientSecret);
+          if (cancelled) return;
+          if (stripePaymentIntentIsSucceeded(paymentIntent?.status) && paymentIntent) {
+            await handlePaid({
+              paymentIntentId: paymentIntent.id,
+              stripeSubscriptionId: data.subscriptionId,
+              consentRecordId: readStoredConsentId(userId, email),
+            });
+            return;
+          }
+          if (!stripePaymentIntentCanInitializeElements(paymentIntent?.status)) {
+            throw new Error("Could not initialise payment. Please refresh and try again.");
+          }
+        }
+
+        setClientSecret(data.clientSecret);
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Failed to initialise payment";
+        setInitError(message);
+        onError(message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+    // onError is unstable from the parent; only re-init when the account identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alreadyPaid, userId, email]);
 
   const summary = (
     <div className="min-w-0 bg-white rounded-2xl border border-black/10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-4 sm:p-6 lg:p-7">
@@ -404,6 +510,9 @@ export function FunnelMembershipPaymentScreen({
           <span className="text-base text-black/60">a day</span>
         </div>
         <p className="mt-1 text-sm text-black/50">{priceLabel.includes("/yr") ? priceLabel.replace("/yr", "/year") : `${priceLabel}/year`}</p>
+        <p className="mt-1.5 text-sm font-medium text-[#1c1c1c]">
+          Join with confidence · 100% refundable*
+        </p>
         <div className="mt-5 flex items-center justify-between text-base font-semibold text-[#1c1c1c]">
           <span>Total</span>
           <span>${amountAud}</span>
@@ -471,6 +580,26 @@ export function FunnelMembershipPaymentScreen({
         ) : clientSecret && elementsOptions ? (
           <StripeFormErrorBoundary
             onError={(message) => {
+              if (isStripeTerminalElementsError(message) && clientSecret) {
+                void stripePromise.then(async (stripe) => {
+                  if (!stripe) {
+                    setInitError(message);
+                    onError(message);
+                    return;
+                  }
+                  const { paymentIntent } = await stripe.retrievePaymentIntent(clientSecret);
+                  if (stripePaymentIntentIsSucceeded(paymentIntent?.status) && paymentIntent) {
+                    await handlePaid({
+                      paymentIntentId: paymentIntent.id,
+                      consentRecordId: readStoredConsentId(userId, email),
+                    });
+                    return;
+                  }
+                  setInitError(message);
+                  onError(message);
+                });
+                return;
+              }
               setInitError(message);
               onError(message);
             }}
@@ -485,6 +614,7 @@ export function FunnelMembershipPaymentScreen({
                 customerEmail={email}
                 customerName={`${firstName} ${lastName}`.trim()}
                 userId={userId}
+                clientSecret={clientSecret}
                 returnPath={returnPath}
                 onSuccess={handlePaid}
               />
