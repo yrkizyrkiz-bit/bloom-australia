@@ -490,7 +490,7 @@ export default function LoginPage() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-xl font-serif text-[#34412f] promo-heading">sanative</span>
-              <span className="text-sm text-[#7e9a72] promo-body">Health Pty Ltd</span>
+              <span className="text-sm text-[#7e9a72] promo-body">Health</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-[#7e9a72] promo-body">
               <span className="flex items-center gap-2">

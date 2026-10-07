@@ -183,7 +183,7 @@ export function Footer() {
         <div className="mt-12 pt-8 border-t border-[#4a6243]">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-[#a8bb9e] text-sm text-center md:text-left">
-              2026 Sanative Health Pty Ltd. All rights reserved. ABN 12 345 678 901
+              2026 Sanative Health. All rights reserved. ABN 12 345 678 901
             </p>
             <div className="flex items-center gap-4 text-sm text-[#a8bb9e]">
               <span>AHPRA Registered</span>

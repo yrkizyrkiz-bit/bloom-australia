@@ -23,7 +23,7 @@ import { prisma } from "./prisma";
 // CONFIGURATION
 // ============================================
 
-const SMS_PROVIDER = process.env.SMS_PROVIDER || "mock";
+const SMS_PROVIDER = process.env.SMS_PROVIDER || "twilio";
 
 // Twilio
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
@@ -318,8 +318,16 @@ export async function sendSMS(
   }
 
   switch (provider) {
-    case "twilio":
+    case "twilio": {
+      if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+        if (process.env.NODE_ENV === "production") {
+          return { success: false, provider: "twilio", error: "Twilio credentials not configured" };
+        }
+        console.warn("[SMS] Twilio not configured; using mock in non-production");
+        return sendViaMock(to, message);
+      }
       return sendViaTwilio(to, message);
+    }
 
     case "messagemedia":
       return sendViaMessageMedia(to, message, options?.senderId);

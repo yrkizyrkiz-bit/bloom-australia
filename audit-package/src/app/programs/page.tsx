@@ -238,7 +238,7 @@ export default function ProgramsPage() {
             </div>
           </div>
           <p className="text-xs text-[#7e9a72] mt-8 text-center">
-            Sanative Pty Ltd. All consultations are with AHPRA-registered practitioners.
+            Sanative Health. All consultations are with AHPRA-registered practitioners.
           </p>
         </div>
       </footer>

@@ -443,9 +443,6 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
         // Send magic link email for portal access
         await sendMagicLinkEmail(userForInvoice);
 
-        // Send SMS confirmation
-        await sendPaymentConfirmationSMS(userForInvoice.id);
-
         console.log(`User ${userForInvoice.id} invoice created, confirmation email sent, magic link sent`);
       }
     } catch (invoiceError) {
@@ -911,19 +908,6 @@ Patient has been notified via email.`,
       console.error("Failed to send payment failure email:", emailError);
     });
 
-    // ─── Send SMS reminder for high-priority failures ─────────────────────────
-    if (attemptNumber >= 2 && user.phone) {
-      await prisma.sMSNotification.create({
-        data: {
-          recipientId: user.id,
-          recipientPhone: user.phone,
-          message: `Hi ${user.firstName}, your Sanative payment couldn't be processed. Please update your payment method at sanative.com.au to avoid service interruption. Reply STOP to opt out.`,
-          status: "PENDING",
-          provider: process.env.SMS_PROVIDER || "mock",
-        },
-      }).catch(console.error);
-    }
-
     console.log(`Payment failure handled for user ${user.id}, attempt ${attemptNumber}`);
   }
 
@@ -981,39 +965,6 @@ async function sendMagicLinkEmail(user: { id: string; email: string; firstName: 
     console.log(`Magic link email sent to ${user.email}`);
   } catch (error) {
     console.error("Failed to send magic link email:", error);
-  }
-}
-
-/**
- * Send SMS confirmation for payment
- */
-async function sendPaymentConfirmationSMS(userId: string) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, firstName: true, phone: true },
-    });
-
-    if (!user?.phone) {
-      console.log("No phone number for SMS confirmation");
-      return;
-    }
-
-    // Create SMS notification record
-    await prisma.sMSNotification.create({
-      data: {
-        recipientId: userId,
-        recipientPhone: user.phone,
-        message: `Hi ${user.firstName}, your Sanative payment is confirmed! Check your email for portal access. Reply STOP to opt out.`,
-        status: "PENDING",
-        provider: process.env.SMS_PROVIDER || "mock",
-      },
-    });
-
-    // Note: Actual SMS sending happens via the SMS API based on provider config
-    console.log(`SMS confirmation queued for ${user.phone}`);
-  } catch (error) {
-    console.error("Failed to queue SMS confirmation:", error);
   }
 }
 

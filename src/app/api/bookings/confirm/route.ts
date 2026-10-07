@@ -421,47 +421,6 @@ async function sendConfirmationEmail(
   }
 }
 
-// UAT8-GAP-013: Send confirmation SMS - properly wired up
-async function sendConfirmationSMS(
-  phone: string,
-  userId: string | null,
-  data: {
-    firstName: string;
-    scheduledAt: Date;
-    doctorName: string;
-    patientTimezone?: string;
-  }
-): Promise<void> {
-  const tz = data.patientTimezone ?? CLINIC_TIMEZONE;
-  const { formatted } = formatPatientAppointmentTime(data.scheduledAt, tz);
-
-  const message = `Hi ${data.firstName}, your Sanative consultation is confirmed for ${formatted} with ${data.doctorName}. We'll call you at this number. Reply STOP to opt out.`;
-
-  try {
-    // Queue SMS via SMSNotification model (processed by SMS API)
-    // Note: recipientId is required, so we use a placeholder if userId is null
-    const smsData: {
-      recipientId: string;
-      recipientPhone: string;
-      message: string;
-      status: "PENDING" | "SENT" | "FAILED" | "DELIVERED";
-      provider: string;
-    } = {
-      recipientId: userId || "anonymous-booking",
-      recipientPhone: phone,
-      message,
-      status: "PENDING",
-      provider: process.env.SMS_PROVIDER || "mock",
-    };
-
-    await prisma.sMSNotification.create({ data: smsData });
-    console.log(`[SMS] Booking confirmation queued for ${phone}`);
-  } catch (error) {
-    console.error(`[SMS] Failed to queue booking confirmation for ${phone}:`, error);
-    // Don't throw - SMS failure shouldn't fail the booking
-  }
-}
-
 // GAP-032: Create urgent admin exception task when booking fails
 async function createAdminException(
   userId: string | null,
@@ -1309,17 +1268,6 @@ export async function POST(req: NextRequest) {
         scheduledAt: booking.scheduledAt,
         doctorName: booking.doctorName || "your doctor",
         selectedPlan: updatedBooking.selectedPlan || "your selected plan",
-        patientTimezone,
-      });
-    }
-
-    // Send confirmation SMS
-    const phone = booking.patientPhone || user?.phone;
-    if (phone) {
-      await sendConfirmationSMS(phone, bookingUserId || null, {
-        firstName: user?.firstName || "there",
-        scheduledAt: booking.scheduledAt,
-        doctorName: booking.doctorName || "your doctor",
         patientTimezone,
       });
     }

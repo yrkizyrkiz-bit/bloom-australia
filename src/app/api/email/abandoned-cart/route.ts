@@ -107,7 +107,7 @@ function getAbandonedCartEmail(data: {
                 You received this email because you started a Sanative Health assessment.<br>
                 <a href="${unsubscribeUrl}" style="color: #7e9a72;">Unsubscribe from marketing emails</a> •
                 <a href="https://sanative.com.au/privacy" style="color: #7e9a72;">Privacy Policy</a><br>
-                Sanative Health Pty Ltd • Australia
+                Sanative Health • Australia
               </p>
             </td>
           </tr>

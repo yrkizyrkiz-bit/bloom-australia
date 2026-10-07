@@ -117,7 +117,7 @@ async function sendEmail(email: string, code: string): Promise<boolean> {
               <!-- Footer -->
               <div style="text-align: center; margin-top: 32px;">
                 <p style="color: #999; font-size: 12px; margin: 0;">
-                  Sanative Health Pty Ltd<br>
+                  Sanative Health<br>
                   Sydney, Australia
                 </p>
               </div>

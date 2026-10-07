@@ -128,7 +128,7 @@ export function Footer() {
 
             <div className="mt-12 border-t border-[#4a6243] pt-8">
               <p className="text-sm text-[#a8bb9e]">
-                2026 Sanative Health Pty Ltd. All rights reserved. ABN 12 345 678 901
+                2026 Sanative Health. All rights reserved.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#a8bb9e]">
                 <span>AHPRA Registered</span>

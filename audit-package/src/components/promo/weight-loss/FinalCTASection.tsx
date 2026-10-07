@@ -164,7 +164,7 @@ export function FinalCTASection() {
 
             {/* General medical disclaimer */}
             <p className="pt-2 border-t border-[#3d4f38]">
-              <span className="text-[#a8bb9e] font-medium">Medical Disclaimer:</span> This website provides general health information only and does not constitute medical advice. All care plans are developed by AHPRA-registered medical practitioners following clinical assessment. Care is only provided when clinically appropriate. Results vary between individuals and are not guaranteed. Always read the label and follow directions for use. If symptoms persist, consult your healthcare professional. Sanative Health Pty Ltd complies with the Therapeutic Goods Advertising Code and operates under Australian telehealth regulations.
+              <span className="text-[#a8bb9e] font-medium">Medical Disclaimer:</span> This website provides general health information only and does not constitute medical advice. All care plans are developed by AHPRA-registered medical practitioners following clinical assessment. Care is only provided when clinically appropriate. Results vary between individuals and are not guaranteed. Always read the label and follow directions for use. If symptoms persist, consult your healthcare professional. Sanative Health complies with the Therapeutic Goods Advertising Code and operates under Australian telehealth regulations.
             </p>
           </div>
         </div>

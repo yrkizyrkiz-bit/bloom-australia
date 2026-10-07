@@ -141,19 +141,6 @@ export async function GET(request: NextRequest) {
           },
         });
 
-        // Queue SMS notification
-        if (user.phone) {
-          await prisma.sMSNotification.create({
-            data: {
-              recipientId: user.id,
-              recipientPhone: user.phone,
-              message: `Hi ${user.firstName}, we've missed you at Sanative! Your care partner will reach out soon. In the meantime, log a quick check-in: sanative.com.au/check-in`,
-              status: "PENDING",
-              provider: process.env.SMS_PROVIDER || "mock",
-            },
-          });
-        }
-
         // Log automation
         await prisma.automationLog.create({
           data: {

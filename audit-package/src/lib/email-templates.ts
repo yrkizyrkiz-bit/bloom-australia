@@ -99,7 +99,7 @@ function wrapEmail(content: string): string {
                 AHPRA Registered &bull; NATA-accredited labs &bull; Australian Privacy Act compliant
               </p>
               <p style="margin: 0; font-size: 12px; color: #5c7a52;">
-                &copy; ${new Date().getFullYear()} Sanative Health Pty Ltd. All rights reserved.
+                &copy; ${new Date().getFullYear()} Sanative Health. All rights reserved.
               </p>
             </td>
           </tr>

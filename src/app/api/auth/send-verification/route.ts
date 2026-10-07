@@ -8,54 +8,30 @@ import {
   enforceIpRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
+import { getSMSProviderInfo, sendSMS as sendSmsViaProvider } from "@/lib/sms";
 
 // Generate 6-digit code
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// SMS provider config
-const SMS_PROVIDER = process.env.SMS_PROVIDER || 'mock';
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
-
 // Email provider (Resend)
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 async function sendSMS(phone: string, message: string): Promise<boolean> {
-  if (SMS_PROVIDER === 'mock' || !TWILIO_ACCOUNT_SID) {
+  const providerInfo = getSMSProviderInfo();
+  if (!providerInfo.configured && providerInfo.provider !== "mock") {
     if (isProductionRuntime()) {
-      // No SMS provider configured: never claim the code was delivered, and
-      // never write a live code into production logs.
-      console.error('[SMS] No SMS provider configured; refusing to report success');
+      console.error("[SMS] No SMS provider configured; refusing to report success");
       return false;
     }
-    console.log(`[SMS Mock] To: ${phone}, Message: ${message}`);
-    return true;
   }
 
-  try {
-    const response = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          To: phone,
-          From: TWILIO_PHONE_NUMBER || '',
-          Body: message,
-        }),
-      }
-    );
-    return response.ok;
-  } catch (error) {
-    console.error('[SMS] Error:', error);
-    return false;
+  const result = await sendSmsViaProvider(phone, message);
+  if (!result.success) {
+    console.error("[SMS] Verification send failed:", result.error);
   }
+  return result.success;
 }
 
 // Email sender domain - use Resend's test domain if no custom domain
@@ -136,7 +112,7 @@ async function sendEmail(email: string, code: string): Promise<boolean> {
               <!-- Footer -->
               <div style="text-align: center; margin-top: 32px;">
                 <p style="color: #999; font-size: 12px; margin: 0;">
-                  Sanative Health Pty Ltd<br>
+                  Sanative Health<br>
                   Sydney, Australia
                 </p>
               </div>
