@@ -30,6 +30,7 @@ import {
   backboneProgressPhase,
   funnelProgressAccentForProgram,
 } from "@/components/funnel/FunnelStepProgress";
+import { formatMaskedQuizDob, validateQuizDob } from "@/lib/funnel/quiz-dob";
 
 export type FunnelProfileFields = {
   firstName: string;
@@ -50,22 +51,7 @@ type BackbonePhase = "qualify" | "profile" | "pay" | "book" | "welcome";
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function formatDobInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
-function getAgeFromDob(dob: string): number {
-  if (dob.length !== 10) return 0;
-  const [day, month, year] = dob.split("/").map(Number);
-  if (!day || !month || !year) return 0;
-  const birthDate = new Date(year, month - 1, day);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
-  return age;
+  return formatMaskedQuizDob(raw);
 }
 
 function magicTokenFromLink(link: string): string | null {
@@ -369,11 +355,16 @@ function CompleteProfileStep({
     const errs: Record<string, string> = {};
     if (!local.firstName.trim()) errs.firstName = "First name is required";
     if (!local.dateOfBirth.trim()) errs.dateOfBirth = "Date of birth is required";
-    else if (local.dateOfBirth.length !== 10 || getAgeFromDob(local.dateOfBirth) < 18) {
-      errs.dateOfBirth =
-        getAgeFromDob(local.dateOfBirth) > 0 && getAgeFromDob(local.dateOfBirth) < 18
-          ? "You must be 18 or older"
-          : "Enter a valid date of birth (DD/MM/YYYY)";
+    else {
+      const dob = validateQuizDob(local.dateOfBirth);
+      if (!dob.isValid) {
+        errs.dateOfBirth =
+          dob.errors.form ||
+          dob.errors.day ||
+          dob.errors.month ||
+          dob.errors.year ||
+          "Enter a valid date of birth (DD/MM/YYYY)";
+      }
     }
     if (!local.email.trim()) errs.email = "Email is required";
     else if (!EMAIL_FORMAT.test(local.email.trim())) errs.email = "Enter a valid email address";

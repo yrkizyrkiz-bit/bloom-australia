@@ -292,29 +292,18 @@ export default function InPortalProgramPage() {
           <CheckCircle2 className="h-8 w-8 text-emerald-700" />
         </div>
         <h1 className="mb-3 font-serif text-2xl text-[#2c3628]">
-          {sexualHealth
-            ? firstName
-              ? `Welcome, ${firstName}`
-              : `Welcome to ${label}`
-            : `${label}, you're in`}
+          {firstName ? `Thanks, ${firstName}` : "You're all set"}
         </h1>
+        <p className="mx-auto max-w-md text-[#5c7a52] leading-relaxed">
+          Thanks for completing your {label} enrolment. Your care partner will be in touch to
+          review your intake and book a doctor consultation for you.
+        </p>
         {sexualHealth ? (
-          <>
-            <p className="mx-auto max-w-md text-[#5c7a52] leading-relaxed">
-              A Sanative care partner will review your intake questions and contact you to arrange
-              a doctor consultation to discuss your treatment options.
-            </p>
-            <p className="mx-auto mt-4 max-w-md text-sm text-[#5c7a52]/90 leading-relaxed">
-              If treatment is recommended, your doctor will only prescribe after confirming
-              it&apos;s safe and right for you.
-            </p>
-          </>
-        ) : (
-          <p className="mx-auto max-w-md text-[#5c7a52] leading-relaxed">
-            A Sanative care partner will review your intake questions and contact you to arrange a
-            doctor consultation to discuss your treatment options.
+          <p className="mx-auto mt-4 max-w-md text-sm text-[#5c7a52]/90 leading-relaxed">
+            If treatment is recommended, your doctor will only prescribe after confirming
+            it&apos;s safe and right for you.
           </p>
-        )}
+        ) : null}
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Button asChild className="bg-emerald-700 hover:bg-emerald-800">
             <Link href={withPostCheckoutOnboarding(card?.dashboardRoute || "/dashboard")}>

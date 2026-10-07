@@ -115,19 +115,20 @@ export function resolvePublicConsultProgramFromBookingNotes(
   if (notes.includes("hair loss") || notes.includes("hair_loss")) {
     return PROGRAMS.hair_loss;
   }
-  if (
-    notes.includes("men's health") ||
-    notes.includes("mens health") ||
-    notes.includes("mens_health")
-  ) {
-    return PROGRAMS.mens_health;
-  }
+  // Women before men — "women's health".includes("men's health") is true.
   if (
     notes.includes("women's health") ||
     notes.includes("womens health") ||
     notes.includes("womens_health")
   ) {
     return PROGRAMS.womens_health;
+  }
+  if (
+    notes.includes("men's health") ||
+    notes.includes("mens health") ||
+    notes.includes("mens_health")
+  ) {
+    return PROGRAMS.mens_health;
   }
   if (notes.includes("weight management")) {
     return PROGRAMS.weight_management;

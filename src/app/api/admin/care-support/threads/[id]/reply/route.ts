@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCareSupportStaff } from "@/lib/care-support/auth";
+import { memberCareSupportInboxUrl } from "@/lib/care-support/member-inbox-url";
 import { notifyMember } from "@/lib/notifications/member-notify";
 
 type Params = { params: Promise<{ id: string }> };
@@ -21,7 +22,12 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const thread = await prisma.careSupportThread.findUnique({
       where: { id },
-      select: { id: true, userId: true, subject: true },
+      select: {
+        id: true,
+        userId: true,
+        subject: true,
+        user: { select: { gender: true, subscriptionTier: true } },
+      },
     });
     if (!thread) {
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
@@ -50,7 +56,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       intent: "CARE_MESSAGE",
       title: "Reply from your care team",
       message: `Re: ${thread.subject}`,
-      actionUrl: "/dashboard/mens-health/support",
+      actionUrl: memberCareSupportInboxUrl(thread.user),
       category: "SYSTEM",
       dedupeDays: 0,
     }).catch((err) => console.error("[care-support] notify member", err));

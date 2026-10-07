@@ -103,7 +103,35 @@ export function ProgramJourneyShell({
           )}
           <p className={`text-sm ${theme.mutedText}`}>{config.programLabel}</p>
           <p className={`mt-1 text-sm ${theme.mutedText}`}>{journey.stageDescription}</p>
-          <AwaitingConsultationHeroNote programKeys={programKey} />
+          {countdown && journey.consultation ? (
+            <div className="mt-3 max-w-2xl space-y-1">
+              <p className="text-sm text-white/90 leading-relaxed">
+                Your consultation is{" "}
+                <strong className="text-white">
+                  {new Date(journey.consultation.date).toLocaleDateString("en-AU", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </strong>{" "}
+                at <strong className="text-white">{journey.consultation.time}</strong>
+                {journey.consultation.doctorName
+                  ? ` with ${journey.consultation.doctorName}`
+                  : ""}
+                .
+              </p>
+              <p className={`text-xs font-medium uppercase tracking-wide ${theme.accentText}`}>
+                Consultation in
+              </p>
+              <p className="text-2xl font-semibold text-white">{countdown}</p>
+              <p className="text-sm text-white/85">
+                Keep your phone nearby — {journey.consultation.doctorName || "your doctor"} will
+                call you.
+              </p>
+            </div>
+          ) : (
+            <AwaitingConsultationHeroNote programKeys={programKey} />
+          )}
         </div>
       </div>
 

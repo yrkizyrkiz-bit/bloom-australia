@@ -17,6 +17,14 @@ describe("public consult program resolution", () => {
     expect(program.slug).toBe("mens_health");
   });
 
+  it("does not misclassify Women's Health booking notes as Men's Health", () => {
+    expect(
+      resolvePublicConsultProgramFromBookingNotes(
+        "Women's Health Program - Booked via care partner"
+      )?.slug
+    ).toBe("womens_health");
+  });
+
   it("matches curly apostrophe in booking notes", () => {
     const program = resolvePublicConsultProgramFromBookingNotes(
       "Men\u2019s Health Program - triage"

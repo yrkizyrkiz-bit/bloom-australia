@@ -37,6 +37,8 @@ import {
 import { toast } from "sonner";
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
+import { QuizDobTripleInput } from "@/components/funnel/QuizDobTripleInput";
+import { validateQuizDob } from "@/lib/funnel/quiz-dob";
 
 // Types
 interface FormData {
@@ -240,23 +242,7 @@ export default function HairAssessmentPage() {
     });
   };
 
-  // Calculate age from DOB
-  const getAge = (dob: string): number => {
-    if (dob.length < 10) return 0;
-    const [day, month, year] = dob.split("/").map(Number);
-    if (!day || !month || !year || year < 1900) return 0;
-    const birthDate = new Date(year, month - 1, day);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  const age = getAge(formData.dateOfBirth);
-  const isValidAge = age >= 18;
+  const isValidAge = validateQuizDob(formData.dateOfBirth).isValid;
 
   const canProceed = () => {
     switch (step) {
@@ -264,7 +250,7 @@ export default function HairAssessmentPage() {
       case 1: return formData.firstName.trim() && formData.lastName.trim();
       case 2: return formData.email.includes("@") && formData.email.includes(".");
       case 3: return true;
-      case 4: return formData.dateOfBirth.length === 10 && isValidAge;
+      case 4: return isValidAge;
       case 5: return formData.gender !== "";
       case 6: return formData.hairStage !== "";
       case 7: return formData.hairLossTimeline !== "";
@@ -521,93 +507,12 @@ export default function HairAssessmentPage() {
               </p>
             </div>
 
-            <div className="mt-8">
-              <div className="flex gap-3 justify-center">
-                <div className="w-20">
-                  <label className="block text-xs text-[#7e9a72] mb-1 text-center">Day</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formData.dateOfBirth.split("/")[0] || ""}
-                    onChange={(e) => {
-                      const day = e.target.value.replace(/\D/g, "").slice(0, 2);
-                      const parts = formData.dateOfBirth.split("/");
-                      const month = parts[1] || "";
-                      const year = parts[2] || "";
-                      updateFormData("dateOfBirth", `${day}/${month}/${year}`);
-                      if (day.length === 2) {
-                        (document.getElementById("dob-month") as HTMLInputElement)?.focus();
-                      }
-                    }}
-                    className={`w-full px-3 py-4 rounded-xl border focus:ring-2 outline-none transition-all text-center text-lg bg-white ${
-                      formData.dateOfBirth.length === 10 && !isValidAge
-                        ? "border-red-400 focus:border-red-500 focus:ring-red-500/20"
-                        : "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-[#5c7a52]/20"
-                    }`}
-                    placeholder="DD"
-                    maxLength={2}
-                  />
-                </div>
-                <div className="w-20">
-                  <label className="block text-xs text-[#7e9a72] mb-1 text-center">Month</label>
-                  <input
-                    id="dob-month"
-                    type="text"
-                    inputMode="numeric"
-                    value={formData.dateOfBirth.split("/")[1] || ""}
-                    onChange={(e) => {
-                      const month = e.target.value.replace(/\D/g, "").slice(0, 2);
-                      const parts = formData.dateOfBirth.split("/");
-                      const day = parts[0] || "";
-                      const year = parts[2] || "";
-                      updateFormData("dateOfBirth", `${day}/${month}/${year}`);
-                      if (month.length === 2) {
-                        (document.getElementById("dob-year") as HTMLInputElement)?.focus();
-                      }
-                    }}
-                    className={`w-full px-3 py-4 rounded-xl border focus:ring-2 outline-none transition-all text-center text-lg bg-white ${
-                      formData.dateOfBirth.length === 10 && !isValidAge
-                        ? "border-red-400 focus:border-red-500 focus:ring-red-500/20"
-                        : "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-[#5c7a52]/20"
-                    }`}
-                    placeholder="MM"
-                    maxLength={2}
-                  />
-                </div>
-                <div className="w-28">
-                  <label className="block text-xs text-[#7e9a72] mb-1 text-center">Year</label>
-                  <input
-                    id="dob-year"
-                    type="text"
-                    inputMode="numeric"
-                    value={formData.dateOfBirth.split("/")[2] || ""}
-                    onChange={(e) => {
-                      const year = e.target.value.replace(/\D/g, "").slice(0, 4);
-                      const parts = formData.dateOfBirth.split("/");
-                      const day = parts[0] || "";
-                      const month = parts[1] || "";
-                      updateFormData("dateOfBirth", `${day}/${month}/${year}`);
-                    }}
-                    className={`w-full px-3 py-4 rounded-xl border focus:ring-2 outline-none transition-all text-center text-lg bg-white ${
-                      formData.dateOfBirth.length === 10 && !isValidAge
-                        ? "border-red-400 focus:border-red-500 focus:ring-red-500/20"
-                        : "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-[#5c7a52]/20"
-                    }`}
-                    placeholder="YYYY"
-                    maxLength={4}
-                  />
-                </div>
-              </div>
-              {formData.dateOfBirth.length === 10 && !isValidAge && (
-                <p className="mt-4 text-sm text-red-600 text-center">
-                  You must be 18 or older to use this service. Please speak with your GP for advice.
-                </p>
-              )}
-              {formData.dateOfBirth.length === 10 && isValidAge && (
-                <p className="mt-4 text-sm text-[#5c7a52] text-center">
-                  Great, you're {age} years old.
-                </p>
-              )}
+            <div className="mx-auto mt-8 max-w-sm">
+              <QuizDobTripleInput
+                value={formData.dateOfBirth}
+                onChange={(dob) => updateFormData("dateOfBirth", dob)}
+                autoFocus
+              />
             </div>
           </div>
         );

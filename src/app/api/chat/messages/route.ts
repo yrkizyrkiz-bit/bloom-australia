@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const isAdmin = session.user.role === "ADMIN";
+    const staffRoles = new Set(["ADMIN", "CARE_PARTNER", "DOCTOR"]);
+    const isStaff = staffRoles.has(session.user.role || "");
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("sessionId");
     const after = searchParams.get("after"); // Message ID to get messages after
@@ -30,8 +31,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    // Check authorization
-    if (!isAdmin && chatSession.memberId !== userId) {
+    // Members see their own chats; care staff can poll any session they're working.
+    if (!isStaff && chatSession.memberId !== userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
     // Mark messages as read for the other party
     const unreadMessages = messages.filter(m => !m.isRead);
     if (unreadMessages.length > 0) {
-      const senderTypesToMark = isAdmin ? ["MEMBER"] : ["COACH", "AI", "SYSTEM"];
+      const senderTypesToMark = isStaff ? ["MEMBER"] : ["COACH", "AI", "SYSTEM"];
       await prisma.chatMessage.updateMany({
         where: {
           id: { in: unreadMessages.filter(m => senderTypesToMark.includes(m.senderType)).map(m => m.id) },

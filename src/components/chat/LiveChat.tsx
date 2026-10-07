@@ -370,8 +370,10 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
         exit={{ opacity: 0, y: 20, scale: 0.95 }}
         className={
           minimized
-            ? "fixed z-[60] bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 md:bottom-4"
-            : "fixed z-[60] inset-x-3 top-[calc(4.25rem+env(safe-area-inset-top,0px))] bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] flex flex-col sm:inset-auto sm:top-auto sm:bottom-6 sm:right-6 sm:h-[min(560px,calc(100dvh-3rem))] sm:w-[400px]"
+            ? // Middle-right (top-based so Framer Motion y/scale don't fight translate)
+              "fixed z-[60] top-[max(1.25rem,calc(50dvh-3.5rem))] right-4 md:right-6"
+            : // Mobile: fill safe area between header + bottom nav. Desktop: middle-right.
+              "fixed z-[60] inset-x-3 top-[calc(4.25rem+env(safe-area-inset-top,0px))] bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] flex flex-col sm:inset-auto sm:top-[max(1.25rem,calc(50dvh-min(280px,42dvh)))] sm:right-6 sm:bottom-auto sm:h-[min(560px,calc(100dvh-2.5rem))] sm:w-[400px]"
         }
       >
         <Card
@@ -608,7 +610,7 @@ export function ChatButton({ onClick, hasUnread = false }: { onClick: () => void
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       aria-label={`Chat with ${GEORGE_NAME}`}
-      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-[60] md:bottom-6 md:right-6 w-14 h-14 rounded-full bg-white text-[#4a6243] shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow border border-[#cdd8c6] overflow-hidden"
+      className="fixed top-[calc(50dvh-1.75rem)] right-4 z-[60] md:right-6 w-14 h-14 rounded-full bg-white text-[#4a6243] shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow border border-[#cdd8c6] overflow-hidden"
     >
       <GeorgeMascot size="sm" cropFace />
       {hasUnread && (

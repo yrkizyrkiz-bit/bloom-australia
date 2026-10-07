@@ -6,6 +6,12 @@ import {
   bookingHasAssignedDoctor,
   completePreTriageHandoff,
 } from "@/lib/admin/complete-pre-triage-task";
+import {
+  ensurePortalProgramBookingNotes,
+  notifyMemberOfPreTriageAppointment,
+} from "@/lib/admin/pre-triage-appointment-notify";
+import { parsePortalUpsellProgramKey } from "@/lib/portal/awaiting-consultation";
+import { attachPortalUpsellPaymentToBooking } from "@/lib/stripe/verify-portal-program-care-payment";
 
 // GAP-026: Care partner pre-triage task queue API
 
@@ -172,8 +178,22 @@ export async function PATCH(req: NextRequest) {
       data: updateData,
     });
 
-    // When linking an existing consult, note the program on the booking for the doctor.
+    // When linking an existing consult, note the program on the booking for the doctor
+    // and attach the portal-upsell PaymentIntent when care booked without checkout confirm.
+    const linkingBookingNow = typeof bookingId === "string" && Boolean(bookingId);
+    const portalProgramKey = parsePortalUpsellProgramKey(task.notes);
+
     if (typeof bookingId === "string" && bookingId) {
+      await attachPortalUpsellPaymentToBooking({
+        bookingId,
+        taskNotes: task.notes,
+      }).catch(() => undefined);
+
+      await ensurePortalProgramBookingNotes({
+        bookingId,
+        programKey: portalProgramKey,
+      }).catch(() => undefined);
+
       const appendNote =
         typeof body.appendBookingNote === "string" ? body.appendBookingNote.trim() : "";
       if (appendNote) {
@@ -194,11 +214,17 @@ export async function PATCH(req: NextRequest) {
           }
         }
       }
+
+      // In-app notification + care chat; email only when linking an older booking.
+      await notifyMemberOfPreTriageAppointment({
+        userId: task.patientId,
+        bookingId,
+        programKey: portalProgramKey,
+      }).catch(() => undefined);
     }
 
     const linkedBookingId =
       (typeof bookingId === "string" && bookingId) || task.bookingId || null;
-    const linkingBookingNow = typeof bookingId === "string" && Boolean(bookingId);
 
     // Auto-complete only when this request links a consult that already has a doctor.
     // (Avoid completing on unrelated checklist PATCHes.)

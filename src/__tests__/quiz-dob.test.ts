@@ -1,7 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { validateQuizDob } from "@/lib/funnel/quiz-dob";
+import {
+  formatMaskedQuizDob,
+  sanitizeQuizDobDay,
+  sanitizeQuizDobMonth,
+  sanitizeQuizDobYear,
+  validateQuizDob,
+} from "@/lib/funnel/quiz-dob";
 
 const NOW = new Date(2026, 7, 31);
+
+describe("sanitizeQuizDob fields", () => {
+  it("clamps finished day/month/year into valid ranges", () => {
+    expect(sanitizeQuizDobDay("99")).toBe("31");
+    expect(sanitizeQuizDobDay("00")).toBe("01");
+    expect(sanitizeQuizDobDay("3")).toBe("3");
+    expect(sanitizeQuizDobMonth("99")).toBe("12");
+    expect(sanitizeQuizDobMonth("00")).toBe("01");
+    expect(sanitizeQuizDobYear("9999", NOW)).toBe("2026");
+    expect(sanitizeQuizDobYear("1800", NOW)).toBe("1900");
+    expect(sanitizeQuizDobYear("199", NOW)).toBe("199");
+  });
+
+  it("clamps masked single-field DOB input", () => {
+    expect(formatMaskedQuizDob("99999999", NOW)).toBe("31/12/2026");
+    expect(formatMaskedQuizDob("00001990", NOW)).toBe("01/01/1990");
+    expect(formatMaskedQuizDob("15", NOW)).toBe("15");
+  });
+});
 
 describe("validateQuizDob", () => {
   it("accepts a real adult date", () => {

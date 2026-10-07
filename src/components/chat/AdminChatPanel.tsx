@@ -9,13 +9,29 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   MessageCircle, Send, User, Loader2, Clock, Bot,
   UserCheck, Users, History, Settings, Phone, X,
-  CheckCircle2, AlertCircle, ArrowRight, Sparkles
+  CheckCircle2, AlertCircle, ArrowRight, Sparkles, Plus, Search
 } from "lucide-react";
 import { toast } from "sonner";
+
+type MemberOption = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+};
 
 interface ChatMessage {
   id: string;
@@ -81,6 +97,13 @@ export function AdminChatPanel() {
   const [sending, setSending] = useState(false);
   const [viewHistory, setViewHistory] = useState<ChatHistory | null>(null);
   const [waitingCount, setWaitingCount] = useState(0);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberResults, setMemberResults] = useState<MemberOption[]>([]);
+  const [searchingMembers, setSearchingMembers] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberOption | null>(null);
+  const [composeBody, setComposeBody] = useState("");
+  const [composing, setComposing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousWaitingCountRef = useRef<number | null>(null);
@@ -205,6 +228,77 @@ export function AdminChatPanel() {
     }
   };
 
+  useEffect(() => {
+    if (!composeOpen || selectedMember) {
+      setMemberResults([]);
+      return;
+    }
+    const query = memberSearch.trim();
+    if (query.length < 2) {
+      setMemberResults([]);
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      setSearchingMembers(true);
+      try {
+        const res = await fetch(
+          `/api/users?role=MEMBER&lite=1&limit=8&search=${encodeURIComponent(query)}`
+        );
+        const data = await res.json();
+        setMemberResults(data.users || []);
+      } catch {
+        setMemberResults([]);
+      } finally {
+        setSearchingMembers(false);
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [composeOpen, memberSearch, selectedMember]);
+
+  const resetCompose = () => {
+    setMemberSearch("");
+    setMemberResults([]);
+    setSelectedMember(null);
+    setComposeBody("");
+  };
+
+  const startWithMember = async () => {
+    if (!selectedMember) {
+      toast.error("Choose a member");
+      return;
+    }
+    if (!composeBody.trim()) {
+      toast.error("Write a message");
+      return;
+    }
+    setComposing(true);
+    try {
+      const res = await fetch("/api/chat/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "startWithMember",
+          memberId: selectedMember.id,
+          message: composeBody.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to start chat");
+      if (data.session) {
+        setSelectedSession(data.session);
+        setMessages(data.session.messages || []);
+      }
+      toast.success("Message sent");
+      setComposeOpen(false);
+      resetCompose();
+      await fetchSessions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to start chat");
+    } finally {
+      setComposing(false);
+    }
+  };
+
   // Transfer to AI
   const transferToAI = async () => {
     if (!selectedSession) return;
@@ -319,40 +413,53 @@ export function AdminChatPanel() {
                 </Badge>
               )}
             </div>
-            <Select
-              value={availability?.status || "OFFLINE"}
-              onValueChange={setStatus}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ONLINE">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500" />
-                    Online
-                  </span>
-                </SelectItem>
-                <SelectItem value="BUSY">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    Busy
-                  </span>
-                </SelectItem>
-                <SelectItem value="AWAY">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-orange-500" />
-                    Away
-                  </span>
-                </SelectItem>
-                <SelectItem value="OFFLINE">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-slate-400" />
-                    Offline
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                className="bg-teal-600 hover:bg-teal-700"
+                onClick={() => {
+                  resetCompose();
+                  setComposeOpen(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Message member
+              </Button>
+              <Select
+                value={availability?.status || "OFFLINE"}
+                onValueChange={setStatus}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ONLINE">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500" />
+                      Online
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="BUSY">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      Busy
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="AWAY">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-orange-500" />
+                      Away
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="OFFLINE">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-slate-400" />
+                      Offline
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -615,13 +722,120 @@ export function AdminChatPanel() {
                 <div className="text-center">
                   <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-30" />
                   <p>Select a conversation from the list</p>
-                  <p className="text-sm mt-1">or wait for new chats to arrive</p>
+                  <p className="text-sm mt-1">or message a member to start one</p>
+                  <Button
+                    className="mt-4 bg-teal-600 hover:bg-teal-700"
+                    onClick={() => {
+                      resetCompose();
+                      setComposeOpen(true);
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Message member
+                  </Button>
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={composeOpen}
+        onOpenChange={(open) => {
+          setComposeOpen(open);
+          if (!open) resetCompose();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Message a member</DialogTitle>
+            <DialogDescription>
+              Starts a live chat and notifies the member in their portal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Member</Label>
+              {selectedMember ? (
+                <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                  <span>
+                    {`${selectedMember.firstName} ${selectedMember.lastName}`.trim() ||
+                      selectedMember.email}{" "}
+                    <span className="text-muted-foreground">({selectedMember.email})</span>
+                  </span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedMember(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    placeholder="Search name or email…"
+                    className="pl-9"
+                    autoFocus
+                  />
+                  {(searchingMembers || memberResults.length > 0) && (
+                    <div className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-white shadow-md">
+                      {searchingMembers ? (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                      ) : (
+                        memberResults.map((member) => (
+                          <button
+                            key={member.id}
+                            type="button"
+                            className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                            onClick={() => {
+                              setSelectedMember(member);
+                              setMemberSearch("");
+                              setMemberResults([]);
+                            }}
+                          >
+                            <span className="font-medium">
+                              {`${member.firstName} ${member.lastName}`.trim() || member.email}
+                            </span>
+                            <span className="ml-2 text-muted-foreground">{member.email}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="live-compose-body">Message</Label>
+              <Textarea
+                id="live-compose-body"
+                value={composeBody}
+                onChange={(e) => setComposeBody(e.target.value)}
+                rows={4}
+                placeholder="Write your message…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setComposeOpen(false)} disabled={composing}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-teal-600 hover:bg-teal-700"
+              onClick={() => void startWithMember()}
+              disabled={composing || !selectedMember || !composeBody.trim()}
+            >
+              {composing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Send message
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* History Dialog */}
       <Dialog open={!!viewHistory} onOpenChange={() => setViewHistory(null)}>

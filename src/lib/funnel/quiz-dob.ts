@@ -34,6 +34,59 @@ export function digitsOnly(value: string, maxLength: number): string {
   return value.replace(/\D/g, "").slice(0, maxLength);
 }
 
+/**
+ * Clamp day as the user types. Incomplete values stay as typed; a finished
+ * 2-digit day is forced into 01–31 (so 00/32/99 cannot remain in the field).
+ */
+export function sanitizeQuizDobDay(raw: string): string {
+  const digits = digitsOnly(raw, 2);
+  if (!digits) return "";
+  if (digits.length === 1) return digits;
+  let n = Number(digits);
+  if (!Number.isFinite(n) || n < 1) n = 1;
+  if (n > 31) n = 31;
+  return String(n).padStart(2, "0");
+}
+
+/** Clamp month as typed; finished 2-digit month is forced into 01–12. */
+export function sanitizeQuizDobMonth(raw: string): string {
+  const digits = digitsOnly(raw, 2);
+  if (!digits) return "";
+  if (digits.length === 1) return digits;
+  let n = Number(digits);
+  if (!Number.isFinite(n) || n < 1) n = 1;
+  if (n > 12) n = 12;
+  return String(n).padStart(2, "0");
+}
+
+/** Clamp year as typed; finished 4-digit year is forced into 1900–current year. */
+export function sanitizeQuizDobYear(raw: string, now = new Date()): string {
+  const digits = digitsOnly(raw, 4);
+  if (!digits) return "";
+  if (digits.length < 4) return digits;
+  let n = Number(digits);
+  const maxYear = now.getFullYear();
+  if (!Number.isFinite(n) || n < MIN_YEAR) n = MIN_YEAR;
+  if (n > maxYear) n = maxYear;
+  return String(n);
+}
+
+/** Masked single-field DD/MM/YYYY input with the same day/month/year clamps. */
+export function formatMaskedQuizDob(raw: string, now = new Date()): string {
+  const digits = digitsOnly(raw, 8);
+  const dayRaw = digits.slice(0, Math.min(2, digits.length));
+  const monthRaw = digits.length > 2 ? digits.slice(2, Math.min(4, digits.length)) : "";
+  const yearRaw = digits.length > 4 ? digits.slice(4, 8) : "";
+
+  const day = dayRaw.length === 2 ? sanitizeQuizDobDay(dayRaw) : dayRaw;
+  const month = monthRaw.length === 2 ? sanitizeQuizDobMonth(monthRaw) : monthRaw;
+  const year = yearRaw.length === 4 ? sanitizeQuizDobYear(yearRaw, now) : yearRaw;
+
+  if (digits.length <= 2) return day;
+  if (digits.length <= 4) return `${day}/${month}`;
+  return `${day}/${month}/${year}`;
+}
+
 function daysInMonth(month: number, year: number): number {
   return new Date(year, month, 0).getDate();
 }

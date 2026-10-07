@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { memberCareSupportInboxUrl } from "@/lib/care-support/member-inbox-url";
+import { notifyMember } from "@/lib/notifications/member-notify";
 
-const CHAT_STAFF_ROLES = new Set(["ADMIN", "CARE_PARTNER"]);
+const CHAT_STAFF_ROLES = new Set(["ADMIN", "CARE_PARTNER", "DOCTOR"]);
 
 function canAccessStaffChat(role?: string | null) {
   return Boolean(role && CHAT_STAFF_ROLES.has(role));
@@ -124,7 +126,164 @@ export async function POST(request: NextRequest) {
 
     const coachId = session.user.id;
     const body = await request.json();
-    const { action, sessionId, message, status } = body;
+    const { action, sessionId, message, status, memberId } = body;
+
+    // Start (or take over an AI/waiting) live chat with a member
+    if (action === "startWithMember") {
+      const targetMemberId =
+        typeof memberId === "string" ? memberId.trim() : "";
+      const openingMessage =
+        typeof message === "string" ? message.trim() : "";
+      if (!targetMemberId) {
+        return NextResponse.json({ error: "Member is required" }, { status: 400 });
+      }
+      if (!openingMessage) {
+        return NextResponse.json({ error: "Message is required" }, { status: 400 });
+      }
+
+      const member = await prisma.user.findUnique({
+        where: { id: targetMemberId },
+        select: {
+          id: true,
+          role: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          gender: true,
+          subscriptionTier: true,
+        },
+      });
+      if (!member || member.role !== "MEMBER") {
+        return NextResponse.json({ error: "Member not found" }, { status: 404 });
+      }
+
+      let chatSession = await prisma.chatSession.findFirst({
+        where: {
+          memberId: targetMemberId,
+          status: { in: ["WAITING", "ACTIVE", "AI_HANDLING"] },
+        },
+        orderBy: { lastMessageAt: "desc" },
+      });
+
+      if (chatSession?.coachId && chatSession.coachId !== coachId) {
+        return NextResponse.json(
+          {
+            error:
+              "This member already has an active chat with another care team member",
+          },
+          { status: 409 }
+        );
+      }
+
+      const staffName = session.user.firstName
+        ? `${session.user.firstName} from your care team`
+        : "A care partner";
+
+      if (!chatSession) {
+        chatSession = await prisma.chatSession.create({
+          data: {
+            memberId: targetMemberId,
+            coachId,
+            status: "ACTIVE",
+            isAiHandled: false,
+          },
+        });
+        await prisma.chatMessage.create({
+          data: {
+            sessionId: chatSession.id,
+            senderId: "SYSTEM",
+            senderType: "SYSTEM",
+            message: `${staffName} started a conversation with you.`,
+          },
+        });
+        await prisma.coachAvailability.upsert({
+          where: { coachId },
+          update: {
+            activeChats: { increment: 1 },
+            lastActiveAt: new Date(),
+            status: "ONLINE",
+          },
+          create: {
+            coachId,
+            status: "ONLINE",
+            activeChats: 1,
+          },
+        });
+      } else if (!chatSession.coachId || chatSession.status !== "ACTIVE") {
+        const wasUnassigned = !chatSession.coachId;
+        chatSession = await prisma.chatSession.update({
+          where: { id: chatSession.id },
+          data: {
+            coachId,
+            status: "ACTIVE",
+            isAiHandled: false,
+          },
+        });
+        await prisma.chatMessage.create({
+          data: {
+            sessionId: chatSession.id,
+            senderId: "SYSTEM",
+            senderType: "SYSTEM",
+            message: `${staffName} has joined the chat.`,
+          },
+        });
+        if (wasUnassigned) {
+          await prisma.coachAvailability.upsert({
+            where: { coachId },
+            update: {
+              activeChats: { increment: 1 },
+              lastActiveAt: new Date(),
+              status: "ONLINE",
+            },
+            create: {
+              coachId,
+              status: "ONLINE",
+              activeChats: 1,
+            },
+          });
+        }
+      }
+
+      const coachMessage = await prisma.chatMessage.create({
+        data: {
+          sessionId: chatSession.id,
+          senderId: coachId,
+          senderType: "COACH",
+          message: openingMessage,
+        },
+      });
+
+      await prisma.chatSession.update({
+        where: { id: chatSession.id },
+        data: { lastMessageAt: new Date() },
+      });
+
+      await notifyMember({
+        userId: targetMemberId,
+        intent: "CARE_MESSAGE",
+        title: "Message from your care team",
+        message: openingMessage.slice(0, 160),
+        actionUrl: memberCareSupportInboxUrl(member),
+        category: "SYSTEM",
+        dedupeDays: 0,
+      }).catch((err) => console.error("[chat/admin] notify member failed", err));
+
+      const fullSession = await prisma.chatSession.findUnique({
+        where: { id: chatSession.id },
+        include: {
+          messages: { orderBy: { createdAt: "asc" } },
+        },
+      });
+
+      return NextResponse.json({
+        session: {
+          ...fullSession,
+          member,
+          lastMessage: coachMessage,
+        },
+        message: coachMessage,
+      });
+    }
 
     // Set availability
     if (action === "setStatus") {

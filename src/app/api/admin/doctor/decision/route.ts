@@ -11,6 +11,7 @@ import {
   isBiomarkersPanelBookingNotes,
   verifyBiomarkersPanelBookingPayment,
 } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
+import { verifyPortalProgramCarePaymentForDecision } from "@/lib/stripe/verify-portal-program-care-payment";
 import { tryActivateAfterDoctorApproval } from "@/lib/program/activate-member-program";
 import { notifyMember } from "@/lib/notifications/member-notify";
 import { normalizeProgramKey } from "@/lib/membership/keys";
@@ -245,13 +246,6 @@ export async function POST(request: NextRequest) {
     const dashboardUrl = `${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/dashboard/weight-management`;
 
     if (DECISIONS_REQUIRING_VERIFIED_FIRST_MONTH_PAYMENT.has(decision)) {
-      if (!consultation.paymentIntentId) {
-        return NextResponse.json(
-          { error: "No first-month payment on record for this consultation" },
-          { status: 400 }
-        );
-      }
-
       if (consultation.userId && consultation.userId !== userId) {
         return NextResponse.json(
           { error: "Consultation does not belong to this user" },
@@ -262,7 +256,30 @@ export async function POST(request: NextRequest) {
       const isOrganCareBooking = (consultation.notes || "").includes("Organ & Metabolic Care");
       const isBiomarkersBooking = isBiomarkersPanelBookingNotes(consultation.notes);
 
-      if (isOrganCareBooking) {
+      if (isNonWeightApproval) {
+        // Portal program upsells (hair / sexual / women's) often book via care
+        // without copying the PI onto the consult — resolve + verify separately.
+        const programPayment = await verifyPortalProgramCarePaymentForDecision({
+          userId,
+          consultationId,
+          prescriptionCategory,
+          paymentIntentId: consultation.paymentIntentId,
+        });
+        if (!programPayment.ok) {
+          return NextResponse.json(
+            { error: programPayment.error },
+            { status: programPayment.status }
+          );
+        }
+        if (programPayment.paymentIntentId) {
+          consultation.paymentIntentId = programPayment.paymentIntentId;
+        }
+      } else if (!consultation.paymentIntentId) {
+        return NextResponse.json(
+          { error: "No first-month payment on record for this consultation" },
+          { status: 400 }
+        );
+      } else if (isOrganCareBooking) {
         const organCareResult = await verifyOrganCareMembershipBookingPayment({
           paymentIntentId: consultation.paymentIntentId,
           userId,

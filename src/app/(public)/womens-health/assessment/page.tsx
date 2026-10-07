@@ -9,9 +9,11 @@ import { type BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscrip
 import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-map";
 import { getClinicalProgramFunnelConfig } from "@/lib/funnel/clinical-program-funnel";
 import {
-  digitsOnly,
   isQuizDobDayComplete,
   isQuizDobMonthComplete,
+  sanitizeQuizDobDay,
+  sanitizeQuizDobMonth,
+  sanitizeQuizDobYear,
   splitQuizDob,
   validateQuizDob,
 } from "@/lib/funnel/quiz-dob";
@@ -525,7 +527,7 @@ function WomensHealthAssessmentContent() {
                 maxLength={2}
                 value={dobParts.day}
                 onChange={(e) => {
-                  const v = digitsOnly(e.target.value, 2);
+                  const v = sanitizeQuizDobDay(e.target.value);
                   updateFormData("dateOfBirth", `${v}/${dobParts.month}/${dobParts.year}`);
                   if (isQuizDobDayComplete(v)) document.getElementById("dob-m")?.focus();
                 }}
@@ -543,7 +545,7 @@ function WomensHealthAssessmentContent() {
                 maxLength={2}
                 value={dobParts.month}
                 onChange={(e) => {
-                  const v = digitsOnly(e.target.value, 2);
+                  const v = sanitizeQuizDobMonth(e.target.value);
                   updateFormData("dateOfBirth", `${dobParts.day}/${v}/${dobParts.year}`);
                   if (isQuizDobMonthComplete(v)) document.getElementById("dob-y")?.focus();
                 }}
@@ -561,7 +563,7 @@ function WomensHealthAssessmentContent() {
                 maxLength={4}
                 value={dobParts.year}
                 onChange={(e) => {
-                  const v = digitsOnly(e.target.value, 4);
+                  const v = sanitizeQuizDobYear(e.target.value);
                   updateFormData("dateOfBirth", `${dobParts.day}/${dobParts.month}/${v}`);
                 }}
                 className={dobFieldClass(Boolean(dob.errors.year))}

@@ -31,6 +31,8 @@ import { ConsentNotice } from "@/components/legal/ConsentNotice";
 import { logConsentEvent } from "@/lib/legal/log-consent";
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
 import { calculateBmi } from "@/lib/bmi";
+import { formatMaskedQuizDob, validateQuizDob } from "@/lib/funnel/quiz-dob";
+import { QuizDobTripleInput } from "@/components/funnel/QuizDobTripleInput";
 import {
   ArrowRight,
   ArrowLeft,
@@ -538,37 +540,8 @@ function WeightManagementAnalyseStep({ onComplete }: { onComplete: () => void })
   );
 }
 
-function parseDobParts(dob: string) {
-  if (dob.length !== 10) return { day: "", month: "", year: "" };
-  const [day, month, year] = dob.split("/");
-  return { day: day || "", month: month || "", year: year || "" };
-}
-
-function getAgeFromDob(dob: string): number {
-  const { day, month, year } = parseDobParts(dob);
-  if (!day || !month || !year) return 0;
-  const birthDate = new Date(Number(year), Number(month) - 1, Number(day));
-  if (
-    Number.isNaN(birthDate.getTime()) ||
-    birthDate.getDate() !== Number(day) ||
-    birthDate.getMonth() !== Number(month) - 1
-  ) {
-    return 0;
-  }
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-}
-
 function formatDobInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  return formatMaskedQuizDob(raw);
 }
 
 type ShippingProfilePayload = {
@@ -587,129 +560,11 @@ type ShippingProfilePayload = {
 function DateOfBirthInput({
   value,
   onChange,
-  age,
-  isValid,
 }: {
   value: string;
   onChange: (value: string) => void;
-  age: number;
-  isValid: boolean;
 }) {
-  const initial = parseDobParts(value);
-  const [day, setDay] = useState(initial.day);
-  const [month, setMonth] = useState(initial.month);
-  const [year, setYear] = useState(initial.year);
-  const monthRef = useRef<HTMLInputElement>(null);
-  const yearRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const parts = parseDobParts(value);
-    setDay(parts.day);
-    setMonth(parts.month);
-    setYear(parts.year);
-  }, [value]);
-
-  const emitIfComplete = (d: string, m: string, y: string) => {
-    if (d.length === 2 && m.length === 2 && y.length === 4) {
-      onChange(`${d}/${m}/${y}`);
-    } else {
-      onChange("");
-    }
-  };
-
-  const isComplete = day.length === 2 && month.length === 2 && year.length === 4;
-  const fieldClass = (filled: boolean) =>
-    `w-full min-h-[52px] px-2 py-3 rounded-xl border text-center text-xl font-medium outline-none transition-colors bg-white ${
-      isComplete && !isValid
-        ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-200"
-        : isComplete && isValid
-        ? "border-[#5c7a52] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20"
-        : filled
-        ? "border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20"
-        : "border-[#e6ebe3] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20"
-    }`;
-
-  return (
-    <div className="pt-2">
-      <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2">
-        <div>
-          <label className="block text-[10px] uppercase tracking-wide text-[#7e9a72] mb-1 text-center">
-            Day
-          </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={2}
-            value={day}
-            placeholder="DD"
-            autoFocus
-            onChange={(e) => {
-              const d = e.target.value.replace(/\D/g, "").slice(0, 2);
-              setDay(d);
-              emitIfComplete(d, month, year);
-              if (d.length === 2) monthRef.current?.focus();
-            }}
-            className={fieldClass(day.length > 0)}
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] uppercase tracking-wide text-[#7e9a72] mb-1 text-center">
-            Month
-          </label>
-          <input
-            ref={monthRef}
-            type="text"
-            inputMode="numeric"
-            maxLength={2}
-            value={month}
-            placeholder="MM"
-            onChange={(e) => {
-              const m = e.target.value.replace(/\D/g, "").slice(0, 2);
-              setMonth(m);
-              emitIfComplete(day, m, year);
-              if (m.length === 2) yearRef.current?.focus();
-            }}
-            className={fieldClass(month.length > 0)}
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] uppercase tracking-wide text-[#7e9a72] mb-1 text-center">
-            Year
-          </label>
-          <input
-            ref={yearRef}
-            type="text"
-            inputMode="numeric"
-            maxLength={4}
-            value={year}
-            placeholder="YYYY"
-            onChange={(e) => {
-              const y = e.target.value.replace(/\D/g, "").slice(0, 4);
-              setYear(y);
-              emitIfComplete(day, month, y);
-            }}
-            className={fieldClass(year.length > 0)}
-          />
-        </div>
-      </div>
-      <p
-        className={`min-h-5 mt-2 text-center text-xs leading-5 ${
-          isComplete && !isValid
-            ? "text-red-500"
-            : isComplete && isValid
-            ? "text-[#5c7a52]"
-            : "text-transparent"
-        }`}
-        aria-live="polite"
-      >
-        {isComplete && !isValid
-          ? "You must be at least 18 years old"
-          : isComplete && isValid
-          ? `Age ${age}, eligible`
-          : " "}
-      </p>
-    </div>
-  );
+  return <QuizDobTripleInput value={value} onChange={onChange} autoFocus />;
 }
 
 // ─── QuizStepShell (viewport-first layout) ─────────────────────────────────────
@@ -1585,10 +1440,16 @@ function ShippingInfoScreen({
     const errs: Record<string, string> = {};
     if (!localFirstName.trim()) errs.firstName = "First name is required";
     if (!localDob.trim()) errs.dateOfBirth = "Date of birth is required";
-    else if (localDob.length !== 10 || getAgeFromDob(localDob) < 18) {
-      errs.dateOfBirth = getAgeFromDob(localDob) > 0 && getAgeFromDob(localDob) < 18
-        ? "You must be 18 or older"
-        : "Enter a valid date of birth (DD/MM/YYYY)";
+    else {
+      const dob = validateQuizDob(localDob);
+      if (!dob.isValid) {
+        errs.dateOfBirth =
+          dob.errors.form ||
+          dob.errors.day ||
+          dob.errors.month ||
+          dob.errors.year ||
+          "Enter a valid date of birth (DD/MM/YYYY)";
+      }
     }
     if (!localEmail.trim()) errs.email = "Email is required";
     else if (!EMAIL_FORMAT.test(localEmail.trim())) {
@@ -2269,29 +2130,13 @@ export default function WeightLossAssessmentPage() {
     });
   };
 
-  // Calculate age from DOB
-  const getAge = (dob: string): number => {
-    if (dob.length < 10) return 0;
-    const [day, month, year] = dob.split("/").map(Number);
-    if (!day || !month || !year || year < 1900) return 0;
-    const birthDate = new Date(year, month - 1, day);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
   // Calculate BMI
   const calculateBMI = (): number | null => {
     return calculateBmi(formData.currentWeight, formData.height);
   };
 
   const bmi = calculateBMI();
-  const age = getAge(formData.dateOfBirth);
-  const isValidAge = age >= 18;
+  const isValidAge = validateQuizDob(formData.dateOfBirth).isValid;
 
   const OTHER_GOAL_OPTIONS: OtherGoalOption[] = [
     { id: "hair_loss", label: "Hair loss" },
@@ -2325,7 +2170,7 @@ export default function WeightLossAssessmentPage() {
       case 6: return true; // Email gate (handled internally)
       case 7: return true; // Graph reveal
       case 8: return formData.gender !== "";
-      case 9: return formData.dateOfBirth.length === 10 && isValidAge;
+      case 9: return isValidAge;
       case 10: return formData.motivations.length > 0; // Motivations (moved earlier)
       case 11: return formData.previousAttempts.length > 0;
       case 12: return formData.previousTreatment !== "";
@@ -3470,8 +3315,6 @@ export default function WeightLossAssessmentPage() {
             <DateOfBirthInput
               value={formData.dateOfBirth}
               onChange={(dob) => updateFormData("dateOfBirth", dob)}
-              age={age}
-              isValid={isValidAge}
             />
           </QuizStepShell>
         );
@@ -3571,8 +3414,8 @@ export default function WeightLossAssessmentPage() {
                 height={1024}
                 className="mx-auto h-56 w-auto max-w-full rounded-2xl object-contain"
               />
-              <div className="flex-shrink-0 flex flex-col items-center gap-2">
-                <div className="relative">
+              <div className="flex w-full flex-shrink-0 items-stretch justify-center gap-2">
+                <div className="relative shrink-0">
                   <input
                     type="text"
                     inputMode="numeric"
@@ -3581,12 +3424,12 @@ export default function WeightLossAssessmentPage() {
                       const next = e.target.value.replace(/\D/g, "").slice(0, 3);
                       updateFormData("waistMeasurement", next);
                     }}
-                    className="w-40 px-4 py-2.5 rounded-xl border-2 border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white text-center text-2xl font-medium"
+                    className="h-full w-28 px-3 py-2.5 rounded-xl border-2 border-[#cdd8c6] focus:border-[#5c7a52] focus:ring-2 focus:ring-[#5c7a52]/20 outline-none transition-all bg-white text-center text-2xl font-medium sm:w-36"
                     placeholder="90"
                     autoFocus
                     aria-label="Waist measurement in centimetres"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7e9a72] font-medium">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#7e9a72] font-medium">
                     cm
                   </span>
                 </div>
@@ -3596,7 +3439,7 @@ export default function WeightLossAssessmentPage() {
                     updateFormData("waistMeasurement", "unsure");
                     setTimeout(() => animateToStep(15, "forward"), 300);
                   }}
-                  className={`w-full py-2.5 px-5 rounded-xl border-2 text-center font-medium transition-all ${
+                  className={`min-w-0 flex-1 max-w-[12rem] py-2.5 px-3 rounded-xl border-2 text-center text-sm font-medium transition-all sm:text-base ${
                     waistIsUnsure
                       ? "border-[#5c7a52] bg-[#5c7a52]/10 text-[#2c3628]"
                       : "border-[#e6ebe3] bg-white text-[#2c3628] hover:border-[#cdd8c6]"
