@@ -102,7 +102,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, markAllRead } = body;
+    const { id, ids, markAllRead, actionUrlContains } = body;
 
     if (markAllRead) {
       await prisma.notification.updateMany({
@@ -112,21 +112,39 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    if (!id) {
+    // Mark all unread notifications whose actionUrl contains a fragment (e.g. thread=abc)
+    if (typeof actionUrlContains === "string" && actionUrlContains.trim()) {
+      const fragment = actionUrlContains.trim().slice(0, 200);
+      const result = await prisma.notification.updateMany({
+        where: {
+          userId: session.user.id,
+          isRead: false,
+          actionUrl: { contains: fragment },
+        },
+        data: { isRead: true, readAt: new Date() },
+      });
+      return NextResponse.json({ success: true, count: result.count });
+    }
+
+    const idList: string[] = Array.isArray(ids)
+      ? ids.filter((value): value is string => typeof value === "string")
+      : typeof id === "string"
+        ? [id]
+        : [];
+
+    if (idList.length === 0) {
       return NextResponse.json({ error: "Notification ID required" }, { status: 400 });
     }
 
-    const notification = await prisma.notification.findUnique({ where: { id } });
-    if (!notification || notification.userId !== session.user.id) {
-      return NextResponse.json({ error: "Notification not found" }, { status: 404 });
-    }
-
-    await prisma.notification.update({
-      where: { id },
+    const result = await prisma.notification.updateMany({
+      where: {
+        userId: session.user.id,
+        id: { in: idList },
+      },
       data: { isRead: true, readAt: new Date() },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, count: result.count });
   } catch (error) {
     console.error("Error updating notification:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

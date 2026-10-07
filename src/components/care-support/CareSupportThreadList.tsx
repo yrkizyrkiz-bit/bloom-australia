@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 function readThreadQuery(): string | null {
   if (typeof window === "undefined") return null;
@@ -100,6 +101,7 @@ export function CareSupportThreadList({
   ghostBtnClassName,
 }: Props) {
   const t = themes[theme];
+  const { markMatchingActionUrlRead } = useNotifications();
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [replyingId, setReplyingId] = useState<string | null>(null);
@@ -122,9 +124,29 @@ export function CareSupportThreadList({
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [openThreadId, threads]);
 
+  // Keep open conversation fresh without requiring Refresh / bell click
+  useEffect(() => {
+    const tick = () => {
+      void onRefresh();
+    };
+    const interval = window.setInterval(tick, 4000);
+    return () => window.clearInterval(interval);
+  }, [onRefresh]);
+
+  // Clear matching bell notifications while this thread is open
+  useEffect(() => {
+    if (!openThreadId) return;
+    markMatchingActionUrlRead(`thread=${openThreadId}`);
+    const interval = window.setInterval(() => {
+      markMatchingActionUrlRead(`thread=${openThreadId}`);
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [openThreadId, markMatchingActionUrlRead]);
+
   const openThread = (threadId: string) => {
     setOpenThreadId(threadId);
     writeThreadQuery(threadId);
+    markMatchingActionUrlRead(`thread=${threadId}`);
   };
 
   const sendReply = async (threadId: string) => {

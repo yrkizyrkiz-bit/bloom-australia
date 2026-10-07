@@ -446,12 +446,15 @@ export function AdminChatPanel() {
     fetchHistory();
   }, [fetchSessions, fetchHistory]);
 
-  // Poll for updates
+  // Poll immediately when a chat is selected, then keep refreshing
   useEffect(() => {
+    if (selectedSession) {
+      void pollMessages();
+    }
     const interval = setInterval(() => {
       fetchSessions();
       if (selectedSession) {
-        pollMessages();
+        void pollMessages();
       }
     }, 3000);
 

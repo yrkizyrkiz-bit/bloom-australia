@@ -19,6 +19,7 @@ import {
 import { ArrowLeft, Inbox, Loader2, Plus, RefreshCw, Search, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 type ThreadSummary = {
   id: string;
@@ -68,6 +69,7 @@ function memberLabel(member: MemberOption) {
 
 export default function CareCommsMessagesClient() {
   const searchParams = useSearchParams();
+  const { markMatchingActionUrlRead } = useNotifications();
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ThreadDetail | null>(null);
@@ -85,15 +87,17 @@ export default function CareCommsMessagesClient() {
   const [composeBody, setComposeBody] = useState("");
   const [composing, setComposing] = useState(false);
 
-  const loadThreads = useCallback(async () => {
-    setLoadingList(true);
+  const loadThreads = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoadingList(true);
     try {
       const res = await fetch("/api/admin/care-support/threads", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load threads");
       const data = await res.json();
       setThreads(data.threads || []);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load messages");
+      if (!opts?.quiet) {
+        toast.error(error instanceof Error ? error.message : "Failed to load messages");
+      }
     } finally {
       setLoadingList(false);
     }
@@ -122,16 +126,19 @@ export default function CareCommsMessagesClient() {
       setThreads((prev) =>
         prev.map((t) => (t.id === id ? { ...t, unreadCount: 0 } : t))
       );
+      markMatchingActionUrlRead(`thread=${id}`);
     } catch (error) {
       if (!soft) {
         setSelectedId(null);
         setDetail(null);
       }
-      toast.error(error instanceof Error ? error.message : "Failed to load conversation");
+      if (!soft) {
+        toast.error(error instanceof Error ? error.message : "Failed to load conversation");
+      }
     } finally {
       setLoadingDetail(false);
     }
-  }, []);
+  }, [markMatchingActionUrlRead]);
 
   const closeThread = () => {
     setSelectedId(null);
@@ -149,6 +156,18 @@ export default function CareCommsMessagesClient() {
       void openThread(fromQuery);
     }
   }, [searchParams, openThread]);
+
+  // Live-update open conversation + inbox while staff stay on Messages
+  useEffect(() => {
+    const tick = () => {
+      void loadThreads({ quiet: true });
+      if (selectedId) {
+        void openThread(selectedId, { soft: true });
+      }
+    };
+    const interval = window.setInterval(tick, 4000);
+    return () => window.clearInterval(interval);
+  }, [selectedId, loadThreads, openThread]);
 
   useEffect(() => {
     if (!composeOpen || selectedMember) {

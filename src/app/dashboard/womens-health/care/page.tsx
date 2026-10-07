@@ -180,10 +180,7 @@ export default function WomensHealthCarePage() {
             threads={threads}
             loading={loadingThreads}
             theme="rose"
-            onRefresh={async () => {
-              setLoadingThreads(true);
-              await loadThreads();
-            }}
+            onRefresh={loadThreads}
             headingClassName="text-rose-950"
             ghostBtnClassName="text-rose-700"
           />

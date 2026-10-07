@@ -245,10 +245,7 @@ export default function SupportPage() {
             threads={threads}
             loading={loadingThreads}
             theme="sage"
-            onRefresh={async () => {
-              setLoadingThreads(true);
-              await loadThreads();
-            }}
+            onRefresh={loadThreads}
           />
         </CardContent>
       </Card>

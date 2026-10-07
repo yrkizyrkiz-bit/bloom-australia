@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_IMAGE_SRC, GEORGE_NAME } from "@/lib/george";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 interface ChatMessage {
   id: string;
@@ -75,6 +76,7 @@ function getLastPersistedMessageId(messages: ChatMessage[]): string | undefined 
 }
 
 export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: LiveChatProps) {
+  const { markMatchingActionUrlRead } = useNotifications();
   const [session, setSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -309,25 +311,31 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
     }
   }, [isOpen, minimized, initializeChat]);
 
-  // Poll while waiting for / chatting with a care partner (not while George alone is handling)
+  // Poll whenever chat is open so care-partner replies appear without Refresh / bell
   useEffect(() => {
-    if (
-      session &&
-      session.status !== "ENDED" &&
-      (session.status === "WAITING" || session.status === "ACTIVE" || !session.isAiHandled) &&
-      !minimized
-    ) {
-      pollIntervalRef.current = setInterval(() => {
-        pollMessages(session.id);
-      }, 3000);
+    if (!session || session.status === "ENDED" || minimized) return;
 
-      return () => {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-        }
-      };
-    }
+    void pollMessages(session.id);
+    pollIntervalRef.current = setInterval(() => {
+      pollMessages(session.id);
+    }, 3000);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
   }, [session, minimized, pollMessages]);
+
+  // Clear live-chat notifications while the panel is open
+  useEffect(() => {
+    if (!isOpen || minimized) return;
+    markMatchingActionUrlRead("chat=1");
+    const interval = window.setInterval(() => {
+      markMatchingActionUrlRead("chat=1");
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [isOpen, minimized, markMatchingActionUrlRead]);
 
   // Scroll to bottom on new messages
   useEffect(() => {

@@ -20,8 +20,11 @@ interface NotificationContextType {
   addNotification: (notification: Omit<RealTimeNotification, "id" | "timestamp" | "read">) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
+  /** Mark unread notifications whose actionUrl contains this fragment (e.g. thread=abc). */
+  markMatchingActionUrlRead: (actionUrlContains: string) => void;
   removeNotification: (id: string) => void;
   clearAll: () => void;
+  refresh: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -128,6 +131,36 @@ export function NotificationProvider({
     }).catch(() => refresh());
   }, [refresh]);
 
+  const markMatchingActionUrlRead = useCallback((actionUrlContains: string) => {
+    const fragment = actionUrlContains.trim();
+    if (!fragment) return;
+
+    setNotifications((prev) => {
+      let cleared = 0;
+      const next = prev.map((n) => {
+        if (!n.read && n.actionUrl?.includes(fragment)) {
+          cleared += 1;
+          return { ...n, read: true };
+        }
+        return n;
+      });
+      if (cleared > 0) {
+        setUnreadCount((count) => Math.max(0, count - cleared));
+      }
+      return cleared > 0 ? next : prev;
+    });
+
+    fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actionUrlContains: fragment }),
+    })
+      .then((res) => {
+        if (!res.ok) refresh();
+      })
+      .catch(() => refresh());
+  }, [refresh]);
+
   const removeNotification = useCallback((id: string) => {
     setNotifications((prev) => {
       const target = prev.find((n) => n.id === id);
@@ -162,8 +195,10 @@ export function NotificationProvider({
         addNotification,
         markAsRead,
         markAllAsRead,
+        markMatchingActionUrlRead,
         removeNotification,
         clearAll,
+        refresh,
       }}
     >
       {children}

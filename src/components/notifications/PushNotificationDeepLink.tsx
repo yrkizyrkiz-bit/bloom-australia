@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LiveChat } from "@/components/chat/LiveChat";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 function readChatQuery(): boolean {
   if (typeof window === "undefined") return false;
@@ -16,11 +17,19 @@ function readChatQuery(): boolean {
  */
 export function PushNotificationDeepLink() {
   const router = useRouter();
+  const { markMatchingActionUrlRead } = useNotifications();
   const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
-    if (readChatQuery()) setChatOpen(true);
-  }, []);
+    if (readChatQuery()) {
+      setChatOpen(true);
+      markMatchingActionUrlRead("chat=1");
+    }
+    const thread = typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("thread")
+      : null;
+    if (thread) markMatchingActionUrlRead(`thread=${thread}`);
+  }, [markMatchingActionUrlRead]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -35,8 +44,13 @@ export function PushNotificationDeepLink() {
         const target = new URL(data.url, window.location.origin);
         const pathWithQuery = `${target.pathname}${target.search}${target.hash}`;
         const openChat = target.searchParams.get("chat") === "1";
+        const threadId = target.searchParams.get("thread");
 
-        if (openChat) setChatOpen(true);
+        if (openChat) {
+          setChatOpen(true);
+          markMatchingActionUrlRead("chat=1");
+        }
+        if (threadId) markMatchingActionUrlRead(`thread=${threadId}`);
 
         const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
         if (current !== pathWithQuery) {
@@ -49,7 +63,7 @@ export function PushNotificationDeepLink() {
 
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
-  }, [router]);
+  }, [router, markMatchingActionUrlRead]);
 
   return <LiveChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />;
 }
