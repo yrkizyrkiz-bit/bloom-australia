@@ -172,6 +172,8 @@ export async function POST(request: NextRequest) {
           senderRole: m.senderRole,
           body: m.body,
           createdAt: m.createdAt.toISOString(),
+          readByStaff: m.readByStaff,
+          readByMember: m.readByMember,
         })),
       },
     });

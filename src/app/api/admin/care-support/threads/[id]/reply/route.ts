@@ -69,6 +69,8 @@ export async function POST(request: NextRequest, { params }: Params) {
         senderRole: message.senderRole,
         body: message.body,
         createdAt: message.createdAt.toISOString(),
+        readByStaff: message.readByStaff,
+        readByMember: message.readByMember,
       },
     });
   } catch (error) {

@@ -20,6 +20,7 @@ import { ArrowLeft, Inbox, Loader2, Plus, RefreshCw, Search, Send, X } from "luc
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { MessageReadReceipt } from "@/components/care-support/MessageReadReceipt";
 
 type ThreadSummary = {
   id: string;
@@ -37,6 +38,8 @@ type ThreadMessage = {
   senderRole: string;
   body: string;
   createdAt: string;
+  readByStaff?: boolean;
+  readByMember?: boolean;
 };
 
 type ThreadDetail = {
@@ -442,6 +445,12 @@ export default function CareCommsMessagesClient() {
                             {formatWhen(msg.createdAt)}
                           </p>
                           <p className="whitespace-pre-wrap">{msg.body}</p>
+                          {fromStaff && (
+                            <MessageReadReceipt
+                              read={Boolean(msg.readByMember)}
+                              onDark
+                            />
+                          )}
                         </div>
                       );
                     })}

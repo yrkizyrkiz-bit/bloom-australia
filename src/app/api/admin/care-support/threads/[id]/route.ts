@@ -58,7 +58,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
           senderRole: m.senderRole,
           body: m.body,
           createdAt: m.createdAt.toISOString(),
-          readByStaff: m.senderRole === "MEMBER" ? true : m.readByStaff,
+          readByStaff: m.readByStaff,
           readByMember: m.readByMember,
         })),
       },

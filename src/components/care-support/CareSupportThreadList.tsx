@@ -8,6 +8,7 @@ import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { MessageReadReceipt } from "@/components/care-support/MessageReadReceipt";
 
 function readThreadQuery(): string | null {
   if (typeof window === "undefined") return null;
@@ -27,6 +28,8 @@ export type CareSupportMessage = {
   senderRole: string;
   body: string;
   createdAt: string;
+  readByStaff?: boolean;
+  readByMember?: boolean;
 };
 
 export type CareSupportThread = {
@@ -237,21 +240,30 @@ export function CareSupportThreadList({
                 {isOpen && (
                   <>
                     <div className="space-y-2">
-                      {thread.messages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          className={cn(
-                            "rounded-lg px-3 py-2 text-sm",
-                            msg.senderRole === "MEMBER" ? t.memberBubble : t.staffBubble
-                          )}
-                        >
-                          <p className="mb-1 text-[10px] uppercase tracking-wide opacity-70">
-                            {msg.senderRole === "MEMBER" ? "You" : "Care team"} ·{" "}
-                            {formatWhen(msg.createdAt)}
-                          </p>
-                          <p className="whitespace-pre-wrap">{msg.body}</p>
-                        </div>
-                      ))}
+                      {thread.messages.map((msg) => {
+                        const fromMember = msg.senderRole === "MEMBER";
+                        return (
+                          <div
+                            key={msg.id}
+                            className={cn(
+                              "rounded-lg px-3 py-2 text-sm",
+                              fromMember ? t.memberBubble : t.staffBubble
+                            )}
+                          >
+                            <p className="mb-1 text-[10px] uppercase tracking-wide opacity-70">
+                              {fromMember ? "You" : "Care team"} ·{" "}
+                              {formatWhen(msg.createdAt)}
+                            </p>
+                            <p className="whitespace-pre-wrap">{msg.body}</p>
+                            {fromMember && (
+                              <MessageReadReceipt
+                                read={Boolean(msg.readByStaff)}
+                                onDark
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {closed ? (

@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_IMAGE_SRC, GEORGE_NAME } from "@/lib/george";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { MessageReadReceipt } from "@/components/care-support/MessageReadReceipt";
 
 interface ChatMessage {
   id: string;
@@ -538,6 +539,11 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
                               <span className="text-[10px] text-muted-foreground mt-1">
                                 {formatTime(msg.createdAt)}
                               </span>
+                              {isMe && (
+                                <MessageReadReceipt
+                                  read={Boolean(msg.isRead) && !msg.id.startsWith("temp-")}
+                                />
+                              )}
                             </div>
                           </motion.div>
                         );

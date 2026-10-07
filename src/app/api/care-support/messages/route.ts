@@ -88,7 +88,7 @@ export async function GET() {
           body: m.body,
           createdAt: m.createdAt.toISOString(),
           readByStaff: m.readByStaff,
-          readByMember: m.senderRole === "STAFF" ? true : m.readByMember,
+          readByMember: m.readByMember,
         })),
       })),
     });

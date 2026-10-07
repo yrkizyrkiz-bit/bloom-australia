@@ -25,6 +25,7 @@ import {
   CheckCircle2, AlertCircle, ArrowRight, Sparkles, Plus, Search
 } from "lucide-react";
 import { toast } from "sonner";
+import { MessageReadReceipt } from "@/components/care-support/MessageReadReceipt";
 
 type MemberOption = {
   id: string;
@@ -772,6 +773,11 @@ export function AdminChatPanel() {
                             <span className="text-[10px] text-muted-foreground mt-1">
                               {formatTime(msg.createdAt)}
                             </span>
+                            {isMe && (
+                              <MessageReadReceipt
+                                read={Boolean(msg.isRead) && !msg.id.startsWith("temp-")}
+                              />
+                            )}
                           </div>
                         </div>
                       );

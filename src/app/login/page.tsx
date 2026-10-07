@@ -285,10 +285,10 @@ export default function LoginPage() {
       </header>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12 lg:py-20">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          {/* Left Column - Content */}
-          <div className="space-y-8">
+          {/* Marketing content — below login on mobile so sign-in is above the fold */}
+          <div className="order-2 space-y-8 lg:order-1">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 bg-[#e6ebe3] rounded-full px-4 py-2">
                 <div className="w-2 h-2 rounded-full bg-[#5c7a52] animate-pulse" />
@@ -324,8 +324,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Right Column - Login Form */}
-          <div className="lg:pl-8">
+          {/* Login form — first on mobile */}
+          <div className="order-1 lg:order-2 lg:pl-8">
             <div className="w-full max-w-md mx-auto bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden">
               {/* Card Header */}
               <div className="text-center p-8 pb-6 border-b border-[#e6ebe3] bg-gradient-to-b from-[#f4f7f2] to-white">
