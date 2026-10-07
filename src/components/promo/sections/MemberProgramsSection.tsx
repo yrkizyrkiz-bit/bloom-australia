@@ -252,17 +252,6 @@ export function MemberProgramsSection() {
             </div>
           </div>
         </div>
-
-        <p className="mt-12 text-xs leading-relaxed max-w-3xl mx-auto text-center text-black/45">
-          Your membership includes the first 30 days of one eligible care
-          program, subject to clinical suitability. Nominate your program
-          before or during your first doctor consultation. The included period
-          is not available for a program selected after that consultation.
-          Ongoing program fees apply if you continue. Treatment and medication
-          are subject to clinical assessment. Individual results vary and are
-          not guaranteed. See our Terms &amp; Conditions and Subscription Terms
-          for full billing detail.
-        </p>
       </div>
     </section>
   );
