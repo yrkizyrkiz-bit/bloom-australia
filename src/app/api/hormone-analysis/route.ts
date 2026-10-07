@@ -1,10 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hasClinicalStaffRole } from "@/lib/auth/require-clinical-staff";
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import crypto from "crypto";
 import { getDataDate, isResultsStale } from "@/lib/ai-report-cache";
+
+/** Members may only access their own analysis; clinical staff may pass another userId. */
+function resolveHormoneAnalysisUserId(
+  sessionUserId: string,
+  sessionRole: string | undefined,
+  requestedUserId: string | null | undefined
+): { userId: string } | { error: NextResponse } {
+  const userId = requestedUserId || sessionUserId;
+  if (userId !== sessionUserId && !hasClinicalStaffRole(sessionRole)) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+  return { userId };
+}
 
 const anthropic = new Anthropic();
 
@@ -86,7 +102,13 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get("userId") || session.user.id;
+    const resolved = resolveHormoneAnalysisUserId(
+      session.user.id,
+      session.user.role,
+      searchParams.get("userId")
+    );
+    if ("error" in resolved) return resolved.error;
+    const { userId } = resolved;
 
     // Get the latest cached analysis
     const cachedAnalysis = await prisma.aIAnalysisCache.findFirst({
@@ -124,7 +146,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const userId = body.userId || session.user.id;
+    const resolved = resolveHormoneAnalysisUserId(
+      session.user.id,
+      session.user.role,
+      typeof body.userId === "string" ? body.userId : null
+    );
+    if ("error" in resolved) return resolved.error;
+    const { userId } = resolved;
 
     // Get user details for sex-specific analysis
     const user = await prisma.user.findUnique({

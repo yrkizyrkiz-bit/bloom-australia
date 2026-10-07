@@ -34,6 +34,20 @@ describe("admin API routes enforce a staff role", () => {
   });
 });
 
+describe("hormone analysis blocks member-to-member IDOR", () => {
+  it("requires self-or-clinical-staff before using a requested userId", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/app/api/hormone-analysis/route.ts"),
+      "utf8"
+    );
+    expect(source).toContain("hasClinicalStaffRole");
+    expect(source).toContain("resolveHormoneAnalysisUserId");
+    expect(source).toContain("status: 403");
+    expect(source).not.toContain('const userId = searchParams.get("userId") || session.user.id');
+    expect(source).not.toContain("const userId = body.userId || session.user.id");
+  });
+});
+
 describe("auth JWT secret", () => {
   afterEach(() => {
     vi.unstubAllEnvs();

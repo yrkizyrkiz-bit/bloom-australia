@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { resolveSanativeMembershipStripePriceId } from "@/lib/portal/sanative-membership";
+import { assertPhoneAvailableForAccount } from "@/lib/auth/assert-phone-available";
+import { PHONE_IN_USE_MESSAGE } from "@/lib/auth/member-identity-guard";
 import { resumeOrCreateMembershipCheckoutPayment } from "@/lib/portal/stripe-subscription";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
@@ -67,9 +69,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ alreadyPaid: true });
     }
 
+    const resolvedPhone = phone || user.phone || "";
+    try {
+      await assertPhoneAvailableForAccount(resolvedPhone, user.id);
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message === PHONE_IN_USE_MESSAGE
+          ? PHONE_IN_USE_MESSAGE
+          : "This mobile number cannot be used for checkout";
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
+
     const { stripePriceId, pricing } = await resolveSanativeMembershipStripePriceId();
     const stripe = getStripeClient();
-    const resolvedPhone = phone || user.phone || "";
     const resolvedFirst = firstName || user.firstName || "";
     const resolvedLast = lastName || user.lastName || "";
 

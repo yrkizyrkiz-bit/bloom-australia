@@ -183,7 +183,17 @@ export async function activateSanativeMembership(
   let user = await prisma.user.findUnique({ where: { email: userEmail } });
   const alreadyProcessed = await hasProcessedPortalPayment(input.paymentIntentId);
 
-  await assertPhoneAvailableForAccount(input.phone, user?.id ?? null);
+  // Never block a paid activation on phone collision — skip applying the phone instead.
+  let activationPhone = input.phone ?? null;
+  try {
+    await assertPhoneAvailableForAccount(activationPhone, user?.id ?? null);
+  } catch (error) {
+    console.warn(
+      "[activateSanativeMembership] phone in use; activating without phone update",
+      { email: userEmail, userId: user?.id, error: error instanceof Error ? error.message : error }
+    );
+    activationPhone = null;
+  }
 
   if (user) {
     const protectPii = isEstablishedMember({
@@ -197,7 +207,7 @@ export async function activateSanativeMembership(
       {
         firstName: input.firstName,
         lastName: input.lastName,
-        phone: input.phone,
+        phone: activationPhone,
         dateOfBirth: input.dateOfBirth,
         addressLine1: input.addressLine1,
         addressLine2: input.addressLine2,
@@ -224,7 +234,7 @@ export async function activateSanativeMembership(
         email: userEmail,
         firstName: input.firstName || "",
         lastName: input.lastName || "",
-        phone: input.phone ?? null,
+        phone: activationPhone,
         dateOfBirth: input.dateOfBirth ?? null,
         addressLine1: input.addressLine1 ?? null,
         addressLine2: input.addressLine2 ?? null,
