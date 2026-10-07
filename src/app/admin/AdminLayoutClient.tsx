@@ -114,9 +114,15 @@ export default function AdminLayout({
   useEffect(() => {
     if (isLoading) return;
 
+    // Only bounce when auth has settled with no user — avoid mid-poll glitches
+    // (notifications / chat) briefly clearing client session and forcing login.
     if (!user) {
-      router.replace("/login");
-    } else if (!adminRoles.includes(user.role)) {
+      const timer = window.setTimeout(() => {
+        router.replace("/login");
+      }, 400);
+      return () => window.clearTimeout(timer);
+    }
+    if (!adminRoles.includes(user.role)) {
       router.replace("/dashboard");
     } else if (user.role === "DOCTOR" && pathname === "/admin") {
       router.replace(DOCTOR_PORTAL_HOME);

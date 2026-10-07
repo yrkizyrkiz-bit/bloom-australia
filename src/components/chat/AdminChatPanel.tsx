@@ -149,18 +149,55 @@ export function AdminChatPanel() {
     }
   }, []);
 
-  const loadMessages = useCallback(async (sessionId: string) => {
-    try {
-      const res = await fetch(`/api/chat/messages?sessionId=${sessionId}`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to load messages");
+  const selectedSessionIdRef = useRef<string | null>(null);
+  const messagesFetchGen = useRef(0);
+
+  const mergeMessages = useCallback((incoming: ChatMessage[]) => {
+    setMessages((prev) => {
+      const byId = new Map<string, ChatMessage>();
+      for (const msg of prev) {
+        // Drop optimistic temps once the real message is present
+        if (msg.id.startsWith("temp-")) {
+          const matched = incoming.some(
+            (m) => m.senderType === msg.senderType && m.message === msg.message
+          );
+          if (matched) continue;
+        }
+        byId.set(msg.id, msg);
       }
-      setMessages(data.messages || []);
-    } catch (error) {
-      console.error("Error loading messages:", error);
-    }
+      for (const msg of incoming) {
+        byId.set(msg.id, msg);
+      }
+      return Array.from(byId.values()).sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    });
   }, []);
+
+  const loadMessages = useCallback(
+    async (sessionId: string, opts?: { replace?: boolean }) => {
+      const gen = ++messagesFetchGen.current;
+      try {
+        const res = await fetch(`/api/chat/messages?sessionId=${sessionId}`);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to load messages");
+        }
+        // Ignore stale responses (in-flight poll finishing after a newer send/open)
+        if (gen !== messagesFetchGen.current) return;
+        if (selectedSessionIdRef.current !== sessionId) return;
+        const incoming = (data.messages || []) as ChatMessage[];
+        if (opts?.replace) {
+          setMessages(incoming);
+        } else {
+          mergeMessages(incoming);
+        }
+      } catch (error) {
+        console.error("Error loading messages:", error);
+      }
+    },
+    [mergeMessages]
+  );
 
   // Poll messages for selected session
   const pollMessages = useCallback(async () => {
@@ -170,9 +207,10 @@ export function AdminChatPanel() {
 
   const openSession = useCallback(
     (session: ChatSession) => {
+      selectedSessionIdRef.current = session.id;
       setSelectedSession(session);
       setMessages([]);
-      void loadMessages(session.id);
+      void loadMessages(session.id, { replace: true });
     },
     [loadMessages]
   );
@@ -205,12 +243,13 @@ export function AdminChatPanel() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to join chat");
       if (data.session) {
+        selectedSessionIdRef.current = sessionId;
         setSelectedSession({
           ...data.session,
           member: data.session.member || existing?.member,
         });
         setMessages(data.session.messages || []);
-        void loadMessages(sessionId);
+        void loadMessages(sessionId, { replace: true });
         void fetchSessions();
         toast.success("Joined chat");
       }
@@ -224,8 +263,20 @@ export function AdminChatPanel() {
     if (!inputMessage.trim() || !selectedSession || sending) return;
 
     const messageText = inputMessage.trim();
+    const sessionId = selectedSession.id;
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage: ChatMessage = {
+      id: tempId,
+      senderId: "me",
+      senderType: "COACH",
+      message: messageText,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+
     setInputMessage("");
     setSending(true);
+    setMessages((prev) => [...prev, tempMessage]);
 
     try {
       const res = await fetch("/api/chat/admin", {
@@ -233,16 +284,26 @@ export function AdminChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "message",
-          sessionId: selectedSession.id,
+          sessionId,
           message: messageText,
         }),
       });
-      const data = await res.json();
-      if (data.message) {
-        setMessages(prev => [...prev, data.message]);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send message");
       }
+      if (data.message) {
+        setMessages((prev) => {
+          const withoutTemp = prev.filter((m) => m.id !== tempId);
+          if (withoutTemp.some((m) => m.id === data.message.id)) return withoutTemp;
+          return [...withoutTemp, data.message];
+        });
+      }
+      // Refresh from server without wiping — merges so in-flight polls can't eat the send
+      void loadMessages(sessionId);
     } catch (error) {
-      toast.error("Failed to send message");
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
       setInputMessage(messageText);
     } finally {
       setSending(false);
@@ -306,6 +367,7 @@ export function AdminChatPanel() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to start chat");
       if (data.session) {
+        selectedSessionIdRef.current = data.session.id;
         setSelectedSession(data.session);
         setMessages(data.session.messages || []);
       }
@@ -330,6 +392,7 @@ export function AdminChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "transferToAI", sessionId: selectedSession.id }),
       });
+      selectedSessionIdRef.current = null;
       setSelectedSession(null);
       setMessages([]);
       fetchSessions();
@@ -349,6 +412,7 @@ export function AdminChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "end", sessionId: selectedSession.id }),
       });
+      selectedSessionIdRef.current = null;
       setSelectedSession(null);
       setMessages([]);
       fetchSessions();

@@ -99,11 +99,14 @@ export default function CareCommsMessagesClient() {
     }
   }, []);
 
-  const openThread = useCallback(async (id: string) => {
+  const openThread = useCallback(async (id: string, opts?: { soft?: boolean }) => {
+    const soft = Boolean(opts?.soft);
     setSelectedId(id);
-    setLoadingDetail(true);
-    setDetail(null);
-    setReply("");
+    if (!soft) {
+      setLoadingDetail(true);
+      setDetail(null);
+      setReply("");
+    }
     try {
       const res = await fetch(`/api/admin/care-support/threads/${id}`, {
         cache: "no-store",
@@ -120,8 +123,10 @@ export default function CareCommsMessagesClient() {
         prev.map((t) => (t.id === id ? { ...t, unreadCount: 0 } : t))
       );
     } catch (error) {
-      setSelectedId(null);
-      setDetail(null);
+      if (!soft) {
+        setSelectedId(null);
+        setDetail(null);
+      }
       toast.error(error instanceof Error ? error.message : "Failed to load conversation");
     } finally {
       setLoadingDetail(false);
@@ -182,20 +187,47 @@ export default function CareCommsMessagesClient() {
 
   const sendReply = async () => {
     if (!selectedId || !reply.trim()) return;
+    const threadId = selectedId;
+    const text = reply.trim();
+    const tempId = `temp-${Date.now()}`;
+    setReply("");
     setSending(true);
+    setDetail((prev) =>
+      prev && prev.id === threadId
+        ? {
+            ...prev,
+            messages: [
+              ...prev.messages,
+              {
+                id: tempId,
+                senderId: "me",
+                senderRole: "STAFF",
+                body: text,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }
+        : prev
+    );
     try {
-      const res = await fetch(`/api/admin/care-support/threads/${selectedId}/reply`, {
+      const res = await fetch(`/api/admin/care-support/threads/${threadId}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: reply }),
+        body: JSON.stringify({ body: text }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to send reply");
-      setReply("");
       toast.success("Reply sent");
-      await openThread(selectedId);
+      // Soft refresh keeps the thread visible so the last message doesn't "eat"
+      await openThread(threadId, { soft: true });
       await loadThreads();
     } catch (error) {
+      setDetail((prev) =>
+        prev
+          ? { ...prev, messages: prev.messages.filter((m) => m.id !== tempId) }
+          : prev
+      );
+      setReply(text);
       toast.error(error instanceof Error ? error.message : "Failed to send reply");
     } finally {
       setSending(false);

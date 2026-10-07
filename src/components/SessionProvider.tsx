@@ -14,11 +14,12 @@ export function SessionProvider({ children, session }: SessionProviderProps) {
   return (
     <NextAuthSessionProvider
       session={session}
-      // Refetch session every 5 minutes to keep it fresh.
-      // A focus refetch is omitted: remote-desktop windows fire it constantly,
-      // and one empty reply was clearing the session and bouncing back to login.
-      refetchInterval={5 * 60}
+      // Do not background-refetch the session. An empty/failed /api/auth/session
+      // reply has cleared the client session mid-chat (notifications + messaging)
+      // and bounced staff/members to login. JWT maxAge is 30 days.
+      refetchInterval={0}
       refetchOnWindowFocus={false}
+      refetchWhenOffline={false}
     >
       {children}
     </NextAuthSessionProvider>
