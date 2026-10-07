@@ -4,9 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MessageCircle, Send, X, Minimize2, Maximize2,
   User, Loader2, Clock, Sparkles, Shield, ChevronUp
@@ -365,26 +363,27 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 16 }}
+        transition={{ duration: 0.2 }}
         className={
           minimized
-            ? // Middle-right (top-based so Framer Motion y/scale don't fight translate)
-              "fixed z-[60] top-[max(1.25rem,calc(50dvh-3.5rem))] right-4 md:right-6"
-            : // Mobile: fill safe area between header + bottom nav. Desktop: middle-right.
-              "fixed z-[60] inset-x-3 top-[calc(4.25rem+env(safe-area-inset-top,0px))] bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] flex flex-col sm:inset-auto sm:top-[max(1.25rem,calc(50dvh-min(280px,42dvh)))] sm:right-6 sm:bottom-auto sm:h-[min(560px,calc(100dvh-2.5rem))] sm:w-[400px]"
+            ? // Middle-right (top-based so Framer Motion y doesn't fight layout)
+              "fixed z-[70] top-[max(1.25rem,calc(50dvh-3.5rem))] right-4 md:right-6"
+            : // Mobile: full device sheet so the composer stays on-screen. Desktop: middle-right.
+              "fixed z-[70] inset-0 flex max-h-[100dvh] flex-col overflow-hidden sm:inset-auto sm:top-[max(1.25rem,calc(50dvh-min(280px,42dvh)))] sm:right-6 sm:bottom-auto sm:h-[min(560px,calc(100dvh-2.5rem))] sm:max-h-[calc(100dvh-2.5rem)] sm:w-[400px]"
         }
       >
         <Card
           className={
             minimized
               ? "w-72 overflow-hidden border-0 shadow-2xl"
-              : "flex h-full min-h-0 w-full flex-col overflow-hidden border-0 shadow-2xl"
+              : "flex h-full min-h-0 max-h-full w-full flex-col overflow-hidden rounded-none border-0 shadow-2xl sm:rounded-xl"
           }
         >
           {/* Header */}
-          <CardHeader className="shrink-0 p-4 bg-gradient-to-r from-[#4a6243] to-[#5c7a52] text-white">
+          <CardHeader className="shrink-0 p-4 pt-[max(1rem,env(safe-area-inset-top,0px))] bg-gradient-to-r from-[#4a6243] to-[#5c7a52] text-white sm:pt-4">
             <div className="flex items-center justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
@@ -459,7 +458,8 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
               {/* Chat Messages */}
               {!loading && session && (
                 <>
-                  <ScrollArea className="min-h-0 flex-1 p-4">
+                  {/* Native overflow scroll — more reliable than ScrollArea in mobile flex sheets */}
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
                     <div className="space-y-4">
                       {hiddenHistoryCount > 0 && (
                         <div className="flex justify-center">
@@ -536,10 +536,10 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
                       })}
                       <div ref={messagesEndRef} />
                     </div>
-                  </ScrollArea>
+                  </div>
 
-                  {/* Input Area */}
-                  <div className="shrink-0 border-t bg-white p-3 sm:p-4 dark:bg-slate-950">
+                  {/* Input Area — pinned to bottom of the sheet (safe-area aware) */}
+                  <div className="shrink-0 border-t bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:p-4 sm:pb-4 dark:bg-slate-950">
                     {session.status === "WAITING" && (
                       <div className="flex items-center gap-2 mb-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
                         <Clock className="w-4 h-4 text-amber-600 shrink-0" />

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCareSupportStaff } from "@/lib/care-support/auth";
-import { memberCareSupportInboxUrl } from "@/lib/care-support/member-inbox-url";
+import { resolveMemberCareSupportInboxUrl } from "@/lib/care-support/member-inbox-url";
 import { notifyMember } from "@/lib/notifications/member-notify";
 
 export async function GET() {
@@ -139,7 +139,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const actionUrl = memberCareSupportInboxUrl(member);
+    const actionUrl = await resolveMemberCareSupportInboxUrl(member.id, {
+      threadId: thread.id,
+    });
     await notifyMember({
       userId: member.id,
       intent: "CARE_MESSAGE",

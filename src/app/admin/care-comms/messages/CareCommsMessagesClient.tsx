@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -17,8 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Inbox, Loader2, Plus, RefreshCw, Search, Send, X } from "lucide-react";
+import { ArrowLeft, Inbox, Loader2, Plus, RefreshCw, Search, Send, X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type ThreadSummary = {
   id: string;
@@ -102,23 +102,37 @@ export default function CareCommsMessagesClient() {
   const openThread = useCallback(async (id: string) => {
     setSelectedId(id);
     setLoadingDetail(true);
+    setDetail(null);
     setReply("");
     try {
       const res = await fetch(`/api/admin/care-support/threads/${id}`, {
         cache: "no-store",
       });
-      if (!res.ok) throw new Error("Failed to load conversation");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load conversation");
+      }
+      if (!data.thread?.id) {
+        throw new Error("Conversation data missing");
+      }
       setDetail(data.thread);
       setThreads((prev) =>
         prev.map((t) => (t.id === id ? { ...t, unreadCount: 0 } : t))
       );
     } catch (error) {
+      setSelectedId(null);
+      setDetail(null);
       toast.error(error instanceof Error ? error.message : "Failed to load conversation");
     } finally {
       setLoadingDetail(false);
     }
   }, []);
+
+  const closeThread = () => {
+    setSelectedId(null);
+    setDetail(null);
+    setReply("");
+  };
 
   useEffect(() => {
     void loadThreads();
@@ -256,11 +270,18 @@ export default function CareCommsMessagesClient() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <Card className="overflow-hidden">
+        {/* Inbox — hidden on small screens while a thread is open */}
+        <Card
+          className={cn(
+            "overflow-hidden",
+            selectedId ? "hidden lg:block" : "block"
+          )}
+        >
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Inbox</CardTitle>
             <CardDescription>
-              {threads.filter((t) => t.unreadCount > 0).length} unread
+              {threads.filter((t) => t.unreadCount > 0).length} unread · tap a
+              conversation to reply
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -273,76 +294,100 @@ export default function CareCommsMessagesClient() {
                 No conversations yet. Start one with Message member.
               </p>
             ) : (
-              <ScrollArea className="h-[65vh]">
-                <div className="divide-y">
-                  {threads.map((thread) => {
-                    const active = thread.id === selectedId;
-                    return (
-                      <button
-                        key={thread.id}
-                        type="button"
-                        onClick={() => void openThread(thread.id)}
-                        className={`w-full px-4 py-3 text-left transition-colors hover:bg-muted/60 ${
-                          active ? "bg-emerald-50" : ""
-                        }`}
-                      >
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-medium">{thread.member.name}</p>
-                          {thread.unreadCount > 0 && (
-                            <Badge className="bg-emerald-600 text-white">
-                              {thread.unreadCount}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="truncate text-sm text-slate-800">{thread.subject}</p>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {thread.preview}
-                        </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {formatWhen(thread.lastMessageAt)}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
+              <div className="max-h-[70vh] divide-y overflow-y-auto">
+                {threads.map((thread) => {
+                  const active = thread.id === selectedId;
+                  return (
+                    <button
+                      key={thread.id}
+                      type="button"
+                      onClick={() => void openThread(thread.id)}
+                      className={cn(
+                        "w-full px-4 py-3 text-left transition-colors hover:bg-muted/60",
+                        active && "bg-emerald-50"
+                      )}
+                    >
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium">{thread.member.name}</p>
+                        {thread.unreadCount > 0 && (
+                          <Badge className="bg-emerald-600 text-white">
+                            {thread.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="truncate text-sm text-slate-800">{thread.subject}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {thread.preview}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatWhen(thread.lastMessageAt)}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="min-h-[65vh]">
+        {/* Conversation — full width on mobile when open */}
+        <Card
+          className={cn(
+            "flex min-h-[70vh] flex-col",
+            !selectedId && "hidden lg:flex"
+          )}
+        >
           {!selectedId ? (
-            <CardContent className="flex h-full min-h-[65vh] items-center justify-center text-sm text-muted-foreground">
+            <CardContent className="flex h-full min-h-[70vh] items-center justify-center text-sm text-muted-foreground">
               Select a conversation, or message a member to start one
             </CardContent>
           ) : loadingDetail || !detail ? (
-            <CardContent className="flex h-full min-h-[65vh] items-center justify-center">
+            <CardContent className="flex h-full min-h-[70vh] flex-col items-center justify-center gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Button type="button" variant="ghost" size="sm" onClick={closeThread}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to inbox
+              </Button>
             </CardContent>
           ) : (
             <>
               <CardHeader className="border-b pb-4">
-                <CardTitle className="text-lg">{detail.subject}</CardTitle>
-                <CardDescription>
-                  {detail.member.name} · {detail.member.email}
-                </CardDescription>
+                <div className="flex items-start gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="mt-0.5 shrink-0 lg:hidden"
+                    onClick={closeThread}
+                    aria-label="Back to inbox"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-lg">{detail.subject}</CardTitle>
+                    <CardDescription>
+                      {detail.member.name} · {detail.member.email}
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="flex flex-col gap-4 p-4">
-                <ScrollArea className="h-[45vh] rounded-lg border bg-slate-50/60 p-3">
+              <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border bg-slate-50/60 p-3">
                   <div className="space-y-3">
                     {detail.messages.map((msg) => {
                       const fromStaff = msg.senderRole === "STAFF";
                       return (
                         <div
                           key={msg.id}
-                          className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+                          className={cn(
+                            "max-w-[85%] rounded-xl px-3 py-2 text-sm",
                             fromStaff
                               ? "ml-auto bg-emerald-700 text-white"
-                              : "bg-white border text-slate-800"
-                          }`}
+                              : "border bg-white text-slate-800"
+                          )}
                         >
                           <p className="mb-1 text-[10px] uppercase tracking-wide opacity-70">
-                            {fromStaff ? "You" : detail.member.name} ·{" "}
+                            {fromStaff ? "Care team" : detail.member.name} ·{" "}
                             {formatWhen(msg.createdAt)}
                           </p>
                           <p className="whitespace-pre-wrap">{msg.body}</p>
@@ -350,13 +395,13 @@ export default function CareCommsMessagesClient() {
                       );
                     })}
                   </div>
-                </ScrollArea>
+                </div>
 
-                <div className="space-y-2">
+                <div className="shrink-0 space-y-2">
                   <Textarea
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
-                    placeholder="Write a message to the member..."
+                    placeholder="Write a reply to the member..."
                     rows={3}
                   />
                   <div className="flex justify-end">
@@ -370,7 +415,7 @@ export default function CareCommsMessagesClient() {
                       ) : (
                         <Send className="mr-2 h-4 w-4" />
                       )}
-                      Send
+                      Reply
                     </Button>
                   </div>
                 </div>

@@ -8,6 +8,14 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+function toAbsoluteUrl(raw) {
+  try {
+    return new URL(raw || "/dashboard", self.location.origin).href;
+  } catch {
+    return new URL("/dashboard", self.location.origin).href;
+  }
+}
+
 self.addEventListener("push", (event) => {
   let data = {
     title: "Sanative",
@@ -29,13 +37,15 @@ self.addEventListener("push", (event) => {
     }
   }
 
+  const url = toAbsoluteUrl(data.url);
+
   event.waitUntil(
     self.registration.showNotification(data.title || "Sanative", {
       body: data.body || "",
       icon: "/icons/sanative-192.png",
       badge: "/icons/sanative-192.png",
       tag: data.tag || "sanative",
-      data: { url: data.url || "/dashboard" },
+      data: { url },
       requireInteraction: Boolean(data.requireInteraction),
     })
   );
@@ -43,21 +53,39 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/dashboard";
+  const url = toAbsoluteUrl(event.notification.data?.url || "/dashboard");
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+
       for (const client of clientList) {
-        if ("focus" in client) {
-          if ("navigate" in client) {
-            client.navigate(url);
-          }
-          return client.focus();
+        if (!client.url.startsWith(self.location.origin)) continue;
+        if (!("focus" in client)) continue;
+
+        try {
+          client.postMessage({ type: "SANATIVE_NOTIFICATION_OPEN", url });
+        } catch {
+          // ignore
         }
+
+        if ("navigate" in client) {
+          try {
+            await client.navigate(url);
+          } catch {
+            // Some browsers reject navigate; focus + client-side handler still help.
+          }
+        }
+
+        return client.focus();
       }
+
       if (self.clients.openWindow) {
         return self.clients.openWindow(url);
       }
-    })
+    })()
   );
 });

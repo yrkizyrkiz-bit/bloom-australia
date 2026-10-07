@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useNotifications, RealTimeNotification } from "@/contexts/NotificationContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +22,9 @@ import {
   AlertTriangle,
   AlertCircle,
   CheckCircle,
+  ChevronRight,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 function getNotificationIcon(type: RealTimeNotification["type"]) {
@@ -67,6 +68,7 @@ export function RealTimeNotificationBell({
     removeNotification,
     clearAll,
   } = useNotifications();
+  const router = useRouter();
 
   const [isOpen, setIsOpen] = useState(false);
   const [animate, setAnimate] = useState(false);
@@ -80,10 +82,11 @@ export function RealTimeNotificationBell({
     }
   }, [unreadCount]);
 
-  const handleNotificationClick = (notification: RealTimeNotification) => {
+  const openNotification = (notification: RealTimeNotification) => {
     markAsRead(notification.id);
+    setIsOpen(false);
     if (notification.actionUrl) {
-      setIsOpen(false);
+      router.push(notification.actionUrl);
     }
   };
 
@@ -161,18 +164,28 @@ export function RealTimeNotificationBell({
                   notification.read
                 )} hover:bg-muted/50 transition-colors`}
               >
-                {notification.actionUrl ? (
-                  <Link
-                    href={notification.actionUrl}
-                    onClick={() => handleNotificationClick(notification)}
-                    className="block"
+                <button
+                  type="button"
+                  className="block w-full text-left"
+                  onClick={() =>
+                    notification.actionUrl
+                      ? openNotification(notification)
+                      : markAsRead(notification.id)
+                  }
+                >
+                  <NotificationContent notification={notification} />
+                </button>
+                {notification.actionUrl && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 mt-1 text-primary"
+                    onClick={() => openNotification(notification)}
                   >
-                    <NotificationContent notification={notification} />
-                  </Link>
-                ) : (
-                  <div onClick={() => markAsRead(notification.id)} className="cursor-pointer">
-                    <NotificationContent notification={notification} />
-                  </div>
+                    Open
+                    <ChevronRight className="w-3 h-3 ml-0.5" />
+                  </Button>
                 )}
                 <Button
                   variant="ghost"

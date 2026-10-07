@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { memberCareSupportInboxUrl } from "@/lib/care-support/member-inbox-url";
+import { resolveMemberCareSupportInboxUrl } from "@/lib/care-support/member-inbox-url";
 import { notifyMember } from "@/lib/notifications/member-notify";
 
 const CHAT_STAFF_ROLES = new Set(["ADMIN", "CARE_PARTNER", "DOCTOR"]);
@@ -69,7 +69,9 @@ export async function GET(request: NextRequest) {
           OR: [
             { coachId, status: { in: ["WAITING", "ACTIVE"] } },
             { status: "WAITING", coachId: null },
-          ]
+            // Let care partners open George chats and take them over
+            { status: "AI_HANDLING", coachId: null },
+          ],
         },
         include: {
           messages: {
@@ -263,7 +265,9 @@ export async function POST(request: NextRequest) {
         intent: "CARE_MESSAGE",
         title: "Message from your care team",
         message: openingMessage.slice(0, 160),
-        actionUrl: memberCareSupportInboxUrl(member),
+        actionUrl: await resolveMemberCareSupportInboxUrl(member.id, {
+          openChat: true,
+        }),
         category: "SYSTEM",
         dedupeDays: 0,
       }).catch((err) => console.error("[chat/admin] notify member failed", err));
@@ -356,8 +360,36 @@ export async function POST(request: NextRequest) {
         where: { id: sessionId },
       });
 
-      if (!chatSession || chatSession.coachId !== coachId) {
-        return NextResponse.json({ error: "Session not found or not assigned to you" }, { status: 404 });
+      if (!chatSession) {
+        return NextResponse.json({ error: "Session not found" }, { status: 404 });
+      }
+
+      const isAdmin = session.user.role === "ADMIN" || session.user.role === "admin";
+      const assignedToOther =
+        Boolean(chatSession.coachId) && chatSession.coachId !== coachId;
+      if (assignedToOther && !isAdmin) {
+        return NextResponse.json(
+          { error: "This chat is assigned to another care team member" },
+          { status: 403 }
+        );
+      }
+
+      // Auto-claim unassigned / George chats when staff replies
+      if (!chatSession.coachId || chatSession.status === "AI_HANDLING") {
+        await prisma.chatSession.update({
+          where: { id: sessionId },
+          data: {
+            coachId,
+            status: "ACTIVE",
+            isAiHandled: false,
+            lastMessageAt: new Date(),
+          },
+        });
+      } else {
+        await prisma.chatSession.update({
+          where: { id: sessionId },
+          data: { lastMessageAt: new Date() },
+        });
       }
 
       const coachMessage = await prisma.chatMessage.create({
@@ -367,11 +399,6 @@ export async function POST(request: NextRequest) {
           senderType: "COACH",
           message,
         },
-      });
-
-      await prisma.chatSession.update({
-        where: { id: sessionId },
-        data: { lastMessageAt: new Date() },
       });
 
       return NextResponse.json({ message: coachMessage });

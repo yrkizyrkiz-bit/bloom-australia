@@ -9,6 +9,7 @@ import { PortalContextProvider } from "@/contexts/PortalContextProvider";
 import { FaceIdEnrollPrompt } from "@/components/account/FaceIdEnrollPrompt";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 import { MobileNav } from "@/components/dashboard/MobileNav";
+import { PushNotificationDeepLink } from "@/components/notifications/PushNotificationDeepLink";
 import { Heart } from "lucide-react";
 
 const SESSION_RELOAD_KEY = "sanative_session_document_reload";
@@ -119,6 +120,7 @@ export default function DashboardLayoutClient({
           </main>
           <MobileNav />
           <FaceIdEnrollPrompt />
+          <PushNotificationDeepLink />
         </div>
       </NotificationProvider>
     </PortalContextProvider>

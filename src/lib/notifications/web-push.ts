@@ -56,7 +56,20 @@ export async function sendWebPushToUser(
           JSON.stringify({
             title: payload.title,
             body: payload.body,
-            url: payload.url || "/dashboard",
+            // Absolute URL so mobile / PWA notification clicks navigate reliably.
+            url: (() => {
+              const path = payload.url || "/dashboard";
+              if (/^https?:\/\//i.test(path)) return path;
+              const base =
+                process.env.NEXTAUTH_URL ||
+                process.env.NEXT_PUBLIC_APP_URL ||
+                "http://localhost:3000";
+              try {
+                return new URL(path, base).href;
+              } catch {
+                return path;
+              }
+            })(),
             tag: payload.tag || "sanative",
             requireInteraction: Boolean(payload.requireInteraction),
           })

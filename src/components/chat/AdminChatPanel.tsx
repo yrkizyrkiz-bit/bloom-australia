@@ -149,18 +149,33 @@ export function AdminChatPanel() {
     }
   }, []);
 
+  const loadMessages = useCallback(async (sessionId: string) => {
+    try {
+      const res = await fetch(`/api/chat/messages?sessionId=${sessionId}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load messages");
+      }
+      setMessages(data.messages || []);
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    }
+  }, []);
+
   // Poll messages for selected session
   const pollMessages = useCallback(async () => {
     if (!selectedSession) return;
+    await loadMessages(selectedSession.id);
+  }, [selectedSession, loadMessages]);
 
-    try {
-      const res = await fetch(`/api/chat/messages?sessionId=${selectedSession.id}`);
-      const data = await res.json();
-      setMessages(data.messages || []);
-    } catch (error) {
-      console.error("Error polling messages:", error);
-    }
-  }, [selectedSession]);
+  const openSession = useCallback(
+    (session: ChatSession) => {
+      setSelectedSession(session);
+      setMessages([]);
+      void loadMessages(session.id);
+    },
+    [loadMessages]
+  );
 
   // Set status
   const setStatus = async (status: string) => {
@@ -181,20 +196,26 @@ export function AdminChatPanel() {
   // Join chat
   const joinChat = async (sessionId: string) => {
     try {
+      const existing = sessions.find((s) => s.id === sessionId);
       const res = await fetch("/api/chat/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "join", sessionId }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to join chat");
       if (data.session) {
-        setSelectedSession(data.session);
+        setSelectedSession({
+          ...data.session,
+          member: data.session.member || existing?.member,
+        });
         setMessages(data.session.messages || []);
-        fetchSessions();
+        void loadMessages(sessionId);
+        void fetchSessions();
         toast.success("Joined chat");
       }
     } catch (error) {
-      toast.error("Failed to join chat");
+      toast.error(error instanceof Error ? error.message : "Failed to join chat");
     }
   };
 
@@ -493,14 +514,15 @@ export function AdminChatPanel() {
                         <div
                           key={session.id}
                           onClick={() => {
-                            if (session.coachId || session.status === "WAITING") {
-                              if (session.status === "WAITING" && !session.coachId) {
-                                joinChat(session.id);
-                              } else {
-                                setSelectedSession(session);
-                                pollMessages();
-                              }
+                            // Waiting / George-handled → join (assigns this care partner)
+                            if (
+                              !session.coachId &&
+                              (session.status === "WAITING" || session.status === "AI_HANDLING")
+                            ) {
+                              void joinChat(session.id);
+                              return;
                             }
+                            openSession(session);
                           }}
                           className={`p-3 rounded-lg cursor-pointer transition-colors ${
                             selectedSession?.id === session.id

@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   MessageSquare,
@@ -23,6 +22,10 @@ import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_NAME } from "@/lib/george";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { isProgramEntitled } from "@/lib/membership/program-access";
+import {
+  CareSupportThreadList,
+  type CareSupportThread,
+} from "@/components/care-support/CareSupportThreadList";
 import {
   mensHealthShellFromPathname,
   mensHealthShellHome,
@@ -41,30 +44,6 @@ const RING = {
   coral: "#F87171",
 } as const;
 
-type SupportMessage = {
-  id: string;
-  senderRole: string;
-  body: string;
-  createdAt: string;
-};
-
-type SupportThread = {
-  id: string;
-  subject: string;
-  status: string;
-  lastMessageAt: string;
-  messages: SupportMessage[];
-};
-
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString("en-AU", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 export default function SupportPage() {
   const pathname = usePathname() || "";
   const { data: portal } = usePortalContext();
@@ -75,7 +54,7 @@ export default function SupportPage() {
   const [subject, setSubject] = useState("");
   const [sending, setSending] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [threads, setThreads] = useState<SupportThread[]>([]);
+  const [threads, setThreads] = useState<CareSupportThread[]>([]);
   const [loadingThreads, setLoadingThreads] = useState(true);
 
   useEffect(() => {
@@ -297,70 +276,15 @@ export default function SupportPage() {
 
       <Card className="border-[#cdd8c6]">
         <CardContent className="space-y-4 p-5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-serif text-lg font-semibold text-[#2c3628]">Your messages</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setLoadingThreads(true);
-                void loadThreads();
-              }}
-              className="text-[#5c7a52]"
-            >
-              Refresh
-            </Button>
-          </div>
-
-          {loadingThreads ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-[#5c7a52]" />
-            </div>
-          ) : threads.length === 0 ? (
-            <p className="text-sm text-[#5c7a52]">
-              No messages yet. Send a note above and your care team will reply here.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {threads.map((thread) => (
-                <div
-                  key={thread.id}
-                  className="rounded-xl border border-[#cdd8c6] bg-[#f8f4ec]/60 p-4"
-                >
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-[#2c3628]">{thread.subject}</p>
-                      <p className="text-xs text-[#5c7a52]">
-                        Updated {formatWhen(thread.lastMessageAt)}
-                      </p>
-                    </div>
-                    <Badge variant="secondary" className="bg-[#e6ebe3] text-[#4a6243]">
-                      {thread.status}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    {thread.messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`rounded-lg px-3 py-2 text-sm ${
-                          msg.senderRole === "MEMBER"
-                            ? "ml-6 bg-[#4a6243] text-white"
-                            : "mr-6 bg-white text-[#2c3628] border border-[#cdd8c6]"
-                        }`}
-                      >
-                        <p className="mb-1 text-[10px] uppercase tracking-wide opacity-70">
-                          {msg.senderRole === "MEMBER" ? "You" : "Care team"} ·{" "}
-                          {formatWhen(msg.createdAt)}
-                        </p>
-                        <p className="whitespace-pre-wrap">{msg.body}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <CareSupportThreadList
+            threads={threads}
+            loading={loadingThreads}
+            theme="sage"
+            onRefresh={async () => {
+              setLoadingThreads(true);
+              await loadThreads();
+            }}
+          />
         </CardContent>
       </Card>
 
