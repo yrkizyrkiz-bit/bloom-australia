@@ -6,6 +6,7 @@ import {
   isEstablishedMember,
   phoneMatchCandidates,
 } from "@/lib/auth/member-identity-guard";
+import { publicVerifiedContactIdentity } from "@/lib/auth/verified-contact-public";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
   enforceIpRateLimit,
@@ -130,27 +131,26 @@ export async function POST(req: NextRequest) {
     }
 
     const established = existingUser ? isEstablishedMember(existingUser) : false;
+    const publicIdentity = publicVerifiedContactIdentity({
+      type,
+      existingUser,
+      isEstablished: established,
+    });
 
-    // Generate a session token for the checkout flow
+    // Generate a session token for the checkout flow.
+    // Phone matches stay unbound so a shared mobile creates a new account
+    // (triage is flagged at membership activation) instead of opening the other member.
     const sessionToken = signVerifiedContactToken({
       contact,
       type,
-      userId: existingUser?.id || null,
+      userId: publicIdentity.bindUserId,
     });
 
     return NextResponse.json({
       success: true,
       verified: true,
-      existingUser: existingUser
-        ? {
-            id: existingUser.id,
-            email: existingUser.email,
-            firstName: existingUser.firstName,
-            lastName: existingUser.lastName,
-            phone: existingUser.phone,
-            isEstablished: established,
-          }
-        : null,
+      existingUser: publicIdentity.existingUser,
+      phoneAlreadyRegistered: publicIdentity.phoneAlreadyRegistered,
       sessionToken,
     });
   } catch (error) {

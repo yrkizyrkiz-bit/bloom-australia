@@ -396,8 +396,10 @@ function MembershipCheckoutPageContent() {
     phone: string | null;
     isEstablished?: boolean;
   } | null>(null);
-  /** True after the member confirms "continue as me" on an existing contact match. */
+  /** True after the member confirms "continue as me" on an existing email match. */
   const [continuingAsExisting, setContinuingAsExisting] = useState(false);
+  /** Verified mobile is already on another account; signup continues as a new member. */
+  const [phoneAlreadyRegistered, setPhoneAlreadyRegistered] = useState(false);
 
   // Payment state
   const [postcode, setPostcode] = useState("");
@@ -498,8 +500,18 @@ function MembershipCheckoutPageContent() {
       if (!res.ok) throw new Error(data.error);
 
       setSessionToken(data.sessionToken);
-      if (data.existingUser) {
+      if (verifyMethod === "phone" && data.phoneAlreadyRegistered) {
+        setExistingUser(null);
+        setContinuingAsExisting(false);
+        setPhoneAlreadyRegistered(true);
+        setPhone(contact);
+        setFirstName("");
+        setLastName("");
+        setEmail("");
+        setStep("existing_account");
+      } else if (data.existingUser) {
         setExistingUser(data.existingUser);
+        setPhoneAlreadyRegistered(false);
         setFirstName(data.existingUser.firstName || "");
         setLastName(data.existingUser.lastName || "");
         setEmail(data.existingUser.email || "");
@@ -509,11 +521,13 @@ function MembershipCheckoutPageContent() {
       } else if (verifyMethod === "email") {
         setExistingUser(null);
         setContinuingAsExisting(false);
+        setPhoneAlreadyRegistered(false);
         setEmail(contact);
         setStep("payment");
       } else {
         setExistingUser(null);
         setContinuingAsExisting(false);
+        setPhoneAlreadyRegistered(false);
         setPhone(contact);
         setStep("payment");
       }
@@ -531,6 +545,19 @@ function MembershipCheckoutPageContent() {
     setEmail(existingUser.email || "");
     setPhone(existingUser.phone || (verifyMethod === "phone" ? contact : phone));
     setContinuingAsExisting(true);
+    setPhoneAlreadyRegistered(false);
+    setError(null);
+    setStep("payment");
+  };
+
+  const continueWithSharedMobile = () => {
+    setExistingUser(null);
+    setContinuingAsExisting(false);
+    setPhoneAlreadyRegistered(true);
+    setPhone(contact);
+    setFirstName("");
+    setLastName("");
+    setEmail("");
     setError(null);
     setStep("payment");
   };
@@ -538,9 +565,11 @@ function MembershipCheckoutPageContent() {
   const useDifferentContact = () => {
     setExistingUser(null);
     setContinuingAsExisting(false);
+    setPhoneAlreadyRegistered(false);
     setSessionToken(null);
     setCode("");
     setCodeSent(false);
+    setContact("");
     setFirstName("");
     setLastName("");
     setEmail("");
@@ -827,11 +856,57 @@ function MembershipCheckoutPageContent() {
   );
 
   const renderExistingAccountStep = () => {
+    const contactLabel = verifyMethod === "email" ? "email" : "mobile number";
+
+    if (verifyMethod === "phone" || phoneAlreadyRegistered) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl">
+            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+              <Check className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-sm text-green-800">
+              Verified mobile •••• {contact.replace(/\D/g, "").slice(-4)}
+            </span>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              This mobile number is already on file
+            </h3>
+            <p className="text-sm text-gray-500">
+              You can keep this number and we will create a new account. Our care team
+              will be flagged to confirm the details before your consult. Or use a
+              different mobile.
+            </p>
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <button
+            type="button"
+            onClick={continueWithSharedMobile}
+            className="w-full py-3.5 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl
+              transition-colors flex items-center justify-center gap-2"
+          >
+            Continue with this number
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={useDifferentContact}
+            className="w-full py-3.5 border-2 border-gray-200 hover:border-gray-300 text-gray-700
+              font-semibold rounded-xl transition-colors"
+          >
+            Use a different mobile number
+          </button>
+        </div>
+      );
+    }
+
     const displayName =
       [existingUser?.firstName, existingUser?.lastName].filter(Boolean).join(" ") ||
-      existingUser?.email ||
-      "this account";
-    const contactLabel = verifyMethod === "email" ? "email" : "mobile number";
+      "your account";
 
     return (
       <div className="space-y-6">
@@ -849,29 +924,8 @@ function MembershipCheckoutPageContent() {
             This {contactLabel} already has an account
           </h3>
           <p className="text-sm text-gray-500">
-            We found <span className="font-medium text-gray-800">{displayName}</span>.
-            Continue only if this is you. To sign up someone else, use their own{" "}
-            {verifyMethod === "email" ? "email" : "mobile"} — not yours.
+            Continue only if this is you. To sign up someone else, use their own email.
           </p>
-        </div>
-
-        <div className="rounded-xl border border-[#e6ebe3] bg-[#f7f4ed] px-4 py-3 space-y-1.5 text-sm">
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500">Name</span>
-            <span className="font-medium text-gray-900">{displayName}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-500">Email</span>
-            <span className="font-medium text-gray-900 break-all">
-              {existingUser?.email || "—"}
-            </span>
-          </div>
-          {existingUser?.phone ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-gray-500">Mobile</span>
-              <span className="font-medium text-gray-900">{existingUser.phone}</span>
-            </div>
-          ) : null}
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -882,7 +936,7 @@ function MembershipCheckoutPageContent() {
           className="w-full py-3.5 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl
             transition-colors flex items-center justify-center gap-2"
         >
-          Continue as {existingUser?.firstName || "this member"}
+          Continue as {displayName}
           <ArrowRight className="w-4 h-4" />
         </button>
         <button
@@ -893,9 +947,6 @@ function MembershipCheckoutPageContent() {
         >
           Use a different {contactLabel}
         </button>
-        <p className="text-xs text-gray-500 text-center">
-          Signing up a friend? Start again with their {verifyMethod === "email" ? "email address" : "mobile number"}.
-        </p>
       </div>
     );
   };
@@ -910,19 +961,19 @@ function MembershipCheckoutPageContent() {
         </div>
         <span className="text-sm text-green-800">
           {continuingAsExisting
-            ? `Continuing as ${existingUser?.firstName || "member"}`
+            ? "Continuing with your existing email account"
             : (
               <>
                 Verified as{" "}
                 <span className="font-medium">
-                  {verifyMethod === "email" ? contact : `•••• ${contact.slice(-4)}`}
+                  {verifyMethod === "email" ? contact : `•••• ${contact.replace(/\D/g, "").slice(-4)}`}
                 </span>
               </>
             )}
         </span>
         <button
           onClick={() => {
-            if (continuingAsExisting) {
+            if (continuingAsExisting || phoneAlreadyRegistered) {
               setStep("existing_account");
               setClientSecret(null);
               return;
@@ -948,6 +999,12 @@ function MembershipCheckoutPageContent() {
       {/* Name before payment */}
       {!clientSecret && (
         <div className="space-y-4">
+          {phoneAlreadyRegistered && !continuingAsExisting ? (
+            <p className="text-sm text-gray-500 rounded-xl border border-[#e6ebe3] bg-[#f7f4ed] px-4 py-3">
+              Enter your own details. Our care team will be notified that this mobile
+              is already on file and will confirm it at triage.
+            </p>
+          ) : null}
           {continuingAsExisting ? (
             <div className="rounded-xl border border-[#e6ebe3] bg-[#f7f4ed] px-4 py-3 space-y-1.5 text-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#5c7a52]">
@@ -1070,9 +1127,13 @@ function MembershipCheckoutPageContent() {
           <PaymentForm
             onSuccess={handlePaymentSuccess}
             amountAud={priceAud}
-            customerEmail={existingUser?.email || (verifyMethod === "email" ? contact : email) || undefined}
+            customerEmail={
+              continuingAsExisting
+                ? existingUser?.email || email || undefined
+                : (verifyMethod === "email" ? contact : email) || undefined
+            }
             customerName={`${firstName} ${lastName}`.trim() || undefined}
-            userId={existingUser?.id}
+            userId={continuingAsExisting ? existingUser?.id : undefined}
           />
         </Elements>
       )}
@@ -1453,7 +1514,9 @@ function MembershipCheckoutPageContent() {
 
               {/* Form steps */}
               {step === "verify" && renderVerificationStep()}
-              {step === "existing_account" && renderExistingAccountStep()}
+              {step === "existing_account" &&
+                (phoneAlreadyRegistered || Boolean(existingUser)) &&
+                renderExistingAccountStep()}
               {step === "payment" && renderPaymentStep()}
               {step === "onboard" && renderOnboardingStep()}
               {step === "booking" && renderBookingStep()}

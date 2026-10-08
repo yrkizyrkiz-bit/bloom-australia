@@ -67,10 +67,10 @@ function normaliseEmail(value: string | null | undefined): string {
  *
  * - Email verified: the email is the verified address. A different body email
  *   is rejected.
- * - Mobile verified for an existing account: the email must be that account's.
- * - Mobile verified with no account on file: the email must not already belong
- *   to someone else, otherwise a stranger could attach a payment to that
- *   account and receive its login link.
+ * - Mobile verified: never bind to another member who already has that number.
+ *   A new email is required, and must not already belong to someone else,
+ *   otherwise a stranger could attach a payment to that account. Duplicate
+ *   mobiles are allowed and flagged for triage at activation.
  */
 export async function bindCheckoutEmail(
   claims: VerifiedContactClaims,
