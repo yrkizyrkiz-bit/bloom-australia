@@ -121,10 +121,13 @@ export function isWeightProgressPath(pathname: string): boolean {
 export const WM_POST_CHECKOUT_PATH =
   "/dashboard/weight-management?onboarding=post-checkout";
 
-/** Append safe redirect to magic login URL so activation lands on WM home. */
-export function buildPortalActivationMagicLink(magicLink: string): string {
+/** Append a safe redirect to the magic login URL so activation lands on the program home. */
+export function buildPortalActivationMagicLink(
+  magicLink: string,
+  redirectPath: string = WM_POST_CHECKOUT_PATH
+): string {
   const separator = magicLink.includes("?") ? "&" : "?";
-  return `${magicLink}${separator}redirect=${encodeURIComponent(WM_POST_CHECKOUT_PATH)}`;
+  return `${magicLink}${separator}redirect=${encodeURIComponent(redirectPath)}`;
 }
 
 export function derivePortalContext(input: {

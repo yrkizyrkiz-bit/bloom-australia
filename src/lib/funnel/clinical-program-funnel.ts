@@ -188,3 +188,28 @@ export function isClinicalProgramMembershipFunnel(
       source.includes("womens_health_assessment"))
   );
 }
+
+const PROGRAM_HOME_PHRASE: Record<ClinicalFunnelProgramId, string> = {
+  weight_management: "weight program home",
+  hair_loss: "hair program home",
+  mens_health: "men's health program home",
+  womens_health: "women's health program home",
+};
+
+/** Copy for the post-booking confirmation email (program-aware, not WM-only). */
+export function consultationConfirmationCopy(input: {
+  slug: ClinicalFunnelProgramId;
+  label: string;
+  intentProgram?: string | null;
+}): {
+  consultationName: string;
+  portalPath: string;
+  programHomePhrase: string;
+} {
+  return {
+    consultationName: input.label,
+    portalPath: getClinicalProgramFunnelConfig(input.slug, input.intentProgram)
+      .postCheckoutPath,
+    programHomePhrase: PROGRAM_HOME_PHRASE[input.slug],
+  };
+}

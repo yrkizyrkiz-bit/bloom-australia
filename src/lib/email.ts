@@ -587,6 +587,28 @@ interface EmailAttachment {
   content: string;
 }
 
+function looksLikeHtml(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(value);
+}
+
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/(div|h[1-6]|li|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#?\w+;/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 interface SendEmailOptions {
   to: string | string[];
   subject: string;
@@ -609,7 +631,8 @@ export async function sendEmail(
   if (typeof toOrOptions === "object") {
     const { to, subject: subj, body, from, replyTo, process, attachments } = toOrOptions;
     const recipient = Array.isArray(to) ? to[0] : to;
-    return sendEmailInternal(recipient, subj, body, body, {
+    const text = looksLikeHtml(body) ? htmlToPlainText(body) : body;
+    return sendEmailInternal(recipient, subj, body, text, {
       process,
       from,
       replyTo,

@@ -23,6 +23,7 @@ import {
 } from "@/lib/funnel/clinical-program-funnel";
 import { normalizeProgramKey } from "@/lib/membership/keys";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { quizDobToDate } from "@/lib/funnel/quiz-dob";
 
 function resolvePostCheckoutRedirect(intentProgram?: string | null): string {
   const key = normalizeProgramKey(intentProgram);
@@ -63,14 +64,7 @@ function getStripeClient(): Stripe {
 }
 
 function parseAuDate(value?: string): Date | null {
-  if (!value) return null;
-  const m = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (m) {
-    const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return quizDobToDate(value);
 }
 
 /**
@@ -112,6 +106,12 @@ export async function POST(request: NextRequest) {
 
     if (!paymentIntentId) {
       return NextResponse.json({ error: "paymentIntentId required" }, { status: 400 });
+    }
+    if (dateOfBirth && !quizDobToDate(dateOfBirth)) {
+      return NextResponse.json(
+        { error: "Enter a valid date of birth. You must be 18 or older." },
+        { status: 400 }
+      );
     }
 
     const tokenData = verifyVerifiedContactToken(sessionToken);

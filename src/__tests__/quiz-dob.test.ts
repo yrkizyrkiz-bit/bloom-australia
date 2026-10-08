@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatMaskedQuizDob,
+  quizDobToDate,
   sanitizeQuizDobDay,
   sanitizeQuizDobMonth,
   sanitizeQuizDobYear,
@@ -55,6 +56,12 @@ describe("validateQuizDob", () => {
     expect(validateQuizDob("01/09/2010", NOW).errors.form).toMatch(/18 or older/);
     expect(validateQuizDob("01/09/2026", NOW).isValid).toBe(false);
     expect(validateQuizDob("01/10/2026", NOW).errors.form).toMatch(/future/);
+  });
+
+  it("quizDobToDate returns a real date only for valid adult DOBs", () => {
+    expect(quizDobToDate("15/03/1990", NOW)?.getFullYear()).toBe(1990);
+    expect(quizDobToDate("32/13/1990", NOW)).toBeNull();
+    expect(quizDobToDate("01/09/2010", NOW)).toBeNull();
   });
 
   it("does not flag a field while the user is still typing", () => {

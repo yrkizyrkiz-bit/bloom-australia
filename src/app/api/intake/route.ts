@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { sendEmail } from "@/lib/email";
 import { resolveAustralianTimezone } from "@/lib/australia-timezone";
 import { genderForIntakeProgram, mapGenderInput } from "@/lib/funnel/program-gender";
 import {
@@ -764,9 +763,8 @@ export async function POST(req: NextRequest) {
       }
     }).catch(console.error);
 
-    // Send welcome email (non-blocking)
-    sendWelcomeEmailForProgram(user, programType, config.emailTemplateCategory)
-      .catch(console.error);
+    // Booking confirmation is the only post-join email (sent from /api/bookings/confirm).
+    // Do not also send a "consultation is being arranged" welcome here.
 
     return NextResponse.json({
       userId:              user.id,
@@ -1037,35 +1035,6 @@ async function createWomensHealthAppointment(userId: string, data: Record<string
   } catch (error) {
     console.error("Failed to create women's health appointment:", error);
   }
-}
-
-// ─── Email sender by program ──────────────────────────────────────────────────
-
-async function sendWelcomeEmailForProgram(
-  user: { email: string; firstName: string },
-  programType: ProgramType,
-  _category: string
-) {
-  // Find a welcome template
-  const template = await prisma.emailTemplate.findFirst({
-    where: { category: "WELCOME", isActive: true }
-  });
-
-  const programNames: Record<ProgramType, string> = {
-    WEIGHT_MANAGEMENT: "Weight Management",
-    WOMENS_HEALTH:     "Women's Health",
-    MENS_HEALTH:       "Men's Health",
-    HAIR_LOSS:         "Hair Loss Treatment",
-    FATTY_LIVER:       "Metabolic Health",
-  };
-
-  const subject = `Welcome to Sanative ${programNames[programType]}`;
-  const html = template?.body
-    ?.replace(/{{firstName}}/g, user.firstName || "")
-    ?.replace(/{{program}}/g, programNames[programType]) ||
-    `<p>Welcome to Sanative Health, ${user.firstName}. Your ${programNames[programType]} consultation is being arranged.</p>`;
-
-  await sendEmail({ to: user.email, subject, body: html, process: "membership" });
 }
 
 // ─── Utility functions ────────────────────────────────────────────────────────

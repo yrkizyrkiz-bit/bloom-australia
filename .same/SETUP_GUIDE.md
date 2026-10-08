@@ -128,10 +128,13 @@ NEXT_PUBLIC_CALCOM_USERNAME=sanative
 NEXT_PUBLIC_CALCOM_EVENT_SLUG=initial-consultation
 CALCOM_WEBHOOK_SECRET=cal_xxxxxxxxxxxx
 
-# SMS (Cellcast) - Optional
-SMS_PROVIDER=cellcast
-CELLCAST_API_KEY=xxxxxxx
-CELLCAST_SENDER_ID=Sanative
+# SMS (Twilio)
+SMS_PROVIDER=twilio
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_API_KEY=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_API_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_PHONE_NUMBER=+61xxxxxxxxx
 ```
 
 ---

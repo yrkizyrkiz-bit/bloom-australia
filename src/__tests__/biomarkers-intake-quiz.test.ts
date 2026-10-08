@@ -39,6 +39,12 @@ describe("biomarkers intake quiz", () => {
     expect(after).toHaveLength(9);
   });
 
+  it("skips clinical sex when membership onboarding already collected it", () => {
+    expect(getBiomarkersQuizQuestions("MALE")[0]?.id).toBe("primaryGoal");
+    expect(getBiomarkersQuizQuestions("FEMALE").some((q) => q.id === "clinicalSex")).toBe(false);
+    expect(getBiomarkersQuizQuestions("female")[0]?.id).not.toBe("clinicalSex");
+  });
+
   it("maps cardiovascular risk to lipid indications", () => {
     const result = deriveBiomarkersQuizResult(
       {

@@ -44,6 +44,9 @@ import {
   parseBiomarkersAnswer,
   toggleBiomarkersMultiAnswer,
 } from "@/lib/programs/quizzes/biomarkers-intake-quiz";
+import { QuizDobTripleInput } from "@/components/funnel/QuizDobTripleInput";
+import { validateQuizDob } from "@/lib/funnel/quiz-dob";
+import { sameOriginMagicHref } from "@/lib/app-base-url";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -205,18 +208,20 @@ function IntakeQuizStep({
   onSkip,
   saving,
   error,
+  profileGender,
 }: {
   onDone: (answers: Record<string, string>) => void;
   onSkip: () => void;
   saving: boolean;
   error: string | null;
+  profileGender?: string | null;
 }) {
   const [quizIndex, setQuizIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const questions = useMemo(
-    () => getBiomarkersQuizQuestions(undefined, answers),
-    [answers]
+    () => getBiomarkersQuizQuestions(profileGender, answers),
+    [answers, profileGender]
   );
   const question = questions[quizIndex];
 
@@ -232,7 +237,7 @@ function IntakeQuizStep({
       return;
     }
 
-    const nextQuestions = getBiomarkersQuizQuestions(undefined, nextAnswers);
+    const nextQuestions = getBiomarkersQuizQuestions(profileGender, nextAnswers);
     const nextIndex = quizIndex + 1;
     if (nextIndex >= nextQuestions.length) {
       onDone(nextAnswers);
@@ -1184,20 +1189,16 @@ function MembershipCheckoutPageContent() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Date of birth</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="DD/MM/YYYY"
+          <QuizDobTripleInput
             value={dateOfBirth}
-            onChange={(e) => {
-              let value = e.target.value.replace(/\D/g, "");
-              if (value.length > 8) value = value.slice(0, 8);
-              if (value.length >= 2) value = value.slice(0, 2) + "/" + value.slice(2);
-              if (value.length >= 5) value = value.slice(0, 5) + "/" + value.slice(5);
-              setDateOfBirth(value);
-            }}
-            className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
-              px-4 py-3 text-base outline-none transition-colors"
+            onChange={setDateOfBirth}
+            fieldClassName={(hasError) =>
+              `w-full min-h-[48px] px-2 py-3 rounded-xl border-2 text-center text-base font-medium outline-none transition-colors bg-white ${
+                hasError
+                  ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                  : "border-gray-200 focus:border-gray-900"
+              }`
+            }
           />
         </div>
 
@@ -1217,7 +1218,7 @@ function MembershipCheckoutPageContent() {
 
         <button
           onClick={completeOnboarding}
-          disabled={!firstName || !lastName || !dateOfBirth || !sex || isLoading}
+          disabled={!firstName || !lastName || !validateQuizDob(dateOfBirth).isValid || !sex || isLoading}
           className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
             text-white font-semibold rounded-xl transition-colors flex items-center
             justify-center gap-2"
@@ -1316,7 +1317,12 @@ function MembershipCheckoutPageContent() {
       </div>
 
       <IntakeQuizStep
-        onDone={(answers) => submitQuiz(answers)}
+        profileGender={sex || undefined}
+        onDone={(answers) => {
+          const clinicalSex =
+            sex === "FEMALE" ? "female" : sex === "MALE" ? "male" : undefined;
+          submitQuiz(clinicalSex ? { clinicalSex, ...answers } : answers);
+        }}
         onSkip={() => submitQuiz(null)}
         saving={isLoading}
         error={error}
@@ -1377,7 +1383,7 @@ function MembershipCheckoutPageContent() {
       <div className="space-y-3">
         {magicLink ? (
           <a
-            href={magicLink}
+            href={sameOriginMagicHref(magicLink)}
             className="block w-full py-3.5 bg-gray-900 hover:bg-black text-white
               font-semibold rounded-xl transition-colors"
           >

@@ -6,6 +6,7 @@ import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consen
 import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscription";
 import { getStripeSubscriptionPeriod } from "@/lib/stripe/subscription-period";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
+import { quizDobToDate } from "@/lib/funnel/quiz-dob";
 import {
   enforceIpRateLimit,
   rateLimitExceededResponse,
@@ -23,14 +24,7 @@ function getStripeClient(): Stripe {
 }
 
 function parseAuDate(value?: string): Date | null {
-  if (!value) return null;
-  const m = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (m) {
-    const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return quizDobToDate(value);
 }
 
 /**
@@ -120,6 +114,13 @@ export async function POST(request: NextRequest) {
       const period = getStripeSubscriptionPeriod(subscription);
       periodStart = period.start;
       periodEnd = period.end;
+    }
+
+    if (dateOfBirth && !quizDobToDate(dateOfBirth)) {
+      return NextResponse.json(
+        { error: "Enter a valid date of birth. You must be 18 or older." },
+        { status: 400 }
+      );
     }
 
     const genderValue =

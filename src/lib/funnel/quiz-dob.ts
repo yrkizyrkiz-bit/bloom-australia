@@ -180,3 +180,12 @@ export function isQuizDobMonthComplete(month: string): boolean {
   const n = Number(month);
   return n >= 1 && n <= 12;
 }
+
+/** Parse a validated DD/MM/YYYY quiz DOB. Returns null if incomplete or invalid. */
+export function quizDobToDate(value?: string, now = new Date()): Date | null {
+  if (!value) return null;
+  const result = validateQuizDob(value, now);
+  if (!result.isValid) return null;
+  const { day, month, year } = splitQuizDob(value);
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}

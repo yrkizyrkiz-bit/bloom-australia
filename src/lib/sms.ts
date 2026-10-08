@@ -2,7 +2,8 @@
  * SMS Service Library
  *
  * Supports:
- * - Cellcast (Australian, alphanumeric sender ID) — primary
+ * - Twilio (primary)
+ * - Cellcast (Australian, alphanumeric sender ID)
  * - MessageMedia (Australian)
  * - Mock (development)
  *
@@ -22,7 +23,15 @@ import { prisma } from "./prisma";
 // CONFIGURATION
 // ============================================
 
-const SMS_PROVIDER = process.env.SMS_PROVIDER || "cellcast";
+const SMS_PROVIDER = process.env.SMS_PROVIDER || "twilio";
+
+// Twilio — prefer API key SID/secret; fall back to primary auth token.
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_API_KEY = process.env.TWILIO_API_KEY;
+const TWILIO_API_SECRET = process.env.TWILIO_API_SECRET;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+const TWILIO_MESSAGING_SERVICE_SID = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
 // MessageMedia (Australian provider)
 const MESSAGEMEDIA_API_KEY = process.env.MESSAGEMEDIA_API_KEY;
@@ -54,7 +63,25 @@ export interface SMSMessage {
   senderId?: string;
 }
 
-export type SMSProvider = "cellcast" | "messagemedia" | "mock";
+export type SMSProvider = "twilio" | "cellcast" | "messagemedia" | "mock";
+
+function twilioAuth(): { user: string; pass: string } | null {
+  if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
+    return { user: TWILIO_ACCOUNT_SID, pass: TWILIO_AUTH_TOKEN };
+  }
+  if (TWILIO_API_KEY && TWILIO_API_SECRET) {
+    return { user: TWILIO_API_KEY, pass: TWILIO_API_SECRET };
+  }
+  return null;
+}
+
+function isTwilioConfigured(): boolean {
+  return Boolean(
+    TWILIO_ACCOUNT_SID &&
+      twilioAuth() &&
+      (TWILIO_PHONE_NUMBER || TWILIO_MESSAGING_SERVICE_SID)
+  );
+}
 
 // ============================================
 // PHONE NUMBER FORMATTING
@@ -102,6 +129,70 @@ export function isValidAustralianMobile(phone: string): boolean {
 // ============================================
 // SMS PROVIDERS
 // ============================================
+
+/**
+ * Send SMS via Twilio
+ */
+async function sendViaTwilio(to: string, message: string): Promise<SendSMSResult> {
+  const auth = twilioAuth();
+  if (!TWILIO_ACCOUNT_SID || !auth) {
+    return { success: false, error: "Twilio credentials not configured" };
+  }
+  if (!TWILIO_PHONE_NUMBER && !TWILIO_MESSAGING_SERVICE_SID) {
+    return { success: false, error: "Twilio From number or messaging service not configured" };
+  }
+
+  try {
+    const formattedPhone = formatE164(to);
+    const body = new URLSearchParams({
+      To: formattedPhone,
+      Body: message,
+    });
+    if (TWILIO_MESSAGING_SERVICE_SID) {
+      body.set("MessagingServiceSid", TWILIO_MESSAGING_SERVICE_SID);
+    } else if (TWILIO_PHONE_NUMBER) {
+      body.set("From", TWILIO_PHONE_NUMBER);
+    }
+
+    const response = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${auth.user}:${auth.pass}`).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body,
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("[SMS Twilio] Error:", data);
+      return {
+        success: false,
+        provider: "twilio",
+        error: data.message || "Twilio send failed",
+      };
+    }
+
+    console.log(`[SMS Twilio] Sent to ${formattedPhone}: ${message.substring(0, 50)}...`);
+    return {
+      success: true,
+      messageId: data.sid,
+      provider: "twilio",
+      cost: data.price ? parseFloat(data.price) : undefined,
+    };
+  } catch (error) {
+    console.error("[SMS Twilio] Exception:", error);
+    return {
+      success: false,
+      provider: "twilio",
+      error: error instanceof Error ? error.message : "Twilio error",
+    };
+  }
+}
 
 /**
  * Send SMS via MessageMedia (Australian provider)
@@ -257,6 +348,17 @@ export async function sendSMS(
   }
 
   switch (provider) {
+    case "twilio": {
+      if (!isTwilioConfigured()) {
+        if (process.env.NODE_ENV === "production") {
+          return { success: false, provider: "twilio", error: "Twilio credentials not configured" };
+        }
+        console.warn("[SMS] Twilio not configured; using mock in non-production");
+        return sendViaMock(to, message);
+      }
+      return sendViaTwilio(to, message);
+    }
+
     case "messagemedia":
       return sendViaMessageMedia(to, message, options?.senderId);
 
@@ -478,6 +580,9 @@ export function getSMSProviderInfo(): {
   let configured = false;
 
   switch (provider) {
+    case "twilio":
+      configured = isTwilioConfigured();
+      break;
     case "messagemedia":
       configured = !!(MESSAGEMEDIA_API_KEY && MESSAGEMEDIA_API_SECRET);
       break;
@@ -490,7 +595,9 @@ export function getSMSProviderInfo(): {
   }
 
   const senderId =
-    provider === "messagemedia"
+    provider === "twilio"
+      ? TWILIO_PHONE_NUMBER || DEFAULT_SENDER_ID
+      : provider === "messagemedia"
       ? MESSAGEMEDIA_SENDER_ID
       : provider === "cellcast"
       ? CELLCAST_SENDER_ID

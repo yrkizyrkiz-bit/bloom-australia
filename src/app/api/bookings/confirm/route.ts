@@ -9,10 +9,7 @@ import {
 } from "@/lib/google-calendar";
 import { sendEmail } from "@/lib/email";
 import { resolveAppBaseUrl } from "@/lib/app-base-url";
-import {
-  buildPortalActivationMagicLink,
-  WM_POST_CHECKOUT_PATH,
-} from "@/lib/portal-context";
+import { buildPortalActivationMagicLink } from "@/lib/portal-context";
 import {
   genderForPublicConsultSlug,
   genderForSubscriptionTier,
@@ -29,7 +26,11 @@ import {
   type PublicConsultProgram,
 } from "@/lib/funnel/public-consult-programs";
 import { createProgramPreTriageTask, isWeightManagementMembershipFunnel, linkOpenOnboardingPreTriageTasksToBooking, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
-import { isClinicalProgramMembershipFunnel } from "@/lib/funnel/clinical-program-funnel";
+import {
+  consultationConfirmationCopy,
+  isClinicalProgramMembershipFunnel,
+  type ClinicalFunnelProgramId,
+} from "@/lib/funnel/clinical-program-funnel";
 import { appendPublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
 import { grantProgramPanelEntitlementsAtPayment } from "@/lib/portal/grant-program-panel-at-payment";
 import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
@@ -336,6 +337,9 @@ async function sendConfirmationEmail(
     selectedPlan: string;
     magicLink?: string;
     patientTimezone?: string;
+    consultationName: string;
+    portalPath: string;
+    programHomePhrase: string;
   }
 ): Promise<void> {
   const tz = data.patientTimezone ?? CLINIC_TIMEZONE;
@@ -343,10 +347,10 @@ async function sendConfirmationEmail(
 
   const planDisplay = "Sanative Membership";
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://sanative.com.au";
+  const baseUrl = resolveAppBaseUrl();
   const portalCtaHref = data.magicLink
-    ? buildPortalActivationMagicLink(data.magicLink)
-    : `${baseUrl}${WM_POST_CHECKOUT_PATH}`;
+    ? buildPortalActivationMagicLink(data.magicLink, data.portalPath)
+    : `${baseUrl}${data.portalPath}`;
 
   try {
     await sendEmail({
@@ -357,7 +361,7 @@ async function sendConfirmationEmail(
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2c3628;">Hi ${data.firstName},</h2>
 
-          <p style="color: #2c3628; font-size: 16px;">Great news! Your Weight Management consultation is confirmed.</p>
+          <p style="color: #2c3628; font-size: 16px;">Great news! Your ${data.consultationName} consultation is confirmed.</p>
 
           <div style="background: #f4f7f2; border-radius: 12px; padding: 24px; margin: 24px 0;">
             <h3 style="color: #2c3628; margin-top: 0;">Appointment Details</h3>
@@ -402,7 +406,7 @@ async function sendConfirmationEmail(
           </div>
 
           <p style="color: #666; font-size: 14px;">
-            Use the button above to set your password and open your weight program home. Progress tracking unlocks once your doctor confirms your care plan. This link is valid for 7 days.
+            Use the button above to set your password and open your ${data.programHomePhrase}. Progress tracking unlocks once your doctor confirms your care plan. This link is valid for 7 days.
           </p>
 
           <p style="color: #666; font-size: 14px;">
@@ -709,7 +713,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const consultProgram = resolvePublicConsultProgramFromContext({
+    let consultProgram = resolvePublicConsultProgramFromContext({
       subscriptionTier: user.subscriptionTier,
       bookingNotes: booking.notes,
     });
@@ -818,6 +822,12 @@ export async function POST(req: NextRequest) {
         { status: paymentVerification.status }
       );
     }
+
+    consultProgram = resolvePublicConsultProgramFromContext({
+      subscriptionTier: user.subscriptionTier,
+      bookingNotes: booking.notes,
+      paymentMetadata: paymentVerification.paymentIntent.metadata ?? {},
+    });
 
     // Verify the booking is still on hold
     const now = new Date();
@@ -1175,8 +1185,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const paymentMeta = paymentVerification.paymentIntent.metadata ?? {};
+
     if (bookingUserId) {
-      const paymentMeta = paymentVerification.paymentIntent.metadata ?? {};
       const isWmMembershipFunnel = isWeightManagementMembershipFunnel(
         paymentMeta,
         booking.notes
@@ -1251,6 +1262,14 @@ export async function POST(req: NextRequest) {
     }
 
     const patientTimezone = user?.timezone ?? CLINIC_TIMEZONE;
+    const confirmationCopy = consultationConfirmationCopy({
+      slug: consultProgram.slug as ClinicalFunnelProgramId,
+      label: consultProgram.label,
+      intentProgram:
+        paymentMeta.intentProgram ||
+        paymentMeta.sourceProgram ||
+        consultProgram.slug,
+    });
 
     // Send confirmation email with magic link for portal access
     if (user?.email && bookingUserId) {
@@ -1262,6 +1281,7 @@ export async function POST(req: NextRequest) {
         selectedPlan: updatedBooking.selectedPlan || "your selected plan",
         magicLink,
         patientTimezone,
+        ...confirmationCopy,
       });
     } else if (user?.email) {
       await sendConfirmationEmail(user.email, {
@@ -1270,6 +1290,7 @@ export async function POST(req: NextRequest) {
         doctorName: booking.doctorName || "your doctor",
         selectedPlan: updatedBooking.selectedPlan || "your selected plan",
         patientTimezone,
+        ...confirmationCopy,
       });
     }
 
