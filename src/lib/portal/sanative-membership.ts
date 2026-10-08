@@ -16,7 +16,7 @@ import {
 } from "@/lib/portal/purchase-invoice";
 import { getStripe } from "@/lib/stripe";
 import { ensureStripePriceForBillingPrice } from "@/lib/portal/stripe-subscription";
-import { assertPhoneAvailableForAccount } from "@/lib/auth/assert-phone-available";
+import { findEstablishedPhoneOwner } from "@/lib/auth/assert-phone-available";
 import {
   buildProtectedActivationProfileUpdate,
   isEstablishedMember,
@@ -183,17 +183,12 @@ export async function activateSanativeMembership(
   let user = await prisma.user.findUnique({ where: { email: userEmail } });
   const alreadyProcessed = await hasProcessedPortalPayment(input.paymentIntentId);
 
-  // Never block a paid activation on phone collision — skip applying the phone instead.
-  let activationPhone = input.phone ?? null;
-  try {
-    await assertPhoneAvailableForAccount(activationPhone, user?.id ?? null);
-  } catch (error) {
-    console.warn(
-      "[activateSanativeMembership] phone in use; activating without phone update",
-      { email: userEmail, userId: user?.id, error: error instanceof Error ? error.message : error }
-    );
-    activationPhone = null;
-  }
+  // Accept duplicate mobiles so payment/signup always completes; flag triage to verify.
+  const activationPhone = input.phone ?? null;
+  const phoneConflictOwner = await findEstablishedPhoneOwner(
+    activationPhone,
+    user?.id ?? null
+  ).catch(() => null);
 
   if (user) {
     const protectPii = isEstablishedMember({
@@ -351,7 +346,7 @@ export async function activateSanativeMembership(
     );
   }
 
-    if (!alreadyProcessed) {
+  if (!alreadyProcessed) {
     await recordPortalPaymentInvoice({
       userId: user.id,
       paymentIntentId: input.paymentIntentId,
@@ -376,6 +371,35 @@ export async function activateSanativeMembership(
       }).catch((err) =>
         console.error("[sanative_membership] triage enqueue failed:", err)
       );
+    }
+
+    if (phoneConflictOwner && activationPhone) {
+      const otherName = [phoneConflictOwner.firstName, phoneConflictOwner.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      await prisma.internalNote
+        .create({
+          data: {
+            userId: user.id,
+            memberId: user.id,
+            authorId: "system",
+            authorName: "System",
+            createdBy: "system",
+            category: "SUPPORT",
+            title: "Duplicate mobile — triage check",
+            content: [
+              `This member completed signup with mobile ${activationPhone}, which is also on another Sanative account.`,
+              `Other account: ${otherName || "member"} (${phoneConflictOwner.email}, id ${phoneConflictOwner.id}).`,
+              "Confirm the correct contact details and that this is not a shared/household number before the consult.",
+              `Payment intent: ${input.paymentIntentId}.`,
+            ].join(" "),
+            isPinned: true,
+          },
+        })
+        .catch((err) =>
+          console.error("[sanative_membership] duplicate phone triage note failed:", err)
+        );
     }
   }
 

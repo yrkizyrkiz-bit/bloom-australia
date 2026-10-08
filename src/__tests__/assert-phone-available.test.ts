@@ -10,8 +10,42 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { assertPhoneAvailableForAccount } from "@/lib/auth/assert-phone-available";
+import {
+  assertPhoneAvailableForAccount,
+  findEstablishedPhoneOwner,
+} from "@/lib/auth/assert-phone-available";
 import { PHONE_IN_USE_MESSAGE } from "@/lib/auth/member-identity-guard";
+
+describe("findEstablishedPhoneOwner", () => {
+  beforeEach(() => {
+    findFirstUser.mockReset();
+  });
+
+  it("returns null for empty phone", async () => {
+    await expect(findEstablishedPhoneOwner(null, null)).resolves.toBeNull();
+    expect(findFirstUser).not.toHaveBeenCalled();
+  });
+
+  it("returns the other established owner when present", async () => {
+    findFirstUser.mockResolvedValue({
+      id: "maria",
+      email: "maria@example.com",
+      firstName: "Maria",
+      lastName: "Test",
+      passwordHash: "hash",
+      subscriptionStatus: "ACTIVE",
+      journeyStatus: "ACTIVE",
+      memberStatus: "MEMBER",
+    });
+
+    await expect(findEstablishedPhoneOwner("0412345678", "albus")).resolves.toEqual({
+      id: "maria",
+      email: "maria@example.com",
+      firstName: "Maria",
+      lastName: "Test",
+    });
+  });
+});
 
 describe("assertPhoneAvailableForAccount", () => {
   beforeEach(() => {
@@ -33,6 +67,9 @@ describe("assertPhoneAvailableForAccount", () => {
   it("rejects phone owned by another established member", async () => {
     findFirstUser.mockResolvedValue({
       id: "maria",
+      email: "maria@example.com",
+      firstName: "Maria",
+      lastName: "Test",
       passwordHash: "hash",
       subscriptionStatus: "ACTIVE",
       journeyStatus: "ACTIVE",
