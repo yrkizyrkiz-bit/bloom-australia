@@ -1065,7 +1065,7 @@ async function sendWelcomeEmailForProgram(
     ?.replace(/{{program}}/g, programNames[programType]) ||
     `<p>Welcome to Sanative Health, ${user.firstName}. Your ${programNames[programType]} consultation is being arranged.</p>`;
 
-  await sendEmail({ to: user.email, subject, body: html });
+  await sendEmail({ to: user.email, subject, body: html, process: "membership" });
 }
 
 // ─── Utility functions ────────────────────────────────────────────────────────

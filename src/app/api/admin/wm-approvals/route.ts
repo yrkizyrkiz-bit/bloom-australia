@@ -364,6 +364,7 @@ ${testsList.map((test: string) => `- ${test}`).join("\n")}
           if (carePartner) {
             const adminUrl = `${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/admin/crm/customers/${userId}`;
             await sendEmail({
+            process: "clinical",
               to: carePartner.email,
               subject: `Action Required: Blood Tests Needed - ${user.firstName} ${user.lastName}`,
               body: `
@@ -398,6 +399,7 @@ ${testsList.map((test: string) => `- ${test}`).join("\n")}
 
         // Send notification to patient about conditional approval
         await sendEmail({
+            process: "clinical",
           to: user.email,
           subject: "Almost there! One more step for your Sanative Weight Management Program",
           body: `

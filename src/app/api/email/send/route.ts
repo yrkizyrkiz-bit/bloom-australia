@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-
-// Email sending API - supports SendGrid or simulation mode
-// To enable SendGrid: Set SENDGRID_API_KEY in environment variables
+import { getEmailTransportInfo, sendEmail } from "@/lib/email";
 
 interface EmailPayload {
   to: string | string[];
@@ -96,12 +94,7 @@ export async function POST(request: NextRequest) {
     const recipients = Array.isArray(to) ? to : [to];
     const results: { email: string; success: boolean; messageId?: string; error?: string }[] = [];
 
-    // Check if SendGrid is configured
-    const sendgridApiKey = process.env.SENDGRID_API_KEY;
-    const fromEmail = process.env.EMAIL_FROM || "noreply@sanative.com.au";
-    const fromName = process.env.EMAIL_FROM_NAME || "Sanative Health";
-
-    // Get base URL for tracking
+    const transportInfo = getEmailTransportInfo();
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
     // Create email campaign for tracking
@@ -123,104 +116,45 @@ export async function POST(request: NextRequest) {
           emailHtml = addTracking(html, campaign.id, recipient, baseUrl, trackOpens, trackClicks);
         }
 
-        if (sendgridApiKey && sendgridApiKey.startsWith("SG.")) {
-          // Use SendGrid API
-          const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${sendgridApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              personalizations: [{ to: [{ email: recipient }] }],
-              from: { email: fromEmail, name: fromName },
-              subject: subject,
-              content: [
-                { type: "text/plain", value: emailBody || "" },
-                { type: "text/html", value: emailHtml },
-              ],
-              tracking_settings: {
-                click_tracking: { enable: false }, // We handle our own tracking
-                open_tracking: { enable: false },
-              },
-            }),
-          });
+        const sendResult = await sendEmail({
+          to: recipient,
+          subject,
+          body: emailHtml,
+          process: "crm",
+        });
 
-          const messageId = response.headers.get("x-message-id") ||
-            `sg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-          if (response.ok || response.status === 202) {
-            results.push({
-              email: recipient,
-              success: true,
-              messageId,
-            });
-
-            // Record sent event
-            await prisma.emailEvent.create({
-              data: {
-                campaignId: campaign.id,
-                recipientEmail: recipient,
-                messageId,
-                eventType: "SENT",
-              },
-            });
-          } else {
-            const errorData = await response.json().catch(() => ({}));
-            results.push({
-              email: recipient,
-              success: false,
-              error: errorData.errors?.[0]?.message || "SendGrid error",
-            });
-
-            // Record bounce event
-            await prisma.emailEvent.create({
-              data: {
-                campaignId: campaign.id,
-                recipientEmail: recipient,
-                eventType: "BOUNCED",
-                metadata: { error: errorData },
-              },
-            });
-          }
-        } else {
-          // Simulation mode - log email details
-          console.log(`[EMAIL SIMULATION] Sending to: ${recipient}`);
-          console.log(`  Subject: ${subject}`);
-          console.log(`  Campaign ID: ${campaign.id}`);
-          console.log(`  Body: ${emailBody?.substring(0, 100)}...`);
-          console.log(`  Tracking enabled: opens=${trackOpens}, clicks=${trackClicks}`);
-
-          // Simulate network delay
-          await new Promise(resolve => setTimeout(resolve, 50));
-
-          const messageId = `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
+        if (sendResult.success) {
+          const messageId =
+            sendResult.messageId ||
+            `email_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
           results.push({
             email: recipient,
             success: true,
             messageId,
           });
 
-          // Record sent event (simulated)
           await prisma.emailEvent.create({
             data: {
               campaignId: campaign.id,
               recipientEmail: recipient,
               messageId,
               eventType: "SENT",
-              metadata: { simulated: true },
+              metadata: { transport: transportInfo.transport },
             },
           });
+        } else {
+          results.push({
+            email: recipient,
+            success: false,
+            error: sendResult.error || "Email send failed",
+          });
 
-          // Simulate delivery for simulation mode
           await prisma.emailEvent.create({
             data: {
               campaignId: campaign.id,
               recipientEmail: recipient,
-              messageId,
-              eventType: "DELIVERED",
-              metadata: { simulated: true },
+              eventType: "BOUNCED",
+              metadata: { error: sendResult.error, transport: transportInfo.transport },
             },
           });
         }
@@ -276,7 +210,7 @@ export async function POST(request: NextRequest) {
       data: {
         status: failureCount === recipients.length ? "FAILED" : "SENT",
         sentCount: successCount,
-        deliveredCount: sendgridApiKey ? 0 : successCount, // Simulated emails are "delivered"
+        deliveredCount: transportInfo.transport === "mock" ? successCount : 0,
         bouncedCount: failureCount,
         sentAt: new Date(),
       },
@@ -301,7 +235,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      mode: sendgridApiKey && sendgridApiKey.startsWith("SG.") ? "sendgrid" : "simulation",
+      mode: transportInfo.transport,
       campaignId: campaign.id,
       results,
       summary: {

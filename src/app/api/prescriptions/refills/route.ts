@@ -216,6 +216,7 @@ export async function POST(request: NextRequest) {
 
         if (statusMessages[status]) {
           await sendEmail({
+            process: "clinical",
             to: patient.email,
             subject: `Refill Update: ${refill.prescription.medicationName}`,
             body: `Hi ${patient.firstName},\n\n${statusMessages[status]}\n\nMedication: ${refill.prescription.medicationName} ${refill.prescription.strength}\n\nIf you have any questions, please contact our care team.\n\nSanative Health`,

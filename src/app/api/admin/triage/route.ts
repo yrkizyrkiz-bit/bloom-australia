@@ -668,6 +668,7 @@ ${notes ? `**Care Partner Notes:**\n${notes}` : ''}
         // Notify doctor via email
         if (doctor?.email) {
           await sendEmail({
+            process: "clinical",
             to: doctor.email,
             subject: `Patient Ready for Review: ${user.firstName} ${user.lastName}`,
             body: `
@@ -772,6 +773,7 @@ ${notes ? `**Care Partner Notes:**\n${notes}` : ''}
 
         for (const doc of allDoctors) {
           await sendEmail({
+            process: "clinical",
             to: doc.email,
             subject: `⚠️ URGENT: Patient Escalation - ${user.firstName} ${user.lastName}`,
             body: `

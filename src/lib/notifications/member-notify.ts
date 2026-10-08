@@ -125,6 +125,7 @@ export async function notifyMember(input: {
     const link = `${baseUrl}${actionUrl}`;
     try {
       await sendEmail({
+        process: "clinical",
         to: settings.email,
         subject: input.title,
         body: `

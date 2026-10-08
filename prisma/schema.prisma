@@ -449,6 +449,29 @@ model EmailTemplate {
   @@index([slug])
 }
 
+/// Singleton (id = "default"). SMTP password is never stored here — env only.
+model EmailSettings {
+  id               String   @id @default("default")
+  defaultFromEmail String   @default("noreply@sanative.com.au")
+  defaultFromName  String   @default("Sanative Health")
+  defaultReplyTo   String?
+  updatedAt        DateTime @updatedAt
+}
+
+/// Per-function From / Reply-To for Workspace (and fallback) sends.
+model EmailProcessConfig {
+  id        String   @id @default(cuid())
+  processKey String  @unique
+  label     String
+  fromEmail String?
+  fromName  String?
+  replyTo   String?
+  enabled   Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model SMSNotification {
   id             String    @id @default(cuid())
   recipientId    String

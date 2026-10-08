@@ -1,41 +1,40 @@
 # Integration Setup Guide
 
-## 1. Resend Email Setup (Email Verification)
+## 1. Email Setup (Google Workspace SMTP, Resend fallback)
 
-### Step 1: Create a Resend Account
-1. Go to [resend.com](https://resend.com) and sign up
-2. Verify your email address
+Outbound mail goes through `src/lib/email.ts`. Google Workspace SMTP is the target
+transport; Resend stays as fallback until Workspace is proven, then it can be removed.
 
-### Step 2: Get Your API Key
-1. In the Resend dashboard, go to **API Keys**
-2. Click **Create API Key**
-3. Name it "Sanative Production" (or "Sanative Development" for testing)
-4. Copy the API key (starts with `re_`)
+### Workspace credentials (required for Gmail send)
+1. In Google Admin: Apps → Google Workspace → Gmail → Routing → SMTP relay service.
+   Allow SMTP AUTH, require TLS, allow sending from `sanative.com.au`.
+2. Create a mailbox used only for app send. Testing uses `info@sanative.com.au`; production can stay `noreply@sanative.com.au`.
+3. Enable 2-Step Verification on that mailbox, then create an **App Password**.
+4. Add env vars (SMTP password never goes in the database):
 
-### Step 3: Add to Environment Variables
-Add to your `.env` file:
 ```env
-RESEND_API_KEY=re_your_api_key_here
-```
-
-### Step 4: (Optional) Add Custom Domain
-By default, emails will be sent from `onboarding@resend.dev` (Resend's test domain).
-
-To use your own domain (e.g., `noreply@sanative.com.au`):
-1. In Resend dashboard, go to **Domains**
-2. Click **Add Domain**
-3. Enter `sanative.com.au`
-4. Add the DNS records Resend provides to your domain
-5. Wait for verification (usually 5-30 minutes)
-6. Update `.env`:
-```env
-EMAIL_FROM=noreply@sanative.com.au
+EMAIL_PROVIDER=google_workspace
+EMAIL_FROM=info@sanative.com.au
 EMAIL_FROM_NAME=Sanative Health
+GOOGLE_SMTP_USER=info@sanative.com.au
+GOOGLE_SMTP_PASS=xxxx-xxxx-xxxx-xxxx
+GOOGLE_SMTP_HOST=smtp.gmail.com
+GOOGLE_SMTP_PORT=587
+RESEND_API_KEY=re_keep_until_cutover
 ```
+
+From names per function (auth, membership, stripe, bookings, clinical, marketing, crm)
+are edited in **Admin → Email settings**. Blank From uses `EMAIL_FROM`.
+
+### Rollback
+1. Set `EMAIL_PROVIDER=resend` (or unset it) and keep `RESEND_API_KEY`.
+2. Redeploy. All existing send call sites keep working.
+3. Do not remove Resend until a Workspace test from `/admin/email-settings` succeeds
+   in production, including a verification-code send.
 
 ### Testing
-The mock mode (no API key) logs verification codes to the server console.
-With the API key, emails are sent in real-time.
+Locally, missing SMTP + missing Resend logs mail to the console (`dev-mode-no-send`).
+Production never fakes a successful OTP send.
 
 ---
 
@@ -98,11 +97,13 @@ If it fails to load, a fallback link opens Cal.com in a new tab.
 ## 3. Quick Setup Checklist
 
 ### Minimum Setup (Testing)
-- [ ] Resend API key (free tier: 100 emails/day)
+- [ ] Email via Resend (`EMAIL_PROVIDER=resend`) or Workspace SMTP
 - [ ] Cal.com account with `initial-consultation` event
 
 ### Full Production Setup
-- [ ] Resend API key with verified domain
+- [ ] Google Workspace SMTP relay + App Password
+- [ ] `EMAIL_PROVIDER=google_workspace` after a successful test send
+- [ ] Resend kept until cutover is confirmed, then removed
 - [ ] Cal.com with calendar integration
 - [ ] Cal.com webhook for booking sync
 - [ ] Custom email templates (already included)
@@ -112,21 +113,25 @@ If it fails to load, a fallback link opens Cal.com in a new tab.
 ## 4. Environment Variables Summary
 
 ```env
-# Email (Resend)
-RESEND_API_KEY=re_xxxxxxxxxxxxx
-EMAIL_FROM=noreply@sanative.com.au
+# Email
+EMAIL_PROVIDER=google_workspace
+EMAIL_FROM=info@sanative.com.au
 EMAIL_FROM_NAME=Sanative Health
+GOOGLE_SMTP_USER=info@sanative.com.au
+GOOGLE_SMTP_PASS=xxxx-xxxx-xxxx-xxxx
+GOOGLE_SMTP_HOST=smtp.gmail.com
+GOOGLE_SMTP_PORT=587
+RESEND_API_KEY=re_xxxxxxxxxxxxx
 
 # Calendar (Cal.com)
 NEXT_PUBLIC_CALCOM_USERNAME=sanative
 NEXT_PUBLIC_CALCOM_EVENT_SLUG=initial-consultation
 CALCOM_WEBHOOK_SECRET=cal_xxxxxxxxxxxx
 
-# SMS (Twilio) - Optional
-SMS_PROVIDER=twilio
-TWILIO_ACCOUNT_SID=ACxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxx
-TWILIO_PHONE_NUMBER=+61xxxxxxxxx
+# SMS (Cellcast) - Optional
+SMS_PROVIDER=cellcast
+CELLCAST_API_KEY=xxxxxxx
+CELLCAST_SENDER_ID=Sanative
 ```
 
 ---

@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
 
         // Send compassionate decline email
         await sendEmail({
+          process: "clinical",
           to: user.email,
           subject: "Update on your Sanative Weight Management application",
           body: `
@@ -210,6 +211,7 @@ export async function POST(request: NextRequest) {
         // Send refund confirmation email if successful
         if (refundInitiated) {
           await sendEmail({
+          process: "clinical",
             to: user.email,
             subject: "Your Sanative refund has been processed",
             body: `

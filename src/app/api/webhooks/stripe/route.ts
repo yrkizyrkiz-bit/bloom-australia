@@ -878,6 +878,7 @@ Patient has been notified via email.`,
     const updatePaymentUrl = `${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/dashboard/billing`;
 
     await sendEmail({
+      process: "stripe",
       to: user.email,
       subject: "Action required: Update your payment method",
       body: `
@@ -948,6 +949,7 @@ async function sendMagicLinkEmail(user: { id: string; email: string; firstName: 
 
     // UAT8-GAP-013: Updated wording - removed "consultation fee" language
     await sendEmail({
+      process: "stripe",
       to: user.email,
       subject: "Your Sanative account is ready, click to get started",
       body: `
@@ -1049,6 +1051,7 @@ Reason: ${refundReason}`,
 
     // Send confirmation email
     await sendEmail({
+      process: "stripe",
       to: customer.email,
       subject: "Your Sanative refund has been processed",
       body: `
@@ -1154,6 +1157,7 @@ async function handleSubscriptionPaused(subscription: Stripe.Subscription) {
 
   // Send email notification
   await sendEmail({
+      process: "stripe",
     to: user.email,
     subject: "Your Sanative subscription has been paused",
     body: `

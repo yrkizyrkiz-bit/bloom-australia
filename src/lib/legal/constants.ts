@@ -25,7 +25,7 @@ export const LEGAL_SUBPROCESSORS = [
     location: "Overseas (including the United States)",
   },
   {
-    name: "SMS provider (e.g. Twilio when configured)",
+    name: "SMS provider (e.g. Cellcast when configured)",
     purpose: "Service-related SMS notifications",
     location: "Overseas depending on provider configuration",
   },

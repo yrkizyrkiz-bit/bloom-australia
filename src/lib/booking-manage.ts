@@ -292,7 +292,12 @@ async function notifyMember(
   body: string
 ) {
   if (!email) return;
-  await sendEmail(email, subject, body, body).catch((err) => {
+  await sendEmail({
+    to: email,
+    subject,
+    body,
+    process: "bookings",
+  }).catch((err) => {
     console.error("[BookingManage] Failed to send member notification:", err);
   });
 }

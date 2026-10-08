@@ -350,6 +350,7 @@ async function sendConfirmationEmail(
 
   try {
     await sendEmail({
+      process: "bookings",
       to: email,
       subject: `Your Sanative consultation is confirmed for ${data.scheduledAt.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: tz })}`,
       body: `

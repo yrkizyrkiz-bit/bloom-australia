@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
       if (isNowAtRisk && !wasAtRisk) {
         // Send re-engagement email
         await sendEmail({
+          process: "marketing",
           to: user.email,
           subject: "We miss you! Let's get back on track together",
           body: `

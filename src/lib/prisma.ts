@@ -48,6 +48,8 @@ const REQUIRED_PRISMA_MODELS = [
   "passkey",
   "hairWeeklyCheckIn",
   "pushSubscription",
+  "emailSettings",
+  "emailProcessConfig",
 ] as const;
 
 function hasCurrentPrismaSchema(client: PrismaClient): boolean {

@@ -1,4 +1,9 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
+import { isProductionRuntime } from "@/lib/security/jwt-secret";
+import type { EmailProcessKey } from "@/lib/email-process";
+import { formatFromHeader, resolveEmailIdentity } from "@/lib/email-identity";
 import {
   clinicWelcomeEmail,
   patientWelcomeEmail,
@@ -12,7 +17,47 @@ import {
   pathologyReferralEmail,
 } from "./email-templates";
 
-// Lazy-initialized Resend client (avoids build-time errors when env var is missing)
+export type EmailTransport = "google_workspace" | "resend" | "mock";
+
+function googleSmtpConfigured(): boolean {
+  return Boolean(process.env.GOOGLE_SMTP_USER && process.env.GOOGLE_SMTP_PASS);
+}
+
+function resendConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
+/** Resolve send engine. Gmail when configured; otherwise Resend until it is removed. */
+export function resolveEmailTransport(): EmailTransport {
+  const preferred = (process.env.EMAIL_PROVIDER || "resend").toLowerCase();
+  if (preferred === "google_workspace" || preferred === "gmail") {
+    if (googleSmtpConfigured()) return "google_workspace";
+    if (resendConfigured()) {
+      console.warn(
+        "[Email] EMAIL_PROVIDER=google_workspace but SMTP is not set; falling back to Resend"
+      );
+      return "resend";
+    }
+    return "mock";
+  }
+  if (resendConfigured()) return "resend";
+  if (googleSmtpConfigured()) return "google_workspace";
+  return "mock";
+}
+
+export function getEmailTransportInfo() {
+  const transport = resolveEmailTransport();
+  return {
+    transport,
+    preferred: process.env.EMAIL_PROVIDER || "resend",
+    googleConfigured: googleSmtpConfigured(),
+    resendConfigured: resendConfigured(),
+    smtpHost: process.env.GOOGLE_SMTP_HOST || "smtp-relay.gmail.com",
+    smtpPort: Number(process.env.GOOGLE_SMTP_PORT || 587),
+    smtpUser: process.env.GOOGLE_SMTP_USER || "",
+  };
+}
+
 let resendClient: Resend | null = null;
 
 function getResendClient(): Resend | null {
@@ -25,15 +70,22 @@ function getResendClient(): Resend | null {
   return resendClient;
 }
 
-// Sender, aligned with verification route (EMAIL_FROM / EMAIL_FROM_NAME)
-const EMAIL_FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
-const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Sanative Health";
+let googleTransporter: Transporter | null = null;
 
-function getFromAddress(): string {
-  if (process.env.FROM_EMAIL) {
-    return process.env.FROM_EMAIL;
+function getGoogleTransporter(): Transporter | null {
+  if (!googleSmtpConfigured()) return null;
+  if (!googleTransporter) {
+    googleTransporter = nodemailer.createTransport({
+      host: process.env.GOOGLE_SMTP_HOST || "smtp-relay.gmail.com",
+      port: Number(process.env.GOOGLE_SMTP_PORT || 587),
+      secure: Number(process.env.GOOGLE_SMTP_PORT || 587) === 465,
+      auth: {
+        user: process.env.GOOGLE_SMTP_USER,
+        pass: process.env.GOOGLE_SMTP_PASS,
+      },
+    });
   }
-  return `${EMAIL_FROM_NAME} <${EMAIL_FROM}>`;
+  return googleTransporter;
 }
 
 interface SendEmailResult {
@@ -63,7 +115,9 @@ export async function sendClinicWelcomeEmail(
     loginUrl: `${baseUrl}/gp/login`,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "crm",
+  });
 }
 
 export async function sendPatientWelcomeEmail(
@@ -84,7 +138,9 @@ export async function sendPatientWelcomeEmail(
     loginUrl: `${baseUrl}/dashboard`,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "membership",
+  });
 }
 
 /** Welcome email for the consolidated Sanative Membership funnel. */
@@ -133,7 +189,7 @@ export async function sendMembershipWelcomeEmail(params: {
     `${cta}: ${params.magicLink}`,
   ].join("\n");
 
-  return sendEmailInternal(params.to, subject, html, text);
+  return sendEmailInternal(params.to, subject, html, text, { process: "membership" });
 }
 
 /** Self-service password reset link. The link is the only place the token appears. */
@@ -169,7 +225,7 @@ export async function sendPasswordResetEmail(params: {
     "If you didn't ask to reset your password, you can ignore this email. Your password won't change.",
   ].join("\n");
 
-  return sendEmailInternal(params.to, subject, html, text);
+  return sendEmailInternal(params.to, subject, html, text, { process: "auth" });
 }
 
 /** Renewal reminder for annual Sanative Membership (one-off billing model). */
@@ -210,7 +266,7 @@ export async function sendMembershipRenewalReminderEmail(params: {
     `Renew: ${renewUrl}`,
   ].join("\n");
 
-  return sendEmailInternal(params.to, subject, html, text);
+  return sendEmailInternal(params.to, subject, html, text, { process: "membership" });
 }
 
 /** Sent when an unrenewed membership lapses and portal access is paused. */
@@ -243,7 +299,7 @@ export async function sendMembershipExpiredEmail(params: {
     `Reactivate: ${renewUrl}`,
   ].join("\n");
 
-  return sendEmailInternal(params.to, subject, html, text);
+  return sendEmailInternal(params.to, subject, html, text, { process: "membership" });
 }
 
 /** Confirmation when a Sanative Membership is cancelled. */
@@ -284,7 +340,7 @@ export async function sendMembershipCancellationEmail(params: {
     `Rejoin: ${baseUrl}/membership/checkout`,
   ].join("\n");
 
-  return sendEmailInternal(params.to, subject, html, text);
+  return sendEmailInternal(params.to, subject, html, text, { process: "membership" });
 }
 
 export async function sendResultsReadyEmail(
@@ -303,7 +359,9 @@ export async function sendResultsReadyEmail(
     resultsUrl: `${baseUrl}/dashboard/results`,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "clinical",
+  });
 }
 
 export async function sendCheckInReminderEmail(
@@ -324,7 +382,9 @@ export async function sendCheckInReminderEmail(
     dashboardUrl: `${baseUrl}/dashboard/messages`,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "clinical",
+  });
 }
 
 export async function sendGpVisitReminderEmail(
@@ -345,7 +405,9 @@ export async function sendGpVisitReminderEmail(
     visitTime: data.visitTime,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "clinical",
+  });
 }
 
 export async function sendGpEnrolmentNotificationEmail(
@@ -374,7 +436,9 @@ export async function sendGpEnrolmentNotificationEmail(
     dashboardUrl: `${baseUrl}/gp/dashboard`,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "clinical",
+  });
 }
 
 export async function sendGpBiomarkerAlertEmail(
@@ -402,7 +466,9 @@ export async function sendGpBiomarkerAlertEmail(
     dashboardUrl: `${baseUrl}/gp/patients/${data.patientId}`,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "clinical",
+  });
 }
 
 export async function sendOrderConfirmationEmail(
@@ -432,7 +498,9 @@ export async function sendOrderConfirmationEmail(
     dashboardUrl: `${baseUrl}/dashboard`,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "stripe",
+  });
 }
 
 // ============================================
@@ -472,7 +540,9 @@ export async function sendWeightManagementConfirmationEmail(
     dashboardUrl: `${baseUrl}/dashboard`,
   });
 
-  return sendEmailInternal(to, template.subject, template.html, template.text);
+  return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "stripe",
+  });
 }
 
 export async function sendPathologyReferralEmail(
@@ -498,6 +568,7 @@ export async function sendPathologyReferralEmail(
   });
 
   return sendEmailInternal(to, template.subject, template.html, template.text, {
+    process: "clinical",
     attachments: [
       {
         filename: data.pdfFilename,
@@ -511,6 +582,11 @@ export async function sendPathologyReferralEmail(
 // CORE EMAIL SENDING FUNCTION
 // ============================================
 
+interface EmailAttachment {
+  filename: string;
+  content: string;
+}
+
 interface SendEmailOptions {
   to: string | string[];
   subject: string;
@@ -518,9 +594,10 @@ interface SendEmailOptions {
   from?: string;
   replyTo?: string;
   tags?: Array<{ name: string; value: string }>;
+  process?: EmailProcessKey;
+  attachments?: EmailAttachment[];
 }
 
-// Overloaded sendEmail for backward compatibility
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult>;
 export async function sendEmail(to: string, subject: string, html: string, text: string): Promise<SendEmailResult>;
 export async function sendEmail(
@@ -529,23 +606,24 @@ export async function sendEmail(
   html?: string,
   text?: string
 ): Promise<SendEmailResult> {
-  // Handle object-style call (backward compatibility)
   if (typeof toOrOptions === "object") {
-    const { to, subject: subj, body } = toOrOptions;
+    const { to, subject: subj, body, from, replyTo, process, attachments } = toOrOptions;
     const recipient = Array.isArray(to) ? to[0] : to;
-    return sendEmailInternal(recipient, subj, body, body);
+    return sendEmailInternal(recipient, subj, body, body, {
+      process,
+      from,
+      replyTo,
+      attachments,
+    });
   }
 
-  // Handle positional arguments
   return sendEmailInternal(toOrOptions, subject!, html!, text!);
 }
 
-interface EmailAttachment {
-  filename: string;
-  content: string;
-}
-
 interface SendEmailInternalOptions {
+  process?: EmailProcessKey;
+  from?: string;
+  replyTo?: string;
   attachments?: EmailAttachment[];
 }
 
@@ -556,26 +634,69 @@ async function sendEmailInternal(
   text: string,
   options?: SendEmailInternalOptions
 ): Promise<SendEmailResult> {
-  // Get the lazily-initialized Resend client
-  const resend = getResendClient();
+  const identity = await resolveEmailIdentity(options?.process);
+  if (!identity.enabled) {
+    console.warn(
+      `[Email] Process ${options?.process ?? "default"} is disabled; skipping send to ${to}`
+    );
+    return { success: false, error: "Email process is disabled" };
+  }
 
-  // Check if API key is configured
-  if (!resend) {
-    console.log(`[Email] Would send to ${to}: ${subject}`);
-    console.log("[Email] RESEND_API_KEY not configured - email not sent");
-    return {
-      success: true,
-      messageId: "dev-mode-no-send",
-    };
+  const from =
+    options?.from || formatFromHeader(identity.fromName, identity.fromEmail);
+  const replyTo = options?.replyTo || identity.replyTo;
+  const transport = resolveEmailTransport();
+
+  if (transport === "mock") {
+    if (isProductionRuntime()) {
+      console.error("[Email] No email transport configured; refusing to report success");
+      return { success: false, error: "Email transport is not configured" };
+    }
+    console.log(`[Email] Would send via mock to ${to}: ${subject} (from ${from})`);
+    return { success: true, messageId: "dev-mode-no-send" };
   }
 
   try {
+    if (transport === "google_workspace") {
+      const transporter = getGoogleTransporter();
+      if (!transporter) {
+        return { success: false, error: "Google Workspace SMTP is not configured" };
+      }
+      const info = await transporter.sendMail({
+        from,
+        to,
+        subject,
+        html,
+        text,
+        replyTo,
+        attachments: options?.attachments?.map((attachment) => ({
+          filename: attachment.filename,
+          content: Buffer.from(attachment.content, "base64"),
+        })),
+      });
+      const messageId =
+        typeof info.messageId === "string" ? info.messageId : String(info.messageId ?? "");
+      console.log(`[Email] Sent via Workspace to ${to}: ${subject} (${messageId})`);
+      return { success: true, messageId };
+    }
+
+    const resend = getResendClient();
+    if (!resend) {
+      if (isProductionRuntime()) {
+        console.error("[Email] RESEND_API_KEY is not configured; refusing to report success");
+        return { success: false, error: "Email transport is not configured" };
+      }
+      console.log(`[Email] Would send to ${to}: ${subject}`);
+      return { success: true, messageId: "dev-mode-no-send" };
+    }
+
     const { data, error } = await resend.emails.send({
-      from: getFromAddress(),
+      from,
       to,
       subject,
       html,
       text,
+      replyTo,
       attachments: options?.attachments,
     });
 
@@ -587,7 +708,7 @@ async function sendEmailInternal(
       };
     }
 
-    console.log(`[Email] Sent to ${to}: ${subject} (${data?.id})`);
+    console.log(`[Email] Sent via Resend to ${to}: ${subject} (${data?.id})`);
     return {
       success: true,
       messageId: data?.id,

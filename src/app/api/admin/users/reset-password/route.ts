@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
       const loginUrl = `${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/login`;
 
       await sendEmail({
+        process: "auth",
         to: user.email,
         subject: "Your Sanative password has been reset",
         body: `

@@ -447,6 +447,7 @@ export async function POST(request: NextRequest) {
 
       // Send actual email using Resend
       const emailResult = await sendEmail({
+        process: "crm",
         to: member.email,
         subject,
         body,

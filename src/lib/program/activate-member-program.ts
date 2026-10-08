@@ -192,6 +192,7 @@ export async function activateMemberProgram(
       ? `<p><strong>First medication dose:</strong> scheduled for the start of week 2 (${firstDoseLabel}). Your care partner will confirm storage and usage instructions before then.</p>`
       : "";
     await sendEmail({
+      process: "membership",
       to: user.email,
       subject: "Your Sanative program is now active!",
       body: `

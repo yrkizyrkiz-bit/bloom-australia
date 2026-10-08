@@ -726,6 +726,7 @@ Welcome call / onboarding walkthrough:
         // Send patient email - NOT mentioning treatment/medication per TGA
         try {
           await sendEmail({
+          process: "clinical",
             to: user.email,
             subject: "Your Sanative consultation is complete",
             body: `
@@ -993,6 +994,7 @@ Tasks:
 
         // Send patient email
         await sendEmail({
+          process: "clinical",
           to: user.email,
           subject: "Your Sanative consultation is complete",
           body: `
@@ -1140,6 +1142,7 @@ Please contact the patient to provide support and guidance.`,
         }
 
         await sendEmail({
+          process: "clinical",
           to: user.email,
           subject: "Important update about your Sanative consultation",
           body: `
@@ -1523,6 +1526,7 @@ Tasks:
 
         // ─── Send patient email - approved with testing info ──────────────────────
         await sendEmail({
+          process: "clinical",
           to: user.email,
           subject: "You're approved! Your Sanative program is ready",
           body: `

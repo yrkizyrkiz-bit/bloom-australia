@@ -42,6 +42,7 @@ import {
   LogOut,
   MoreHorizontal,
   Inbox,
+  Settings,
 } from "lucide-react";
 import { FaceIdEnrollPrompt } from "@/components/account/FaceIdEnrollPrompt";
 import { StaffPushEnable } from "@/components/admin/StaffPushEnable";
@@ -82,6 +83,7 @@ const careCommsNavItems: AdminNavItem[] = [
   { href: "/admin/chat", label: "Live Chat", icon: MessageSquare },
   { href: "/admin/care-comms/messages", label: "Messages", icon: Inbox },
   { href: "/admin/email-preview", label: "Emails", icon: Mail },
+  { href: "/admin/email-settings", label: "Email settings", icon: Settings },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
 ];
 

@@ -393,6 +393,7 @@ Await confirmation of dispatch and tracking number.`,
 
         // Send shipping notification to patient
         await sendEmail({
+          process: "clinical",
           to: user.email,
           subject: "Your Sanative order has shipped",
           body: `

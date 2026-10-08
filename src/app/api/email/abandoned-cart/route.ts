@@ -193,6 +193,7 @@ export async function POST(req: NextRequest) {
 
     // Send email
     await sendEmail({
+      process: "marketing",
       to: user.email,
       subject,
       body: html,

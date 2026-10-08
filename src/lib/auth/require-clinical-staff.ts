@@ -12,6 +12,8 @@ export const CLINICAL_STAFF_ROLES = new Set([
 
 export const DOCTOR_ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "DOCTOR", "admin"]);
 
+export const ADMIN_ONLY_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "admin"]);
+
 export function hasClinicalStaffRole(role: string | undefined | null): boolean {
   if (!role) return false;
   return CLINICAL_STAFF_ROLES.has(role) || CLINICAL_STAFF_ROLES.has(role.toUpperCase());
@@ -20,6 +22,11 @@ export function hasClinicalStaffRole(role: string | undefined | null): boolean {
 export function hasDoctorAdminRole(role: string | undefined | null): boolean {
   if (!role) return false;
   return DOCTOR_ADMIN_ROLES.has(role) || DOCTOR_ADMIN_ROLES.has(role.toUpperCase());
+}
+
+export function hasAdminRole(role: string | undefined | null): boolean {
+  if (!role) return false;
+  return ADMIN_ONLY_ROLES.has(role) || ADMIN_ONLY_ROLES.has(role.toUpperCase());
 }
 
 /** Require an authenticated clinical staff session (doctor, care partner, or admin). */
@@ -56,6 +63,29 @@ export async function requireDoctorOrAdmin() {
   }
 
   if (!hasDoctorAdminRole(session.user.role)) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    } as const;
+  }
+
+  return {
+    session,
+    userId: session.user.id,
+    role: session.user.role,
+  } as const;
+}
+
+/** Require an admin session (From-address settings, staff admin tools). */
+export async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    } as const;
+  }
+
+  if (!hasAdminRole(session.user.role)) {
     return {
       error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
     } as const;

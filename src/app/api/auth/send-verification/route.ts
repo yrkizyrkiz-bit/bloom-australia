@@ -9,14 +9,12 @@ import {
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
 import { getSMSProviderInfo, sendSMS as sendSmsViaProvider } from "@/lib/sms";
+import { sendEmail as sendAppEmail } from "@/lib/email";
 
 // Generate 6-digit code
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
-
-// Email provider (Resend)
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 async function sendSMS(phone: string, message: string): Promise<boolean> {
   const providerInfo = getSMSProviderInfo();
@@ -34,11 +32,7 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
   return result.success;
 }
 
-// Email sender domain - use Resend's test domain if no custom domain
-const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
-const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Sanative Health';
-
-// Set EMAIL_DEV_MODE=true to skip Resend and only log codes to console.
+// Set EMAIL_DEV_MODE=true to skip sending and only log codes to console.
 // Ignored in production builds.
 const EMAIL_DEV_MODE = process.env.EMAIL_DEV_MODE === 'true' && !isProductionRuntime();
 
@@ -53,28 +47,13 @@ function logCodeForLocalTesting(label: string, email: string, code: string, extr
   console.log(`========================================\n`);
 }
 
-async function sendEmail(email: string, code: string): Promise<boolean> {
-  if (!RESEND_API_KEY || EMAIL_DEV_MODE) {
-    if (isProductionRuntime()) {
-      console.error('[Email] RESEND_API_KEY is not configured; refusing to report success');
-      return false;
-    }
-    logCodeForLocalTesting('EMAIL VERIFICATION CODE', email, code);
+async function sendVerificationEmail(email: string, code: string): Promise<boolean> {
+  if (EMAIL_DEV_MODE) {
+    logCodeForLocalTesting("EMAIL VERIFICATION CODE", email, code);
     return true;
   }
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: `${EMAIL_FROM_NAME} <${EMAIL_FROM}>`,
-        to: email,
-        subject: 'Your Sanative verification code',
-        html: `
+  const html = `
           <!DOCTYPE html>
           <html>
           <head>
@@ -83,13 +62,9 @@ async function sendEmail(email: string, code: string): Promise<boolean> {
           </head>
           <body style="margin: 0; padding: 0; background-color: #f5f5f5;">
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-
-              <!-- Logo -->
               <div style="text-align: center; margin-bottom: 32px;">
                 <span style="font-size: 28px; font-weight: 600; color: #2c3628; font-family: Georgia, serif;">Sanative</span>
               </div>
-
-              <!-- Card -->
               <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <h1 style="font-size: 22px; color: #1a1a1a; margin: 0 0 16px 0; text-align: center;">
                   Your verification code
@@ -97,55 +72,44 @@ async function sendEmail(email: string, code: string): Promise<boolean> {
                 <p style="color: #666; font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 24px 0;">
                   Enter this code to verify your account
                 </p>
-
-                <!-- Code box -->
                 <div style="background: #f8faf7; border: 2px solid #e6ebe3; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
                   <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2c3628; font-family: monospace;">${code}</span>
                 </div>
-
                 <p style="color: #888; font-size: 13px; line-height: 1.5; text-align: center; margin: 0;">
                   This code expires in <strong>10 minutes</strong>.<br>
                   If you didn't request this code, you can safely ignore this email.
                 </p>
               </div>
-
-              <!-- Footer -->
               <div style="text-align: center; margin-top: 32px;">
                 <p style="color: #999; font-size: 12px; margin: 0;">
                   Sanative Health<br>
                   Sydney, Australia
                 </p>
               </div>
-
             </div>
           </body>
           </html>
-        `,
-      }),
-    });
+        `;
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[Email] Resend API error:', errorData);
+  const result = await sendAppEmail({
+    to: email,
+    subject: "Your Sanative verification code",
+    body: html,
+    process: "auth",
+  });
 
-      // Locally, fall back to the console so the flow can still be exercised.
-      // In production the send genuinely failed and the caller must hear that.
-      logCodeForLocalTesting(
-        'EMAIL FAILED - VERIFICATION CODE',
-        email,
-        code,
-        `Error: ${JSON.stringify(errorData)}`
-      );
-      return !isProductionRuntime();
-    }
-
-    console.log(`[Email] Successfully sent to ${email}`);
-    return true;
-  } catch (error) {
-    console.error('[Email] Error:', error);
-    logCodeForLocalTesting('EMAIL ERROR - VERIFICATION CODE', email, code);
+  if (!result.success) {
+    logCodeForLocalTesting(
+      "EMAIL FAILED - VERIFICATION CODE",
+      email,
+      code,
+      result.error
+    );
     return !isProductionRuntime();
   }
+
+  console.log(`[Email] Successfully sent verification to ${email}`);
+  return true;
 }
 
 export async function POST(req: NextRequest) {
@@ -241,7 +205,7 @@ export async function POST(req: NextRequest) {
       console.warn("[DEV] Skipping email/SMS send; DEV_VERIFICATION_CODE is set");
       sent = true;
     } else if (type === 'email') {
-      sent = await sendEmail(contact, code);
+      sent = await sendVerificationEmail(contact, code);
     } else {
       const message = `Your Sanative verification code is: ${code}. Expires in 10 minutes.`;
       sent = await sendSMS(contact, message);
