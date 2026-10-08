@@ -19,31 +19,31 @@
 
 import { prisma } from "./prisma";
 
+export type SMSProvider = "twilio" | "cellcast" | "messagemedia" | "mock";
+
 // ============================================
 // CONFIGURATION
 // ============================================
 
-const SMS_PROVIDER = process.env.SMS_PROVIDER || "twilio";
-
-// Twilio — prefer API key SID/secret; fall back to primary auth token.
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_API_KEY = process.env.TWILIO_API_KEY;
-const TWILIO_API_SECRET = process.env.TWILIO_API_SECRET;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
-const TWILIO_MESSAGING_SERVICE_SID = process.env.TWILIO_MESSAGING_SERVICE_SID;
-
-// MessageMedia (Australian provider)
-const MESSAGEMEDIA_API_KEY = process.env.MESSAGEMEDIA_API_KEY;
-const MESSAGEMEDIA_API_SECRET = process.env.MESSAGEMEDIA_API_SECRET;
-const MESSAGEMEDIA_SENDER_ID = process.env.MESSAGEMEDIA_SENDER_ID || "Sanative";
-
-// Cellcast (Australian provider - alphanumeric sender ID)
-const CELLCAST_API_KEY = process.env.CELLCAST_API_KEY;
-const CELLCAST_SENDER_ID = process.env.CELLCAST_SENDER_ID || "Sanative";
-
-// Default sender for display
 const DEFAULT_SENDER_ID = "Sanative";
+
+function env(name: string): string {
+  // Read at call time so Netlify/Next runtime secrets are not frozen as empty at build.
+  return (process.env[name] || "").trim();
+}
+
+function smsProvider(): SMSProvider {
+  const value = env("SMS_PROVIDER") || "twilio";
+  if (
+    value === "twilio" ||
+    value === "cellcast" ||
+    value === "messagemedia" ||
+    value === "mock"
+  ) {
+    return value;
+  }
+  return "twilio";
+}
 
 // ============================================
 // TYPES
@@ -63,23 +63,25 @@ export interface SMSMessage {
   senderId?: string;
 }
 
-export type SMSProvider = "twilio" | "cellcast" | "messagemedia" | "mock";
-
 function twilioAuth(): { user: string; pass: string } | null {
-  if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
-    return { user: TWILIO_ACCOUNT_SID, pass: TWILIO_AUTH_TOKEN };
+  const accountSid = env("TWILIO_ACCOUNT_SID");
+  const authToken = env("TWILIO_AUTH_TOKEN");
+  const apiKey = env("TWILIO_API_KEY");
+  const apiSecret = env("TWILIO_API_SECRET");
+  if (accountSid && authToken) {
+    return { user: accountSid, pass: authToken };
   }
-  if (TWILIO_API_KEY && TWILIO_API_SECRET) {
-    return { user: TWILIO_API_KEY, pass: TWILIO_API_SECRET };
+  if (apiKey && apiSecret) {
+    return { user: apiKey, pass: apiSecret };
   }
   return null;
 }
 
 function isTwilioConfigured(): boolean {
   return Boolean(
-    TWILIO_ACCOUNT_SID &&
+    env("TWILIO_ACCOUNT_SID") &&
       twilioAuth() &&
-      (TWILIO_PHONE_NUMBER || TWILIO_MESSAGING_SERVICE_SID)
+      (env("TWILIO_PHONE_NUMBER") || env("TWILIO_MESSAGING_SERVICE_SID"))
   );
 }
 
@@ -134,11 +136,14 @@ export function isValidAustralianMobile(phone: string): boolean {
  * Send SMS via Twilio
  */
 async function sendViaTwilio(to: string, message: string): Promise<SendSMSResult> {
+  const accountSid = env("TWILIO_ACCOUNT_SID");
   const auth = twilioAuth();
-  if (!TWILIO_ACCOUNT_SID || !auth) {
+  const fromNumber = env("TWILIO_PHONE_NUMBER");
+  const messagingServiceSid = env("TWILIO_MESSAGING_SERVICE_SID");
+  if (!accountSid || !auth) {
     return { success: false, error: "Twilio credentials not configured" };
   }
-  if (!TWILIO_PHONE_NUMBER && !TWILIO_MESSAGING_SERVICE_SID) {
+  if (!fromNumber && !messagingServiceSid) {
     return { success: false, error: "Twilio From number or messaging service not configured" };
   }
 
@@ -148,14 +153,14 @@ async function sendViaTwilio(to: string, message: string): Promise<SendSMSResult
       To: formattedPhone,
       Body: message,
     });
-    if (TWILIO_MESSAGING_SERVICE_SID) {
-      body.set("MessagingServiceSid", TWILIO_MESSAGING_SERVICE_SID);
-    } else if (TWILIO_PHONE_NUMBER) {
-      body.set("From", TWILIO_PHONE_NUMBER);
+    if (messagingServiceSid) {
+      body.set("MessagingServiceSid", messagingServiceSid);
+    } else if (fromNumber) {
+      body.set("From", fromNumber);
     }
 
     const response = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
       {
         method: "POST",
         headers: {
@@ -199,7 +204,9 @@ async function sendViaTwilio(to: string, message: string): Promise<SendSMSResult
  * API Docs: https://developers.messagemedia.com/
  */
 async function sendViaMessageMedia(to: string, message: string, senderId?: string): Promise<SendSMSResult> {
-  if (!MESSAGEMEDIA_API_KEY || !MESSAGEMEDIA_API_SECRET) {
+  const apiKey = env("MESSAGEMEDIA_API_KEY");
+  const apiSecret = env("MESSAGEMEDIA_API_SECRET");
+  if (!apiKey || !apiSecret) {
     return { success: false, error: "MessageMedia credentials not configured" };
   }
 
@@ -210,14 +217,14 @@ async function sendViaMessageMedia(to: string, message: string, senderId?: strin
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Basic ${Buffer.from(`${MESSAGEMEDIA_API_KEY}:${MESSAGEMEDIA_API_SECRET}`).toString("base64")}`,
+        Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}`,
       },
       body: JSON.stringify({
         messages: [
           {
             content: message,
             destination_number: formattedPhone,
-            source_number: senderId || MESSAGEMEDIA_SENDER_ID,
+            source_number: senderId || env("MESSAGEMEDIA_SENDER_ID") || DEFAULT_SENDER_ID,
             format: "SMS",
           },
         ],
@@ -258,7 +265,8 @@ async function sendViaMessageMedia(to: string, message: string, senderId?: strin
  * Supports alphanumeric sender ID
  */
 async function sendViaCellcast(to: string, message: string, senderId?: string): Promise<SendSMSResult> {
-  if (!CELLCAST_API_KEY) {
+  const apiKey = env("CELLCAST_API_KEY");
+  if (!apiKey) {
     return { success: false, error: "Cellcast API key not configured" };
   }
 
@@ -268,13 +276,13 @@ async function sendViaCellcast(to: string, message: string, senderId?: string): 
     const response = await fetch("https://cellcast.com.au/api/v3/send-sms", {
       method: "POST",
       headers: {
-        APPKEY: CELLCAST_API_KEY,
+        APPKEY: apiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         sms_text: message,
         numbers: [formattedPhone],
-        from: senderId || CELLCAST_SENDER_ID,
+        from: senderId || env("CELLCAST_SENDER_ID") || DEFAULT_SENDER_ID,
       }),
     });
 
@@ -339,7 +347,7 @@ export async function sendSMS(
     provider?: SMSProvider;
   }
 ): Promise<SendSMSResult> {
-  const provider = options?.provider || (SMS_PROVIDER as SMSProvider);
+  const provider = options?.provider || smsProvider();
 
   // Validate phone number
   if (!isValidAustralianMobile(to)) {
@@ -363,7 +371,7 @@ export async function sendSMS(
       return sendViaMessageMedia(to, message, options?.senderId);
 
     case "cellcast": {
-      if (!CELLCAST_API_KEY) {
+      if (!env("CELLCAST_API_KEY")) {
         if (process.env.NODE_ENV === "production") {
           return { success: false, provider: "cellcast", error: "Cellcast API key not configured" };
         }
@@ -398,7 +406,7 @@ export async function queueSMS(
         recipientPhone: phone,
         message,
         status: "PENDING",
-        provider: SMS_PROVIDER,
+        provider: smsProvider(),
       },
     });
 
@@ -435,7 +443,7 @@ export async function sendAndLogSMS(
       recipientPhone: phone,
       message,
       status: "PENDING",
-      provider: options?.provider || SMS_PROVIDER,
+      provider: options?.provider || smsProvider(),
     },
   });
 
@@ -576,7 +584,7 @@ export function getSMSProviderInfo(): {
   configured: boolean;
   senderId: string;
 } {
-  const provider = SMS_PROVIDER;
+  const provider = smsProvider();
   let configured = false;
 
   switch (provider) {
@@ -584,10 +592,10 @@ export function getSMSProviderInfo(): {
       configured = isTwilioConfigured();
       break;
     case "messagemedia":
-      configured = !!(MESSAGEMEDIA_API_KEY && MESSAGEMEDIA_API_SECRET);
+      configured = !!(env("MESSAGEMEDIA_API_KEY") && env("MESSAGEMEDIA_API_SECRET"));
       break;
     case "cellcast":
-      configured = !!CELLCAST_API_KEY;
+      configured = !!env("CELLCAST_API_KEY");
       break;
     case "mock":
       configured = true;
@@ -596,11 +604,11 @@ export function getSMSProviderInfo(): {
 
   const senderId =
     provider === "twilio"
-      ? TWILIO_PHONE_NUMBER || DEFAULT_SENDER_ID
+      ? env("TWILIO_PHONE_NUMBER") || DEFAULT_SENDER_ID
       : provider === "messagemedia"
-      ? MESSAGEMEDIA_SENDER_ID
+      ? env("MESSAGEMEDIA_SENDER_ID") || DEFAULT_SENDER_ID
       : provider === "cellcast"
-      ? CELLCAST_SENDER_ID
+      ? env("CELLCAST_SENDER_ID") || DEFAULT_SENDER_ID
       : DEFAULT_SENDER_ID;
 
   return {
