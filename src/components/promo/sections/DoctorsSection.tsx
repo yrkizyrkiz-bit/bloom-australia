@@ -19,7 +19,7 @@ const doctors: TeamMember[] = [
     subtitle: "Preventative Medicine | Weight Management",
     specialties: [],
     description:
-      "Specialist in preventative medicine, metabolic medicine and obesity treatment. Dr. Seeley ensures our weight management protocols meet the highest clinical standards.",
+      "Experienced in preventative medicine, metabolic health and obesity care. Dr. Seeley ensures our weight management protocols meet the highest clinical standards.",
     initials: "PS",
     color: "from-[#7b8967] to-[#5d6a4d]",
   },
