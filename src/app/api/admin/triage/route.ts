@@ -17,7 +17,7 @@ import { isProgramQuizIntakeNote } from "@/lib/portal-quiz-display";
 import { resolveClinicalRisk } from "@/lib/triage/clinical-risk";
 import { collectEnrolledPrograms } from "@/lib/triage/enrolled-programs";
 import { resolveBmi } from "@/lib/bmi";
-import { PROGRAM_SLUG } from "@/lib/billing/program-slugs";
+import { triageQueueWhere, triageStatsWhere } from "@/lib/admin/triage-queue";
 
 const SERIOUS_CONTRAINDICATIONS = [
   "eating_disorder",
@@ -32,13 +32,6 @@ const SERIOUS_CONTRAINDICATIONS = [
   "gallbladder_disease",
 ];
 
-/** All clinical subscription tiers that belong in triage (incl. legacy bare slugs). */
-const CLINICAL_PROGRAM_TIERS = [
-  ...Object.values(PROGRAM_SLUG),
-  "mens_health",
-  "womens_health",
-];
-
 // GET /api/admin/triage - Fetch triage queue
 export async function GET(request: NextRequest) {
   try {
@@ -51,24 +44,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || "PRE_TRIAGE_PENDING";
     const carePartnerId = searchParams.get("carePartnerId");
 
-    // Define status groups
-    const statusGroups: Record<string, string[]> = {
-      "all": ["LEAD", "SURVEY_COMPLETED", "CONSULTATION_BOOKED", "CONSULTATION_PAID", "PRE_TRIAGE_PENDING", "PRE_TRIAGE_COMPLETE", "AWAITING_DOCTOR_DECISION", "APPROVED_PENDING_TESTS", "DECLINED"],
-      "pre_payment": ["LEAD", "SURVEY_COMPLETED", "CONSULTATION_BOOKED"],
-      "CONSULTATION_PAID": ["CONSULTATION_PAID"],
-      "PRE_TRIAGE_PENDING": ["PRE_TRIAGE_PENDING"],
-      "AWAITING_DOCTOR_DECISION": ["AWAITING_DOCTOR_DECISION", "PRE_TRIAGE_COMPLETE"],
-      "APPROVED_PENDING_TESTS": ["APPROVED_PENDING_TESTS"],
-      "DECLINED": ["DECLINED"],
-    };
-
-    // Build where clause
-    const whereClause: Record<string, unknown> = {
-      subscriptionTier: { in: CLINICAL_PROGRAM_TIERS },
-      journeyStatus: {
-        in: statusGroups[status] || [status],
-      },
-    };
+    const whereClause: Record<string, unknown> = triageQueueWhere(status);
 
     // Care partners see their assigned patients plus unassigned patients in the queue
     if (session.user.role === "CARE_PARTNER") {
@@ -359,12 +335,7 @@ export async function GET(request: NextRequest) {
 
     // Get global stats (counts across all statuses for the header badges)
     const allClinicalPatients = await prisma.user.findMany({
-      where: {
-        subscriptionTier: { in: CLINICAL_PROGRAM_TIERS },
-        journeyStatus: {
-          in: ["PRE_TRIAGE_PENDING", "AWAITING_DOCTOR_DECISION", "PRE_TRIAGE_COMPLETE", "APPROVED_PENDING_TESTS", "DECLINED"],
-        },
-      },
+      where: triageStatsWhere(),
       select: {
         journeyStatus: true,
         triageScore: true,

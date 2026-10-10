@@ -9,7 +9,7 @@ export function Footer() {
       { label: "Women's Health", href: "/womens-health" },
       { label: "Hair Health", href: "/hair-health" },
       { label: "Organ Care", href: "/organ-care" },
-      { label: "Lab Testing", href: "/labs" },
+      { label: "Biomarker Labs", href: "/labs" },
     ],
     resources: [
       { label: "FAQs", href: "/faqs" },

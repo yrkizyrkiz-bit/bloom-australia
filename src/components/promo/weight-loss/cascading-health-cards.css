@@ -66,12 +66,12 @@
     0 28px 70px rgb(15 39 31 / 10%);
 }
 
-/* Full-bleed membership slides — lock to slide_1 aspect so sticky stack aligns */
+/* Full-bleed membership slides — 16:9 WM journey art */
 .cascade-card--tablet .cascade-card-inner {
   position: relative;
   grid-template-columns: 1fr;
   min-height: 0;
-  aspect-ratio: 1365 / 768;
+  aspect-ratio: 16 / 9;
   background: #f7f5f1;
   border: none;
   border-block: none;
@@ -167,13 +167,10 @@
     min-height: auto;
   }
 
-  /*
-    Match mobile art (1024×1536 = 2:3). Forcing 100svh + object-fit:cover
-    on taller iPhones cropped left/right and cut off the copy.
-  */
+  /* Same 16:9 journey slides on mobile — contain keeps baked-in copy readable */
   .cascade-card--tablet .cascade-card-inner {
     position: relative;
-    aspect-ratio: 2 / 3;
+    aspect-ratio: 16 / 9;
     width: 100%;
     height: auto;
     min-height: 0;

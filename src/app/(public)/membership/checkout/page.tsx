@@ -19,9 +19,6 @@ import {
   Phone,
   Loader2,
   Calendar,
-  Heart,
-  Activity,
-  Beaker,
 } from "lucide-react";
 import Link from "next/link";
 import { MembershipConsultationBooking } from "@/components/membership/MembershipConsultationBooking";
@@ -47,6 +44,9 @@ import {
 import { QuizDobTripleInput } from "@/components/funnel/QuizDobTripleInput";
 import { validateQuizDob } from "@/lib/funnel/quiz-dob";
 import { sameOriginMagicHref } from "@/lib/app-base-url";
+import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.module.css";
+import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
+import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -60,29 +60,58 @@ type Step =
   | "quiz"
   | "complete";
 
-// ─── Constants ─────────────────────────────────────────────────────────────
-const MEMBERSHIP_BENEFITS = [
-  "Comprehensive Essential biomarker panel, 85+ markers",
-  "Doctor consultation and pathology referral included",
-  "Biological Clock & Organ Care dashboards",
-  "Personalised health insights reviewed by AHPRA doctors",
-  "First 30 days of one eligible care program, choose at your first doctor consultation",
-  "Care partner support and 24/7 AI Health Assistant",
-];
+function SummaryImageMarquee() {
+  const loop = [...ORDER_SUMMARY_MARQUEE, ...ORDER_SUMMARY_MARQUEE];
+  return (
+    <div
+      className={`${marqueeStyles.viewport} ${marqueeStyles.viewportBlend} max-w-full`}
+      aria-hidden
+      title="Hover to pause"
+    >
+      <div className={marqueeStyles.track}>
+        {loop.map((item, index) => {
+          const isContain = item.fit === "contain";
+          return (
+            <div
+              key={`${item.src}-${index}`}
+              className={`${marqueeStyles.slide} ${marqueeStyles.slideBlend} h-40 w-64 sm:h-48 sm:w-80 lg:h-56 lg:w-[22rem]`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- CSS marquee needs plain imgs */}
+              <img
+                src={item.src}
+                alt=""
+                width={720}
+                height={405}
+                decoding="async"
+                loading={index < 3 ? "eager" : "lazy"}
+                fetchPriority={index === 0 ? "high" : "auto"}
+                className={`${marqueeStyles.slideImg} ${
+                  isContain ? "object-contain p-2 sm:p-3" : "object-cover"
+                }`}
+                draggable={false}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-const SUMMARY_ICONS = [
-  { icon: Beaker, label: "Panel", color: "text-emerald-600", bg: "bg-emerald-50" },
-  { icon: Activity, label: "Clock", color: "text-cyan-600", bg: "bg-cyan-50" },
-  { icon: Heart, label: "Organs", color: "text-rose-500", bg: "bg-rose-50" },
-] as const;
-
-const INTENT_LABELS: Record<string, string> = {
-  weight_management: "Weight Management",
-  hair_loss: "Hair Loss",
-  mens_health: "Men's Health",
-  womens_health: "Women's Health",
-  biomarkers: "Biomarker Testing",
-};
+function MembershipBenefitsList() {
+  return (
+    <div className="space-y-2.5 sm:space-y-3">
+      {MEMBERSHIP_BENEFITS.map((benefit) => (
+        <div key={benefit} className="flex items-start gap-2.5 sm:gap-3">
+          <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+          <span className="text-sm sm:text-[15px] lg:text-base text-gray-700 leading-snug">
+            {benefit}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ─── Payment Form Component ────────────────────────────────────────────────
 function PaymentForm({
@@ -1472,8 +1501,6 @@ function MembershipCheckoutPageContent() {
 
   // ─── Main Render ─────────────────────────────────────────────────────────
 
-  const intentLabel = intentProgram ? INTENT_LABELS[intentProgram] ?? null : null;
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -1486,29 +1513,23 @@ function MembershipCheckoutPageContent() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 lg:py-12">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+        <div className="grid min-w-0 lg:grid-cols-2 gap-5 sm:gap-8 lg:gap-12">
           {/* Left column - Form */}
-          <div className="order-2 lg:order-1">
+          <div className="order-2 lg:order-1 min-w-0">
             <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8">
               {/* Membership badge */}
-              <div className="mb-6 flex flex-wrap items-center gap-2">
+              <div className="mb-6">
                 <span className="inline-block px-3 py-1 bg-[#4f6038] text-white text-xs
                   font-semibold rounded-full">
                   Sanative Membership
                 </span>
-                {intentLabel && (
-                  <span className="inline-block px-3 py-1 bg-[#eef4e6] text-[#4f6038] text-xs
-                    font-semibold rounded-full">
-                    {intentLabel} pathway
-                  </span>
-                )}
               </div>
 
               <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
                 One membership. Full clarity.
               </h1>
               <p className="text-gray-500 mb-6">
-                Doctor-led biomarker testing and ongoing insights. {priceLabel},
+                Doctor-led biomarker insights. {priceLabel},
                 auto-renews annually. Cancel anytime.
               </p>
 
@@ -1533,65 +1554,48 @@ function MembershipCheckoutPageContent() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Shield className="w-4 h-4" />
-                  <span className="text-xs">AHPRA Registered</span>
+                  <span className="text-xs">AHPRA Registered Doctors</span>
                 </div>
               </div>
             )}
           </div>
 
           {/* Right column - Order summary */}
-          <div className="order-1 lg:order-2">
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 sticky top-8">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
-
-              <div className="rounded-xl border border-[#d5e0cb] bg-gradient-to-br from-[#eef4e6]/80 to-[#e3ecd8]/50 p-5 mb-5">
-                <div className="flex items-center justify-center gap-4 mb-4">
-                  {SUMMARY_ICONS.map(({ icon: Icon, label, color, bg }) => (
-                    <div key={label} className="flex flex-col items-center gap-1.5">
-                      <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${bg}`}>
-                        <Icon className={`h-5 w-5 ${color}`} />
-                      </div>
-                      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                        {label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-center text-sm font-medium text-[#3c4a27]">
-                  Essential biomarker panel + every health dashboard
-                </p>
-                <p className="text-center text-xs text-[#5c7a52] mt-1">
-                  Biological Clock, Organ Care, heart, liver, kidney & more
+          <div className="order-1 lg:order-2 min-w-0 max-w-full">
+            <div className="min-w-0 max-w-full overflow-hidden bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 lg:p-8 lg:sticky lg:top-8">
+              <div className="mb-3 sm:mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                  Order Summary
+                </h2>
+                <p className="text-sm sm:text-base font-semibold text-gray-900">
+                  Sanative Membership
                 </p>
               </div>
 
-              <h3 className="font-semibold text-gray-900 mb-2">Sanative Membership</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                $1 a day, charged annually to your card on file. Includes your comprehensive
-                biomarker panel and doctor consultation.
+              <div className="min-w-0 rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 lg:p-5 mb-4 sm:mb-5">
+                <div className="min-w-0">
+                  <SummaryImageMarquee />
+                </div>
+              </div>
+
+              <p className="mb-3 sm:mb-4 text-base sm:text-lg font-semibold text-gray-900 leading-snug">
+                {MEMBERSHIP_PITCH}
               </p>
 
-              {/* Benefits list */}
-              <div className="space-y-2 mb-6">
-                {MEMBERSHIP_BENEFITS.map((benefit, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-xs text-gray-600">{benefit}</span>
-                  </div>
-                ))}
+              <div className="mb-4 sm:mb-6">
+                <MembershipBenefitsList />
               </div>
 
-              {/* Price */}
-              <div className="border-t border-gray-200 pt-4 mt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600">Sanative Membership</span>
-                  <span className="font-semibold">{priceLabel}</span>
+              <div className="border-t border-gray-200 pt-3 sm:pt-4">
+                <div className="flex items-center justify-between gap-3 mb-2 text-sm sm:text-base">
+                  <span className="text-gray-600 min-w-0">Sanative Membership</span>
+                  <span className="font-semibold tabular-nums shrink-0">{priceLabel}</span>
                 </div>
-                <div className="flex items-center justify-between text-lg font-bold">
+                <div className="flex items-center justify-between gap-3 text-base sm:text-lg font-bold">
                   <span>Total</span>
-                  <span>${priceAud}</span>
+                  <span className="tabular-nums">${priceAud}</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-[11px] sm:text-xs text-gray-400 mt-2 leading-snug">
                   Everything included · auto-renews yearly · cancel anytime
                 </p>
               </div>

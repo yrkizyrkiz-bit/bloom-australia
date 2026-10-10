@@ -131,7 +131,7 @@ export default function FattyLiverPage() {
       icon: Eye,
       title: "See",
       subtitle: "Comprehensive Assessment",
-      description: "We assess liver health through biomarker testing, not just standard liver enzymes, but a broader metabolic picture including markers associated with insulin resistance, inflammation, and lipid profiles.",
+      description: "We assess liver health through biomarker insights, not just standard liver enzymes, but a broader metabolic picture including markers associated with insulin resistance, inflammation, and lipid profiles.",
     },
     {
       icon: Wrench,
@@ -143,7 +143,7 @@ export default function FattyLiverPage() {
       icon: Check,
       title: "Verify",
       subtitle: "Track Your Progress",
-      description: "Regular biomarker re-testing helps monitor how your liver markers are responding. Objective measurements help track progress over time.",
+      description: "Regular biomarker monitoring helps monitor how your liver markers are responding. Objective measurements help track progress over time.",
     },
     {
       icon: RefreshCw,
@@ -284,7 +284,7 @@ export default function FattyLiverPage() {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4" />
-                <span>NATA-Accredited Labs</span>
+                <span>NATA-Accredited Partner Labs</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4" />
@@ -432,7 +432,7 @@ export default function FattyLiverPage() {
                     <Beaker className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-serif text-white">Our Liver Metabolic Panel</h3>
+                    <h3 className="text-xl font-serif text-white">Our Liver Metabolic Biomarkers</h3>
                     <p className="text-sm text-white/70">Comprehensive liver assessment</p>
                   </div>
                 </div>
@@ -460,15 +460,15 @@ export default function FattyLiverPage() {
                 </ul>
                 <div className="pt-4 border-t border-white/20">
                   <p className="text-sm text-white/80">
-                    Our panel includes markers that may help identify metabolic dysfunction that standard tests might not capture.
+                    Sanative tracks markers that may help identify metabolic dysfunction that standard tests might not capture.
                   </p>
                 </div>
                 <Link
-                  href="/labs"
-                  className="mt-6 w-full bg-white text-[#34412f] rounded-full py-3 px-6 font-medium flex items-center justify-center gap-2 hover:bg-[#f4f7f2] transition-colors"
+                  href="/membership/checkout"
+                  className="mt-6 w-full bg-white text-[#34412f] rounded-full py-3 px-4 sm:px-6 font-medium flex items-center justify-center gap-2 hover:bg-[#f4f7f2] transition-colors text-center text-sm sm:text-base"
                 >
-                  View full biomarker list
-                  <ArrowRight className="w-4 h-4" />
+                  Monitor your health and stay ahead for $1/day
+                  <ArrowRight className="w-4 h-4 flex-shrink-0" />
                 </Link>
               </div>
             </div>
@@ -525,10 +525,10 @@ export default function FattyLiverPage() {
                 </span>
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-white mb-6">
                   We don&apos;t guess.{" "}
-                  <span className="text-[#a8bb9e] italic">We measure.</span>
+                  <span className="text-[#a8bb9e] italic">We decode your results.</span>
                 </h2>
                 <p className="text-lg text-[#a8bb9e] leading-relaxed mb-8">
-                  Objective measurement. Longitudinal tracking. Data-informed decisions. Our comprehensive panel provides your doctor with information to help inform and adjust your care plan.
+                  Objective measurement. Longitudinal tracking. Data-informed decisions. Our comprehensive Biomarkers insights provides your doctor with information to help inform and adjust your care plan.
                 </p>
 
                 <div className="w-full rounded-3xl bg-gradient-to-br from-[#cdd8c6] via-[#a8bb9e] to-[#5c7a52] px-6 py-8 sm:px-10 sm:py-10">
@@ -540,16 +540,6 @@ export default function FattyLiverPage() {
                     palette="sage"
                     align="center"
                   />
-                </div>
-
-                <div className="mt-8 flex justify-center">
-                  <Link
-                    href="/labs#biomarkers"
-                    className="inline-flex items-center gap-2 text-[#a8bb9e] hover:text-white transition-colors"
-                  >
-                    View biomarker panel
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
                 </div>
               </div>
 
@@ -634,7 +624,7 @@ export default function FattyLiverPage() {
                 <div className="w-14 h-14 rounded-2xl bg-[#5c7a52]/20 flex items-center justify-center mx-auto mb-4">
                   <ShieldCheck className="w-7 h-7 text-[#5c7a52]" />
                 </div>
-                <h3 className="font-serif text-[#2c3628] mb-2">NATA Accredited</h3>
+                <h3 className="font-serif text-[#2c3628] mb-2">NATA-Accredited Partner Labs</h3>
                 <p className="text-sm text-[#5c7a52]">Lab testing by accredited Australian labs</p>
               </div>
               <div className="text-center">
@@ -699,21 +689,13 @@ export default function FattyLiverPage() {
               Research suggests early identification may be beneficial for fatty liver management. Our comprehensive liver metabolic assessment includes markers associated with hepatic steatosis.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/metabolic-care/fatty-liver/assessment"
-                className="btn-white inline-flex items-center justify-center gap-2 text-lg px-8 py-4"
-              >
-                Check your liver health
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link
-                href="/labs"
-                className="btn-secondary border-white text-white hover:bg-white hover:text-[#34412f] inline-flex items-center justify-center px-8 py-4"
-              >
-                View biomarker tests
-              </Link>
-            </div>
+            <Link
+              href="/membership/checkout"
+              className="btn-white inline-flex items-center justify-center gap-2 text-base sm:text-lg px-6 sm:px-10 py-4"
+            >
+              Monitor your health and stay ahead for $1/day
+              <ArrowRight className="w-5 h-5" />
+            </Link>
 
             {/* GAP-026: Removed 'No commitment' - payment required */}
             <p className="mt-6 text-sm text-[#7e9a72]">

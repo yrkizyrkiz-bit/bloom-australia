@@ -585,12 +585,13 @@ export default function TriageQueuePage() {
         const n = result.completedTaskIds?.length ?? 1;
         toast.success(
           n > 1
-            ? `Linked and cleared ${n} Pre-Triage items (doctor already assigned)`
-            : "Linked and cleared from Pre-Triage (doctor already assigned)"
+            ? `Linked ${n} items — moved to Awaiting Doctor`
+            : "Linked and moved to Awaiting Doctor"
         );
-      } else {
-        toast.success("Consultation linked to existing appointment");
+        setActiveTab("awaiting");
+        return;
       }
+      toast.success("Consultation linked to existing appointment");
       fetchTriageQueue();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to link appointment");
@@ -629,10 +630,10 @@ export default function TriageQueuePage() {
       const n = Array.isArray(data.completedTaskIds) ? data.completedTaskIds.length : 1;
       toast.success(
         n > 1
-          ? `Cleared ${n} Pre-Triage items linked to this appointment`
-          : "Removed from Pre-Triage — ready for doctor"
+          ? `Moved ${n} items to Awaiting Doctor`
+          : "Moved to Awaiting Doctor"
       );
-      fetchTriageQueue();
+      setActiveTab("awaiting");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to mark complete");
     } finally {
@@ -662,7 +663,7 @@ export default function TriageQueuePage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to assign doctor");
 
-      // Same as In Triage complete: leave the Pre-Triage queue once a doctor owns the consult.
+      // Same as In Triage complete: hand off to Awaiting Doctor once a doctor owns the consult.
       const completeRes = await fetch("/api/admin/pre-triage", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -677,14 +678,14 @@ export default function TriageQueuePage() {
       if (!completeRes.ok) {
         const completeData = await completeRes.json().catch(() => ({}));
         throw new Error(
-          completeData.error || "Doctor assigned but failed to clear Pre-Triage queue"
+          completeData.error || "Doctor assigned but failed to move to Awaiting Doctor"
         );
       }
 
-      toast.success("Doctor assigned — removed from Pre-Triage");
+      toast.success("Doctor assigned — moved to Awaiting Doctor");
       setPreTriageAssignItem(null);
       setPreTriageAssignDoctorId("");
-      fetchTriageQueue();
+      setActiveTab("awaiting");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to assign doctor");
     } finally {
@@ -1976,18 +1977,21 @@ export default function TriageQueuePage() {
             fetchTriageQueue();
             return;
           }
+          let handedOff = false;
           try {
             const result = await linkPreTriageBooking(taskId, booking.id);
             if (result.autoCompleted || result.completed) {
               const n = result.completedTaskIds?.length ?? 1;
               toast.success(
                 n > 1
-                  ? `Appointment booked — cleared ${n} Pre-Triage items`
-                  : "Appointment booked — removed from Pre-Triage"
+                  ? `Appointment booked — moved ${n} items to Awaiting Doctor`
+                  : "Appointment booked — moved to Awaiting Doctor"
               );
-            } else {
-              toast.success("Appointment linked to pre-triage task");
+              handedOff = true;
+              setActiveTab("awaiting");
+              return;
             }
+            toast.success("Appointment linked to pre-triage task");
           } catch (error) {
             toast.error(
               error instanceof Error
@@ -1996,7 +2000,7 @@ export default function TriageQueuePage() {
             );
           } finally {
             setPreTriageBookingItem(null);
-            fetchTriageQueue();
+            if (!handedOff) fetchTriageQueue();
           }
         }}
       />

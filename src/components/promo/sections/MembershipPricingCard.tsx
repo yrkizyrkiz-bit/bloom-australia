@@ -1,17 +1,9 @@
 import Link from "next/link";
+import {
+  MEMBERSHIP_BENEFITS,
+  MEMBERSHIP_PITCH,
+} from "@/lib/membership/membership-benefits";
 import marqueeStyles from "./MembershipPricingCard.module.css";
-
-const FEATURES = [
-  "Analysis of 85+ biomarkers annually",
-  "Essential panel with Biological Clock & Organ Care",
-  "Insights from AHPRA-registered doctors",
-  "All-in-one for your whole body",
-  "Tracked in one secure place",
-  "Clinicians review every result and flag issues",
-  "Personalised health action plan",
-  "Organ Care dashboards in your portal",
-  "First 30 days of one eligible Sanative care program",
-];
 
 function CheckCircleIcon({ className }: { className?: string }) {
   return (
@@ -38,6 +30,7 @@ function CheckCircleIcon({ className }: { className?: string }) {
 type MembershipMarqueeImage = {
   src: string;
   alt: string;
+  fit?: "cover" | "contain";
 };
 
 type MembershipPricingCardProps = {
@@ -51,18 +44,27 @@ type MembershipPricingCardProps = {
 function ImageMarquee({ items }: { items: readonly MembershipMarqueeImage[] }) {
   const loop = [...items, ...items];
   return (
-    <div className={marqueeStyles.viewport} aria-hidden>
-      <div className={marqueeStyles.track}>
-        {loop.map((item, index) => (
-          // eslint-disable-next-line @next/next/no-img-element -- CSS marquee needs plain imgs
-          <img
-            key={`${item.src}-${index}`}
-            src={item.src}
-            alt=""
-            className="h-28 w-40 shrink-0 rounded-xl object-cover"
-            draggable={false}
-          />
-        ))}
+    <div className={`${marqueeStyles.viewport} ${marqueeStyles.viewportBlend} max-w-full`} aria-hidden>
+      <div className={`${marqueeStyles.track} ${marqueeStyles.trackCompact}`}>
+        {loop.map((item, index) => {
+          const isContain = item.fit === "contain";
+          return (
+            // eslint-disable-next-line @next/next/no-img-element -- CSS marquee needs plain imgs
+            <img
+              key={`${item.src}-${index}`}
+              src={item.src}
+              alt=""
+              width={720}
+              height={405}
+              decoding="async"
+              loading={index < 3 ? "eager" : "lazy"}
+              className={`h-24 w-40 sm:h-28 sm:w-48 shrink-0 rounded-xl bg-white ${
+                isContain ? "object-contain p-0.5" : "object-cover"
+              }`}
+              draggable={false}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -79,54 +81,54 @@ export function MembershipPricingCard({
     <div
       className={`grid min-w-0 w-full lg:grid-cols-2 rounded-3xl border border-[#e6ebe3] bg-white shadow-2xl overflow-hidden ${className}`}
     >
-      <div className="flex min-w-0 flex-col justify-between gap-10 p-6 sm:p-10 lg:p-12 lg:border-r border-[#e6ebe3]">
+      <div className="flex min-w-0 flex-col gap-5 sm:gap-6 p-5 sm:p-8 lg:p-9 lg:border-r border-[#e6ebe3]">
         <div>
           <div className="flex items-center gap-2 text-[#c17a58]">
             <CheckCircleIcon className="flex-shrink-0" />
             <span className="text-sm font-semibold">Doctor-reviewed care</span>
           </div>
-          <h3 className="mt-5 font-serif text-3xl sm:text-[2.5rem] text-[#2c3628] leading-tight tracking-tight">
+          <h3 className="mt-3 font-serif text-2xl sm:text-3xl lg:text-[2.25rem] text-[#2c3628] leading-tight tracking-tight">
             Sanative Membership
           </h3>
-          <p className="mt-2 text-sm text-[#7e9a72]">
-            Includes your comprehensive Essential biomarker panel
+          <p className="mt-1.5 text-sm sm:text-base font-semibold text-[#2c3628] leading-snug">
+            {MEMBERSHIP_PITCH}
           </p>
         </div>
 
         <div>
           {imageMarquee && imageMarquee.length > 0 ? (
-            <div className="mb-8">
+            <div className="mb-4 sm:mb-5">
               <ImageMarquee items={imageMarquee} />
             </div>
           ) : null}
           <div className="flex items-baseline gap-1">
-            <span className="font-serif text-6xl sm:text-7xl tracking-tight text-[#2c3628] tabular-nums leading-none">
+            <span className="font-serif text-5xl sm:text-6xl tracking-tight text-[#2c3628] tabular-nums leading-none">
               $1
             </span>
-            <span className="text-lg sm:text-xl text-[#2c3628]">/day</span>
+            <span className="text-base sm:text-lg text-[#2c3628]">/day</span>
           </div>
-          <p className="mt-2 text-sm text-[#7e9a72]">
+          <p className="mt-1.5 text-sm text-[#7e9a72]">
             ${annualPrice}/year
           </p>
-          <p className="mt-2 text-sm font-medium text-[#2c3628]">
+          <p className="mt-1.5 text-sm font-medium text-[#2c3628]">
             Join with confidence · 100% refundable*
           </p>
 
           <Link
             href={checkoutHref}
-            className="mt-8 flex w-full items-center justify-center rounded-full bg-[#c17a58] px-8 py-3.5 text-base font-medium text-white transition-colors hover:bg-[#a96848] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c17a58] focus-visible:ring-offset-2"
+            className="mt-5 flex w-full items-center justify-center rounded-full bg-[#c17a58] px-8 py-3 text-base font-medium text-white transition-colors hover:bg-[#a96848] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c17a58] focus-visible:ring-offset-2"
           >
             Join Sanative
           </Link>
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col justify-center p-6 sm:p-10 lg:p-12 border-t border-[#e6ebe3] lg:border-t-0">
-        <ul className="space-y-7">
-          {FEATURES.map((feature) => (
+      <div className="flex min-w-0 flex-col justify-center p-5 sm:p-8 lg:p-9 border-t border-[#e6ebe3] lg:border-t-0">
+        <ul className="space-y-5 sm:space-y-6 lg:space-y-7">
+          {MEMBERSHIP_BENEFITS.map((feature) => (
             <li key={feature} className="flex items-start gap-3 text-[#2c3628]">
-              <CheckCircleIcon className="mt-0.5 flex-shrink-0 text-[#5c7a52]" />
-              <span className="text-[15px] sm:text-base leading-snug">{feature}</span>
+              <CheckCircleIcon className="mt-0.5 flex-shrink-0 text-[#5c7a52] w-5 h-5" />
+              <span className="text-base sm:text-lg leading-snug">{feature}</span>
             </li>
           ))}
         </ul>

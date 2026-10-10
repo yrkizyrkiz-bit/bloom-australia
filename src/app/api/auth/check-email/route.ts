@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
       where: { email: normalizedEmail },
       select: {
         id: true,
-        firstName: true,
         subscriptionTier: true,
         journeyStatus: true,
       },
@@ -44,7 +43,6 @@ export async function POST(req: NextRequest) {
         exists: true,
         hasActiveProgram: !!existingUser.subscriptionTier,
         journeyStatus: existingUser.journeyStatus,
-        firstName: existingUser.firstName,
       });
     }
 

@@ -408,7 +408,7 @@ export function KidneyHealthCalculator() {
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0 mt-0.5" />
-                  <span>Electrolytes (Na, K, Phosphorus)</span>
+                  <span>Electrolytes (Na, K, Calcium)</span>
                 </li>
               </ul>
             </div>

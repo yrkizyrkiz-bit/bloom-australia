@@ -218,14 +218,21 @@ export default function MensHealthPage() {
                     Most Popular
                   </span>
                   <h3 className="text-lg font-serif text-[#2c3628] group-hover:text-white transition-colors duration-300">
-                    Weight <span className="text-[#5c7a52] group-hover:text-[#cdd8c6]">Management</span>
+                    Start your
+                    <br />
+                    <span className="text-[#5c7a52] group-hover:text-[#cdd8c6]">weight loss journey</span>
                   </h3>
                   <p className="text-[#5c7a52] text-sm mt-1.5 group-hover:text-white/80 transition-colors duration-300">
-                    Medical weight loss programs with personalised support
+                    Doctor-led weight loss programs with personalised medical support
                   </p>
                 </div>
                 <div className="flex items-center justify-between mt-3">
-                  <ArrowRight className="w-4 h-4 text-[#34412f] group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[#34412f] group-hover:text-white transition-colors duration-300">
+                      Start assessment
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-[#34412f] group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
                   <div className="w-10 h-10 bg-black/5 group-hover:bg-white/15 rounded-full flex items-center justify-center transition-colors duration-300">
                     <Scale className="w-5 h-5 text-[#5c7a52] group-hover:text-white/80 transition-colors duration-300" />
                   </div>
@@ -237,18 +244,27 @@ export default function MensHealthPage() {
                 className="md:col-span-2 group relative rounded-2xl overflow-hidden bg-[#e6ebe3] hover:bg-[#3d4f38] p-5 min-h-[152px] lg:min-h-[168px] flex flex-col justify-between text-left transition-colors duration-300 ease-out"
               >
                 <div>
-                  <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-[#5c7a52] text-white rounded-full mb-2">
-                    Recommended
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-[#5c7a52] text-white rounded-full mb-2">
+                    <Beaker className="w-3 h-3" />
+                    85+ Biomarkers
                   </span>
                   <h3 className="text-lg font-serif text-[#2c3628] group-hover:text-white transition-colors duration-300">
-                    Biomarker <span className="text-[#5c7a52] group-hover:text-[#cdd8c6]">Testing</span>
+                    Check your health
+                    <br />
+                    <span className="text-[#5c7a52] group-hover:text-[#cdd8c6]">every year</span>
                   </h3>
                   <p className="text-[#5c7a52] text-sm mt-1.5 group-hover:text-white/80 transition-colors duration-300">
-                    Comprehensive blood tests for optimal health
+                    Starting with 85+ biomarkers monitoring 500+ conditions. Just $365 per year,{" "}
+                    <span className="italic font-medium text-[#2c3628] group-hover:text-white">$1 per day</span>.
                   </p>
                 </div>
                 <div className="flex items-center justify-between mt-3">
-                  <ArrowRight className="w-4 h-4 text-[#34412f] group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[#34412f] group-hover:text-white transition-colors duration-300">
+                      Explore health markers
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-[#34412f] group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
                   <div className="w-10 h-10 bg-black/5 group-hover:bg-white/15 rounded-full flex items-center justify-center transition-colors duration-300">
                     <Beaker className="w-5 h-5 text-[#5c7a52] group-hover:text-white/80 transition-colors duration-300" />
                   </div>
@@ -260,15 +276,25 @@ export default function MensHealthPage() {
                 className="md:col-span-2 group relative rounded-2xl overflow-hidden bg-[#f3e6d8] hover:bg-[#c17a58] p-5 min-h-[152px] lg:min-h-[168px] flex flex-col justify-between text-left transition-colors duration-300 ease-out"
               >
                 <div>
+                  <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-[#c17a58] text-white rounded-full mb-2">
+                    Men & Women
+                  </span>
                   <h3 className="text-lg font-serif text-[#2c3628] group-hover:text-white transition-colors duration-300">
-                    Hair <span className="text-[#c17a58] group-hover:text-[#f8e1e1]">Loss</span>
+                    Doctor-led
+                    <br />
+                    <span className="text-[#c17a58] group-hover:text-[#f8e1e1]">hair health</span>
                   </h3>
                   <p className="text-[#5c7a52] text-sm mt-1.5 group-hover:text-white/85 transition-colors duration-300">
-                    Doctor-led hair health assessment and care planning
+                    Assessment-first care with options discussed privately if clinically appropriate.
                   </p>
                 </div>
                 <div className="flex items-center justify-between mt-3">
-                  <ArrowRight className="w-4 h-4 text-[#34412f] group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[#34412f] group-hover:text-white transition-colors duration-300">
+                      Learn more
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-[#34412f] group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
                   <div className="w-10 h-10 bg-black/5 group-hover:bg-white/20 rounded-full flex items-center justify-center transition-colors duration-300">
                     <Sparkles className="w-5 h-5 text-[#c17a58] group-hover:text-white transition-colors duration-300" />
                   </div>
@@ -365,7 +391,7 @@ export default function MensHealthPage() {
                   <span className="text-[#a8bb9e] italic">Know your numbers.</span>
                 </h2>
                 <p className="text-lg text-[#a8bb9e] mb-8">
-                  Every man&apos;s biology is different. The Essential panel measures thyroid, metabolic,
+                  Every man&apos;s biology is different. The biomarker insights tracks thyroid, metabolic,
                   heart, liver, kidney and nutrient markers, giving your doctor the data needed to
                   personalise your care plan where clinically appropriate.
                 </p>
@@ -373,11 +399,11 @@ export default function MensHealthPage() {
                 <div className="grid grid-cols-2 gap-4 mb-8">
                   <div className="bg-white/10 rounded-2xl p-4">
                     <p className="text-3xl font-serif text-white">{PUBLIC_BIOMARKER_COUNT_LABEL}</p>
-                    <p className="text-sm text-[#a8bb9e]">Biomarkers tested</p>
+                    <p className="text-sm text-[#a8bb9e]">Biomarkers insights</p>
                   </div>
                   <div className="bg-white/10 rounded-2xl p-4">
-                    <p className="text-3xl font-serif text-white">NATA</p>
-                    <p className="text-sm text-[#a8bb9e]">Accredited Australian labs</p>
+                    <p className="text-xl sm:text-2xl font-serif text-white leading-tight">NATA-Accredited</p>
+                    <p className="text-sm text-[#a8bb9e]">Partner Labs</p>
                   </div>
                 </div>
 
@@ -385,15 +411,14 @@ export default function MensHealthPage() {
                   href="/labs"
                   className="btn-white inline-flex items-center gap-2"
                 >
-                  Explore biomarker testing
+                  Explore biomarker insights
                   <ArrowRight className="w-5 h-5" />
                 </Link>
               </div>
 
               <div>
                 <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-6 border border-white/10">
-                  <h3 className="text-lg font-medium text-white mb-1">Key biomarkers we test</h3>
-                  <p className="text-sm text-[#a8bb9e] mb-5">Measured on Essential</p>
+                  <h3 className="text-lg font-medium text-white mb-5">Key biomarkers we track</h3>
 
                   <div className="mx-auto w-fit">
                     <BiomarkerHoneycomb
@@ -407,7 +432,7 @@ export default function MensHealthPage() {
                   </div>
 
                   <div className="mt-8 pt-6 border-t border-white/15">
-                    <p className="text-sm font-medium text-white mb-1">Measured if risk factors exist</p>
+                    <p className="text-sm font-medium text-white mb-1">Tracked if risk factors exist</p>
                     <p className="text-xs text-[#a8bb9e] mb-4">
                       Your doctor may add these when symptoms, age, or other clinical risk factors
                       warrant them.
@@ -453,7 +478,7 @@ export default function MensHealthPage() {
               Your health at your <em>fingertips</em>
             </>
           }
-          subheading="Test before you treat"
+          subheading={null}
         />
 
         {/* Trust Section */}
@@ -504,21 +529,13 @@ export default function MensHealthPage() {
             <p className="text-lg text-[#a8bb9e] mb-10 max-w-2xl mx-auto">
               Become a member and book your doctor consultation, get a health check-up followed by a doctor's recommendations of what is clinically appropriate for you.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/mens-health/assessment?concern=erectile-dysfunction"
-                className="btn-white inline-flex items-center justify-center gap-2 text-lg px-8 py-4"
-              >
-                Start assessment
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link
-                href="/labs"
-                className="btn-secondary border-white text-white hover:bg-white hover:text-[#34412f] inline-flex items-center justify-center px-8 py-4"
-              >
-                View blood tests
-              </Link>
-            </div>
+            <Link
+              href="/mens-health/assessment?concern=erectile-dysfunction"
+              className="btn-white inline-flex items-center justify-center gap-2 text-base sm:text-lg px-6 sm:px-10 py-4"
+            >
+              Monitor your health and stay ahead for $1/day
+              <ArrowRight className="w-5 h-5" />
+            </Link>
             {/* GAP-026: Removed 'No commitment' - payment required */}
             <p className="mt-6 text-sm text-[#7e9a72]">
               Australian doctors · Confidential care

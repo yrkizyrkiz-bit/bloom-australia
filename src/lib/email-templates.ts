@@ -96,7 +96,7 @@ function wrapEmail(content: string): string {
           <tr>
             <td style="padding: 24px 40px; background-color: #fdfbf7; border-top: 1px solid #e6ebe3;">
               <p style="margin: 0 0 8px 0; font-size: 12px; color: #5c7a52;">
-                AHPRA Registered &bull; NATA-accredited labs &bull; Australian Privacy Act compliant
+                AHPRA Registered &bull; NATA-Accredited Partner Labs &bull; Australian Privacy Act compliant
               </p>
               <p style="margin: 0; font-size: 12px; color: #5c7a52;">
                 &copy; ${new Date().getFullYear()} Sanative Health. All rights reserved.
@@ -193,7 +193,7 @@ export function patientWelcomeEmail(data: PatientWelcomeData): EmailTemplate {
     <div style="border-top: 1px solid #e6ebe3; padding-top: 24px;">
       <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #34412f;">What's included in your membership:</h4>
       <ul style="margin: 0; padding-left: 20px; color: #5c7a52; font-size: 14px; line-height: 1.8;">
-        <li>85+ biomarker panel at NATA-accredited labs</li>
+        <li>85+ biomarker panel at NATA-Accredited Partner Labs</li>
         <li>Biological Clock &amp; organ health scores</li>
         <li>Care partner support between GP visits</li>
         <li>Personalised health insights</li>

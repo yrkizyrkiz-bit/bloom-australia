@@ -24,7 +24,19 @@ import {
   Route,
   RefreshCw,
   Calendar,
+  Stethoscope,
+  Lock,
+  Activity,
+  Users,
 } from "lucide-react";
+
+const trustBadges = [
+  { icon: Stethoscope, label: "AHPRA-registered doctors" },
+  { icon: Lock, label: "Confidential care" },
+  { icon: Beaker, label: "NATA-Accredited Partner Labs" },
+  { icon: Activity, label: "Biomarker-informed" },
+  { icon: Users, label: "Care team support" },
+];
 
 
 
@@ -88,7 +100,7 @@ function LabsPageContent() {
 
   return (
     <>
-      <Header announcementMessage="85+ health signals, from $1/day" />
+      <Header announcementMessage="85+ health signals, from $1/day" hideAnnouncementCta />
       {/* No overflow on main, any overflow (incl. overflow-x-hidden) creates a
           scroll container and breaks position:sticky on the roadmap cascade. */}
       <main>
@@ -138,7 +150,7 @@ function LabsPageContent() {
                     href="/biomarker-intake"
                     className="btn-white inline-flex items-center gap-2 text-lg px-10 py-4"
                   >
-                    Start testing
+                    Check your health
                     <ArrowRight className="w-5 h-5" />
                   </Link>
                 </div>
@@ -218,76 +230,33 @@ function LabsPageContent() {
                   href="/biomarker-intake"
                   className="inline-flex min-h-[52px] w-full max-w-[320px] items-center justify-center rounded-full bg-white px-6 text-base font-semibold text-[#111111] shadow-[0_8px_28px_rgba(0,0,0,0.28)]"
                 >
-                  Start testing
+                  Check your health
                 </Link>
               </div>
             </div>
 
-            {/* Stats Bar, desktop only inside hero; mobile shows below */}
-            <div className="absolute bottom-0 left-0 right-0 hidden bg-white/95 backdrop-blur-sm lg:block">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div className="flex flex-wrap justify-between gap-y-4 gap-x-4 w-full">
-                  <div className="flex items-center gap-3 flex-1 min-w-[140px] justify-center lg:justify-start">
-                    <div className="w-2 h-2 rounded-full bg-[#5c7a52] shrink-0" />
-                    <span className="text-[#34412f]">
-                      <strong>Simple</strong> blood test
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 flex-1 min-w-[140px] justify-center lg:justify-start">
-                    <div className="w-2 h-2 rounded-full bg-[#5c7a52] shrink-0" />
-                    <span className="text-[#34412f]">
-                      <strong>85+</strong> health signals tested
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 flex-1 min-w-[140px] justify-center lg:justify-start">
-                    <div className="w-2 h-2 rounded-full bg-[#5c7a52] shrink-0" />
-                    <span className="text-[#34412f]">
-                      <strong>Indicators</strong> of 500+ diseases
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 flex-1 min-w-[140px] justify-center lg:justify-start">
-                    <div className="w-2 h-2 rounded-full bg-[#5c7a52] shrink-0" />
-                    <span className="text-[#34412f]">
-                      <strong>$1</strong>/day
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
-        {/* Mobile stats, symmetric 2×2 under rounded hero card */}
-        <div className="bg-[#fdfbf7] lg:hidden">
-          <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 gap-y-5 px-3 py-7">
-            {(
-              [
-                { lead: "Simple", support: "blood test" },
-                { lead: "85+", support: "health signals tested" },
-                { lead: "500+", support: "disease indicators" },
-                { lead: "$1", support: "per day" },
-              ] as const
-            ).map((item) => (
-              <div key={item.lead} className="flex min-h-[3.25rem] items-start gap-2.5">
-                <div className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[#5c7a52]" />
-                <div className="min-w-0">
-                  <p className="font-serif text-[15px] font-normal leading-snug tracking-[-0.01em] text-[#34412f]">
-                    {item.lead}
-                  </p>
-                  <p className="font-serif mt-0.5 text-[13px] font-normal leading-snug text-[#5c7a52]">
-                    {item.support}
-                  </p>
-                </div>
-              </div>
-            ))}
+        <div className="bg-[#fdfbf7] border-b border-[#e6ebe3]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+              {trustBadges.map((badge, index) => {
+                const Icon = badge.icon;
+                return (
+                  <div key={badge.label} className="flex items-center gap-6">
+                    {index > 0 ? (
+                      <div className="hidden sm:block w-px h-5 bg-[#d1d9cd]" aria-hidden />
+                    ) : null}
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-4 h-4 text-[#5c7a52]" aria-hidden />
+                      <span className="text-sm text-[#34412f]">{badge.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-
-        {/* Disclaimer */}
-        <div className="bg-[#f4f7f2] py-3 text-center">
-          <p className="text-xs text-[#5c7a52] max-w-4xl mx-auto px-4">
-            Eligibility and practitioner order required. Lab results alone are not intended to diagnose, treat, or cure any condition. Doctor-developed insights and action plans include recommendations that encourage you to take action that may help improve your health.
-          </p>
         </div>
 
         {/* Get Insights Section */}
@@ -390,7 +359,7 @@ function LabsPageContent() {
                 href="/biomarker-intake"
                 className="btn-primary inline-flex items-center gap-2 text-lg px-10 py-4"
               >
-                Start testing
+                Check your health
                 <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
@@ -414,21 +383,11 @@ function LabsPageContent() {
                 <span className="text-[#173c32]/80 italic">10 vital health areas</span>
               </h2>
               <p className="mt-4 text-[#173c32]/78 max-w-2xl mx-auto">
-                Select a category to explore the biomarkers we test. Hover over any marker to learn what it measures.
+                Select a category to explore the related biomarkers we track. Hover over any marker to learn what it measures.
               </p>
             </div>
 
             <BiomarkerHoneycomb defaultCategory={categoryFromUrl} />
-
-            <div className="mt-6 text-center">
-              <Link
-                href="/labs/biomarkers"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#173c32] text-white rounded-full hover:bg-[#2c3628] transition-colors"
-              >
-                Learn more
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
           </div>
         </section>
 
@@ -491,7 +450,7 @@ function LabsPageContent() {
                 href="/biomarker-intake"
                 className="group inline-flex items-center gap-3 btn-primary text-lg px-8 py-4"
               >
-                Start with a lab test
+                Monitor your health and stay ahead for $1/day
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
@@ -499,19 +458,16 @@ function LabsPageContent() {
         </section>
 
         {/* Conditions Section */}
-        <section className="pt-12 lg:pt-14 pb-20 lg:pb-28 bg-white">
+        <section className="pt-8 lg:pt-10 pb-10 lg:pb-12 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mx-auto text-center lg:max-w-3xl">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] leading-tight">
                 Spot imbalances{" "}
-                <span className="text-[#5c7a52] italic">before they become problems</span>
+                <span className="text-[#5c7a52] italic">and stay ahead</span>
               </h2>
-              <p className="mt-5 text-lg text-[#5c7a52]">
-                Our tests can flag early warning signs across hundreds of conditions, often before you feel a thing.
-              </p>
             </div>
           </div>
-          <div className="mt-10 lg:mt-14">
+          <div className="mt-6 lg:mt-8">
             <ConditionScrollMarquee />
           </div>
         </section>
@@ -539,7 +495,7 @@ function LabsPageContent() {
                   <div className="w-10 h-10 rounded-full bg-[#5c7a52] flex items-center justify-center mx-auto mb-2">
                     <Beaker className="w-5 h-5 text-white" />
                   </div>
-                  <p className="font-medium text-[#2c3628] text-sm">Labs by Sanative</p>
+                  <p className="font-medium text-[#2c3628] text-sm">In-app analysis</p>
                 </div>
                 <div className="p-4 lg:p-6 text-center">
                   <p className="text-[#5c7a52] text-sm">Routine blood test</p>
@@ -583,7 +539,7 @@ function LabsPageContent() {
 
             <div className="mt-10 text-center">
               <Link href="/biomarker-intake" className="btn-primary">
-                Start testing
+                Check your health
               </Link>
             </div>
           </div>
@@ -602,7 +558,7 @@ function LabsPageContent() {
                 </p>
                 <div className="mt-8 flex flex-wrap gap-4">
                   <Link href="/biomarker-intake" className="btn-primary">
-                    Start testing
+                    Check your health
                   </Link>
                 </div>
               </div>
@@ -689,7 +645,7 @@ function LabsPageContent() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628]">
-                <span className="text-[#5c7a52] italic">More than a test.</span>
+                <span className="text-[#5c7a52] italic">More than a health check.</span>
                 <br />
                 A complete care ecosystem.
               </h2>
@@ -702,7 +658,7 @@ function LabsPageContent() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
               <div className="md:col-span-2 lg:col-span-2 bg-gradient-to-br from-[#5c7a52] to-[#4a6243] rounded-3xl p-8 text-white">
                 <p className="text-5xl lg:text-6xl font-serif">85+</p>
-                <p className="mt-2 text-white/80">Biomarkers available through NATA-accredited labs</p>
+                <p className="mt-2 text-white/80">Biomarker results, an analysis of each health category and goals to help you focus on what matters most.</p>
               </div>
 
               <div className="bg-[#e6ebe3] rounded-3xl p-6 flex flex-col justify-between min-h-[200px]">
@@ -723,8 +679,8 @@ function LabsPageContent() {
               </div>
 
               <div className="md:col-span-2 relative rounded-3xl overflow-hidden min-h-[200px] bg-gradient-to-br from-[#34412f] to-[#2c3628] p-8 text-white">
-                <p className="text-5xl lg:text-6xl font-serif">NATA</p>
-                <p className="mt-2 text-white/80">Accredited Australian pathology partners</p>
+                <p className="text-3xl lg:text-4xl font-serif leading-tight">NATA-Accredited</p>
+                <p className="mt-2 text-white/80">Partner Labs</p>
               </div>
 
               {/* Provider follow-ups */}
@@ -813,7 +769,7 @@ function LabsPageContent() {
                     <div className="w-8 h-4 bg-[#7e9a72] rounded-t" />
                   </div>
                 </div>
-                <p className="text-xs text-white/60 mt-2">85+ lab tests</p>
+                <p className="text-xs text-white/60 mt-2">85+ markers checked</p>
               </div>
 
               <div className="mt-8">
@@ -821,7 +777,7 @@ function LabsPageContent() {
                   href="/biomarker-intake"
                   className="btn-white inline-flex items-center gap-2"
                 >
-                  Start testing
+                  Check your health
                   <ArrowRight className="w-5 h-5" />
                 </Link>
               </div>
@@ -836,7 +792,7 @@ function LabsPageContent() {
               <sup>1</sup>Biomarkers track core biological pathways and while not diagnostic on their own, testing can help inform a practitioner about the underlying physiologic shifts that are associated with a very wide range of conditions.
             </p>
             <p className="text-xs text-[#7e9a72] leading-relaxed mt-3">
-              <sup>2</sup>Routine bloodwork may typically only include a complete blood count, a basic metabolic panel, a lipid panel, glycated haemoglobin, and thyroid-stimulating hormone.
+              <sup>2</sup>Routine blood test may typically only include a complete blood count, a basic metabolic panel, a lipid panel, glycated haemoglobin, and thyroid-stimulating hormone.
             </p>
           </div>
         </section>

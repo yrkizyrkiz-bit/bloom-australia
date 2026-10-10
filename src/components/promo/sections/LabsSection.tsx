@@ -67,7 +67,7 @@ export function LabsSection() {
                 href="/labs"
                 className="btn-primary inline-flex items-center justify-center gap-2"
               >
-                Start my labs
+                Check your health
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
@@ -96,7 +96,7 @@ export function LabsSection() {
 
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
               <div className="bg-white rounded-3xl p-6 shadow-2xl text-center border border-[#e6ebe3]">
-                <p className="text-sm text-[#7e9a72] mb-1">Test up to</p>
+                <p className="text-sm text-[#7e9a72] mb-1">Monitor</p>
                 <p className="text-5xl font-serif text-[#34412f]">85+</p>
                 <p className="text-[#5c7a52] font-medium">biomarkers</p>
               </div>
@@ -108,7 +108,7 @@ export function LabsSection() {
         <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             { title: "Blood sample collection", desc: "At a centre near you" },
-            { title: "NATA accredited", desc: "Australian lab analysis" },
+            { title: "NATA-Accredited Partner Labs", desc: "Australian lab analysis" },
             { title: "Doctor reviewed", desc: "Expert interpretation" },
             { title: "Action plan", desc: "Personalised health insights" },
           ].map((feature) => (

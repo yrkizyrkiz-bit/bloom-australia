@@ -52,14 +52,14 @@ export function BentoHero() {
                 <br /><span className="text-[#4a6243]">every year</span>
               </h3>
               <p className="text-[#4a6243] text-sm mt-3 leading-relaxed">
-                Starting with 85+ lab tests monitoring 500+ conditions. Just $365 per year, {" "}
+                Starting with 85+ biomarkers monitoring 500+ conditions. Just $365 per year, {" "}
                 <span className="italic font-medium text-[#2c3628]">$1 per day</span>.
               </p>
             </div>
 
             <div className="relative flex items-center justify-between mt-4">
               <div className="flex items-center gap-2 text-[#34412f]">
-                <span className="text-sm font-medium">Explore tests</span>
+                <span className="text-sm font-medium">Explore health markers</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
               <div className="w-14 h-14 bg-[#7e9a72]/30 rounded-full flex items-center justify-center">
@@ -167,7 +167,7 @@ export function BentoHero() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />
-            <span>NATA-Accredited Labs</span>
+            <span>NATA-Accredited Partner Labs</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />

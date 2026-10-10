@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Header } from "@/components/promo/Header";
@@ -12,8 +11,6 @@ import {
   ArrowRight,
   AlertTriangle,
   CheckCircle,
-  ChevronDown,
-  ChevronUp,
   Stethoscope,
   Activity,
   Heart,
@@ -40,39 +37,6 @@ import {
   Target,
   Gauge,
 } from "lucide-react";
-
-// FAQ Item Component
-function FAQItem({
-  question,
-  answer,
-  isOpen,
-  onToggle,
-}: {
-  question: string;
-  answer: string;
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div className="border-b border-teal-100">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full py-5 flex items-center justify-between text-left"
-      >
-        <span className="text-lg font-medium text-gray-900 pr-4">{question}</span>
-        {isOpen ? (
-          <ChevronUp className="w-5 h-5 text-teal-500 flex-shrink-0" />
-        ) : (
-          <ChevronDown className="w-5 h-5 text-teal-500 flex-shrink-0" />
-        )}
-      </button>
-      <div className={`overflow-hidden transition-all duration-300 ${isOpen ? "max-h-[500px] pb-5" : "max-h-0"}`}>
-        <p className="text-gray-600 leading-relaxed">{answer}</p>
-      </div>
-    </div>
-  );
-}
 
 // eGFR Gauge Component
 function EGFRGauge() {
@@ -106,8 +70,6 @@ function EGFRGauge() {
 }
 
 export default function KidneyHealthPage() {
-  const [openFAQ, setOpenFAQ] = useState<number | null>(0);
-
   const epidemicStats = [
     { value: "1.7M", label: "Australians have chronic kidney disease", subtext: "Many don't know they have it", citation: "Kidney Health Australia, 2023" },
     { value: "90%", label: "of kidney function can be lost before symptoms", subtext: "Often called the 'silent disease'", citation: "National Kidney Foundation" },
@@ -190,30 +152,7 @@ export default function KidneyHealthPage() {
     { name: "Kidney Function", markers: ["Creatinine", "eGFR", "BUN"], category: "Core" },
     { name: "Protein/Albumin", markers: ["uACR", "Serum Albumin", "Total Protein"], category: "Damage" },
     { name: "Metabolic Panel", markers: ["HbA1c", "Fasting Glucose", "Insulin", "HOMA-IR"], category: "Risk" },
-    { name: "Electrolytes", markers: ["Sodium", "Potassium", "Phosphorus", "Calcium"], category: "Balance" },
-  ];
-
-  const faqs = [
-    {
-      question: "What exactly is chronic kidney disease?",
-      answer: "Think of your kidneys as filters for your blood. With chronic kidney disease (CKD), these filters slowly become less effective over time. The tricky part? You usually won't feel anything different in the early stages, that's why testing is so important. Doctors classify CKD into 5 stages based on your eGFR score, from mild (Stage 1-2) to severe (Stage 5, which is kidney failure)."
-    },
-    {
-      question: "I've heard of fatty liver, but fatty kidneys?",
-      answer: "Yes, it's a real thing! Just like fat can build up in your liver, it can accumulate in your kidneys too. There's no single test that shows 'fatty kidneys,' but we can see the warning signs through blood markers like triglycerides, insulin levels, and HbA1c. Here's the interesting part: fatty kidney and fatty liver almost always happen together, they're both caused by the same metabolic issues, often related to weight."
-    },
-    {
-      question: "How can I find out if my kidneys are okay?",
-      answer: "A simple blood test can tell you a lot. The key numbers to look at are your creatinine (a waste product your kidneys filter out), eGFR (how well your kidneys are filtering), and uACR (checks for protein in your urine, a sign of kidney damage). The National Kidney Foundation recommends regular testing because you can lose up to 90% of your kidney function before you feel any symptoms at all."
-    },
-    {
-      question: "Can kidney damage improve?",
-      answer: "Kidney damage is not always reversible. Research has associated blood-pressure care, glucose care and weight change with slower decline in some people, especially when changes are found earlier. Your Sanative doctor reviews your results and discusses what, if anything, is clinically appropriate. Individual outcomes vary and are not guaranteed."
-    },
-    {
-      question: "What tests do you include in the kidney panel?",
-      answer: "Where clinically indicated, the panel can include standard kidney markers (creatinine, eGFR, urea, UACR) plus metabolic markers (HbA1c, insulin), electrolytes and inflammation markers such as hs-CRP. Your doctor decides what is useful for you."
-    },
+    { name: "Electrolytes", markers: ["Sodium", "Potassium", "Calcium"], category: "Balance" },
   ];
 
   return (
@@ -255,7 +194,10 @@ export default function KidneyHealthPage() {
               </div>
 
               {/* Kidney Health Calculator */}
-              <div className="bg-white rounded-3xl shadow-xl border border-teal-100 overflow-hidden min-h-[580px] flex flex-col">
+              <div
+                id="kidney-assessment"
+                className="scroll-mt-24 bg-white rounded-3xl shadow-xl border border-teal-100 overflow-hidden min-h-[580px] flex flex-col"
+              >
                 {/* Header */}
                 <div className="p-5 lg:p-6 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-cyan-50">
                   <p className="text-xs uppercase tracking-widest text-teal-600 font-medium mb-1">
@@ -292,7 +234,7 @@ export default function KidneyHealthPage() {
 
             <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-600 mt-10">
               <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-teal-500" /><span>AHPRA Doctors</span></div>
-              <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-teal-500" /><span>NATA Labs</span></div>
+              <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-teal-500" /><span>NATA-Accredited Partner Labs</span></div>
               <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-teal-500" /><span>Evidence-Based</span></div>
             </div>
           </div>
@@ -321,7 +263,7 @@ export default function KidneyHealthPage() {
             {/* CTA after stats */}
             <div className="mt-12 text-center">
               <p className="text-white/70 mb-4">Don't be part of the statistic. Find out where you stand.</p>
-              <Link href="/membership/checkout" className="inline-flex items-center gap-2 px-8 py-4 bg-teal-500 hover:bg-teal-400 text-white font-semibold rounded-full transition-colors">
+              <Link href="#kidney-assessment" className="inline-flex items-center gap-2 px-8 py-4 bg-teal-500 hover:bg-teal-400 text-white font-semibold rounded-full transition-colors">
                 Check my kidney health <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
@@ -369,7 +311,7 @@ export default function KidneyHealthPage() {
                 {/* CTA after eGFR explanation */}
                 <div className="mt-8 p-6 bg-teal-600 rounded-2xl text-white">
                   <p className="font-medium mb-3">Want to know your eGFR score?</p>
-                  <p className="text-sm text-teal-100 mb-4">Our kidney panel includes eGFR plus 15+ other markers that give you the complete picture.</p>
+                  <p className="text-sm text-teal-100 mb-4">Our biomarker insight report includes eGFR plus 15+ other markers that give you the complete picture.</p>
                   <Link href="/membership/checkout" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors text-sm">
                     Get my kidney panel report <ArrowRight className="w-4 h-4" />
                   </Link>
@@ -489,7 +431,7 @@ export default function KidneyHealthPage() {
                 {/* CTA after risk factors */}
                 <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-2xl p-6 text-white text-center">
                   <p className="text-lg font-medium mb-2">Tick any of these boxes?</p>
-                  <p className="text-sm text-teal-100 mb-4">Get tested and get your biomarkers report to see what's happening with your kidneys.</p>
+                  <p className="text-sm text-teal-100 mb-4">Become a member and get your biomarkers report to see what's happening with your kidneys.</p>
                   <Link href="/membership/checkout" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors">
                     See what my kidneys are doing <ArrowRight className="w-4 h-4" />
                   </Link>
@@ -504,9 +446,8 @@ export default function KidneyHealthPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <span className="inline-block px-4 py-1.5 text-sm font-medium bg-teal-200/50 text-teal-700 rounded-full mb-4">More than basic tests</span>
                 <h2 className="text-3xl sm:text-4xl font-serif text-gray-900 mb-6">
-                  We test what <span className="text-teal-600 italic">others miss</span>
+                  We don&apos;t guess. We <span className="text-teal-600 italic">decode your results</span>.
                 </h2>
                 <p className="text-gray-600 mb-4">
                   A standard kidney test might check your creatinine and stop there. Your doctor can also review related metabolic and inflammation markers when they are clinically useful.
@@ -529,8 +470,8 @@ export default function KidneyHealthPage() {
                     <Droplets className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-serif">What we test</h3>
-                    <p className="text-sm text-white/70">Our comprehensive kidney panel includes:</p>
+                    <h3 className="text-xl font-serif">What we look for:</h3>
+                    <p className="text-sm text-white/70">Our biomarker insights reports on:</p>
                   </div>
                 </div>
                 <ul className="space-y-3 mb-6">
@@ -538,7 +479,7 @@ export default function KidneyHealthPage() {
                     "Kidney function tests (Creatinine, eGFR, BUN)",
                     "Kidney damage markers (uACR, Serum Albumin)",
                     "Metabolic health (HbA1c, Insulin, HOMA-IR)",
-                    "Electrolytes (Sodium, Potassium, Phosphorus, Calcium)",
+                    "Electrolytes (Sodium, Potassium, Calcium)",
                     "Inflammation (hs-CRP)"
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
@@ -580,7 +521,7 @@ export default function KidneyHealthPage() {
 
             {/* CTA after process steps */}
             <div className="mt-12 text-center">
-              <Link href="/membership/checkout" className="inline-flex items-center gap-2 px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-full transition-colors text-lg">
+              <Link href="#kidney-assessment" className="inline-flex items-center gap-2 px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-full transition-colors text-lg">
                 Check my kidney health <ArrowRight className="w-5 h-5" />
               </Link>
               <p className="text-sm text-gray-500 mt-3">Takes 2 minutes to get started</p>
@@ -592,7 +533,7 @@ export default function KidneyHealthPage() {
         <section className="py-16 bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-serif text-white">The tests that <span className="text-teal-400 italic">tell the whole story</span></h2>
+              <h2 className="text-3xl font-serif text-white">The markers that <span className="text-teal-400 italic">tell the story</span></h2>
             </div>
             <div className="grid md:grid-cols-4 gap-6">
               {biomarkers.map((panel) => (
@@ -623,7 +564,7 @@ export default function KidneyHealthPage() {
             <div className="grid md:grid-cols-4 gap-8">
               {[
                 { icon: Stethoscope, title: "AHPRA Registered", desc: "Fully registered doctors" },
-                { icon: ShieldCheck, title: "NATA Accredited", desc: "Australian lab testing" },
+                { icon: ShieldCheck, title: "NATA-Accredited Partner Labs", desc: "Australian lab testing" },
                 { icon: Clock, title: "Ongoing Support", desc: "Regular check-ins" },
                 { icon: Users, title: "Measurable Tracking", desc: "Biomarker monitoring" },
               ].map((t) => (
@@ -639,29 +580,6 @@ export default function KidneyHealthPage() {
           </div>
         </section>
 
-        {/* FAQ */}
-        <section className="py-20 bg-white">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <span className="inline-block px-4 py-1.5 text-sm font-medium bg-teal-100 text-teal-600 rounded-full mb-4">Common questions</span>
-              <h2 className="text-3xl font-serif text-gray-900">Frequently asked questions</h2>
-            </div>
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-200">
-              {faqs.map((faq, index) => (
-                <FAQItem key={faq.question} question={faq.question} answer={faq.answer} isOpen={openFAQ === index} onToggle={() => setOpenFAQ(openFAQ === index ? null : index)} />
-              ))}
-            </div>
-
-            {/* CTA after FAQs */}
-            <div className="mt-10 text-center">
-              <p className="text-gray-600 mb-4">Still have questions? Our care team is here to help.</p>
-              <Link href="/membership/checkout" className="inline-flex items-center gap-2 px-8 py-4 bg-gray-900 hover:bg-black text-white font-semibold rounded-full transition-colors">
-                Get my kidney panel report <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-          </div>
-        </section>
-
         {/* Final CTA */}
         <section className="py-20 bg-gradient-to-br from-teal-600 to-cyan-700">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -672,7 +590,7 @@ export default function KidneyHealthPage() {
               Know your numbers. <span className="text-teal-200 italic">Take control.</span>
             </h2>
             <p className="text-lg text-teal-100 mb-10 max-w-2xl mx-auto">
-              Kidney changes are often quiet at first. A blood test can give your doctor useful numbers to review, you do not have to wait for symptoms.
+              Kidney changes are often quiet at first. Check your health and stay ahead, you do not have to wait for symptoms.
             </p>
             <Link href="/membership/checkout" className="inline-flex items-center justify-center gap-3 text-lg px-12 py-5 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-md mx-auto">
               Start your membership now <ArrowRight className="w-5 h-5" />

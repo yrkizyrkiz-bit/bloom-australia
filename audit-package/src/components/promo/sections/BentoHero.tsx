@@ -197,7 +197,7 @@ export function BentoHero() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />
-            <span>NATA-Accredited Labs</span>
+            <span>NATA-Accredited Partner Labs</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#7e9a72]" />

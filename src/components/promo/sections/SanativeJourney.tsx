@@ -15,7 +15,7 @@ const steps: JourneyStep[] = [
     number: "01",
     title: "Check your health",
     description:
-      "All our programs start with a comprehensive health check. Choose the Sanative biomarker panel (85+ markers) for holistic insight into your health for $1/day.",
+      "All our programs start with a comprehensive health check, giving you holistic insight into your health for $1/day.",
     image: "/images/membership/Main_slide1.webp",
     image800: "/images/membership/Main_slide1-800.webp",
     alt: "Sanative biomarker health check on a tablet",
@@ -24,7 +24,7 @@ const steps: JourneyStep[] = [
     number: "02",
     title: "Doctor consultation",
     description:
-      "A telehealth consultation with an AHPRA registered doctor. Share your health history and goals so we can tailor insights to you. Get your pathology referral for your blood test.",
+      "A telehealth consultation with an AHPRA registered doctor. Discuss any concerns with your doctor and organise a referral for any blood tests required.",
     image: "/images/membership/Main_slide1b.webp",
     image800: "/images/membership/Main_slide1b-800.webp",
     alt: "Sanative doctor consultation and care guidance",
@@ -59,7 +59,7 @@ const stats = [
 type SanativeJourneyProps = {
   fullWidth?: boolean;
   heading?: ReactNode;
-  subheading?: string;
+  subheading?: string | null;
 };
 
 export function SanativeJourney({
@@ -77,9 +77,9 @@ export function SanativeJourney({
       className={`journey-section${fullWidth ? " journey-section--full" : ""}`}
       aria-label="How Sanative works"
     >
-      <header className="journey-heading">
+      <header className={`journey-heading${subheading ? "" : " journey-heading--tight"}`}>
         <h2>{heading}</h2>
-        <p>{subheading}</p>
+        {subheading ? <p>{subheading}</p> : null}
       </header>
 
       <div className="journey-stack">

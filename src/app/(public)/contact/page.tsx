@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
-import { LEGAL_LINKS, SANATIVE_LEGAL } from "@/lib/legal/constants";
+import { SANATIVE_LEGAL } from "@/lib/legal/constants";
 import { Mail, MapPin, Clock } from "lucide-react";
 
 export const metadata = {
@@ -58,14 +57,6 @@ export default function ContactPage() {
               </div>
             </div>
           </div>
-
-          <p className="mt-10 text-sm text-[#7e9a72]">
-            Before contacting us, you may find answers in our{" "}
-            <Link href={LEGAL_LINKS.faqs} className="underline text-[#5c7a52]">
-              FAQs
-            </Link>
-            .
-          </p>
         </div>
       </main>
       <Footer />

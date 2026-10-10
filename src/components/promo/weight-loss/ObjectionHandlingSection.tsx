@@ -31,7 +31,7 @@ const questionsAndAnswers: QA[] = [
   },
   {
     question: "How much does the program cost?",
-    answer: "Sanative Membership is $365/year ($1 a day) and includes your comprehensive biomarker panel plus your first 30 days of Weight Management Care. After that, continue Weight Management Care for $360 every three months. Medication cost is not included.",
+    answer: "Sanative Membership is $365/year ($1 a day) and includes your comprehensive biomarker insights plus your first 30 days of Weight Management Care. After that, continue Weight Management Care for $360 every three months. Medication cost is not included.",
   },
   {
     question: "Who is eligible for the program?",

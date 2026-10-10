@@ -100,7 +100,7 @@ export default function HeartHealthPage() {
   const processSteps = [
     { icon: Eye, title: "Assess", subtitle: "Comprehensive Lipid Panel", description: "Standard lipid profile plus inflammation and metabolic markers." },
     { icon: Wrench, title: "Plan", subtitle: "Personalised Protocol", description: "Evidence-based care plan with dietary, lifestyle, and clinical care." },
-    { icon: Check, title: "Monitor", subtitle: "Track Progress", description: "Regular biomarker testing to guide treatment adjustments." },
+    { icon: Check, title: "Monitor", subtitle: "Track Progress", description: "Regular biomarker insights to guide treatment adjustments." },
     { icon: RefreshCw, title: "Follow-up", subtitle: "Long-term Management", description: "Ongoing doctor-led review of cardiovascular markers as your situation changes." },
   ];
 
@@ -114,7 +114,7 @@ export default function HeartHealthPage() {
     { question: "What is dyslipidemia?", answer: "Dyslipidemia refers to abnormal levels of lipids in the blood. According to the Heart Foundation, it's a major risk factor for cardiovascular disease, Australia's leading cause of death." },
     { question: "How does obesity affect cholesterol?", answer: "The AIHW reports two-thirds of Australian adults are overweight or obese. Excess body fat increases LDL cholesterol and triglycerides while lowering HDL. Studies show 5-10% weight loss significantly improves lipid profiles." },
     { question: "Can lifestyle change affect cholesterol?", answer: "The AIHW notes that diet, activity and weight can influence lipid levels. Your Sanative doctor discusses what is clinically appropriate for you. Individual results vary." },
-    { question: "What biomarkers do you test?", answer: "The Heart Health Panel on Essential measures high-sensitivity CRP, total cholesterol, LDL, HDL and triglycerides. Non-HDL cholesterol and the cholesterol/HDL ratio are calculated from that same draw. Apolipoprotein B and lipoprotein (a) are not on the routine panel. Your doctor may add them when risk factors exist, such as a strong family history of premature heart disease." },
+    { question: "What biomarkers do you track?", answer: "The Heart Health Biomarker Insights on Essential measures high-sensitivity CRP, total cholesterol, LDL, HDL and triglycerides. Non-HDL cholesterol and the cholesterol/HDL ratio are calculated from that same draw. Apolipoprotein B and lipoprotein (a) are not on the routine panel. Your doctor may add them when risk factors exist, such as a strong family history of premature heart disease." },
   ];
 
   return (
@@ -193,7 +193,7 @@ export default function HeartHealthPage() {
 
             <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-600 mt-10">
               <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-rose-500" /><span>AHPRA Doctors</span></div>
-              <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-rose-500" /><span>NATA Labs</span></div>
+              <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-rose-500" /><span>NATA-Accredited Partner Labs</span></div>
               <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-rose-500" /><span>Evidence-Based</span></div>
             </div>
           </div>
@@ -265,12 +265,11 @@ export default function HeartHealthPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <span className="inline-block px-4 py-1.5 text-sm font-medium bg-rose-200/50 text-rose-700 rounded-full mb-4">Advanced testing</span>
                 <h2 className="text-3xl sm:text-4xl font-serif text-gray-900 mb-6">
-                  Beyond standard <span className="text-rose-600 italic">cholesterol tests</span>
+                  Beyond standard <span className="text-rose-600 italic">cholesterol markers</span>
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  <strong>Standard lipid panels are the foundation of cardiovascular screening.</strong> We test total cholesterol, LDL, HDL, and triglycerides, the markers most commonly used to guide treatment.
+                  <strong>Standard lipid panels are the foundation of cardiovascular screening.</strong> We track total cholesterol, LDL, HDL, and triglycerides, the markers most commonly used to guide treatment.
                 </p>
                 <p className="text-gray-600 mb-6">
                   <strong className="text-rose-600">High-sensitivity CRP</strong> sits on the same Essential request, so your doctor can review low-grade inflammation with the lipid panel. Non-HDL and the cholesterol/HDL ratio are calculated from that draw. ApoB and lipoprotein (a) are added only when risk factors exist.
@@ -288,8 +287,7 @@ export default function HeartHealthPage() {
                     <Heart className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-serif">Heart Health Panel</h3>
-                    <p className="text-sm text-white/70">Measured on Essential</p>
+                    <h3 className="text-xl font-serif">Heart Health Biomarker Insights</h3>
                   </div>
                 </div>
 
@@ -305,7 +303,7 @@ export default function HeartHealthPage() {
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-white/15">
-                  <p className="text-sm font-medium text-white mb-1">Measured if risk factors exist</p>
+                  <p className="text-sm font-medium text-white mb-1">Tracked if risk factors exist</p>
                   <p className="text-xs text-white/70 mb-4">
                     Your doctor may add these when family history or other cardiovascular risk factors warrant them.
                   </p>
@@ -366,7 +364,7 @@ export default function HeartHealthPage() {
         <section className="py-16 bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-serif text-white">We measure. <span className="text-rose-400 italic">We track.</span></h2>
+              <h2 className="text-3xl font-serif text-white">We don&apos;t guess. <span className="text-rose-400 italic">We decode your results.</span></h2>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {biomarkers.map((panel) => (
@@ -397,7 +395,7 @@ export default function HeartHealthPage() {
             <div className="grid md:grid-cols-4 gap-8">
               {[
                 { icon: Stethoscope, title: "AHPRA Registered", desc: "Fully registered doctors" },
-                { icon: ShieldCheck, title: "NATA Accredited", desc: "Australian lab testing" },
+                { icon: ShieldCheck, title: "NATA-Accredited Partner Labs", desc: "Australian lab testing" },
                 { icon: Clock, title: "Ongoing Support", desc: "Regular check-ins" },
                 { icon: Users, title: "Measurable Tracking", desc: "Biomarker monitoring" },
               ].map((t) => (
@@ -440,8 +438,8 @@ export default function HeartHealthPage() {
             <p className="text-lg text-rose-100 mb-10 max-w-2xl mx-auto">
               You do not have to wait for symptoms. A doctor-reviewed lipid and metabolic panel can inform the conversation about your cardiovascular risk.
             </p>
-            <Link href="/membership/checkout" className="inline-flex items-center justify-center gap-3 text-lg px-12 py-5 bg-white text-rose-700 font-semibold rounded-full hover:bg-rose-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-md mx-auto">
-              Start your membership now <ArrowRight className="w-5 h-5" />
+            <Link href="/membership/checkout" className="inline-flex items-center justify-center gap-3 text-base sm:text-lg px-6 sm:px-10 py-5 bg-white text-rose-700 font-semibold rounded-full hover:bg-rose-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-xl mx-auto">
+              Monitor your health and stay ahead for $1/day <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
         </section>

@@ -32,7 +32,7 @@ export function WeightLossMembershipHero({
 
           <div className={styles.summary}>
             <p>
-              Get doctor-guided biomarker testing, personalised health insights
+              Get doctor-guided biomarker insights, personalised health goals
               and your first 30 days of Weight Management Care included.
             </p>
             <Link href="/weight-management/assessment" className={styles.cta}>

@@ -295,7 +295,7 @@ export default function FattyLiverPage() {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4" />
-                <span>NATA-Accredited Labs</span>
+                <span>NATA-Accredited Partner Labs</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4" />
@@ -659,7 +659,7 @@ export default function FattyLiverPage() {
                 <div className="w-14 h-14 rounded-2xl bg-[#5c7a52]/20 flex items-center justify-center mx-auto mb-4">
                   <ShieldCheck className="w-7 h-7 text-[#5c7a52]" />
                 </div>
-                <h3 className="font-serif text-[#2c3628] mb-2">NATA Accredited</h3>
+                <h3 className="font-serif text-[#2c3628] mb-2">NATA-Accredited Partner Labs</h3>
                 <p className="text-sm text-[#5c7a52]">Lab testing by accredited Australian labs</p>
               </div>
               <div className="text-center">

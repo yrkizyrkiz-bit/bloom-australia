@@ -10,7 +10,7 @@ interface FAQ {
 
 const faqs: FAQ[] = [
   {
-    question: "How does the biomarker testing work?",
+    question: "How do biomarker insights work?",
     answer: "Blood tests are requested only where clinically appropriate by an Australian doctor. Many standard pathology tests are Medicare-rebated or bulk-billed for eligible Medicare card holders, depending on the test, provider and billing arrangements. Some tests may attract an out-of-pocket cost. Your doctor uses these insights to personalise your care plan based on your individual health profile.",
   },
   {
@@ -19,11 +19,11 @@ const faqs: FAQ[] = [
   },
   {
     question: "How much does the program cost?",
-    answer: "Sanative Membership is $365/year ($1 a day) and includes your comprehensive biomarker panel plus your first 30 days of Weight Management Care. After that, continue Weight Management Care for $360 every three months. Medication cost is not included.",
+    answer: "Sanative Membership is $365/year ($1 a day) and includes your comprehensive biomarker insights plus your first 30 days of Weight Management Care. After that, continue Weight Management Care for $360 every three months. Medication cost is not included.",
   },
   {
     question: "What does the membership and care fee cover?",
-    answer: "Your annual membership covers the biomarker panel, doctor review, personalised report, and portal access, plus the first 30 days of an eligible care program. Ongoing Weight Management Care covers doctor consultations, clinical monitoring, Care Partner support, and portal access. Some care options may involve additional costs, discussed before proceeding.",
+    answer: "Your annual membership covers the biomarker insights, doctor review, personalised report, and portal access, plus the first 30 days of an eligible care program. Ongoing Weight Management Care covers doctor consultations, clinical monitoring, Care Partner support, and portal access. Some care options may involve additional costs, discussed before proceeding.",
   },
   {
     question: "Who is eligible for the program?",

@@ -821,7 +821,7 @@ function EmailGateScreen({
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [existingUserInfo, setExistingUserInfo] = useState<{ firstName?: string; hasActiveProgram?: boolean } | null>(null);
+  const [existingUserInfo, setExistingUserInfo] = useState<{ hasActiveProgram?: boolean } | null>(null);
 
   const handleSubmit = async () => {
     if (!email || !email.includes('@')) return;
@@ -842,7 +842,6 @@ function EmailGateScreen({
           if (checkData.exists) {
             emailExists = true;
             setExistingUserInfo({
-              firstName: checkData.firstName,
               hasActiveProgram: checkData.hasActiveProgram,
             });
             setShowDuplicateWarning(true);
@@ -913,11 +912,7 @@ function EmailGateScreen({
               Email Already Registered
             </h3>
             <p className="text-sm text-[#5c7a52] text-center mb-6">
-              {existingUserInfo?.firstName ? (
-                <>Hi {existingUserInfo.firstName}! It looks like you already have an account with us.</>
-              ) : (
-                <>This email address is already registered in our system.</>
-              )}
+              Looks like you already have an account with us.
             </p>
 
             <div className="space-y-3">

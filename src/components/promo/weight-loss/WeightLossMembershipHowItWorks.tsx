@@ -12,7 +12,7 @@ const STEPS = [
   {
     number: "1",
     title: "Join Sanative",
-    body: "Become a member for $365 annually, including your comprehensive biomarker panel.",
+    body: "Become a member and start with a comprehensive health check, giving you holistic insight into your health for $1/day.",
   },
   {
     number: "2",
@@ -21,18 +21,18 @@ const STEPS = [
   },
   {
     number: "3",
-    title: "Complete your testing",
-    body: "Complete your biomarker panel to help uncover factors that may be influencing your weight and overall health.",
+    title: "Get your Biomarker insights",
+    body: "In the app, you’ll find your biomarker results, an analysis of each health category and weight management related markers.",
   },
   {
     number: "4",
     title: "Start your personalised program",
-    body: "Your doctor develops a weight management plan around your results, medical history and goals.",
+    body: "Your doctor develops a weight management plan around your results, medical history and goals to help you focus on what matters most.",
   },
   {
     number: "5",
     title: "Continue your care",
-    body: "Your first 30 days of doctor-led medical weight loss care are included. After that, continue for $360 every three months.*",
+    body: "Your first 30 days of doctor-led medical weight loss care are included. After that, continue for $360 every three months.",
   },
 ];
 
@@ -102,7 +102,7 @@ export function WeightLossMembershipHowItWorks() {
                   Sanative Membership
                 </h3>
                 <p className="mt-1.5 text-sm sm:text-base text-black/55">
-                  Comprehensive biomarker panel + first 30 days of Weight
+                  Comprehensive biomarker insights + first 30 days of Weight
                   Management Care
                 </p>
               </div>
@@ -175,7 +175,7 @@ export function WeightLossMembershipHowItWorks() {
           included 30-day care period applies if you nominate that eligible
           program before or during your initial doctor consultation. It is not
           available for a program selected after that consultation.
-          *Medication cost not included.
+          *Before initial consult.
         </p>
       </div>
     </section>

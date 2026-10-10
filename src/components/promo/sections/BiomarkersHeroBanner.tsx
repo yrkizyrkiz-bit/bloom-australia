@@ -90,7 +90,7 @@ export function BiomarkersHeroBanner() {
           </p>
           <div className={styles.actions}>
             <Link href="/biomarker-intake?package=advanced" className="btn-primary">
-              Start my labs
+              Check your health
             </Link>
             <Link href="/labs" className="btn-secondary">
               Learn more

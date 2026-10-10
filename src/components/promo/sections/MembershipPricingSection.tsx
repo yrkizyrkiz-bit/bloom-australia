@@ -22,7 +22,7 @@ export async function MembershipPricingSection() {
             <span className="text-[#5c7a52] italic">Full clarity.</span>
           </h2>
           <p className="section-description mt-4 max-w-xl mx-auto text-base sm:text-lg">
-            Doctor-led biomarker testing and ongoing insights, less than a coffee a day.
+            Doctor-led biomarker insights, less than a coffee a day.
           </p>
         </div>
 

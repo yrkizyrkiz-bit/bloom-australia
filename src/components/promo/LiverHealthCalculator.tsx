@@ -296,7 +296,7 @@ export function LiverHealthCalculator() {
             <div className="space-y-2">
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span className="text-[#5c7a52] text-sm">Get comprehensive liver metabolic biomarker testing</span>
+                <span className="text-[#5c7a52] text-sm">Get comprehensive liver metabolic biomarker insights</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
@@ -317,7 +317,7 @@ export function LiverHealthCalculator() {
               href="/biomarker-intake?service=metabolic-panel"
               className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-3"
             >
-              Get liver metabolic biomarker testing
+              Get liver metabolic biomarker insights
               <ArrowRight className="w-4 h-4" />
             </Link>
             <button

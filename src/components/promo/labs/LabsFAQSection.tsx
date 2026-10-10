@@ -11,17 +11,12 @@ interface QA {
 /** Consolidated Labs / biomarkers FAQs (phone UI). */
 const questionsAndAnswers: QA[] = [
   {
-    question: "Who is Labs recommended for?",
+    question: "Who is the health check recommended for?",
     answer:
       "Labs by Sanative is for adults 18 and over in Australia who want a clearer picture of their health than a typical check-up can offer. If you are pregnant, a full panel is usually deferred, many markers shift in pregnancy and are harder to read with confidence. Your Sanative doctor confirms what is clinically appropriate for you.",
   },
   {
-    question: "Which tests are included?",
-    answer:
-      "The Essential catalogue is one doctor-reviewed request, read as 85+ biomarkers. We measure a full blood count with differential; kidney and electrolytes, including calcium; liver function; fasting glucose, HbA1c and insulin; lipids (total, HDL, LDL, non-HDL and triglycerides); uric acid; iron studies and active B12; urine albumin-to-creatinine ratio; TSH, with free T3 and free T4 when clinically indicated; and hs-CRP. From those same results your portal calculates the scores that complete the picture, insulin resistance (HOMA-IR, HOMA-B, QUICKI, McAuley), lipid risk (ratios, remnant cholesterol, AIP), liver fibrosis (FIB-4, APRI), kidney risk (eGFR, KDIGO), inflammation indices (NLR, SII, SIRI) and, when every core input including hs-CRP is present, biological age (PhenoAge). Nothing is added as a wellness extra without clinical context.",
-  },
-  {
-    question: "How do you count the number of tests?",
+    question: "How are the 85+ biomarkers counted?",
     answer:
       "We count every value you can see and act on, both what the laboratory measures and what we calculate from the same draw. A lipid panel, for example, is several markers from one collection; HOMA-IR and eGFR are derived, not extra tubes. That is how we reach 85+, and it is how pathology is usually described.",
   },
@@ -31,7 +26,7 @@ const questionsAndAnswers: QA[] = [
       "Yes. The request is written by your doctor, not printed as a fixed shopping list. TSH is requested for every member; free T3 and free T4 are added when TSH is abnormal or your thyroid history warrants them. Acute illness, recent infection, certain medicines, fasting status and pregnancy can change whether a marker is run that day, or how it should be read. Iron studies, active B12, insulin, UACR and hs-CRP sit on the Essential form because they complete the health picture. Your doctor may still refine the request if a result would not be clinically meaningful.",
   },
   {
-    question: "Do tests depend on age, sex or history?",
+    question: "Do pathology tests depends on age, sex or history?",
     answer:
       "Yes, in two quiet ways. First, several scores need your age and sex to be honest (eGFR, FIB-4, KDIGO kidney risk and PhenoAge among them) and many reference ranges differ for men and women (haemoglobin, ferritin, creatinine, HDL, uric acid). Second, your history shapes both the request and the interpretation: thyroid disease, diabetes, anaemia, kidney disease, medications and family risk all change what your doctor looks for. The catalogue is the same starting point; the reading is personal.",
   },
@@ -46,9 +41,9 @@ const questionsAndAnswers: QA[] = [
       "Yes, for the Sanative Membership biomarker pathway. An AHPRA-registered doctor reviews your assessment, arranges pathology where clinically indicated, and reviews your results. Your care team remains available for questions once the numbers are in.",
   },
   {
-    question: "Is repeat testing included?",
+    question: "Is repeated health check included?",
     answer:
-      "Your membership includes the first Essential panel. When a repeat is required, it is $199. Order that repeat at the same time as your initial membership and it is $99. Repeat testing is never automatic, it is requested when your doctor believes another draw will change the story.",
+      "Your membership includes your first health check. A repeated health check for members is $199. Repeat checks are never automatic — your doctor requests another one when it will change the story.",
   },
   {
     question: "How often should I retest?",
@@ -118,25 +113,20 @@ export function LabsFAQSection() {
             </p>
             <h2
               id="labs-faq-heading"
-              className="text-4xl sm:text-5xl lg:text-[3.5rem] font-serif text-[#2c3628] leading-[1.1] mb-6"
+              className="text-4xl sm:text-5xl lg:text-[3.5rem] font-serif text-[#2c3628] leading-[1.1] mb-10"
             >
               Doctor-led care.{" "}
               <span className="text-[#5c7a52] italic">
                 Your questions answered.
               </span>
             </h2>
-            <p className="text-[#5c7a52] text-lg mb-10 max-w-md leading-relaxed">
-              Common questions about biomarkers, lab visits and how Sanative
-              Labs works in Australia.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 max-w-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 max-w-xl sm:auto-rows-fr">
               {questionsAndAnswers.map((qa, index) => (
                 <button
                   key={qa.question}
                   type="button"
                   onClick={() => handleQuestionClick(index)}
-                  className={`px-5 py-3 rounded-full text-sm font-medium transition-all duration-200 border text-left ${
+                  className={`flex h-full w-full items-center px-5 py-3 rounded-full text-sm font-medium transition-all duration-200 border text-left ${
                     selectedIndex === index
                       ? "border-[#5c7a52] bg-[#5c7a52] text-white"
                       : "border-[#d1d9cd] bg-white text-[#2c3628] hover:border-[#5c7a52]"

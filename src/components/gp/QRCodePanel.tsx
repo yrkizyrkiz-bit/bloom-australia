@@ -100,7 +100,7 @@ export function QRCodePanel() {
         <text x="297.5" y="610" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#5c7a52">sanative.com.au/join</text>
 
         <!-- Trust badges -->
-        <text x="297.5" y="760" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#5c7a52">AHPRA Registered • NATA-accredited labs</text>
+        <text x="297.5" y="760" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#5c7a52">AHPRA Registered • NATA-Accredited Partner Labs</text>
         <text x="297.5" y="780" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#5c7a52">Australian Privacy Act compliant</text>
       </svg>
     `;
@@ -146,7 +146,7 @@ export function QRCodePanel() {
         <text x="210" y="530" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#5c7a52">Biological Clock • Care partner support</text>
 
         <!-- Trust -->
-        <text x="210" y="570" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#5c7a52">AHPRA Registered • NATA Labs</text>
+        <text x="210" y="570" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#5c7a52">AHPRA Registered • NATA-Accredited Partner Labs</text>
       </svg>
     `;
 

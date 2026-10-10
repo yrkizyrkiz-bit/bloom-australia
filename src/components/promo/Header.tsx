@@ -6,8 +6,10 @@ import { Menu, X, ChevronDown } from "lucide-react";
 
 export function Header({
   announcementMessage,
+  hideAnnouncementCta,
 }: {
   announcementMessage?: string;
+  hideAnnouncementCta?: boolean;
 } = {}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -66,8 +68,8 @@ export function Header({
       label: "Biomarker Labs",
       href: "/labs",
       dropdown: [
-        { label: "Biomarker Panel", href: "/labs#biomarkers" },
-        { label: "Book a Test", href: "/biomarker-intake" },
+        { label: "Biomarker Categories", href: "/labs#biomarkers" },
+        { label: "Check Your Health", href: "/biomarker-intake" },
       ],
     },
     {
@@ -130,26 +132,22 @@ export function Header({
                 {announcementMessage}
               </span>
             ) : (
-              <>
-                <span className="font-serif text-[15px] sm:text-base tracking-wide italic">
-                  Preventative medicine + Precise care = Longevity * built for Australians
-                </span>
-                <span className="hidden sm:inline text-[#a8bb9e] mx-1">·</span>
-                <span className="text-[13px] sm:text-sm font-light text-[#cdd8c6]">
-                  AHPRA doctors + NATA-accredited labs
-                </span>
-              </>
+              <span className="font-serif text-[15px] sm:text-base tracking-wide italic">
+                Preventative medicine + Precise care = Longevity built for Australians
+              </span>
             )}
           </span>
-          <Link
-            href="#how-it-works"
-            className="inline-flex shrink-0 items-center gap-1 text-[12px] sm:text-sm font-medium text-[#a8bb9e] hover:text-white transition-colors group"
-          >
-            {announcementMessage ? "How it works" : "See how it works"}
-            <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
+          {hideAnnouncementCta ? null : (
+            <Link
+              href="#how-it-works"
+              className="inline-flex shrink-0 items-center gap-1 text-[12px] sm:text-sm font-medium text-[#a8bb9e] hover:text-white transition-colors group"
+            >
+              {announcementMessage ? "How it works" : "See how it works"}
+              <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          )}
         </div>
       </div>
 

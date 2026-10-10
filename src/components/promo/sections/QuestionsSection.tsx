@@ -66,7 +66,7 @@ const questions: QuestionCard[] = [
   {
     id: 4,
     question: "Why is my hair thinning?",
-    description: "Nutrient deficiencies, hormones, or thyroid issues may be affecting hair health. Our tests reveal the root cause.",
+    description: "Nutrient deficiencies, hormones, or thyroid issues may be affecting hair health.",
     image: "/images/questions/hair-thinning.webp",
     biomarker: {
       name: "Vitamin D",
@@ -240,7 +240,7 @@ export function QuestionsSection() {
             <span className="text-[#5c7a52] italic">help with</span>
           </h2>
           <p className="mt-6 text-lg lg:text-xl text-[#5c7a52] max-w-2xl mx-auto">
-            Uncover what&apos;s really happening inside your body with our comprehensive biomarker testing.
+            Uncover what&apos;s really happening inside your body with our comprehensive biomarker insights.
           </p>
         </div>
 
@@ -324,13 +324,13 @@ export function QuestionsSection() {
         {/* CTA */}
         <div className="text-center">
           <p className="text-[#5c7a52] mb-6 text-lg">
-            Our comprehensive panel tests 85+ biomarkers to give you the complete picture.
+            Our comprehensive 85+ biomarkers analysis to give you the complete picture.
           </p>
           <Link
             href="/labs"
             className="btn-primary inline-flex items-center gap-2 text-lg px-10 py-4"
           >
-            Find out what&apos;s behind your symptoms, start with a lab test
+            Check your health and stay ahead for $1/day
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>

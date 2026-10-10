@@ -21,7 +21,7 @@ const explanations: ExplanationBlock[] = [
     icon: Dna,
     title: "Personalised care plan",
     description:
-      "Your plan is tailored based on your symptoms, health profile, medical history and progress over time, with biomarker testing used where appropriate to provide additional insight.",
+      "Your plan is tailored based on your symptoms, health profile, medical history and progress over time, with biomarker insights used where appropriate to provide additional insight.",
   },
   {
     icon: TrendingUp,

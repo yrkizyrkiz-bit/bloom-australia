@@ -38,7 +38,7 @@ export function HairHealthHero({ gender, onGenderChange }: HairHealthHeroProps) 
         <div className={styles.intro}>
           <div>
             <div className={styles.eyebrowRow}>
-              <p className={styles.eyebrow}>More than a hair-loss treatment</p>
+              <p className={styles.eyebrow}>Doctor-led hair loss treatment</p>
               <div className={styles.toggle} role="group" aria-label="Select gender">
                 <span className={styles.toggleLabel}>I am</span>
                 <button
@@ -65,7 +65,7 @@ export function HairHealthHero({ gender, onGenderChange }: HairHealthHeroProps) 
             </div>
 
             <h1 id="hair-health-heading" className={styles.heading}>
-              <span className={styles.headingLine}>The best treatment</span>
+              <span className={styles.headingLine}>Start with a health check</span>
               <span className={styles.headingLine}>
                 for a fuller head of hair
               </span>
@@ -100,7 +100,7 @@ export function HairHealthHero({ gender, onGenderChange }: HairHealthHeroProps) 
               />
             </div>
             <p className={styles.cardCaption}>
-              Comprehensive biomarker panel included
+              Comprehensive biomarker insights included
             </p>
           </article>
 

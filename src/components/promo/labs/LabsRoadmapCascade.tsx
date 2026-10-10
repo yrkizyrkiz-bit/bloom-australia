@@ -130,7 +130,7 @@ export function LabsRoadmapCascade() {
 
       <div className="mt-10 lg:mt-14 flex flex-wrap justify-center gap-4">
         <Link href="/biomarker-intake" className="btn-primary">
-          Start testing
+          Check your health
         </Link>
       </div>
     </section>

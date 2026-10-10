@@ -408,7 +408,7 @@ function JoinPageContent() {
             {/* Benefits */}
             <div className="space-y-3 mb-6">
               {[
-                { icon: TestTube, text: "85+ biomarkers tested at NATA labs" },
+                { icon: TestTube, text: "85+ biomarkers tested at NATA-Accredited Partner Labs" },
                 {
                   icon: Clock,
                   text: "Biological Clock + Organ health scores",
@@ -872,7 +872,7 @@ function JoinPageContent() {
               <div className="flex flex-wrap items-center justify-center gap-4 mt-6 text-xs text-[#5c7a52]">
                 {[
                   { icon: Stethoscope, text: "AHPRA" },
-                  { icon: TestTube, text: "NATA" },
+                  { icon: TestTube, text: "NATA Partner Labs" },
                   { icon: Shield, text: "Privacy Act" },
                   { icon: Shield, text: "Secure payment" },
                 ].map((item, index) => (

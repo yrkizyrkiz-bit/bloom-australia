@@ -492,7 +492,7 @@ export function ErectileDysfunctionContent({
                 <span className="text-[#5c7a52] italic">assess ED</span>
               </h2>
               <p className="text-lg text-[#5c7a52]">
-                Assessment usually starts with conversation, and often includes biomarker testing to
+                Assessment usually starts with conversation, and often includes biomarker insights to
                 uncover contributing factors such as hormones, metabolism, and cardiovascular risk.
               </p>
             </div>
@@ -512,7 +512,7 @@ export function ErectileDysfunctionContent({
                   description: "Validated tools such as the IIEF may help quantify symptoms and impact.",
                 },
                 {
-                  title: "Biomarker testing",
+                  title: "Biomarker insights",
                   description:
                     "Targeted blood panels where clinically appropriate, to measure, not guess.",
                 },
@@ -520,21 +520,21 @@ export function ErectileDysfunctionContent({
                 <div
                   key={item.title}
                   className={`rounded-2xl p-6 border ${
-                    item.title === "Biomarker testing"
+                    item.title === "Biomarker insights"
                       ? "bg-[#34412f] border-[#34412f] text-white"
                       : "bg-white border-[#e6ebe3]"
                   }`}
                 >
                   <h3
                     className={`text-lg font-serif mb-2 ${
-                      item.title === "Biomarker testing" ? "text-white" : "text-[#2c3628]"
+                      item.title === "Biomarker insights" ? "text-white" : "text-[#2c3628]"
                     }`}
                   >
                     {item.title}
                   </h3>
                   <p
                     className={`text-sm leading-relaxed ${
-                      item.title === "Biomarker testing" ? "text-[#a8bb9e]" : "text-[#5c7a52]"
+                      item.title === "Biomarker insights" ? "text-[#a8bb9e]" : "text-[#5c7a52]"
                     }`}
                   >
                     {item.description}
@@ -603,11 +603,6 @@ export function ErectileDysfunctionContent({
                     </div>
                   ))}
                 </div>
-                <p className="text-sm text-[#7e9a72] leading-relaxed">
-                  At Sanative, biomarker testing is arranged through NATA-accredited pathology partners
-                  when your doctor considers it clinically appropriate, then reviewed in your
-                  telehealth consult.
-                </p>
               </div>
             </div>
           </div>

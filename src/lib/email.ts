@@ -160,7 +160,7 @@ export async function sendMembershipWelcomeEmail(params: {
   <div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #2c3628;">
     <h1 style="font-size: 22px; margin: 0 0 16px;">Welcome to Sanative</h1>
     <p>${greeting}</p>
-    <p>Your Sanative Membership is active. It includes your comprehensive Essential biomarker panel plus your Biological Clock and Organ Care dashboards.</p>
+    <p>Your Sanative Membership is active. It includes your comprehensive Essential biomarker insights plus your Biological Clock and Organ Care dashboards.</p>
     <p>Your membership <strong>auto-renews annually</strong> using the card on file. You can update your payment method or cancel anytime from your portal.</p>
     <p><strong>What happens next</strong></p>
     <ol style="padding-left: 20px; line-height: 1.7;">
@@ -178,7 +178,7 @@ export async function sendMembershipWelcomeEmail(params: {
   const text = [
     greeting,
     "",
-    "Your Sanative Membership is active. It includes your comprehensive Essential biomarker panel plus your Biological Clock and Organ Care dashboards.",
+    "Your Sanative Membership is active. It includes your comprehensive Essential biomarker insights plus your Biological Clock and Organ Care dashboards.",
     "Your membership auto-renews annually using the card on file. You can update your payment method or cancel anytime from your portal.",
     "",
     "What happens next:",
@@ -249,7 +249,7 @@ export async function sendMembershipRenewalReminderEmail(params: {
   <div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #2c3628;">
     <h1 style="font-size: 22px; margin: 0 0 16px;">Your membership renewal</h1>
     <p>${greeting}</p>
-    <p>Your Sanative Membership is due for renewal on <strong>${dateLabel}</strong> (${params.priceLabel}). Renewing keeps your biomarker testing, Biological Clock and Organ Care dashboards, and doctor-led care active for another year.</p>
+    <p>Your Sanative Membership is due for renewal on <strong>${dateLabel}</strong> (${params.priceLabel}). Renewing keeps your biomarker insights, Biological Clock and Organ Care dashboards, and doctor-led care active for another year.</p>
     <p style="margin: 28px 0;">
       <a href="${renewUrl}" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">Renew my membership</a>
     </p>
@@ -261,7 +261,7 @@ export async function sendMembershipRenewalReminderEmail(params: {
     greeting,
     "",
     `Your Sanative Membership is due for renewal on ${dateLabel} (${params.priceLabel}).`,
-    "Renewing keeps your biomarker testing, dashboards and doctor-led care active for another year.",
+    "Renewing keeps your biomarker insights, dashboards and doctor-led care active for another year.",
     "",
     `Renew: ${renewUrl}`,
   ].join("\n");

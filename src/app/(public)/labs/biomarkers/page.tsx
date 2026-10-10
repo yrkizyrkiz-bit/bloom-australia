@@ -396,7 +396,7 @@ export default function BiomarkersPreviewPage() {
               Ready to understand your health?
             </h2>
             <p className="mt-4 text-[#a8bb9e]">
-              Get comprehensive insights with our biomarker panels, analysed by Australian NATA-accredited laboratories.
+              Get comprehensive insights with our biomarker panels, analysed by NATA-Accredited Partner Labs.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
               <Link

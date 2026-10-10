@@ -2,15 +2,7 @@
 
 import type { ReactNode } from "react";
 import { MembershipPricingCard } from "@/components/promo/sections/MembershipPricingCard";
-
-const ORGAN_CARE_MARQUEE = [
-  { src: "/images/heart-anatomical.webp", alt: "Heart" },
-  { src: "/images/liver-comparison.webp", alt: "Liver" },
-  { src: "/images/kidney-health.webp", alt: "Kidney" },
-  { src: "/images/biomarker-marquee/screen-01.webp", alt: "Organ Care dashboard" },
-  { src: "/images/biomarker-marquee/screen-02.webp", alt: "Biomarker insights" },
-  { src: "/images/membership/sanative-doctor-screens.webp", alt: "Doctor-reviewed care" },
-] as const;
+import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
 
 const ACCENT = {
   rose: { section: "bg-gradient-to-br from-gray-50 to-rose-50", title: "text-rose-600" },
@@ -35,10 +27,10 @@ export function OrganCareMembershipSection({
   const tones = ACCENT[accent];
 
   return (
-    <section id="membership" className={`py-20 ${tones.section}`}>
+    <section id="membership" className={`py-14 sm:py-16 ${tones.section}`}>
       <div className="max-w-5xl mx-auto min-w-0 px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-10 lg:mb-12">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-gray-900 leading-tight">
+        <div className="text-center mb-7 lg:mb-8">
+          <h2 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-serif text-gray-900 leading-tight">
             {heading ?? (
               <>
                 One membership includes{" "}
@@ -48,7 +40,7 @@ export function OrganCareMembershipSection({
           </h2>
         </div>
         <MembershipPricingCard
-          imageMarquee={ORGAN_CARE_MARQUEE}
+          imageMarquee={ORDER_SUMMARY_MARQUEE}
           checkoutHref={checkoutHref}
         />
       </div>

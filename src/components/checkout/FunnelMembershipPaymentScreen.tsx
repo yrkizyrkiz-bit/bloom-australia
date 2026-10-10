@@ -24,26 +24,10 @@ import {
   paymentSourcePage,
 } from "@/lib/legal/ensure-pre-payment-consent";
 import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.module.css";
+import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
+import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-
-const MEMBERSHIP_MARQUEE = [
-  {
-    src: "/images/membership/mens-marquee/biomarker-vial.webp",
-    alt: "Sanative biomarker blood test vial with metabolic markers",
-  },
-  {
-    src: "/images/membership/mens-marquee/organ-dashboard.webp",
-    alt: "Sanative organ and metabolic health dashboard",
-  },
-  {
-    src: "/images/membership/mens-marquee/app-insights.webp",
-    alt: "Sanative app showing health score and biomarker insights",
-  },
-] as const;
-
-const MEMBERSHIP_COPY =
-  "Sanative starts with a comprehensive health check, including 85+ biomarkers, to help your doctor understand factors relevant to your health and weight.";
 
 /** Stripe Dahlia rejects boolean `radios` — must be always | auto | never | if_multiple. */
 const PAYMENT_ELEMENT_OPTIONS = {
@@ -97,21 +81,54 @@ function readStoredConsentId(userId?: string, email?: string): string | undefine
 }
 
 function ImageMarquee() {
-  const loop = [...MEMBERSHIP_MARQUEE, ...MEMBERSHIP_MARQUEE];
+  const loop = [...ORDER_SUMMARY_MARQUEE, ...ORDER_SUMMARY_MARQUEE];
   return (
-    <div className={marqueeStyles.viewport} aria-hidden>
+    <div
+      className={`${marqueeStyles.viewport} ${marqueeStyles.viewportBlend} max-w-full`}
+      aria-hidden
+      title="Hover to pause"
+    >
       <div className={marqueeStyles.track}>
-        {loop.map((item, index) => (
-          // eslint-disable-next-line @next/next/no-img-element -- CSS marquee needs plain imgs
-          <img
-            key={`${item.src}-${index}`}
-            src={item.src}
-            alt=""
-            className="h-28 w-44 sm:h-40 sm:w-64 shrink-0 rounded-2xl object-cover"
-            draggable={false}
-          />
-        ))}
+        {loop.map((item, index) => {
+          const isContain = item.fit === "contain";
+          return (
+            <div
+              key={`${item.src}-${index}`}
+              className={`${marqueeStyles.slide} ${marqueeStyles.slideBlend} h-40 w-64 sm:h-48 sm:w-80 lg:h-56 lg:w-[22rem]`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- CSS marquee needs plain imgs */}
+              <img
+                src={item.src}
+                alt=""
+                width={720}
+                height={405}
+                decoding="async"
+                loading={index < 3 ? "eager" : "lazy"}
+                fetchPriority={index === 0 ? "high" : "auto"}
+                className={`${marqueeStyles.slideImg} ${
+                  isContain ? "object-contain p-2 sm:p-3" : "object-cover"
+                }`}
+                draggable={false}
+              />
+            </div>
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+function MembershipBenefitsList() {
+  return (
+    <div className="space-y-2.5 sm:space-y-3">
+      {MEMBERSHIP_BENEFITS.map((benefit) => (
+        <div key={benefit} className="flex items-start gap-2.5 sm:gap-3">
+          <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+          <span className="text-sm sm:text-[15px] lg:text-base text-gray-700 leading-snug">
+            {benefit}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -271,7 +288,7 @@ function CardPaymentForm({
         </span>
         <span className="inline-flex items-center gap-1.5 text-xs">
           <Shield className="w-3.5 h-3.5" />
-          AHPRA registered
+          AHPRA Registered Doctors
         </span>
       </div>
     </form>
@@ -295,7 +312,6 @@ export function FunnelMembershipPaymentScreen({
   intentProgram = "weight_management",
   source = "weight_management_assessment",
   returnPath = "/weight-management/assessment",
-  membershipCopy = MEMBERSHIP_COPY,
   paymentNote = "Your first 30 days of doctor-led medical weight loss care are included. After that, continue for $360 every three months. Cancel anytime.",
   onContinueAfterPaid,
   onSuccess,
@@ -317,6 +333,7 @@ export function FunnelMembershipPaymentScreen({
   intentProgram?: string;
   source?: string;
   returnPath?: string;
+  /** Accepted for callers; Order Summary uses shared membership pitch copy. */
   membershipCopy?: string;
   paymentNote?: string;
   onContinueAfterPaid?: () => void;
@@ -496,39 +513,58 @@ export function FunnelMembershipPaymentScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alreadyPaid, userId, email]);
 
+  const yearlyLabel = priceLabel.includes("/yr")
+    ? priceLabel.replace("/yr", "/year")
+    : priceLabel.includes("/")
+      ? priceLabel
+      : `${priceLabel}/year`;
+
   const summary = (
-    <div className="min-w-0 bg-white rounded-2xl border border-black/10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-4 sm:p-6 lg:p-7">
-      <p className="text-sm font-semibold text-[#1c1c1c] mb-4">Order summary</p>
-      <ImageMarquee />
-      <p className="mt-5 text-sm leading-relaxed text-black/70">{membershipCopy}</p>
-        <div className="mt-6 pt-5 border-t border-black/10">
-        <h2 className="text-lg font-semibold text-[#1c1c1c]">Sanative Membership</h2>
-        <div className="mt-3 flex items-baseline gap-1.5">
-          <span className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#1c1c1c] tabular-nums">
-            $1
-          </span>
-          <span className="text-base text-black/60">a day</span>
-        </div>
-        <p className="mt-1 text-sm text-black/50">{priceLabel.includes("/yr") ? priceLabel.replace("/yr", "/year") : `${priceLabel}/year`}</p>
-        <p className="mt-1.5 text-sm font-medium text-[#1c1c1c]">
-          Join with confidence · 100% refundable*
+    <div className="min-w-0 max-w-full overflow-hidden bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 lg:p-8">
+      <div className="mb-3 sm:mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+          Order Summary
+        </h2>
+        <p className="text-sm sm:text-base font-semibold text-gray-900">
+          Sanative Membership
         </p>
-        <div className="mt-5 flex items-center justify-between text-base font-semibold text-[#1c1c1c]">
-          <span>Total</span>
-          <span>${amountAud}</span>
+      </div>
+
+      <div className="min-w-0 rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 lg:p-5 mb-4 sm:mb-5">
+        <div className="min-w-0">
+          <ImageMarquee />
         </div>
-        <p className="mt-2 text-xs text-black/40">
-          Auto-renews yearly · cancel anytime
+      </div>
+
+      <p className="mb-3 sm:mb-4 text-base sm:text-lg font-semibold text-gray-900 leading-snug">
+        {MEMBERSHIP_PITCH}
+      </p>
+
+      <div className="mb-4 sm:mb-6">
+        <MembershipBenefitsList />
+      </div>
+
+      <div className="border-t border-gray-200 pt-3 sm:pt-4">
+        <div className="flex items-center justify-between gap-3 mb-2 text-sm sm:text-base">
+          <span className="text-gray-600 min-w-0">Sanative Membership</span>
+          <span className="font-semibold tabular-nums shrink-0">{yearlyLabel}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 text-base sm:text-lg font-bold">
+          <span>Total</span>
+          <span className="tabular-nums">${amountAud}</span>
+        </div>
+        <p className="text-[11px] sm:text-xs text-gray-400 mt-2 leading-snug">
+          Everything included · auto-renews yearly · cancel anytime
         </p>
       </div>
     </div>
   );
 
   const summaryColumn = (
-    <div className="space-y-3 lg:sticky lg:top-8">
+    <div className="min-w-0 max-w-full space-y-3 lg:sticky lg:top-8">
       {summary}
-      <div className="rounded-2xl border border-[#e6ebe3] bg-[#f4f7f2] px-4 py-3.5">
-        <p className="text-sm leading-relaxed text-[#2c3628]">
+      <div className="rounded-2xl border border-[#e6ebe3] bg-[#f4f7f2] px-3.5 py-3 sm:px-4 sm:py-3.5">
+        <p className="text-xs sm:text-sm leading-relaxed text-[#2c3628]">
           {paymentNote}
         </p>
       </div>

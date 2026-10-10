@@ -35,11 +35,21 @@ describe("weight-management funnel checkout sequence", () => {
   it("uses Superpower-style membership payment with $365 pricing and rotating cards", () => {
     const payment = readSource("components/checkout/FunnelMembershipPaymentScreen.tsx");
     expect(payment).toContain("Enter your card details");
-    expect(payment).toContain("85+ biomarkers");
+    expect(payment).toContain("MEMBERSHIP_PITCH");
     expect(payment).toContain("$365");
-    expect(payment).toContain("mens-marquee");
+    expect(payment).toContain("order-summary-marquee");
     expect(payment).toContain("MembershipPricingCard.module.css");
+    const marquee = readSource("lib/membership/order-summary-marquee.ts");
+    expect(marquee).toContain("mens-marquee");
+    expect(marquee).toContain("organ-slider/kidney.webp");
+    expect(marquee).toContain("organ-slider/liver.webp");
+    expect(marquee).toContain("organ-slider/heart.webp");
+    expect(payment).toContain("Order Summary");
+    expect(payment).toContain("membership-benefits");
     expect(payment).toContain("Sanative Membership");
+    const benefits = readSource("lib/membership/membership-benefits.ts");
+    expect(benefits).toContain("Monitor your health and stay ahead for $1/day");
+    expect(benefits).toContain("Biomarker insights, 85+ markers");
     expect(payment).toContain('type: "accordion"');
     expect(payment).toContain('radios: "never"');
     expect(payment).not.toContain("radios: false");

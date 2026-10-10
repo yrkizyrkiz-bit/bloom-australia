@@ -56,7 +56,7 @@ export default function ForDoctorsPage() {
               <div className="flex flex-wrap gap-3 mb-10">
                 {[
                   "AHPRA Registered",
-                  "NATA-accredited labs",
+                  "NATA-Accredited Partner Labs",
                   "GP supervision model",
                   "$0 cost to practice",
                 ].map((pill) => (
@@ -283,9 +283,9 @@ export default function ForDoctorsPage() {
                   </div>
                 </div>
                 <p className="text-[#5c7a52] leading-relaxed">
-                  A comprehensive biomarker panel covering kidney, liver,
+                  Comprehensive biomarker insights covering kidney, liver,
                   metabolic, cardiovascular and hormonal health, run at
-                  NATA-accredited labs and delivered to their dashboard.
+                  NATA-Accredited Partner Labs and delivered to their dashboard.
                 </p>
               </div>
 
@@ -534,7 +534,7 @@ export default function ForDoctorsPage() {
             <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
               {[
                 { icon: Stethoscope, text: "AHPRA registered doctors" },
-                { icon: TestTube, text: "NATA-accredited labs" },
+                { icon: TestTube, text: "NATA-Accredited Partner Labs" },
                 { icon: ShieldCheck, text: "Australian Privacy Act compliant" },
                 { icon: Heart, text: "Australian owned & operated" },
               ].map((item, index) => (

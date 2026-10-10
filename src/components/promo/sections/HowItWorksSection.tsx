@@ -22,10 +22,9 @@ export function HowItWorksSection() {
       description: [
         "A telehealth consultation with",
         "an AHPRA registered doctor.",
-        "Share your health history and",
-        "goals so we can tailor insights",
-        "to you. Get your pathology",
-        "referral for your blood test.",
+        "Discuss any concerns with your",
+        "doctor and organise a referral",
+        "for any blood tests required.",
       ].join("\n"),
     },
     {

@@ -15,7 +15,7 @@ import {
 const trustBadges = [
   { icon: Stethoscope, label: "AHPRA-registered doctors" },
   { icon: Lock, label: "Confidential care" },
-  { icon: Beaker, label: "NATA-accredited labs" },
+  { icon: Beaker, label: "NATA-Accredited Partner Labs" },
   { icon: Activity, label: "Biomarker-informed" },
   { icon: Users, label: "Care team support" },
 ];

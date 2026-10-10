@@ -41,6 +41,10 @@
   color: var(--journey-muted);
 }
 
+.journey-heading--tight {
+  margin-bottom: clamp(28px, 4vw, 48px);
+}
+
 .journey-stack {
   width: min(100%, 1240px);
   margin: 0 auto;
@@ -258,6 +262,10 @@
   .journey-heading {
     text-align: left;
     margin-bottom: 2.5rem;
+  }
+
+  .journey-heading--tight {
+    margin-bottom: 1.25rem;
   }
 
   .journey-heading p {

@@ -12,7 +12,7 @@ const STEPS = [
   {
     number: "1",
     title: "Join Sanative",
-    body: "Become a member for $365 annually, including your comprehensive biomarker panel.",
+    body: "Become a member and start with a comprehensive health check, giving you holistic insight into your health for $1/day.",
   },
   {
     number: "2",
@@ -21,8 +21,8 @@ const STEPS = [
   },
   {
     number: "3",
-    title: "Complete your testing",
-    body: "Complete your biomarker panel to help uncover factors that may be influencing your hair and overall health.",
+    title: "Get your Biomarker insights",
+    body: "In the app, you’ll find your biomarker results, an analysis of each health category and hair health related markers.",
   },
   {
     number: "4",
@@ -100,7 +100,7 @@ export function HairHealthMembershipHowItWorks() {
                   Sanative Membership
                 </h3>
                 <p className="mt-1.5 text-sm sm:text-base text-black/55">
-                  Comprehensive biomarker panel + first 30 days of Hair Health
+                  Comprehensive biomarker insights + first 30 days of Hair Health
                   Care
                 </p>
               </div>
@@ -172,6 +172,7 @@ export function HairHealthMembershipHowItWorks() {
           included 30-day care period applies if you nominate that eligible
           program before or during your initial doctor consultation. It is not
           available for a program selected after that consultation.
+          *Before initial consult.
         </p>
       </div>
     </section>

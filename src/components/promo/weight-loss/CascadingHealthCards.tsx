@@ -7,57 +7,56 @@ type CascadeFeature = {
   eyebrow: string;
   title: string;
   description: string;
-  image: string | null;
-  /** Portrait 9:16 art for full-screen mobile cascade */
-  imageMobile?: string | null;
-  useTabletSlider?: boolean;
+  image: string;
+  /** Smaller src for narrow viewports */
+  imageMobile?: string;
 };
 
+/**
+ * WM membership cascade — slide order matches product journey:
+ * 01 Check your Health → 05 Ongoing care.
+ * Assets: optimized WebP (1280 / 800) under /images/membership/wm-slides/.
+ */
 const features: CascadeFeature[] = [
   {
-    eyebrow: "YOUR BASELINE",
-    title: "Start with a complete view of your health",
+    eyebrow: "01",
+    title: "Check your Health",
     description:
-      "Test the biomarkers that reveal where your health needs attention first.",
-    image: "/images/membership/slide_1.webp",
-    imageMobile: "/images/membership/mobile/slide_1_mobile.webp?v=3",
-    useTabletSlider: true,
+      "Your Sanative membership unlocks comprehensive biomarker analysis.",
+    image: "/images/membership/wm-slides/slide-01.webp",
+    imageMobile: "/images/membership/wm-slides/slide-01-800.webp",
   },
   {
-    eyebrow: "YOUR RESULTS",
-    title: "See all your health data in one place",
+    eyebrow: "02",
+    title: "Doctor consultation",
     description:
-      "Understand your results, monitor changes and connect the patterns across your health.",
-    image: "/images/membership/slide_2.webp",
-    imageMobile: "/images/membership/mobile/slide_2_mobile.webp?v=2",
-    useTabletSlider: true,
+      "Your biomarkers reviewed. Your goals understood. Your weight management program precisely tailored.",
+    image: "/images/membership/wm-slides/slide-02.webp",
+    imageMobile: "/images/membership/wm-slides/slide-02-800.webp",
   },
   {
-    eyebrow: "YOUR ACTION PLAN",
-    title: "Turn your results into precise care",
+    eyebrow: "03",
+    title: "Personalised care plan",
     description:
-      "Receive a doctor-led plan shaped by your biomarkers, health history and goals.",
-    image: "/images/membership/Slide_3.webp",
-    imageMobile: "/images/membership/mobile/slide_3_mobile.webp?v=2",
-    useTabletSlider: true,
+      "Our medical care team will transform your numbers into a weight loss action plan.",
+    image: "/images/membership/wm-slides/slide-03.webp",
+    imageMobile: "/images/membership/wm-slides/slide-03-800.webp",
   },
   {
-    eyebrow: "ONGOING CARE",
-    title: "Stay supported as your health changes",
+    eyebrow: "04",
+    title: "All in one place",
     description:
-      "Access your Australian care team, follow your progress and adjust your plan when needed.",
-    image: "/images/membership/Slide_4.webp",
-    imageMobile: "/images/membership/mobile/slide_4_mobile.webp?v=2",
-    useTabletSlider: true,
+      "See your health score, biological age, biomarker results and care plan together in one simple view.",
+    image: "/images/membership/wm-slides/slide-04.webp",
+    imageMobile: "/images/membership/wm-slides/slide-04-800.webp",
   },
   {
-    eyebrow: "YOUR JOURNEY",
-    title: "Keep improving with every check-in",
+    eyebrow: "05",
+    title: "Ongoing care",
     description:
-      "Revisit your biomarkers, refine your plan and build lasting habits with continuous clinical guidance.",
-    image: "/images/membership/slide_5.webp",
-    imageMobile: "/images/membership/mobile/slide_5_mobile.webp?v=2",
-    useTabletSlider: true,
+      "Contact your care partner anytime for support with your weight loss journey.",
+    image: "/images/membership/wm-slides/slide-05.webp",
+    imageMobile: "/images/membership/wm-slides/slide-05-800.webp",
   },
 ];
 
@@ -68,54 +67,38 @@ export function CascadingHealthCards() {
       aria-label="What your membership includes"
     >
       <div className="cascade-list">
-        {features.map((feature, index) => {
-          const fullBleed = feature.useTabletSlider;
-
-          return (
-            <article
-              key={feature.title}
-              className={`cascade-card${
-                fullBleed ? " cascade-card--tablet" : ""
-              }`}
-              style={{ "--card-index": index } as CSSProperties}
-            >
-              <div className="cascade-card-inner">
-                {feature.useTabletSlider ? (
-                  <div className="cascade-card-visual cascade-card-visual--tablet">
-                    <picture>
-                      {feature.imageMobile ? (
-                        <source
-                          media="(max-width: 900px)"
-                          srcSet={feature.imageMobile}
-                        />
-                      ) : null}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        className="cascade-tablet-static"
-                        src={feature.image!}
-                        alt={feature.title}
-                      />
-                    </picture>
-                  </div>
-                ) : (
-                  <>
-                    <div className="cascade-card-copy">
-                      <p className="cascade-eyebrow">{feature.eyebrow}</p>
-                      <h3>{feature.title}</h3>
-                      <p className="cascade-description">
-                        {feature.description}
-                      </p>
-                    </div>
-                    <div className="cascade-card-visual">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={feature.image!} alt="" loading="lazy" />
-                    </div>
-                  </>
-                )}
+        {features.map((feature, index) => (
+          <article
+            key={feature.title}
+            className="cascade-card cascade-card--tablet"
+            style={{ "--card-index": index } as CSSProperties}
+          >
+            <div className="cascade-card-inner">
+              <div className="cascade-card-visual cascade-card-visual--tablet">
+                <picture>
+                  {feature.imageMobile ? (
+                    <source
+                      media="(max-width: 900px)"
+                      srcSet={feature.imageMobile}
+                      type="image/webp"
+                    />
+                  ) : null}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    className="cascade-tablet-static"
+                    src={feature.image}
+                    alt={feature.title}
+                    width={1280}
+                    height={720}
+                    decoding="async"
+                    loading={index === 0 ? "eager" : "lazy"}
+                    fetchPriority={index === 0 ? "high" : "auto"}
+                  />
+                </picture>
               </div>
-            </article>
-          );
-        })}
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );

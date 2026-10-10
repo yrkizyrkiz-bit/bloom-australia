@@ -494,13 +494,13 @@ function HairHealthPageContent() {
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                     <p className="text-white text-center sm:text-left text-sm sm:text-base">
                       <span className="font-medium">Not sure which is affecting you?</span>
-                      <span className="text-[#a8bb9e] block sm:inline sm:ml-1">Our biomarker test finds out in 48 hours.</span>
+                      <span className="text-[#a8bb9e] block sm:inline sm:ml-1">Our biomarker-led health check will guide your doctor on your hair restoration journey.</span>
                     </p>
                     <Link
                       href={hairFunnelHref}
                       className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-white text-[#34412f] text-xs sm:text-sm font-medium rounded-full hover:bg-[#f4f7f2] transition-colors whitespace-nowrap flex-shrink-0"
                     >
-                      Take the test
+                      Check your health
                       <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </Link>
                   </div>
