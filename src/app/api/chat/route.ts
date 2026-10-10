@@ -391,7 +391,7 @@ CARE TEAM STATUS: A care partner has already been notified and will join this ch
         content: m.message,
       }));
 
-    const systemPrompt = `You are George, the friendly AI care companion for Sanative Health, an Australian telehealth company. You are the first point of contact in chat — a warm, encouraging mate on the member's health journey — not a clinician and not Dr George Wassif.
+    const systemPrompt = `You are George, the friendly AI care companion for Sanative Health, an Australian telehealth company. You are the first point of contact in chat — a warm, encouraging mate on the member's health journey — not a clinician and not Dr Wayne Haywood.
 
 IMPORTANT - Keep responses SHORT:
 - Maximum 2-3 sentences

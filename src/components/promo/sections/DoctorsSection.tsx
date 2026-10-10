@@ -24,13 +24,12 @@ const doctors: TeamMember[] = [
     color: "from-[#7b8967] to-[#5d6a4d]",
   },
   {
-    name: "Dr George Wassif",
+    name: "Dr Wayne Haywood",
     title: "General Practitioner",
     specialties: ["MBBS", "Men's Health"],
     description:
-      "Dedicated practitioner specialising in men's health and metabolic care. Dr Wassif takes a patient-centred approach to metabolic weight management.",
-    image: "/images/team/george-wassif.webp",
-    initials: "GW",
+      "Dedicated practitioner specialising in men's health and metabolic care. Dr Haywood takes a patient-centred approach to metabolic weight management.",
+    initials: "WH",
     color: "from-[#9abdb1] to-[#7b8967]",
   },
   {
