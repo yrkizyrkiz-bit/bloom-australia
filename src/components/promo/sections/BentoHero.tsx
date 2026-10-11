@@ -52,7 +52,7 @@ export function BentoHero() {
                 <br /><span className="text-[#4a6243]">every year</span>
               </h3>
               <p className="text-[#4a6243] text-sm mt-3 leading-relaxed">
-                Starting with 85+ biomarkers monitoring 500+ conditions. Just $365 per year, {" "}
+                Starting with 85+ biomarkers monitoring early indicators of health concerns. Just $365 per year, {" "}
                 <span className="italic font-medium text-[#2c3628]">$1 per day</span>.
               </p>
             </div>

@@ -4,25 +4,27 @@ import { GetTheAppCard } from "@/components/promo/GetTheAppCard";
 
 export function Footer() {
   const footerLinks = {
-    treatments: [
-      { label: "Weight Management", href: "/weight-management" },
-      { label: "Women's Health", href: "/womens-health" },
-      { label: "Hair Health", href: "/hair-health" },
-      { label: "Organ Care", href: "/organ-care" },
+    popular: [
       { label: "Biomarker Labs", href: "/labs" },
+      { label: "Weight Loss", href: "/weight-management" },
+      { label: "Hair Health", href: "/hair-health" },
+      { label: "Menopause", href: "/womens-health" },
+      { label: "Erectile Dysfunction", href: "/mens-health/erectile-dysfunction" },
+      { label: "Fatty Liver", href: "/metabolic-care/fatty-liver" },
+      { label: "Organ Care", href: "/organ-care" },
     ],
     resources: [
-      { label: "FAQs", href: "/faqs" },
+      { label: "BMI Calculator", href: "/weight-management#bmi" },
+      { label: "Heart Risk Assessment", href: "/metabolic-care/heart-health#heart-assessment" },
+      { label: "Kidney Risk Assessment", href: "/metabolic-care/kidney-health#kidney-assessment" },
+      { label: "Liver Risk Assessment", href: "/metabolic-care/fatty-liver#liver-assessment" },
       { label: "Member Login", href: "/login" },
       { label: "Contact", href: "/contact" },
     ],
     company: [
-      { label: "About Us", href: "#" },
+      { label: "About Us", href: "/about" },
       { label: "Privacy Policy", href: "/privacy" },
       { label: "Terms & Conditions", href: "/terms" },
-      { label: "Medical Disclaimer", href: "/medical-disclaimer" },
-      { label: "Telehealth Consent", href: "/telehealth-consent" },
-      { label: "Subscription Terms", href: "/subscription-terms" },
     ],
   };
 
@@ -36,10 +38,10 @@ export function Footer() {
             <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
               <div>
                 <h4 className="mb-4 text-sm font-medium uppercase tracking-wider text-[#cdd8c6]">
-                  Treatments
+                  Popular
                 </h4>
                 <ul className="space-y-3">
-                  {footerLinks.treatments.map((link) => (
+                  {footerLinks.popular.map((link) => (
                     <li key={link.label}>
                       <Link
                         href={link.href}
@@ -131,8 +133,6 @@ export function Footer() {
                 2026 Sanative Health. All rights reserved.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#a8bb9e]">
-                <span>AHPRA Registered</span>
-                <span className="h-1 w-1 rounded-full bg-[#5c7a52]" />
                 <span>AHPRA Registered Doctors</span>
                 <span className="h-1 w-1 rounded-full bg-[#5c7a52]" />
                 <span>Australian Owned</span>

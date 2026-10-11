@@ -156,7 +156,10 @@ export default function HeartHealthPage() {
               </div>
 
               {/* Heart Health Calculator */}
-              <div className="bg-white rounded-3xl shadow-xl border border-rose-100 overflow-hidden min-h-[580px] flex flex-col">
+              <div
+                id="heart-assessment"
+                className="scroll-mt-24 bg-white rounded-3xl shadow-xl border border-rose-100 overflow-hidden min-h-[580px] flex flex-col"
+              >
                 {/* Header */}
                 <div className="p-5 lg:p-6 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-orange-50">
                   <p className="text-xs uppercase tracking-widest text-rose-600 font-medium mb-1">
@@ -439,7 +442,7 @@ export default function HeartHealthPage() {
               You do not have to wait for symptoms. A doctor-reviewed lipid and metabolic panel can inform the conversation about your cardiovascular risk.
             </p>
             <Link href="/membership/checkout" className="inline-flex items-center justify-center gap-3 text-base sm:text-lg px-6 sm:px-10 py-5 bg-white text-rose-700 font-semibold rounded-full hover:bg-rose-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-xl mx-auto">
-              Monitor your health and stay ahead for $1/day <ArrowRight className="w-5 h-5" />
+              Check your health and stay ahead for $1/day <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
         </section>

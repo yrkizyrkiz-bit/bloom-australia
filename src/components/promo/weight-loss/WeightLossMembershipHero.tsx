@@ -22,11 +22,11 @@ export function WeightLossMembershipHero({
       <div className={styles.inner}>
         <div className={styles.intro}>
           <div>
-            <p className={styles.eyebrow}>Your complete care ecosystem</p>
+            <p className={styles.eyebrow}>Your complete structured weight loss program</p>
             <h1 id="weight-loss-membership-heading" className={styles.heading}>
               Start with Sanative
               <br />
-              Membership
+              Health Check
             </h1>
           </div>
 
@@ -36,7 +36,7 @@ export function WeightLossMembershipHero({
               and your first 30 days of Weight Management Care included.
             </p>
             <Link href="/weight-management/assessment" className={styles.cta}>
-              Start losing weight
+              Become a member
             </Link>
           </div>
         </div>

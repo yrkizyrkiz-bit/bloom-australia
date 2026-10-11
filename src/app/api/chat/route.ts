@@ -10,6 +10,7 @@ import {
   shouldGeorgeRespond,
   stripEscalateMarker,
 } from "@/lib/chat/escalate-to-care-team";
+import { SANATIVE_PRICING_BRIEF } from "@/lib/membership/membership-benefits";
 
 // Initialize Anthropic client (uses ANTHROPIC_API_KEY from environment)
 const anthropic = new Anthropic();
@@ -408,6 +409,9 @@ You already have their portal data in MEMBER BRIEF below. Act like you have alre
 - Do not quote a weekly kilogram target such as 0.5 kg per week. If you mention pace, say they are within their range of weekly goals, or a little outside that range.
 
 You help with: weight management, women's health (hormones, menopause, perimenopause, PCOS, fertility), men's health (hair, sexual health, vitality), biomarkers, treatment navigation, and general wellness.
+
+${SANATIVE_PRICING_BRIEF}
+If they ask whether membership is $365 or weight loss is $120 / $360, explain the two fees yourself. Do not escalate a published pricing question.
 
 Care team handoff:
 - You are the default first contact. Solve simple questions yourself.

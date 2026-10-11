@@ -67,6 +67,23 @@ export function LegalPageLayout({
   );
 }
 
+export function LegalEmbeddedDocument({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-28 mt-10 border-t border-[#e6ebe3] pt-10">
+      <h2 className="text-2xl sm:text-3xl font-serif text-[#2c3628] mb-6">{title}</h2>
+      <div className="space-y-6">{children}</div>
+    </section>
+  );
+}
+
 export function LegalSection({
   title,
   children,

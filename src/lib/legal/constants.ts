@@ -44,10 +44,10 @@ export const LEGAL_SUBPROCESSORS = [
 export const LEGAL_LINKS = {
   privacy: "/privacy",
   terms: "/terms",
-  medicalDisclaimer: "/medical-disclaimer",
-  telehealthConsent: "/telehealth-consent",
+  medicalDisclaimer: "/terms#medical-disclaimer",
+  telehealthConsent: "/terms#telehealth-consent",
   refundPolicy: "/refund-policy",
-  subscriptionTerms: "/subscription-terms",
+  subscriptionTerms: "/terms#subscription-terms",
   contact: "/contact",
   faqs: "/faqs",
 } as const;

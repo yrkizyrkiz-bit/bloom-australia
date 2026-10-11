@@ -254,7 +254,7 @@ export default function MensHealthPage() {
                     <span className="text-[#5c7a52] group-hover:text-[#cdd8c6]">every year</span>
                   </h3>
                   <p className="text-[#5c7a52] text-sm mt-1.5 group-hover:text-white/80 transition-colors duration-300">
-                    Starting with 85+ biomarkers monitoring 500+ conditions. Just $365 per year,{" "}
+                    Starting with 85+ biomarkers monitoring early indicators of health concerns. Just $365 per year,{" "}
                     <span className="italic font-medium text-[#2c3628] group-hover:text-white">$1 per day</span>.
                   </p>
                 </div>
@@ -533,7 +533,7 @@ export default function MensHealthPage() {
               href="/mens-health/assessment?concern=erectile-dysfunction"
               className="btn-white inline-flex items-center justify-center gap-2 text-base sm:text-lg px-6 sm:px-10 py-4"
             >
-              Monitor your health and stay ahead for $1/day
+              Check your health and stay ahead for $1/day
               <ArrowRight className="w-5 h-5" />
             </Link>
             {/* GAP-026: Removed 'No commitment' - payment required */}

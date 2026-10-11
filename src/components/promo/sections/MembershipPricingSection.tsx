@@ -8,13 +8,13 @@ export async function MembershipPricingSection() {
   const annualPrice = pricing?.amountAud ?? 365;
 
   return (
-    <section
-      id="membership"
-      className="hims-light-gradient-section py-20 lg:py-28 overflow-hidden scroll-mt-24"
-    >
+    <section className="hims-light-gradient-section py-20 lg:py-28 overflow-hidden">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10 lg:mb-12">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#34412f]/20 text-[#34412f] text-sm font-medium mb-6">
+          <span
+            id="membership"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#34412f]/20 text-[#34412f] text-sm font-medium mb-6 scroll-mt-20 lg:scroll-mt-24"
+          >
             Membership
           </span>
           <h2 className="section-title font-serif text-4xl sm:text-5xl lg:text-6xl leading-tight">

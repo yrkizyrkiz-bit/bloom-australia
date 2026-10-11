@@ -76,7 +76,6 @@ export function HairHealthHero({ gender, onGenderChange }: HairHealthHeroProps) 
             <ul className={styles.points}>
               <li>Modern treatment for hair loss</li>
               <li>Doctor phone consultation</li>
-              <li>Delivered to your door</li>
             </ul>
             <Link
               href={gender === "men" ? "/hair-assessment?gender=male" : "/hair-assessment?gender=female"}

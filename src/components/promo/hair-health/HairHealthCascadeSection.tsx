@@ -36,9 +36,9 @@ const features: CascadeFeature[] = [
   },
   {
     eyebrow: "Step 3",
-    title: "Care delivered. Support that stays.",
+    title: "Care that stays with you.",
     description:
-      "Your plan arrives at your door, with ongoing clinical check-ins, progress tracking, and real Care Partner support so you never navigate hair recovery alone.",
+      "Ongoing clinical check-ins, progress tracking, and Care Partner support so you never navigate hair recovery alone.",
     image: "/images/membership/package-delivery.webp",
   },
 ];

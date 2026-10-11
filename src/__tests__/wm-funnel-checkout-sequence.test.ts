@@ -48,7 +48,7 @@ describe("weight-management funnel checkout sequence", () => {
     expect(payment).toContain("membership-benefits");
     expect(payment).toContain("Sanative Membership");
     const benefits = readSource("lib/membership/membership-benefits.ts");
-    expect(benefits).toContain("Monitor your health and stay ahead for $1/day");
+    expect(benefits).toContain("Check your health and stay ahead for $1/day");
     expect(benefits).toContain("Biomarker insights, 85+ markers");
     expect(payment).toContain('type: "accordion"');
     expect(payment).toContain('radios: "never"');

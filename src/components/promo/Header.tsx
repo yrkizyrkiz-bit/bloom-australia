@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
 
-export function Header({
-  announcementMessage,
-  hideAnnouncementCta,
-}: {
-  announcementMessage?: string;
-  hideAnnouncementCta?: boolean;
-} = {}) {
+export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
@@ -120,34 +114,15 @@ export function Header({
       {/* Announcement Bar */}
       <div className="bg-gradient-to-r from-[#2c3628] via-[#3d4f38] to-[#2c3628] text-white text-center py-3 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PC9zdmc+')] opacity-50" />
-        <div
-          className={`relative flex items-center justify-center gap-2 sm:gap-3 ${
-            announcementMessage ? "flex-nowrap whitespace-nowrap" : "flex-wrap"
-          }`}
-        >
-          <span className="inline-flex min-w-0 items-center gap-2">
-            <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-[#a8bb9e] animate-pulse shrink-0" />
-            {announcementMessage ? (
-              <span className="font-serif text-[13px] sm:text-[15px] tracking-wide italic">
-                {announcementMessage}
-              </span>
-            ) : (
-              <span className="font-serif text-[15px] sm:text-base tracking-wide italic">
-                Preventative medicine + Precise care = Longevity built for Australians
-              </span>
-            )}
+        <div className="relative flex items-center justify-center gap-2 flex-wrap">
+          <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-[#a8bb9e] animate-pulse shrink-0" />
+          <span className="font-serif text-[15px] sm:text-base tracking-wide italic">
+            Preventative medicine + Precise care = Longevity built for Australians
           </span>
-          {hideAnnouncementCta ? null : (
-            <Link
-              href="#how-it-works"
-              className="inline-flex shrink-0 items-center gap-1 text-[12px] sm:text-sm font-medium text-[#a8bb9e] hover:text-white transition-colors group"
-            >
-              {announcementMessage ? "How it works" : "See how it works"}
-              <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          )}
+          <span className="hidden sm:inline text-[#a8bb9e] mx-1">·</span>
+          <span className="text-[13px] sm:text-sm font-light text-[#cdd8c6]">
+            Just $365 per year—$1 per day.
+          </span>
         </div>
       </div>
 

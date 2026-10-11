@@ -27,14 +27,9 @@ export function LabsSection() {
       <div className="sage-atmosphere__noise" aria-hidden />
 
       <div className="sage-atmosphere__inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 lg:pb-12">
-        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#34412f]/20 text-[#34412f] text-sm font-medium mb-6">
-          <Beaker className="w-4 h-4" />
-          labs by sanative
-        </span>
-
         <h2 className="max-w-5xl text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-serif text-[#173c32] leading-tight">
           Monitor early indicators of{" "}
-          <span className="text-[#5c7a52] italic">500+ diseases</span>
+          <span className="text-[#5c7a52] italic">health concerns</span>
         </h2>
 
         <div className="mt-10 grid min-w-0 lg:grid-cols-2 gap-12 lg:gap-16 items-center">

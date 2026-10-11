@@ -17,7 +17,7 @@ const questionsAndAnswers: QA[] = [
   {
     question: "Are these treatments safe?",
     answer:
-      "Treatment approaches are assessed individually by our AHPRA-registered doctors based on your health history. Side effects are discussed in consultation and we monitor your progress throughout care.",
+      "Every case is different. Your AHPRA-registered doctor reviews your health history and discusses what is clinically appropriate for you, including any risks, during consultation.",
   },
   {
     question: "Do I need a blood test?",
@@ -27,7 +27,7 @@ const questionsAndAnswers: QA[] = [
   {
     question: "Will my hair loss return if I stop treatment?",
     answer:
-      "For conditions like androgenetic alopecia (pattern hair loss), ongoing treatment is typically needed to maintain results. However, addressing underlying deficiencies may provide lasting benefits even after supplementation stops. Your doctor will discuss long-term management options.",
+      "Every case is different. Your doctor will discuss what may happen if you stop or change care, based on your situation.",
   },
   {
     question: "Is treatment different for men and women?",
@@ -37,7 +37,7 @@ const questionsAndAnswers: QA[] = [
   {
     question: "How much does treatment cost?",
     answer:
-      "Costs depend on your personalised plan after doctor assessment. Consultation and program fees are discussed before you proceed. Any prescribed items are dispensed by Australian pharmacies when clinically appropriate.",
+      "Every case is different. Costs depend on your personalised plan after doctor assessment. Consultation and program fees are discussed before you proceed.",
   },
 ];
 

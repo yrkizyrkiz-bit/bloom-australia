@@ -259,7 +259,10 @@ export default function FattyLiverPage() {
               </div>
 
               {/* Right - Assessment Calculator */}
-              <div className="bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col">
+              <div
+                id="liver-assessment"
+                className="scroll-mt-24 bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col"
+              >
                 {/* Header */}
                 <div className="p-5 lg:p-6 border-b border-[#e6ebe3] bg-[#f4f7f2]">
                   <p className="text-xs uppercase tracking-widest text-[#c17a58] font-medium mb-1">
@@ -467,7 +470,7 @@ export default function FattyLiverPage() {
                   href="/membership/checkout"
                   className="mt-6 w-full bg-white text-[#34412f] rounded-full py-3 px-4 sm:px-6 font-medium flex items-center justify-center gap-2 hover:bg-[#f4f7f2] transition-colors text-center text-sm sm:text-base"
                 >
-                  Monitor your health and stay ahead for $1/day
+                  Check your health and stay ahead for $1/day
                   <ArrowRight className="w-4 h-4 flex-shrink-0" />
                 </Link>
               </div>
@@ -693,7 +696,7 @@ export default function FattyLiverPage() {
               href="/membership/checkout"
               className="btn-white inline-flex items-center justify-center gap-2 text-base sm:text-lg px-6 sm:px-10 py-4"
             >
-              Monitor your health and stay ahead for $1/day
+              Check your health and stay ahead for $1/day
               <ArrowRight className="w-5 h-5" />
             </Link>
 

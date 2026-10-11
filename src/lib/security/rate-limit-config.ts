@@ -35,6 +35,10 @@ export const RATE_LIMITS = {
   bloodTestParserUser: { limit: 30, windowSec: 60 * 60 },
   /** Blood test parser per IP (backup) */
   bloodTestParserIp: { limit: 60, windowSec: 60 * 60 },
+  /** Public George contact chat per IP */
+  contactChatIp: { limit: 12, windowSec: 60 * 60 },
+  /** Public George contact chat per visitor email */
+  contactChatEmail: { limit: 8, windowSec: 60 * 60 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 export function rateLimitBucketKey(scope: string, identifier: string): string {

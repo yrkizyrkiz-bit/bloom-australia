@@ -100,7 +100,7 @@ function LabsPageContent() {
 
   return (
     <>
-      <Header announcementMessage="85+ health signals, from $1/day" hideAnnouncementCta />
+      <Header />
       {/* No overflow on main, any overflow (incl. overflow-x-hidden) creates a
           scroll container and breaks position:sticky on the roadmap cascade. */}
       <main>
@@ -166,7 +166,7 @@ function LabsPageContent() {
                   Own your health.
                 </h1>
                 <p className="promo-body mt-3.5 max-w-[22ch] text-[16px] font-normal leading-[1.4] tracking-[-0.01em] text-white/85">
-                  Monitor early indicators of 500+ diseases
+                  Monitor early indicators of health concerns
                 </p>
               </div>
 
@@ -306,7 +306,7 @@ function LabsPageContent() {
                   Get clear Insights
                 </h3>
                 <p className="text-[#5c7a52] text-sm mb-6">
-                  Clear results appear in the app with insights. Monitor early indicators of 500+ diseases, catch issues early and stay ahead, tracking your health changes over time.
+                  Clear results appear in the app with insights. Monitor early indicators of health concerns, catch issues early and stay ahead, tracking your health changes over time.
                 </p>
                 <div className="bg-white rounded-2xl p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
@@ -398,7 +398,7 @@ function LabsPageContent() {
             <div className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#2c3628] leading-tight">
                 Your results unlock{" "}
-                <span className="text-[#5c7a52] italic">your treatment plan</span>
+                <span className="text-[#5c7a52] italic">your care program</span>
               </h2>
             </div>
 
@@ -450,7 +450,7 @@ function LabsPageContent() {
                 href="/biomarker-intake"
                 className="group inline-flex items-center gap-3 btn-primary text-lg px-8 py-4"
               >
-                Monitor your health and stay ahead for $1/day
+                Check your health and stay ahead for $1/day
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>

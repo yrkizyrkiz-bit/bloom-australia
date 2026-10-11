@@ -408,7 +408,7 @@ export default function HairAssessmentPage() {
                 First, what should we call you?
               </h1>
               <p className="mt-3 text-[#5c7a52]">
-                Your legal name is needed for prescriptions. We keep it private.
+                Your legal name is needed for any clinical assessment. We keep it private.
               </p>
             </div>
 

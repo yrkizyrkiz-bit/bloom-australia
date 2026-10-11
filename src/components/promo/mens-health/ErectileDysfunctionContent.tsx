@@ -58,6 +58,26 @@ function FAQItem({
   );
 }
 
+const ASSESSMENT_HREF = "/mens-health/assessment?concern=erectile-dysfunction";
+
+function AssessmentCta({
+  variant = "primary",
+  className = "",
+}: {
+  variant?: "primary" | "white";
+  className?: string;
+}) {
+  return (
+    <Link
+      href={ASSESSMENT_HREF}
+      className={`${variant === "white" ? "btn-white" : "btn-primary"} inline-flex items-center justify-center gap-2 ${className}`}
+    >
+      Start assessment
+      <ArrowRight className="w-5 h-5" />
+    </Link>
+  );
+}
+
 const processSteps = [
   {
     number: "01",
@@ -251,6 +271,22 @@ export function ErectileDysfunctionContent({
 
         {!isEmbed && (
           <>
+        <section className="pt-10 pb-2 lg:pt-14">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 rounded-3xl bg-[#f4f7f2] px-6 py-6 lg:px-8">
+              <div>
+                <p className="text-sm text-[#5c7a52] mb-1">
+                  Confidential · AHPRA-registered doctors
+                </p>
+                <p className="font-serif text-2xl sm:text-[1.65rem] text-[#2c3628] leading-snug">
+                  Start a confidential ED assessment
+                </p>
+              </div>
+              <AssessmentCta className="text-lg px-8 py-4 shrink-0" />
+            </div>
+          </div>
+        </section>
+
         {/* Overview */}
         <section id="overview" className="py-20 lg:py-28 scroll-mt-32">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -273,11 +309,12 @@ export function ErectileDysfunctionContent({
                   conditions such as diabetes and heart disease. Think of it as your body prompting a
                   proper medical conversation, not something you need to ignore or feel embarrassed about.
                 </p>
-                <p className="text-[#5c7a52] leading-relaxed">
+                <p className="text-[#5c7a52] leading-relaxed mb-8">
                   Occasional difficulty is common and often situational. Persistent or worsening
                   patterns are worth assessing with a doctor rather than waiting and hoping they
                   resolve on their own.
                 </p>
+                <AssessmentCta className="px-8 py-3.5" />
               </div>
 
               <div className="bg-[#f4f7f2] rounded-3xl p-8 lg:p-10">
@@ -362,6 +399,9 @@ export function ErectileDysfunctionContent({
                 </ul>
               </div>
             </div>
+            <div className="mt-12 flex justify-center">
+              <AssessmentCta className="text-lg px-8 py-4" />
+            </div>
           </div>
         </section>
 
@@ -440,6 +480,9 @@ export function ErectileDysfunctionContent({
                 </ul>
               </div>
             </div>
+            <div className="mt-12 flex justify-center">
+              <AssessmentCta className="text-lg px-8 py-4" />
+            </div>
           </div>
         </section>
 
@@ -460,10 +503,11 @@ export function ErectileDysfunctionContent({
                   have found rates rising substantially from midlife into later decades, especially
                   when other health risks are present.
                 </p>
-                <p className="text-[#a8bb9e] leading-relaxed">
+                <p className="text-[#a8bb9e] leading-relaxed mb-8">
                   Changing habits can support overall health. Many men benefit from structured support
                   from a doctor, and where relevant a dietitian, trainer, or counsellor.
                 </p>
+                <AssessmentCta variant="white" className="px-8 py-3.5" />
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">
@@ -824,6 +868,9 @@ export function ErectileDysfunctionContent({
                   onToggle={() => setOpenFAQ(openFAQ === index ? null : index)}
                 />
               ))}
+            </div>
+            <div className="mt-10 flex justify-center">
+              <AssessmentCta className="text-lg px-8 py-4" />
             </div>
           </div>
         </section>

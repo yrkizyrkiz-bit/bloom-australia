@@ -65,6 +65,21 @@ export function TermsContent() {
           <li>Payments, subscriptions, refunds, and communications</li>
           <li>Acceptable use, intellectual property, and liability</li>
           <li>Governing law, complaints, and contact details</li>
+          <li>
+            The{" "}
+            <a href="#medical-disclaimer" className="underline text-[#5c7a52]">
+              Medical Disclaimer
+            </a>
+            ,{" "}
+            <a href="#telehealth-consent" className="underline text-[#5c7a52]">
+              Telehealth Consent
+            </a>
+            , and{" "}
+            <a href="#subscription-terms" className="underline text-[#5c7a52]">
+              Subscription Terms
+            </a>{" "}
+            that form part of these Terms
+          </li>
         </LegalUl>
       </LegalSection>
 
