@@ -12,6 +12,9 @@ export const MEMBER_PROGRAMS_HOME = "/dashboard/programs";
 /** Classic biomarker overview, members with approved lab results. */
 export const MEMBER_HEALTH_OVERVIEW = "/dashboard";
 
+/** Global Care Team inbox — not inside a program shell. */
+export const MEMBER_CARE_TEAM = "/dashboard/care-team";
+
 /** Priority when a member has multiple active programs. */
 const PRIMARY_PROGRAM_PRIORITY: ProgramKey[] = [
   "WEIGHT_MANAGEMENT",

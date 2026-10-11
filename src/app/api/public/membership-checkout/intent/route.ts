@@ -11,6 +11,9 @@ import {
   enforceIpRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
+import { resolvePublicCheckoutStripeCustomer } from "@/lib/portal/stripe-customer";
+import { isEstablishedCheckoutUser } from "@/lib/auth/assert-phone-available";
+import { ESTABLISHED_MEMBER_CHECKOUT_MESSAGE } from "@/lib/auth/member-identity-guard";
 
 let stripeClient: Stripe | null = null;
 function getStripeClient(): Stripe {
@@ -63,33 +66,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
+    if (await isEstablishedCheckoutUser(identity.userId)) {
+      return NextResponse.json(
+        { error: ESTABLISHED_MEMBER_CHECKOUT_MESSAGE },
+        { status: 409 }
+      );
+    }
+
     // Duplicate mobiles must not block payment — activation flags triage if needed.
 
     const { stripePriceId, pricing } = await resolveSanativeMembershipStripePriceId();
     const stripe = getStripeClient();
 
-    let customerId: string;
-    const existingCustomers = await stripe.customers.list({
+    const customerId = await resolvePublicCheckoutStripeCustomer({
+      stripe,
       email: resolvedEmail,
-      limit: 1,
+      userId: identity.userId,
+      firstName,
+      lastName,
+      phone: resolvedPhone,
     });
-    if (existingCustomers.data.length > 0) {
-      customerId = existingCustomers.data[0].id;
-      // Keep contact details current for receipts / renewals.
-      await stripe.customers
-        .update(customerId, {
-          name: [firstName, lastName].filter(Boolean).join(" ") || undefined,
-          phone: resolvedPhone || undefined,
-        })
-        .catch(() => undefined);
-    } else {
-      const customer = await stripe.customers.create({
-        email: resolvedEmail,
-        name: [firstName, lastName].filter(Boolean).join(" ") || undefined,
-        phone: resolvedPhone || undefined,
-      });
-      customerId = customer.id;
-    }
 
     const metadata = {
       purchaseType: "sanative_membership",

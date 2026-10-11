@@ -9,8 +9,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import {
   ArrowLeft,
   HelpCircle,
-  MessageSquare,
-  MessageCircle,
   Loader2,
   Send,
   Sparkles,
@@ -18,11 +16,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { LiveChat, ChatButton } from "@/components/chat/LiveChat";
+import { useCareTeamChat } from "@/components/chat/CareTeamChatHost";
 import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_NAME } from "@/lib/george";
 import {
   CareSupportThreadList,
+  careSupportThreadsEqual,
   type CareSupportThread,
 } from "@/components/care-support/CareSupportThreadList";
 
@@ -63,7 +62,7 @@ export default function SupportPage() {
   const [message, setMessage] = useState("");
   const [subject, setSubject] = useState("");
   const [sending, setSending] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const careChat = useCareTeamChat();
   const [threads, setThreads] = useState<CareSupportThread[]>([]);
   const [loadingThreads, setLoadingThreads] = useState(true);
 
@@ -72,7 +71,8 @@ export default function SupportPage() {
       const res = await fetch("/api/care-support/messages", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      setThreads(data.threads || []);
+      const next = data.threads || [];
+      setThreads((prev) => (careSupportThreadsEqual(prev, next) ? prev : next));
     } catch (error) {
       console.error("Failed to load support messages", error);
     } finally {
@@ -141,48 +141,15 @@ export default function SupportPage() {
               </div>
             </div>
             <Button
-              onClick={() => setChatOpen(true)}
+              onClick={() => careChat?.openChat()}
               className="bg-white text-[#2c3628] hover:bg-[#f8f4ec]"
             >
               <Sparkles className="mr-2 h-4 w-4" />
-              Start Chat
+              Live Chat
             </Button>
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Link href="/dashboard/messages">
-          <Card className="h-full cursor-pointer border-pink-200 bg-gradient-to-br from-pink-50 to-rose-50 transition-shadow hover:shadow-md dark:from-pink-950/20 dark:to-rose-950/20">
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-pink-500">
-                <MessageCircle className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold">Message your care partner</p>
-                <p className="text-sm text-pink-700">
-                  Ongoing conversation with your assigned coordinator
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Card
-          className="h-full cursor-pointer border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 transition-shadow hover:shadow-md dark:from-blue-950/20 dark:to-indigo-950/20"
-          onClick={() => setChatOpen(true)}
-        >
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500">
-              <MessageSquare className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <p className="font-semibold">Live Chat</p>
-              <p className="text-sm text-blue-600">Quick questions via the care team</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <Card className="overflow-hidden border-[#cdd8c6] bg-gradient-to-br from-[#f8f4ec] to-[#e6ebe3]">
         <CardContent className="space-y-4 p-5">
@@ -190,10 +157,9 @@ export default function SupportPage() {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0D9488] text-white">
               <Send className="h-4 w-4" strokeWidth={2.25} />
             </span>
-            <div>
-              <p className="font-serif text-lg font-semibold text-[#2c3628]">Send a Message</p>
-              <p className="text-xs text-[#5c7a52]">We usually respond within 24 hours</p>
-            </div>
+            <p className="font-serif text-lg font-semibold text-[#2c3628]">
+              or Send us a Message
+            </p>
           </div>
 
           <div>
@@ -269,9 +235,6 @@ export default function SupportPage() {
         </CardContent>
       </Card>
 
-      <LiveChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />
-
-      {!chatOpen && <ChatButton onClick={() => setChatOpen(true)} />}
     </div>
   );
 }

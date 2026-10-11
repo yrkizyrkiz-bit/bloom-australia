@@ -19,6 +19,7 @@ import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_NAME } from "@/lib/george";
 import {
   CareSupportThreadList,
+  careSupportThreadsEqual,
   type CareSupportThread,
 } from "@/components/care-support/CareSupportThreadList";
 
@@ -35,7 +36,8 @@ export default function WomensHealthCarePage() {
       const res = await fetch("/api/care-support/messages", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      setThreads(data.threads || []);
+      const next = data.threads || [];
+      setThreads((prev) => (careSupportThreadsEqual(prev, next) ? prev : next));
     } catch (error) {
       console.error("Failed to load support messages", error);
     } finally {

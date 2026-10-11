@@ -21,7 +21,7 @@ describe("publicVerifiedContactIdentity", () => {
     expect(result.existingUser).toBeNull();
   });
 
-  it("still returns the email account after that address is verified", () => {
+  it("does not return name, phone, or email after an existing address is verified", () => {
     const result = publicVerifiedContactIdentity({
       type: "email",
       existingUser: member,
@@ -29,6 +29,10 @@ describe("publicVerifiedContactIdentity", () => {
     });
     expect(result.phoneAlreadyRegistered).toBe(false);
     expect(result.bindUserId).toBe("user_1");
-    expect(result.existingUser?.email).toBe("jane@example.com");
+    expect(result.existingUser).toEqual({ isEstablished: true });
+    expect(result.existingUser).not.toHaveProperty("firstName");
+    expect(result.existingUser).not.toHaveProperty("lastName");
+    expect(result.existingUser).not.toHaveProperty("phone");
+    expect(result.existingUser).not.toHaveProperty("email");
   });
 });

@@ -10,7 +10,6 @@ import {
 import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt";
 import {
   buildLoginRedirectUrl,
-  fetchExistingAccountFirstName,
   submitPublicIntake,
 } from "@/lib/funnel/intake-response";
 
@@ -167,7 +166,6 @@ export default function FattyLiverAssessmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
-  const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
 
   const updateField = (field: keyof FormData, value: string | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -234,7 +232,6 @@ export default function FattyLiverAssessmentPage() {
 
   const handleUseDifferentEmail = () => {
     setShowExistingAccountPrompt(false);
-    setExistingUserFirstName(null);
     setError(null);
     updateField("email", "");
     setCurrentStep(1);
@@ -274,8 +271,6 @@ export default function FattyLiverAssessmentPage() {
       }
 
       if (result.emailExists) {
-        const firstName = await fetchExistingAccountFirstName(formData.email);
-        setExistingUserFirstName(firstName);
         setShowExistingAccountPrompt(true);
         return;
       }
@@ -1022,7 +1017,6 @@ export default function FattyLiverAssessmentPage() {
 
       <ExistingAccountPrompt
         open={showExistingAccountPrompt}
-        firstName={existingUserFirstName}
         loginHref={buildLoginRedirectUrl("/dashboard/organ-care")}
         onUseDifferentEmail={handleUseDifferentEmail}
         accentClass="bg-[#c17a32]"

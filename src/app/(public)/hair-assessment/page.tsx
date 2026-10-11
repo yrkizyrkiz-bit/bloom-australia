@@ -6,7 +6,6 @@ import { publicTierToBillingTier } from "@/lib/biomarkers/public-checkout-tier-m
 import { type BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscription-panels";
 import {
   buildLoginRedirectUrl,
-  fetchExistingAccountFirstName,
   submitPublicIntake,
 } from "@/lib/funnel/intake-response";
 import {
@@ -180,7 +179,6 @@ export default function HairAssessmentPage() {
   const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
   const [showResumeVerification, setShowResumeVerification] = useState(false);
   const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
-  const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
   const [showMembershipBackbone, setShowMembershipBackbone] = useState(false);
   const [advanceMembershipToPay, setAdvanceMembershipToPay] = useState(false);
   const latestProfileRef = useRef<FunnelProfileFields | null>(null);
@@ -286,7 +284,6 @@ export default function HairAssessmentPage() {
   const handleUseDifferentEmail = () => {
     setShowExistingAccountPrompt(false);
     setShowResumeVerification(false);
-    setExistingUserFirstName(null);
     setResumeVerificationFirstName(null);
     setSubmissionError(null);
     updateFormData("email", "");
@@ -333,8 +330,6 @@ export default function HairAssessmentPage() {
       }
 
       if ("emailExists" in result && result.emailExists) {
-        const firstName = await fetchExistingAccountFirstName(formData.email);
-        setExistingUserFirstName(firstName);
         setShowExistingAccountPrompt(true);
         return false;
       }
@@ -803,7 +798,6 @@ export default function HairAssessmentPage() {
     <>
       <ExistingAccountPrompt
         open={showExistingAccountPrompt}
-        firstName={existingUserFirstName}
         loginHref={buildLoginRedirectUrl("/dashboard/mens-health/hair-loss")}
         onUseDifferentEmail={handleUseDifferentEmail}
       />

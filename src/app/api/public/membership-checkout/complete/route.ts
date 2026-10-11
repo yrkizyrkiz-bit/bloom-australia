@@ -24,6 +24,8 @@ import {
 import { normalizeProgramKey } from "@/lib/membership/keys";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { quizDobToDate } from "@/lib/funnel/quiz-dob";
+import { isEstablishedCheckoutUser } from "@/lib/auth/assert-phone-available";
+import { ESTABLISHED_MEMBER_CHECKOUT_MESSAGE } from "@/lib/auth/member-identity-guard";
 
 function resolvePostCheckoutRedirect(intentProgram?: string | null): string {
   const key = normalizeProgramKey(intentProgram);
@@ -135,6 +137,13 @@ export async function POST(request: NextRequest) {
     const resolvedEmail = identity.email;
     if (!resolvedEmail) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    if (!priorInvoice && (await isEstablishedCheckoutUser(identity.userId))) {
+      return NextResponse.json(
+        { error: ESTABLISHED_MEMBER_CHECKOUT_MESSAGE },
+        { status: 409 }
+      );
     }
 
     const consentVerification = await requirePrePaymentConsent({

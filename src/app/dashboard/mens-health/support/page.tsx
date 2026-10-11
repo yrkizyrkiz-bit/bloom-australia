@@ -24,6 +24,7 @@ import { usePortalContext } from "@/hooks/usePortalContext";
 import { isProgramEntitled } from "@/lib/membership/program-access";
 import {
   CareSupportThreadList,
+  careSupportThreadsEqual,
   type CareSupportThread,
 } from "@/components/care-support/CareSupportThreadList";
 import {
@@ -86,7 +87,8 @@ export default function SupportPage() {
       const res = await fetch("/api/care-support/messages", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      setThreads(data.threads || []);
+      const next = data.threads || [];
+      setThreads((prev) => (careSupportThreadsEqual(prev, next) ? prev : next));
     } catch (error) {
       console.error("Failed to load support messages", error);
     } finally {

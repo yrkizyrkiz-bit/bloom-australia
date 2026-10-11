@@ -110,27 +110,6 @@ export async function verifyPublicResumeCode(
   }
 }
 
-export async function fetchExistingAccountFirstName(
-  email: string
-): Promise<string | null> {
-  try {
-    const response = await fetch("/api/auth/check-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.toLowerCase().trim() }),
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return typeof data.firstName === "string" && data.firstName.trim()
-      ? data.firstName.trim()
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 export function buildLoginRedirectUrl(redirectPath: string): string {
   return `/login?redirect=${encodeURIComponent(redirectPath)}`;
 }

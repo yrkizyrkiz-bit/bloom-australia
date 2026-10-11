@@ -28,7 +28,6 @@ import { ExistingAccountPrompt } from "@/components/funnel/ExistingAccountPrompt
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
 import {
   buildLoginRedirectUrl,
-  fetchExistingAccountFirstName,
   submitPublicIntake,
 } from "@/lib/funnel/intake-response";
 import Link from "next/link";
@@ -214,7 +213,6 @@ function WomensHealthAssessmentContent() {
   const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
   const [showResumeVerification, setShowResumeVerification] = useState(false);
   const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
-  const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
   const [showMembershipBackbone, setShowMembershipBackbone] = useState(false);
   const [advanceMembershipToPay, setAdvanceMembershipToPay] = useState(false);
   const latestProfileRef = useRef<FunnelProfileFields | null>(null);
@@ -354,7 +352,6 @@ function WomensHealthAssessmentContent() {
   const handleUseDifferentEmail = () => {
     setShowExistingAccountPrompt(false);
     setShowResumeVerification(false);
-    setExistingUserFirstName(null);
     setResumeVerificationFirstName(null);
     setSubmissionError(null);
     updateFormData("email", "");
@@ -406,8 +403,6 @@ function WomensHealthAssessmentContent() {
       }
 
       if ("emailExists" in result && result.emailExists) {
-        const firstName = await fetchExistingAccountFirstName(formData.email);
-        setExistingUserFirstName(firstName);
         setShowExistingAccountPrompt(true);
         return false;
       }
@@ -725,7 +720,6 @@ function WomensHealthAssessmentContent() {
     <>
       <ExistingAccountPrompt
         open={showExistingAccountPrompt}
-        firstName={existingUserFirstName}
         loginHref={buildLoginRedirectUrl("/dashboard")}
         onUseDifferentEmail={handleUseDifferentEmail}
         accentClass="bg-[#c17a58]"

@@ -11,7 +11,10 @@ import {
   isBiomarkersPanelBookingNotes,
   verifyBiomarkersPanelBookingPayment,
 } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
-import { verifyPortalProgramCarePaymentForDecision } from "@/lib/stripe/verify-portal-program-care-payment";
+import {
+  verifyPortalProgramCarePaymentForDecision,
+  weightDecisionShouldUseMembershipPayment,
+} from "@/lib/stripe/verify-portal-program-care-payment";
 import { tryActivateAfterDoctorApproval } from "@/lib/program/activate-member-program";
 import { notifyMember } from "@/lib/notifications/member-notify";
 import { normalizeProgramKey } from "@/lib/membership/keys";
@@ -111,6 +114,32 @@ async function createOngoingSubscription(
   _selectedPlan: "CORE" | "PRECISION",
   firstPaymentIntentId?: string | null
 ): Promise<{ success: boolean; subscriptionId?: string; error?: string; amountLabel?: string }> {
+  // In-portal Weight Management already has its own recurring charge.
+  // Approval must not open a second care subscription over the top of it.
+  const portalWm = await prisma.entitlement.findFirst({
+    where: {
+      userId,
+      type: "PROGRAM",
+      key: "WEIGHT_MANAGEMENT",
+      status: "ACTIVE",
+      notes: { contains: "Subscription in-portal" },
+    },
+    select: { id: true },
+  });
+  if (portalWm) {
+    const existing = await prisma.memberSubscription.findFirst({
+      where: {
+        userId,
+        status: "ACTIVE",
+        product: { program: "WEIGHT_MANAGEMENT" },
+      },
+      select: { stripeSubscriptionId: true },
+    });
+    if (existing?.stripeSubscriptionId) {
+      return { success: true, subscriptionId: existing.stripeSubscriptionId };
+    }
+  }
+
   return createWeightManagementCareSubscription({
     userId,
     userEmail,
@@ -304,28 +333,45 @@ export async function POST(request: NextRequest) {
           );
         }
       } else {
-        const paymentVerification = await verifyFirstMonthPaymentForBooking({
-          paymentIntentId: consultation.paymentIntentId,
+        // Portal programs charge their own price ($249, $324, $864, …).
+        // The consult may store a different program's PaymentIntent.
+        const wmPortalPayment = await verifyPortalProgramCarePaymentForDecision({
           userId,
           consultationId,
-          bookingHoldId: consultationId,
-          selectedPlan: consultation.selectedPlan,
+          prescriptionCategory: "WEIGHT_MANAGEMENT",
+          paymentIntentId: consultation.paymentIntentId,
         });
-
-        if ("error" in paymentVerification) {
-          const membershipFallback = await verifyOrganCareMembershipBookingPayment({
-            paymentIntentId: consultation.paymentIntentId,
+        if (wmPortalPayment.ok && wmPortalPayment.paymentIntentId) {
+          consultation.paymentIntentId = wmPortalPayment.paymentIntentId;
+        } else if (weightDecisionShouldUseMembershipPayment(wmPortalPayment)) {
+          const paymentVerification = await verifyFirstMonthPaymentForBooking({
+            paymentIntentId: consultation.paymentIntentId!,
             userId,
+            consultationId,
             bookingHoldId: consultationId,
+            selectedPlan: consultation.selectedPlan,
           });
-          if (!membershipFallback.ok) {
-            return NextResponse.json(
-              { error: paymentVerification.error },
-              { status: paymentVerification.status }
-            );
+
+          if ("error" in paymentVerification) {
+            const membershipFallback = await verifyOrganCareMembershipBookingPayment({
+              paymentIntentId: consultation.paymentIntentId!,
+              userId,
+              bookingHoldId: consultationId,
+            });
+            if (!membershipFallback.ok) {
+              return NextResponse.json(
+                { error: paymentVerification.error },
+                { status: paymentVerification.status }
+              );
+            }
+          } else if (paymentVerification.normalizedPlan) {
+            verifiedWmPlan = paymentVerification.normalizedPlan;
           }
-        } else if (paymentVerification.normalizedPlan) {
-          verifiedWmPlan = paymentVerification.normalizedPlan;
+        } else if (!wmPortalPayment.ok) {
+          return NextResponse.json(
+            { error: wmPortalPayment.error },
+            { status: wmPortalPayment.status }
+          );
         }
       }
     }

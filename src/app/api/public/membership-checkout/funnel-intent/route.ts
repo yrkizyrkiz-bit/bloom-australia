@@ -8,6 +8,7 @@ import {
   enforceIpRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/security/rate-limit-http";
+import { resolvePublicCheckoutStripeCustomer } from "@/lib/portal/stripe-customer";
 
 let stripeClient: Stripe | null = null;
 function getStripeClient(): Stripe {
@@ -75,29 +76,14 @@ export async function POST(req: NextRequest) {
     const resolvedFirst = firstName || user.firstName || "";
     const resolvedLast = lastName || user.lastName || "";
 
-    let customerId: string;
-    const existingCustomers = await stripe.customers.list({
+    const customerId = await resolvePublicCheckoutStripeCustomer({
+      stripe,
       email: resolvedEmail,
-      limit: 1,
+      userId: user.id,
+      firstName: resolvedFirst,
+      lastName: resolvedLast,
+      phone: resolvedPhone,
     });
-    if (existingCustomers.data.length > 0) {
-      customerId = existingCustomers.data[0].id;
-      await stripe.customers
-        .update(customerId, {
-          name: [resolvedFirst, resolvedLast].filter(Boolean).join(" ") || undefined,
-          phone: resolvedPhone || undefined,
-          metadata: { userId: user.id },
-        })
-        .catch(() => undefined);
-    } else {
-      const customer = await stripe.customers.create({
-        email: resolvedEmail,
-        name: [resolvedFirst, resolvedLast].filter(Boolean).join(" ") || undefined,
-        phone: resolvedPhone || undefined,
-        metadata: { userId: user.id },
-      });
-      customerId = customer.id;
-    }
 
     const metadata = {
       purchaseType: "sanative_membership",

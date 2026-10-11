@@ -29,7 +29,7 @@ import {
   CreditCard,
   Grid3X3,
 } from "lucide-react";
-import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { MEMBER_CARE_TEAM, MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { PushEnable } from "@/components/notifications/PushEnable";
 import { RealTimeNotificationBell } from "./RealTimeNotificationBell";
 
@@ -53,6 +53,8 @@ export function DashboardNav() {
   const initials = user
     ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
     : "U";
+
+  const isCareTeamActive = pathname.startsWith(MEMBER_CARE_TEAM);
 
   return (
     <nav className="bg-white/80 backdrop-blur-md border-b border-[#e6ebe3]/60 sticky top-0 z-50">
@@ -117,6 +119,17 @@ export function DashboardNav() {
                 </Link>
               );
             })}
+
+            <Link href={MEMBER_CARE_TEAM}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`gap-2 rounded-xl ${isCareTeamActive ? "bg-[#1D9E75]/10 text-[#1D9E75]" : "text-[#5c7a52] hover:text-[#34412f] hover:bg-[#e6ebe3]/50"}`}
+              >
+                <HelpCircle className="w-4 h-4" />
+                Care Team
+              </Button>
+            </Link>
           </div>
 
           {/* Notifications & User Menu */}
@@ -172,9 +185,9 @@ export function DashboardNav() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-[#e6ebe3]" />
                 <DropdownMenuItem asChild>
-                  <Link href="#" className="flex items-center gap-2 cursor-pointer rounded-lg">
+                  <Link href={MEMBER_CARE_TEAM} className="flex items-center gap-2 cursor-pointer rounded-lg">
                     <HelpCircle className="w-4 h-4 text-[#5c7a52]" />
-                    Help & Support
+                    Care Team
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-[#e6ebe3]" />

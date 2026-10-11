@@ -5,6 +5,22 @@ import {
 } from "@/lib/auth/member-identity-guard";
 import { prisma } from "@/lib/prisma";
 
+export async function isEstablishedCheckoutUser(
+  userId?: string | null
+): Promise<boolean> {
+  if (!userId) return false;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      passwordHash: true,
+      subscriptionStatus: true,
+      journeyStatus: true,
+      memberStatus: true,
+    },
+  });
+  return user ? isEstablishedMember(user) : false;
+}
+
 export type EstablishedPhoneOwner = {
   id: string;
   email: string;

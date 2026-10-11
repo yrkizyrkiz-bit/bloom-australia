@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { memberCareSupportInboxUrl } from "@/lib/care-support/member-inbox-url";
+import { memberCareSupportInboxUrl } from "@/lib/care-support/member-inbox-path";
 
 describe("memberCareSupportInboxUrl", () => {
   it("routes by gender and tier", () => {

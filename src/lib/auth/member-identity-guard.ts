@@ -116,7 +116,8 @@ function pickOptionalDate(
 
 /**
  * Profile fields for public membership activation.
- * Established members: only fill empty fields; never overwrite existing PII.
+ * Established members: write nothing. Name, phone, DOB, address and gender
+ * change only in portal Settings.
  * New / prospective users: apply submitted identity as before.
  */
 export function buildProtectedActivationProfileUpdate(
@@ -124,42 +125,42 @@ export function buildProtectedActivationProfileUpdate(
   input: ActivationProfileInput,
   protectPii: boolean
 ): Prisma.UserUpdateInput {
+  if (protectPii) return {};
+
   const data: Prisma.UserUpdateInput = {};
 
-  const firstName = pickName(input.firstName, existing.firstName, protectPii);
+  const firstName = pickName(input.firstName, existing.firstName, false);
   if (firstName !== undefined) data.firstName = firstName;
 
-  const lastName = pickName(input.lastName, existing.lastName, protectPii);
+  const lastName = pickName(input.lastName, existing.lastName, false);
   if (lastName !== undefined) data.lastName = lastName;
 
-  const phone = pickOptionalString(input.phone, existing.phone, protectPii);
+  const phone = pickOptionalString(input.phone, existing.phone, false);
   if (phone !== undefined) data.phone = phone;
 
-  const dateOfBirth = pickOptionalDate(input.dateOfBirth, existing.dateOfBirth, protectPii);
+  const dateOfBirth = pickOptionalDate(input.dateOfBirth, existing.dateOfBirth, false);
   if (dateOfBirth !== undefined) data.dateOfBirth = dateOfBirth;
 
-  const address = pickOptionalString(input.address, existing.address, protectPii);
+  const address = pickOptionalString(input.address, existing.address, false);
   if (address !== undefined) data.address = address;
 
-  const addressLine1 = pickOptionalString(input.addressLine1, existing.addressLine1, protectPii);
+  const addressLine1 = pickOptionalString(input.addressLine1, existing.addressLine1, false);
   if (addressLine1 !== undefined) data.addressLine1 = addressLine1;
 
-  const addressLine2 = pickOptionalString(input.addressLine2, existing.addressLine2, protectPii);
+  const addressLine2 = pickOptionalString(input.addressLine2, existing.addressLine2, false);
   if (addressLine2 !== undefined) data.addressLine2 = addressLine2;
 
-  const suburb = pickOptionalString(input.suburb, existing.suburb, protectPii);
+  const suburb = pickOptionalString(input.suburb, existing.suburb, false);
   if (suburb !== undefined) data.suburb = suburb;
 
-  const state = pickOptionalString(input.state, existing.state, protectPii);
+  const state = pickOptionalString(input.state, existing.state, false);
   if (state !== undefined) data.state = state;
 
-  const postcode = pickOptionalString(input.postcode, existing.postcode, protectPii);
+  const postcode = pickOptionalString(input.postcode, existing.postcode, false);
   if (postcode !== undefined) data.postcode = postcode;
 
   if (input.gender === "MALE" || input.gender === "FEMALE") {
-    if (!protectPii || isBlank(existing.gender)) {
-      data.gender = input.gender;
-    }
+    data.gender = input.gender;
   }
 
   return data;
@@ -167,6 +168,9 @@ export function buildProtectedActivationProfileUpdate(
 
 export const EXISTING_ACCOUNT_MESSAGE =
   "This contact already belongs to a Sanative account. Continue as that member, or verify with a different email or mobile to sign up someone else.";
+
+export const ESTABLISHED_MEMBER_CHECKOUT_MESSAGE =
+  "Thanks for verifying your email. We noticed you are already a member. Please go to the portal and log on, or enter a new email to create a new account.";
 
 export const PHONE_IN_USE_MESSAGE =
   "This mobile number already belongs to another Sanative account. Please use that person's own mobile, or continue with the account linked to this number.";

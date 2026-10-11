@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +39,47 @@ export type CareSupportThread = {
   lastMessageAt: string;
   messages: CareSupportMessage[];
 };
+
+export function careSupportThreadsEqual(
+  left: CareSupportThread[],
+  right: CareSupportThread[]
+): boolean {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    const a = left[i];
+    const b = right[i];
+    if (
+      a.id !== b.id ||
+      a.subject !== b.subject ||
+      a.status !== b.status ||
+      a.lastMessageAt !== b.lastMessageAt ||
+      a.messages.length !== b.messages.length
+    ) {
+      return false;
+    }
+    for (let j = 0; j < a.messages.length; j++) {
+      const am = a.messages[j];
+      const bm = b.messages[j];
+      if (
+        am.id !== bm.id ||
+        am.body !== bm.body ||
+        am.readByStaff !== bm.readByStaff ||
+        am.readByMember !== bm.readByMember
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function scrollThreadIntoView(threadId: string) {
+  document.getElementById(`care-thread-${threadId}`)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
 
 type Theme = "sage" | "rose";
 
@@ -108,6 +149,7 @@ export function CareSupportThreadList({
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [replyingId, setReplyingId] = useState<string | null>(null);
+  const scrolledQueryThreadRef = useRef<string | null>(null);
 
   useEffect(() => {
     const fromQuery = readThreadQuery();
@@ -121,11 +163,15 @@ export function CareSupportThreadList({
     }
   }, [threads]);
 
+  // Deep-link (?thread=) scrolls once after the card mounts. Poll refreshes must not.
   useEffect(() => {
-    if (!openThreadId || threads.length === 0) return;
-    const el = document.getElementById(`care-thread-${openThreadId}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [openThreadId, threads]);
+    const fromQuery = readThreadQuery();
+    if (!fromQuery || fromQuery !== openThreadId) return;
+    if (scrolledQueryThreadRef.current === fromQuery) return;
+    if (!document.getElementById(`care-thread-${fromQuery}`)) return;
+    scrolledQueryThreadRef.current = fromQuery;
+    scrollThreadIntoView(fromQuery);
+  }, [openThreadId, threads.length]);
 
   // Keep open conversation fresh without requiring Refresh / bell click
   useEffect(() => {
@@ -150,6 +196,7 @@ export function CareSupportThreadList({
     setOpenThreadId(threadId);
     writeThreadQuery(threadId);
     markMatchingActionUrlRead(`thread=${threadId}`);
+    requestAnimationFrame(() => scrollThreadIntoView(threadId));
   };
 
   const sendReply = async (threadId: string) => {

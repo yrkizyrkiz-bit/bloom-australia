@@ -47,6 +47,8 @@ import { sameOriginMagicHref } from "@/lib/app-base-url";
 import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.module.css";
 import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
 import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
+import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { ESTABLISHED_MEMBER_CHECKOUT_MESSAGE } from "@/lib/auth/member-identity-guard";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -418,11 +420,6 @@ function MembershipCheckoutPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [existingUser, setExistingUser] = useState<{
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    phone: string | null;
     isEstablished?: boolean;
   } | null>(null);
   /** True after the member confirms "continue as me" on an existing email match. */
@@ -541,12 +538,12 @@ function MembershipCheckoutPageContent() {
       } else if (data.existingUser) {
         setExistingUser(data.existingUser);
         setPhoneAlreadyRegistered(false);
-        setFirstName(data.existingUser.firstName || "");
-        setLastName(data.existingUser.lastName || "");
-        setEmail(data.existingUser.email || "");
-        setPhone(data.existingUser.phone || (verifyMethod === "phone" ? contact : ""));
+        setFirstName("");
+        setLastName("");
+        setEmail(contact);
+        setPhone("");
         setContinuingAsExisting(false);
-        setStep("existing_account");
+        setStep(data.existingUser.isEstablished ? "existing_account" : "payment");
       } else if (verifyMethod === "email") {
         setExistingUser(null);
         setContinuingAsExisting(false);
@@ -565,18 +562,6 @@ function MembershipCheckoutPageContent() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const continueAsExistingAccount = () => {
-    if (!existingUser) return;
-    setFirstName(existingUser.firstName || "");
-    setLastName(existingUser.lastName || "");
-    setEmail(existingUser.email || "");
-    setPhone(existingUser.phone || (verifyMethod === "phone" ? contact : phone));
-    setContinuingAsExisting(true);
-    setPhoneAlreadyRegistered(false);
-    setError(null);
-    setStep("payment");
   };
 
   const continueWithSharedMobile = () => {
@@ -885,8 +870,6 @@ function MembershipCheckoutPageContent() {
   );
 
   const renderExistingAccountStep = () => {
-    const contactLabel = verifyMethod === "email" ? "email" : "mobile number";
-
     if (verifyMethod === "phone" || phoneAlreadyRegistered) {
       return (
         <div className="space-y-6">
@@ -933,10 +916,6 @@ function MembershipCheckoutPageContent() {
       );
     }
 
-    const displayName =
-      [existingUser?.firstName, existingUser?.lastName].filter(Boolean).join(" ") ||
-      "your account";
-
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl">
@@ -944,37 +923,36 @@ function MembershipCheckoutPageContent() {
             <Check className="w-4 h-4 text-white" />
           </div>
           <span className="text-sm text-green-800">
-            Verified {contactLabel}
+            Thanks for verifying your email
           </span>
         </div>
 
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
-            This {contactLabel} already has an account
+            You are already a member
           </h3>
           <p className="text-sm text-gray-500">
-            Continue only if this is you. To sign up someone else, use their own email.
+            {ESTABLISHED_MEMBER_CHECKOUT_MESSAGE}
           </p>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <button
-          type="button"
-          onClick={continueAsExistingAccount}
+        <Link
+          href={`/login?redirect=${encodeURIComponent(MEMBER_PROGRAMS_HOME)}`}
           className="w-full py-3.5 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl
             transition-colors flex items-center justify-center gap-2"
         >
-          Continue as {displayName}
+          Log on to your portal
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Link>
         <button
           type="button"
           onClick={useDifferentContact}
           className="w-full py-3.5 border-2 border-gray-200 hover:border-gray-300 text-gray-700
             font-semibold rounded-xl transition-colors"
         >
-          Use a different {contactLabel}
+          Enter a new email
         </button>
       </div>
     );
@@ -1107,6 +1085,10 @@ function MembershipCheckoutPageContent() {
                     className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
                       px-4 py-3.5 text-base outline-none transition-colors"
                   />
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Use your own email. If it is already registered, enter a different
+                    one — you do not need to verify it again.
+                  </p>
                 </div>
               )}
             </>
@@ -1157,12 +1139,9 @@ function MembershipCheckoutPageContent() {
             onSuccess={handlePaymentSuccess}
             amountAud={priceAud}
             customerEmail={
-              continuingAsExisting
-                ? existingUser?.email || email || undefined
-                : (verifyMethod === "email" ? contact : email) || undefined
+              (verifyMethod === "email" ? contact : email) || undefined
             }
             customerName={`${firstName} ${lastName}`.trim() || undefined}
-            userId={continuingAsExisting ? existingUser?.id : undefined}
           />
         </Elements>
       )}

@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Pill,
   HelpCircle,
+  Grid3X3,
   Settings,
   Plus,
   Lock,
@@ -23,6 +24,7 @@ import {
   TabIndicator,
 } from "@/components/weight-management/PageTransition";
 import { WeightManagementPortalShell } from "@/components/portal/WeightManagementPortalShell";
+import { CareTeamChatHost } from "@/components/chat/CareTeamChatHost";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { hasPortalFeature } from "@/components/portal/ProgramFeatureGate";
 import { MEMBER_PROGRAMS_HOME, resolveMemberBackPath } from "@/lib/portal/member-home";
@@ -30,6 +32,7 @@ import { isProgramEntitled } from "@/lib/membership/program-access";
 
 const weightNavItems = [
   { href: "/dashboard/weight-management", label: "Home", icon: Home, exact: true },
+  { href: MEMBER_PROGRAMS_HOME, label: "Programs", icon: Grid3X3 },
   { href: "/dashboard/weight-management/learn", label: "Learn", icon: Lightbulb, hidden: true },
   {
     href: "/dashboard/weight-management/progress",
@@ -90,6 +93,7 @@ function WeightManagementLayoutInner({
 
   return (
     <NavigationProvider>
+      <CareTeamChatHost>
       <div className="min-h-screen pb-20 md:pb-0 md:pl-56">
         <div className="w-full">
           <PageTransition>
@@ -278,6 +282,7 @@ function WeightManagementLayoutInner({
           </LayoutGroup>
         </aside>
       </div>
+      </CareTeamChatHost>
     </NavigationProvider>
   );
 }

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  orderProgramPaymentIntentIds,
+  portalPaymentFailureIsTerminal,
+  portalProgramChargeAllowed,
   programKeysForPrescriptionCategory,
+  weightDecisionShouldUseMembershipPayment,
 } from "@/lib/stripe/verify-portal-program-care-payment";
 
 describe("programKeysForPrescriptionCategory", () => {
-  it("maps hair / sexual / hormone categories to program keys", () => {
+  it("maps hair / sexual / hormone / weight categories to program keys", () => {
     expect(programKeysForPrescriptionCategory("HAIR_LOSS")).toEqual(["HAIR_LOSS"]);
     expect(programKeysForPrescriptionCategory("SEXUAL_HEALTH")).toEqual([
       "MENS_HEALTH_SEXUAL",
@@ -14,6 +18,65 @@ describe("programKeysForPrescriptionCategory", () => {
       "WOMENS_HEALTH_SEXUAL",
       "WOMENS_HEALTH_VITALITY",
     ]);
-    expect(programKeysForPrescriptionCategory("WEIGHT_MANAGEMENT")).toEqual([]);
+    expect(programKeysForPrescriptionCategory("WEIGHT_MANAGEMENT")).toEqual([
+      "WEIGHT_MANAGEMENT",
+    ]);
+  });
+});
+
+describe("shared consult payment selection", () => {
+  it("tries the program payment before another program's charge stored on the consult", () => {
+    expect(
+      orderProgramPaymentIntentIds({
+        matchingIds: ["pi_weight"],
+        otherIds: ["pi_womens_on_booking", "pi_weight"],
+      })
+    ).toEqual(["pi_weight", "pi_womens_on_booking"]);
+  });
+
+  it("accepts a portal charge that matches its catalog price", () => {
+    expect(portalProgramChargeAllowed(24900, 24900)).toBe(true);
+    expect(portalProgramChargeAllowed(86400, 36500)).toBe(false);
+    expect(portalProgramChargeAllowed(32400, null)).toBe(true);
+  });
+
+  it("keeps looking when the consult charge belongs to another program", () => {
+    expect(
+      portalPaymentFailureIsTerminal({
+        error: "Payment does not match the prescribed program",
+        paymentWasForThisProgram: false,
+      })
+    ).toBe(false);
+    expect(
+      portalPaymentFailureIsTerminal({
+        error: "Program payment has been refunded",
+        paymentWasForThisProgram: true,
+      })
+    ).toBe(true);
+  });
+
+  it("uses the membership amount check only when no portal program charge verified", () => {
+    expect(
+      weightDecisionShouldUseMembershipPayment({
+        ok: true,
+        paymentIntentId: "pi_weight",
+        programKey: "WEIGHT_MANAGEMENT",
+        backfilled: false,
+      })
+    ).toBe(false);
+    expect(
+      weightDecisionShouldUseMembershipPayment({
+        ok: false,
+        error: "Payment does not match the prescribed program",
+        status: 400,
+      })
+    ).toBe(true);
+    expect(
+      weightDecisionShouldUseMembershipPayment({
+        ok: false,
+        error: "Invalid payment amount",
+        status: 400,
+      })
+    ).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { classifyPublicEmailAccount } from "@/lib/funnel/public-email-state";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
   enforceIpRateLimit,
@@ -28,27 +29,18 @@ export async function POST(req: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if user exists
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: {
-        id: true,
-        subscriptionTier: true,
+        passwordHash: true,
+        subscriptionStatus: true,
         journeyStatus: true,
+        memberStatus: true,
       },
     });
 
-    if (existingUser) {
-      return NextResponse.json({
-        exists: true,
-        hasActiveProgram: !!existingUser.subscriptionTier,
-        journeyStatus: existingUser.journeyStatus,
-      });
-    }
-
-    return NextResponse.json({
-      exists: false,
-    });
+    const state = classifyPublicEmailAccount(existingUser);
+    return NextResponse.json({ state });
   } catch (error) {
     console.error("Error checking email:", error);
     return NextResponse.json(

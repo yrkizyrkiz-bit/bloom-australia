@@ -30,6 +30,13 @@ import Link from "next/link";
 import { ConsentNotice } from "@/components/legal/ConsentNotice";
 import { logConsentEvent } from "@/lib/legal/log-consent";
 import { ProspectiveMemberResumeVerification } from "@/components/funnel/ProspectiveMemberResumeVerification";
+import { emailGateAction } from "@/lib/funnel/public-email-state";
+import {
+  quizAnswersFromDraft,
+  resumeWeightManagementStep,
+  WM_FUNNEL_PAYMENT_STEP,
+  WM_FUNNEL_RESUME_MIN_STEP,
+} from "@/lib/funnel/wm-funnel-draft";
 import { calculateBmi } from "@/lib/bmi";
 import { formatMaskedQuizDob, validateQuizDob } from "@/lib/funnel/quiz-dob";
 import { QuizDobTripleInput } from "@/components/funnel/QuizDobTripleInput";
@@ -812,16 +819,17 @@ function EmailGateScreen({
   targetWeight,
   firstName,
   onSubmit,
+  onRequestResume,
 }: {
   currentWeight: number;
   targetWeight: number;
   firstName?: string;
   onSubmit: (email: string) => void | Promise<void>;
+  onRequestResume: (email: string) => void;
 }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [existingUserInfo, setExistingUserInfo] = useState<{ hasActiveProgram?: boolean } | null>(null);
 
   const handleSubmit = async () => {
     if (!email || !email.includes('@')) return;
@@ -829,7 +837,6 @@ function EmailGateScreen({
 
     try {
       // Check if email already exists (non-blocking - if check fails, continue anyway)
-      let emailExists = false;
       try {
         const checkRes = await fetch('/api/auth/check-email', {
           method: 'POST',
@@ -839,14 +846,16 @@ function EmailGateScreen({
 
         if (checkRes.ok) {
           const checkData = await checkRes.json();
-          if (checkData.exists) {
-            emailExists = true;
-            setExistingUserInfo({
-              hasActiveProgram: checkData.hasActiveProgram,
-            });
+          const action = emailGateAction(checkData);
+          if (action === "member") {
             setShowDuplicateWarning(true);
             setLoading(false);
-            return; // Stop here - show duplicate warning
+            return;
+          }
+          if (action === "resume") {
+            setLoading(false);
+            onRequestResume(email.toLowerCase().trim());
+            return;
           }
         }
       } catch (checkError) {
@@ -880,7 +889,6 @@ function EmailGateScreen({
 
   const handleUseDifferentEmail = () => {
     setShowDuplicateWarning(false);
-    setExistingUserInfo(null);
     setEmail('');
   };
 
@@ -916,21 +924,12 @@ function EmailGateScreen({
             </p>
 
             <div className="space-y-3">
-              {existingUserInfo?.hasActiveProgram ? (
-                <Link
-                  href="/login?redirect=/dashboard/weight-management"
-                  className="block w-full py-3 bg-[#5c7a52] hover:bg-[#4a6343] text-white font-semibold rounded-xl text-center transition-colors"
-                >
-                  Log in to your portal
-                </Link>
-              ) : (
-                <Link
-                  href="/login?redirect=/dashboard/weight-management"
-                  className="block w-full py-3 bg-[#5c7a52] hover:bg-[#4a6343] text-white font-semibold rounded-xl text-center transition-colors"
-                >
-                  Log in to continue your assessment
-                </Link>
-              )}
+              <Link
+                href="/login?redirect=/dashboard/weight-management"
+                className="block w-full py-3 bg-[#5c7a52] hover:bg-[#4a6343] text-white font-semibold rounded-xl text-center transition-colors"
+              >
+                Log in to your portal
+              </Link>
 
               <button
                 onClick={handleUseDifferentEmail}
@@ -1997,6 +1996,7 @@ export default function WeightLossAssessmentPage() {
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [campaigns, setCampaigns] = useState<BiomarkerCampaignData[]>([]);
   const [membershipPaid, setMembershipPaid] = useState(false);
+  const [draftSaveEnabled, setDraftSaveEnabled] = useState(false);
   const [biomarkersPaid] = useState(false);
   const [offerCountdown, setOfferCountdown] = useState(300); // 5 minutes in seconds
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -2098,6 +2098,52 @@ export default function WeightLossAssessmentPage() {
   const updateFormData = (field: keyof FormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  const restoreUnfinishedDraft = async (email: string, id: string, resumeToken: string) => {
+    try {
+      const response = await fetch(
+        `/api/public/funnel-draft?email=${encodeURIComponent(email)}&userId=${encodeURIComponent(id)}`,
+        { headers: { "x-resume-token": resumeToken } }
+      );
+      if (!response.ok) {
+        setStep(WM_FUNNEL_RESUME_MIN_STEP);
+        return;
+      }
+      const data = await response.json();
+      const quiz = quizAnswersFromDraft(data.quiz as Record<string, unknown> | undefined);
+      setFormData((prev) => ({
+        ...prev,
+        ...(quiz as Partial<FormData>),
+        email,
+      }));
+      const resumeStep =
+        typeof data.resumeStep === "number"
+          ? resumeWeightManagementStep(data.resumeStep, data.resumeStep >= WM_FUNNEL_PAYMENT_STEP)
+          : WM_FUNNEL_RESUME_MIN_STEP;
+      setStep(resumeStep);
+    } catch {
+      setStep(WM_FUNNEL_RESUME_MIN_STEP);
+    } finally {
+      setDraftSaveEnabled(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!draftSaveEnabled || !userId || !formData.email || step < WM_FUNNEL_RESUME_MIN_STEP) return;
+    const handle = window.setTimeout(() => {
+      void fetch("/api/public/funnel-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          userId,
+          draftStep: step,
+          quiz: formData,
+        }),
+      });
+    }, 700);
+    return () => window.clearTimeout(handle);
+  }, [draftSaveEnabled, userId, step, formData]);
 
   const toggleArrayField = (
     field: keyof FormData,
@@ -3047,6 +3093,12 @@ export default function WeightLossAssessmentPage() {
           currentWeight={current}
           targetWeight={target}
           firstName={formData.firstName}
+          onRequestResume={(email) => {
+            updateFormData("email", email);
+            setResumeVerificationFirstName(null);
+            setResumeContext("email-gate");
+            setShowResumeVerification(true);
+          }}
           onSubmit={async (email) => {
             updateFormData("email", email);
 
@@ -3076,7 +3128,8 @@ export default function WeightLossAssessmentPage() {
               if (response.ok) {
                 setUserId(data.userId);
                 console.log("[Quiz] User created early at email gate:", data.userId);
-                setStep(7);
+                setStep(WM_FUNNEL_RESUME_MIN_STEP);
+                setDraftSaveEnabled(true);
                 window.scrollTo(0, 0);
                 return;
               }
@@ -3095,14 +3148,11 @@ export default function WeightLossAssessmentPage() {
                   .includes("email verification required");
 
               if (resumeRequired) {
-                setResumeVerificationFirstName(data.firstName ?? formData.firstName ?? null);
+                setResumeVerificationFirstName(null);
                 setResumeContext("email-gate");
                 setShowResumeVerification(true);
                 return;
               }
-
-              // Existing prospective WM leads can now continue without OTP, retry once
-              // is unnecessary; advance and let shipping save with the same email.
               console.error("[Quiz] Error creating early user:", response.status, data);
             } catch (error) {
               console.error("[Quiz] Error creating early user:", error);
@@ -3921,12 +3971,17 @@ export default function WeightLossAssessmentPage() {
               const data = await response.json().catch(() => ({}));
               if (response.ok && data.userId) {
                 setUserId(data.userId);
+                await restoreUnfinishedDraft(formData.email, data.userId, sessionToken);
+              } else {
+                setStep(WM_FUNNEL_RESUME_MIN_STEP);
+                setDraftSaveEnabled(true);
               }
             } catch (error) {
               console.error("[Quiz] Resume email-gate intake failed:", error);
+              setStep(WM_FUNNEL_RESUME_MIN_STEP);
+              setDraftSaveEnabled(true);
             }
             setResumeContext(null);
-            setStep(7);
             window.scrollTo(0, 0);
           }
         }}

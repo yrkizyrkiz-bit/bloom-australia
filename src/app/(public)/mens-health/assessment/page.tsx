@@ -30,7 +30,6 @@ import { ProspectiveMemberResumeVerification } from "@/components/funnel/Prospec
 import { VITALITY_PROGRAM_RELEASED } from "@/lib/programs/release-flags";
 import {
   buildLoginRedirectUrl,
-  fetchExistingAccountFirstName,
   submitPublicIntake,
 } from "@/lib/funnel/intake-response";
 import { QuizDobTripleInput } from "@/components/funnel/QuizDobTripleInput";
@@ -310,7 +309,6 @@ function AssessmentContent() {
   const [showExistingAccountPrompt, setShowExistingAccountPrompt] = useState(false);
   const [showResumeVerification, setShowResumeVerification] = useState(false);
   const [resumeVerificationFirstName, setResumeVerificationFirstName] = useState<string | null>(null);
-  const [existingUserFirstName, setExistingUserFirstName] = useState<string | null>(null);
   const [showMembershipBackbone, setShowMembershipBackbone] = useState(false);
   const [advanceMembershipToPay, setAdvanceMembershipToPay] = useState(false);
   const latestProfileRef = useRef<FunnelProfileFields | null>(null);
@@ -508,7 +506,6 @@ function AssessmentContent() {
   const handleUseDifferentEmail = () => {
     setShowExistingAccountPrompt(false);
     setShowResumeVerification(false);
-    setExistingUserFirstName(null);
     setResumeVerificationFirstName(null);
     setSubmissionError(null);
     updateFormData("email", "");
@@ -569,8 +566,6 @@ function AssessmentContent() {
       }
 
       if ("emailExists" in result && result.emailExists) {
-        const firstName = await fetchExistingAccountFirstName(formData.email);
-        setExistingUserFirstName(firstName);
         setShowExistingAccountPrompt(true);
         return false;
       }
@@ -1192,7 +1187,6 @@ function AssessmentContent() {
     <>
       <ExistingAccountPrompt
         open={showExistingAccountPrompt}
-        firstName={existingUserFirstName}
         loginHref={buildLoginRedirectUrl("/dashboard")}
         onUseDifferentEmail={handleUseDifferentEmail}
       />

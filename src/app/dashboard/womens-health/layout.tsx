@@ -11,10 +11,11 @@ import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import {
   BarChart3,
   CalendarDays,
+  Grid3X3,
   Heart,
+  HelpCircle,
   Home,
   Loader2,
-  MessageCircle,
   Pill,
 } from "lucide-react";
 import { motion, LayoutGroup } from "framer-motion";
@@ -25,11 +26,16 @@ import {
 
 const womensHealthNavItems = [
   { href: "/dashboard/womens-health", label: "Home", icon: Home, exact: true },
+  { href: MEMBER_PROGRAMS_HOME, label: "Programs", icon: Grid3X3 },
   { href: "/dashboard/womens-health/check-in", label: "Data", icon: CalendarDays },
   { href: "/dashboard/womens-health/reports", label: "Reports", icon: BarChart3 },
   { href: "/dashboard/womens-health/treatment", label: "Treatment", icon: Pill },
-  { href: "/dashboard/womens-health/care", label: "Care", icon: MessageCircle },
+  { href: "/dashboard/womens-health/care", label: "Care Team", icon: HelpCircle },
 ];
+
+const womensMobileNavItems = womensHealthNavItems.filter(
+  (item) => item.href !== "/dashboard/womens-health/reports"
+);
 
 const quickActions = [
   { href: "/dashboard/biomarkers?view=program&program=WOMENS_HEALTH", label: "Women's Biomarkers" },
@@ -82,7 +88,7 @@ export default function WomensHealthLayout({
         <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-lg border-t border-rose-100 safe-area-bottom shadow-lg">
           <LayoutGroup id="mobile-nav-womens">
             <div className="flex items-center justify-around h-16 px-1">
-              {womensHealthNavItems.map((item) => {
+              {womensMobileNavItems.map((item) => {
                 const active = isActive(item.href, item.exact);
                 return (
                   <Link key={item.href} href={item.href} className="flex-1 h-full">

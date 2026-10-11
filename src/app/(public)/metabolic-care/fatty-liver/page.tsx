@@ -337,7 +337,7 @@ export default function FattyLiverPage() {
         </section>
 
         {/* What is Fatty Liver Section */}
-        <section className="py-20 lg:py-28 bg-[#fdfbf7]">
+        <section id="fatty-liver" className="scroll-mt-24 py-20 lg:py-28 bg-[#fdfbf7]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               <div>

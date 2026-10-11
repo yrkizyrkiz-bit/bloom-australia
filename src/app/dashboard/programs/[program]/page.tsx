@@ -532,11 +532,6 @@ export default function InPortalProgramPage() {
                 )}
               </Button>
             )}
-            {sexualHealth && (
-              <p className="mt-3 text-center text-xs text-[#7e9a72]">
-                No prescription is issued until after your consultation.
-              </p>
-            )}
           </CardContent>
         </Card>
       )}

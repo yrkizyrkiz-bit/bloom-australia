@@ -6,8 +6,12 @@ export type ExistingVerifiedUser = {
   phone: string | null;
 };
 
+export type PublicExistingUser = {
+  isEstablished: boolean;
+};
+
 export type PublicVerifiedContactIdentity = {
-  existingUser: (ExistingVerifiedUser & { isEstablished: boolean }) | null;
+  existingUser: PublicExistingUser | null;
   phoneAlreadyRegistered: boolean;
   bindUserId: string | null;
 };
@@ -15,6 +19,8 @@ export type PublicVerifiedContactIdentity = {
 /**
  * What /api/auth/verify-code may return to the browser.
  * Phone matches must never leak another member's name, email, or id.
+ * Email matches must not return name or phone — only whether they are
+ * already a member, so checkout can send them to the portal.
  */
 export function publicVerifiedContactIdentity(input: {
   type: "email" | "phone";
@@ -39,11 +45,6 @@ export function publicVerifiedContactIdentity(input: {
 
   return {
     existingUser: {
-      id: input.existingUser.id,
-      email: input.existingUser.email,
-      firstName: input.existingUser.firstName,
-      lastName: input.existingUser.lastName,
-      phone: input.existingUser.phone,
       isEstablished: input.isEstablished,
     },
     phoneAlreadyRegistered: false,

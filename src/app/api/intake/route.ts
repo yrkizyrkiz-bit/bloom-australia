@@ -17,6 +17,7 @@ import {
   isProspectiveEnrollment,
 } from "@/lib/funnel/member-enrollment-phase";
 import { verifyResumeVerificationToken } from "@/lib/funnel/resume-verification-token";
+import { prospectiveResumeAuthorized } from "@/lib/funnel/prospective-resume-auth";
 import { findProgramMemberByUserOrEmail } from "@/lib/portal/program-member-upsert";
 import { calculateBmi } from "@/lib/bmi";
 
@@ -318,22 +319,17 @@ export async function POST(req: NextRequest) {
         ? verifyResumeVerificationToken(resumeToken, existing.email)
         : { valid: false as const };
 
-      // Same-browser funnel continuation: email gate already created this user and
-      // the client still holds the returned userId (e.g. WM shipping step).
+      // Same browser session that already created this lead (shipping, refresh).
+      // A later visit must verify the email before the application can resume.
       const sameSessionContinuation =
         Boolean(clientUserId) && clientUserId === existing.id;
+      const tokenValid =
+        tokenCheck.valid && !(tokenCheck.userId && tokenCheck.userId !== existing.id);
 
-      // Weight management captures the lead at the email gate, then updates the same
-      // prospective record at shipping. Requiring OTP there blocks legitimate resumes
-      // (refresh, returning to the same email). Other programs still require verification.
-      const weightManagementProspectiveResume =
-        programType === "WEIGHT_MANAGEMENT" && canResumeProspectiveIntake;
-
-      const resumeAuthorized =
-        sameSessionContinuation ||
-        weightManagementProspectiveResume ||
-        (tokenCheck.valid &&
-          !(tokenCheck.userId && tokenCheck.userId !== existing.id));
+      const resumeAuthorized = prospectiveResumeAuthorized({
+        sameSession: sameSessionContinuation,
+        tokenValid,
+      });
 
       if (!resumeAuthorized) {
         console.log("[Intake API] Resume verification required:", existing.email);

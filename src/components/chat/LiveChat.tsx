@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,13 @@ function mergeChatMessages(existing: ChatMessage[], incoming: ChatMessage[]): Ch
   return Array.from(byId.values()).sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
+}
+
+function ViewportPortal({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
 }
 
 function getLastPersistedMessageId(messages: ChatMessage[]): string | undefined {
@@ -370,6 +378,7 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
   if (!isOpen) return null;
 
   return (
+    <ViewportPortal>
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -613,23 +622,26 @@ export function LiveChat({ isOpen, onClose, onMinimize, minimized = false }: Liv
         </Card>
       </motion.div>
     </AnimatePresence>
+    </ViewportPortal>
   );
 }
 
 // Floating Chat Button
 export function ChatButton({ onClick, hasUnread = false }: { onClick: () => void; hasUnread?: boolean }) {
   return (
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      aria-label={`Chat with ${GEORGE_NAME}`}
-      className="fixed top-[calc(50dvh-1.75rem)] right-4 z-[60] md:right-6 w-14 h-14 rounded-full bg-white text-[#4a6243] shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow border border-[#cdd8c6] overflow-hidden"
-    >
-      <GeorgeMascot size="sm" cropFace />
-      {hasUnread && (
-        <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-white" />
-      )}
-    </motion.button>
+    <ViewportPortal>
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={onClick}
+        aria-label={`Chat with ${GEORGE_NAME}`}
+        className="fixed bottom-8 right-6 z-[200] flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#4a6243] bg-white text-[#4a6243] shadow-xl"
+      >
+        <GeorgeMascot size="md" cropFace />
+        {hasUnread && (
+          <span className="absolute top-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-red-500" />
+        )}
+      </motion.button>
+    </ViewportPortal>
   );
 }

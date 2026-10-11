@@ -68,21 +68,20 @@ describe("buildProtectedActivationProfileUpdate", () => {
     expect(update).toEqual({});
   });
 
-  it("fills only empty fields when protecting PII", () => {
+  it("writes nothing for an established member, including empty fields", () => {
     const update = buildProtectedActivationProfileUpdate(
-      { ...existing, addressLine2: null, suburb: null },
+      { ...existing, addressLine2: null, suburb: null, phone: null },
       {
         firstName: "Friend",
+        phone: "0499999999",
         addressLine2: "Unit 2",
         suburb: "Melbourne",
+        dateOfBirth: new Date("2000-01-01"),
       },
       true
     );
 
-    expect(update).toEqual({
-      addressLine2: "Unit 2",
-      suburb: "Melbourne",
-    });
+    expect(update).toEqual({});
   });
 
   it("applies full profile when not protecting (new / prospective)", () => {

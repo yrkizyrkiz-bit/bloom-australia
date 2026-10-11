@@ -68,9 +68,9 @@ function normaliseEmail(value: string | null | undefined): string {
  * - Email verified: the email is the verified address. A different body email
  *   is rejected.
  * - Mobile verified: never bind to another member who already has that number.
- *   A new email is required, and must not already belong to someone else,
- *   otherwise a stranger could attach a payment to that account. Duplicate
- *   mobiles are allowed and flagged for triage at activation.
+ *   A new unused email is enough — no second OTP. If the email is already
+ *   registered, ask for a different one instead of attaching this payment
+ *   to that account. Duplicate mobiles are allowed and flagged at activation.
  */
 export async function bindCheckoutEmail(
   claims: VerifiedContactClaims,
@@ -131,7 +131,7 @@ export async function bindCheckoutEmail(
       ok: false,
       status: 409,
       error:
-        "An account already exists for this email. Please verify with your email address to continue.",
+        "An account is already registered with this email. Use a different email to continue.",
     };
   }
   return { ok: true, email: requested, userId: null };

@@ -8,23 +8,31 @@ import {
   Target,
   Grid3X3,
   LayoutDashboard,
+  HelpCircle,
 } from "lucide-react";
-import { MEMBER_HEALTH_OVERVIEW, MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
+import { MEMBER_CARE_TEAM, MEMBER_HEALTH_OVERVIEW, MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: MEMBER_HEALTH_OVERVIEW, label: "Home", icon: LayoutDashboard, match: "exact" as const },
-  { href: MEMBER_PROGRAMS_HOME, label: "Programs", icon: Grid3X3, match: "prefix" as const },
-  { href: "/dashboard/goals", label: "Goals", icon: Target, match: "prefix" as const },
-  { href: "/dashboard/reports", label: "Reports", icon: History, match: "prefix" as const },
-];
 
 export function MobileNav() {
   const pathname = usePathname() || "";
   const { user } = useAuth();
 
-  // Hide default nav when in weight management (has its own nav)
-  if (pathname.startsWith("/dashboard/weight-management")) return null;
+  const navItems = [
+    { href: MEMBER_HEALTH_OVERVIEW, label: "Home", icon: LayoutDashboard, match: "exact" as const },
+    { href: MEMBER_PROGRAMS_HOME, label: "Programs", icon: Grid3X3, match: "prefix" as const },
+    { href: "/dashboard/goals", label: "Goals", icon: Target, match: "prefix" as const },
+    { href: "/dashboard/reports", label: "Reports", icon: History, match: "prefix" as const },
+    { href: MEMBER_CARE_TEAM, label: "Care Team", icon: HelpCircle, match: "prefix" as const },
+  ];
+
+  // Program shells have their own lower menu (with Programs in the same slot).
+  if (
+    pathname.startsWith("/dashboard/weight-management") ||
+    pathname.startsWith("/dashboard/mens-health") ||
+    pathname.startsWith("/dashboard/womens-health")
+  ) {
+    return null;
+  }
 
   if (!user) return null;
 

@@ -10,7 +10,7 @@ export function Footer() {
       { label: "Hair Health", href: "/hair-health" },
       { label: "Menopause", href: "/womens-health" },
       { label: "Erectile Dysfunction", href: "/mens-health/erectile-dysfunction" },
-      { label: "Fatty Liver", href: "/metabolic-care/fatty-liver" },
+      { label: "Fatty Liver", href: "/metabolic-care/fatty-liver#fatty-liver" },
       { label: "Organ Care", href: "/organ-care" },
     ],
     resources: [

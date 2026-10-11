@@ -28,6 +28,7 @@ import {
   Heart,
   Pill,
   LayoutGrid,
+  Grid3X3,
   Calendar,
 } from "lucide-react";
 import { motion, LayoutGroup } from "framer-motion";
@@ -43,8 +44,21 @@ type NavItem = {
   exact?: boolean;
 };
 
+const programsNavItem: NavItem = {
+  href: MEMBER_PROGRAMS_HOME,
+  label: "Programs",
+  icon: Grid3X3,
+};
+
 const hairNavItems: NavItem[] = [
-  { href: "/dashboard/mens-health/hair-loss", label: "Hair", icon: Sparkles },
+  { href: "/dashboard/mens-health/hair-loss", label: "Home", icon: Home, exact: true },
+  programsNavItem,
+  {
+    href: "/dashboard/mens-health/hair-loss/check-in",
+    label: "Check-in",
+    icon: Calendar,
+  },
+  { href: "/dashboard/mens-health/treatment", label: "Treatment", icon: Pill },
   ...(VITALITY_PROGRAM_RELEASED
     ? [{ href: "/dashboard/mens-health/vitality", label: "Vitality", icon: Zap }]
     : []),
@@ -55,10 +69,11 @@ const hairNavItems: NavItem[] = [
 const sexualHealthNavItems: NavItem[] = [
   {
     href: "/dashboard/mens-health/sexual-health",
-    label: "Overview",
-    icon: Heart,
+    label: "Home",
+    icon: Home,
     exact: true,
   },
+  programsNavItem,
   {
     href: "/dashboard/mens-health/sexual-health/check-in",
     label: "Check-in",
