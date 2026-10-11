@@ -3,7 +3,11 @@ import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { isProductionRuntime } from "@/lib/security/jwt-secret";
 import type { EmailProcessKey } from "@/lib/email-process";
-import { formatFromHeader, resolveEmailIdentity } from "@/lib/email-identity";
+import {
+  alignFromWithGoogleSmtpUser,
+  formatFromHeader,
+  resolveEmailIdentity,
+} from "@/lib/email-identity";
 import {
   clinicWelcomeEmail,
   patientWelcomeEmail,
@@ -613,6 +617,8 @@ interface SendEmailOptions {
   to: string | string[];
   subject: string;
   body: string;
+  /** Plain-text part. When omitted, it is derived from body. */
+  text?: string;
   from?: string;
   replyTo?: string;
   tags?: Array<{ name: string; value: string }>;
@@ -629,9 +635,11 @@ export async function sendEmail(
   text?: string
 ): Promise<SendEmailResult> {
   if (typeof toOrOptions === "object") {
-    const { to, subject: subj, body, from, replyTo, process, attachments } = toOrOptions;
+    const { to, subject: subj, body, text: plainText, from, replyTo, process, attachments } =
+      toOrOptions;
     const recipient = Array.isArray(to) ? to[0] : to;
-    const text = looksLikeHtml(body) ? htmlToPlainText(body) : body;
+    const text =
+      plainText?.trim() || (looksLikeHtml(body) ? htmlToPlainText(body) : body);
     return sendEmailInternal(recipient, subj, body, text, {
       process,
       from,
@@ -665,10 +673,14 @@ async function sendEmailInternal(
     return { success: false, error: "Email process is disabled" };
   }
 
-  const from =
-    options?.from || formatFromHeader(identity.fromName, identity.fromEmail);
-  const replyTo = options?.replyTo || identity.replyTo;
   const transport = resolveEmailTransport();
+  const requestedFrom =
+    options?.from || formatFromHeader(identity.fromName, identity.fromEmail);
+  const from =
+    transport === "google_workspace"
+      ? alignFromWithGoogleSmtpUser(requestedFrom, process.env.GOOGLE_SMTP_USER)
+      : requestedFrom;
+  const replyTo = options?.replyTo || identity.replyTo;
 
   if (transport === "mock") {
     if (isProductionRuntime()) {

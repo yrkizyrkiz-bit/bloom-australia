@@ -107,3 +107,24 @@ export function formatFromHeader(fromName: string, fromEmail: string): string {
   const safeName = fromName.replace(/[\r\n<>]/g, "").trim() || "Sanative Health";
   return `${safeName} <${fromEmail}>`;
 }
+
+function emailFromHeader(fromHeader: string): string {
+  const match = fromHeader.match(/<([^>]+)>/);
+  return (match?.[1] || fromHeader).trim().toLowerCase();
+}
+
+/**
+ * Google SMTP (smtp.gmail.com) only authenticates the mailbox in GOOGLE_SMTP_USER.
+ * A different From address is rewritten to that mailbox so the header matches the login.
+ */
+export function alignFromWithGoogleSmtpUser(
+  fromHeader: string,
+  smtpUser: string | undefined
+): string {
+  const user = (smtpUser || "").trim().toLowerCase();
+  if (!user.includes("@")) return fromHeader;
+  if (emailFromHeader(fromHeader) === user) return fromHeader;
+  const nameMatch = fromHeader.match(/^\s*([^<]+?)\s*</);
+  const name = nameMatch?.[1]?.replace(/["']/g, "").trim() || "Sanative Health";
+  return formatFromHeader(name, user);
+}
