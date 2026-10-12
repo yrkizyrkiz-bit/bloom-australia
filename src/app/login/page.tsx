@@ -492,16 +492,6 @@ export default function LoginPage() {
               <span className="text-xl font-serif text-[#34412f] promo-heading">sanative</span>
               <span className="text-sm text-[#7e9a72] promo-body">Health</span>
             </div>
-            <div className="flex items-center gap-6 text-sm text-[#7e9a72] promo-body">
-              <span className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52]" />
-                AHPRA Compliant
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5c7a52]" />
-                Australian Owned
-              </span>
-            </div>
           </div>
         </div>
       </footer>
