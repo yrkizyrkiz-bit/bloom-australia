@@ -106,8 +106,9 @@ export async function POST(req: NextRequest) {
     });
 
     if (payment.paymentIntentId && !payment.alreadyPaid) {
+      // Empty string clears a receipt email. Stripe emails a receipt and invoice PDF when one is set, even with Dashboard emails off.
       await stripe.paymentIntents
-        .update(payment.paymentIntentId, { receipt_email: resolvedEmail })
+        .update(payment.paymentIntentId, { receipt_email: "" })
         .catch(() => undefined);
     }
 

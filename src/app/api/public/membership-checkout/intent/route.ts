@@ -106,9 +106,9 @@ export async function POST(req: NextRequest) {
         description: `${pricing.productName}, annual membership (auto-renews)`,
       });
 
-    // Stripe receipts go to the customer email on the subscription invoices.
+    // Empty string clears a receipt email. Stripe emails a receipt and invoice PDF when one is set, even with Dashboard emails off.
     await stripe.paymentIntents
-      .update(paymentIntentId, { receipt_email: resolvedEmail })
+      .update(paymentIntentId, { receipt_email: "" })
       .catch(() => undefined);
 
     return NextResponse.json({

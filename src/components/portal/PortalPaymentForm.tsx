@@ -79,7 +79,7 @@ function CheckoutInner({
         elements,
         confirmParams: {
           return_url: returnUrl,
-          receipt_email: customerEmail || undefined,
+          receipt_email: "",
         },
         redirect: "if_required",
       });
