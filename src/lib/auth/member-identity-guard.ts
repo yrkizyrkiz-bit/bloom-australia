@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { hasPaidMemberJourney } from "@/lib/funnel/member-enrollment-phase";
-import { formatAustralianPhone, formatE164 } from "@/lib/sms";
+import { formatAustralianPhone, formatE164 } from "@/lib/phone-format";
 
 export type MemberIdentitySignals = {
   passwordHash?: string | null;

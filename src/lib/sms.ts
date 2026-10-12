@@ -18,6 +18,9 @@
  */
 
 import { prisma } from "./prisma";
+import { formatAustralianPhone, formatE164 } from "./phone-format";
+
+export { formatAustralianPhone, formatE164 };
 
 export type SMSProvider = "twilio" | "cellcast" | "messagemedia" | "mock";
 
@@ -88,36 +91,6 @@ function isTwilioConfigured(): boolean {
 // ============================================
 // PHONE NUMBER FORMATTING
 // ============================================
-
-/**
- * Format phone number for Australian numbers
- * Converts 0412345678 -> 61412345678
- */
-export function formatAustralianPhone(phone: string): string {
-  // Remove all non-digit characters
-  let formatted = phone.replace(/\D/g, "");
-
-  // Handle Australian numbers
-  if (formatted.startsWith("0")) {
-    formatted = "61" + formatted.substring(1);
-  } else if (formatted.startsWith("4") && formatted.length === 9) {
-    // Mobile starting with 4 without country code
-    formatted = "61" + formatted;
-  } else if (!formatted.startsWith("61") && formatted.length === 9) {
-    formatted = "61" + formatted;
-  }
-
-  return formatted;
-}
-
-/**
- * Format phone number for E.164 (international standard)
- * Returns +61412345678 format
- */
-export function formatE164(phone: string): string {
-  const formatted = formatAustralianPhone(phone);
-  return formatted.startsWith("+") ? formatted : `+${formatted}`;
-}
 
 /**
  * Validate Australian mobile number
