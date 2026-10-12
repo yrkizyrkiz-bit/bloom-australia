@@ -7,24 +7,8 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { toast } from "sonner";
-import {
-  FlaskConical,
-  ArrowLeft,
-  KeyRound,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  LinkIcon,
-} from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 type Stage = "checking" | "invalid" | "form" | "done";
 
@@ -123,150 +107,98 @@ function ResetPasswordContent() {
         : "Enter a new password for your Sanative account.";
 
   return (
-    <div className="min-h-screen gradient-mesh">
-      <nav className="border-b border-border/50 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <FlaskConical className="w-5 h-5 text-white" />
+    <div className="min-h-screen bg-[#fdfbf7]">
+      <div className="mx-auto w-full max-w-sm px-4 py-16">
+        <Link href="/" className="font-serif text-xl text-[#2c3628]">
+          sanative
+        </Link>
+
+        <h1 className="mt-10 font-serif text-2xl text-[#2c3628]">
+          {stage === "checking" ? "Checking your link" : heading}
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">
+          {stage === "checking" ? "One moment." : description}
+        </p>
+
+        {stage === "checking" && (
+          <Loader2 className="mt-8 h-5 w-5 animate-spin text-[#5c7a52]" />
+        )}
+
+        {stage === "form" && (
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>{error}</p>
               </div>
-              <span className="font-serif text-xl font-semibold text-foreground">sanative</span>
-            </Link>
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to login
-            </Link>
-          </div>
-        </div>
-      </nav>
+            )}
 
-      <div className="max-w-md mx-auto px-4 py-20">
-        <Card className="shadow-xl border-border/50">
-          <CardHeader className="space-y-1 text-center pb-6">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              {stage === "checking" ? (
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              ) : stage === "invalid" ? (
-                <LinkIcon className="w-8 h-8 text-primary" />
-              ) : stage === "done" ? (
-                <CheckCircle className="w-8 h-8 text-primary" />
+            <div className="space-y-2">
+              <Label htmlFor="password">New password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                className="h-11"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Repeat your password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setError(null);
+                }}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                className="h-11"
+              />
+            </div>
+
+            <Button type="submit" className="h-11 w-full bg-[#5c7a52] hover:bg-[#4a6343]" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating
+                </>
               ) : (
-                <KeyRound className="w-8 h-8 text-primary" />
+                "Update password"
               )}
-            </div>
-            <CardTitle className="text-2xl font-serif">
-              {stage === "checking" ? "Checking your link" : heading}
-            </CardTitle>
-            <CardDescription>
-              {stage === "checking" ? "One moment..." : description}
-            </CardDescription>
-          </CardHeader>
+            </Button>
+          </form>
+        )}
 
-          {stage === "form" && (
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm">{error}</p>
-                  </div>
-                )}
+        {stage === "invalid" && (
+          <Button asChild className="mt-8 h-11 w-full bg-[#5c7a52] hover:bg-[#4a6343]">
+            <Link href="/forgot-password">Request a new link</Link>
+          </Button>
+        )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">New password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Min 8 characters"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setError(null);
-                    }}
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    className="h-11"
-                    autoFocus
-                  />
-                </div>
+        {stage === "done" && (
+          <Loader2 className="mt-8 h-5 w-5 animate-spin text-[#5c7a52]" />
+        )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm new password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Repeat your new password"
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      setError(null);
-                    }}
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    className="h-11"
-                  />
-                </div>
-
-                <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    <>
-                      <KeyRound className="w-4 h-4 mr-2" />
-                      Update password
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          )}
-
-          {stage === "invalid" && (
-            <CardContent>
-              <Button asChild className="w-full h-11">
-                <Link href="/forgot-password">Request a new reset link</Link>
-              </Button>
-            </CardContent>
-          )}
-
-          {stage === "done" && (
-            <CardContent className="flex justify-center py-2">
-              <Loader2 className="w-6 h-6 text-primary animate-spin" />
-            </CardContent>
-          )}
-
-          <CardFooter className="flex flex-col gap-4 pt-4">
-            <div className="text-center text-sm text-muted-foreground">
-              Remember your password?{" "}
-              <Link href="/" className="text-primary hover:underline font-medium">
-                Sign in
-              </Link>
-            </div>
-          </CardFooter>
-        </Card>
-
-        <div className="mt-6 text-center text-xs text-muted-foreground">
-          <p>For security reasons, password reset links expire after 1 hour.</p>
-        </div>
+        <p className="mt-8 text-sm text-[#5c7a52]">
+          <Link href="/login" className="underline underline-offset-2 hover:text-[#2c3628]">
+            Sign in
+          </Link>
+        </p>
       </div>
-
-      <footer className="border-t border-border/50 bg-white/50 mt-auto absolute bottom-0 left-0 right-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-center items-center gap-6 text-xs text-muted-foreground">
-            <span>AHPRA Compliant</span>
-            <span>Australian Owned</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
