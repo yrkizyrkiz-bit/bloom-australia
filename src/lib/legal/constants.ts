@@ -8,6 +8,7 @@ export const SANATIVE_LEGAL = {
   supportEmail: "support@sanative.com.au",
   privacyEmail: "support@sanative.com.au",
   website: "https://sanative.com.au",
+  abn: "30 609 735 533",
   governingLaw: "New South Wales, Australia",
   effectiveDate: "16 August 2026",
 } as const;

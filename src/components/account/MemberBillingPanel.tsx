@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -396,7 +396,16 @@ export function MemberBillingPanel({
                       </TableCell>
                       <TableCell>{inv.description || "Payment"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{inv.status}</Badge>
+                        {inv.status.toUpperCase() === "PAID" ? (
+                          <Link
+                            href={`/invoices/${inv.id}`}
+                            className={badgeVariants({ variant: "outline" })}
+                          >
+                            Invoice
+                          </Link>
+                        ) : (
+                          <Badge variant="outline">{inv.status}</Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatAud(inv.amount)}
