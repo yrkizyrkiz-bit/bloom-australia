@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -101,6 +102,27 @@ const SAMPLE_DATA: Record<string, Record<string, string>> = {
   },
 };
 
+type MemberEmailDraft = {
+  to: string;
+  subject: string;
+  body: string;
+};
+
+function escapeEmailText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function basicEmailPreviewHtml(body: string) {
+  const paragraphs = escapeEmailText(body)
+    .split("\n")
+    .map((line) => `<p style="margin:0 0 12px;line-height:1.5;">${line || "&nbsp;"}</p>`)
+    .join("");
+  return `<!DOCTYPE html><html><body style="margin:0;padding:24px;font-family:Georgia,'Times New Roman',serif;color:#2c3628;">${paragraphs}</body></html>`;
+}
+
 export default function EmailPreviewPage() {
   const [selectedTemplate, setSelectedTemplate] = useState("order_confirmation_discount");
   const [sampleData, setSampleData] = useState<Record<string, string>>(
@@ -110,10 +132,43 @@ export default function EmailPreviewPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [testEmail, setTestEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [memberDraft, setMemberDraft] = useState<MemberEmailDraft | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const to = params.get("to")?.trim() || "";
+    if (to) {
+      const firstName = params.get("firstName")?.trim() || "";
+      const lastName = params.get("lastName")?.trim() || "";
+      setTestEmail(to);
+      setMemberDraft({
+        to,
+        subject: "",
+        body: firstName ? `Hi ${firstName},\n\n` : "",
+      });
+      setSampleData((current) => ({
+        ...current,
+        ...(firstName ? { firstName } : {}),
+        ...(lastName ? { lastName } : {}),
+        ...((firstName || lastName)
+          ? { patientName: [firstName, lastName].filter(Boolean).join(" ") }
+          : {}),
+      }));
+    }
+  }, []);
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId);
-    setSampleData(SAMPLE_DATA[templateId] || {});
+    const next = { ...(SAMPLE_DATA[templateId] || {}) };
+    const params = new URLSearchParams(window.location.search);
+    const firstName = params.get("firstName")?.trim() || "";
+    const lastName = params.get("lastName")?.trim() || "";
+    if (firstName && "firstName" in next) next.firstName = firstName;
+    if (lastName && "lastName" in next) next.lastName = lastName;
+    if ((firstName || lastName) && "patientName" in next) {
+      next.patientName = [firstName, lastName].filter(Boolean).join(" ");
+    }
+    setSampleData(next);
     setEmailHtml("");
   };
 
@@ -184,7 +239,134 @@ export default function EmailPreviewPage() {
     }
   };
 
+  const sendMemberEmail = async () => {
+    if (!memberDraft?.to.trim()) {
+      toast.error("Enter the member's email address");
+      return;
+    }
+    if (!memberDraft.subject.trim() || !memberDraft.body.trim()) {
+      toast.error("Add a subject and a message");
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const response = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: memberDraft.to.trim(),
+          subject: memberDraft.subject.trim(),
+          body: memberDraft.body,
+          trackOpens: false,
+          trackClicks: false,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      const sent = result?.summary?.sent ?? 0;
+      if (!response.ok || sent < 1) {
+        toast.error(result?.results?.[0]?.error || result?.error || "Failed to send email");
+        return;
+      }
+      toast.success(`Email sent to ${memberDraft.to.trim()}`);
+    } catch (error) {
+      console.error("Send error:", error);
+      toast.error("Failed to send email");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const templateInfo = EMAIL_TEMPLATES.find((t) => t.id === selectedTemplate);
+
+  if (memberDraft) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Mail className="w-6 h-6" />
+            Email Preview
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Write to this member, or edit the message before you send it.
+          </p>
+        </div>
+
+        <div className="grid lg:grid-cols-[400px_1fr] gap-6">
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Message</CardTitle>
+              <CardDescription>The member is already filled in. Change any of it.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="member-to">To</Label>
+                <Input
+                  id="member-to"
+                  type="email"
+                  value={memberDraft.to}
+                  onChange={(e) => setMemberDraft({ ...memberDraft, to: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="member-subject">Subject</Label>
+                <Input
+                  id="member-subject"
+                  value={memberDraft.subject}
+                  onChange={(e) => setMemberDraft({ ...memberDraft, subject: e.target.value })}
+                  placeholder="Subject"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="member-body">Message</Label>
+                <Textarea
+                  id="member-body"
+                  value={memberDraft.body}
+                  onChange={(e) => setMemberDraft({ ...memberDraft, body: e.target.value })}
+                  rows={12}
+                  placeholder="Type the email"
+                />
+              </div>
+              <Button onClick={sendMemberEmail} disabled={isSending} className="w-full">
+                {isSending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send email
+                  </>
+                )}
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={() => setMemberDraft(null)}>
+                Use a template instead
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="h-fit">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Preview</CardTitle>
+              <CardDescription>
+                {memberDraft.subject.trim() || "No subject yet"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden bg-white">
+                <iframe
+                  srcDoc={basicEmailPreviewHtml(memberDraft.body)}
+                  className="w-full h-[700px]"
+                  title="Email Preview"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

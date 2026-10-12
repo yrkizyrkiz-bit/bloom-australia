@@ -2251,7 +2251,13 @@ export default function CustomerDetailPage() {
           <Card>
             <CardHeader><CardTitle className="text-lg">Quick Actions</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start gap-2"><Mail className="w-4 h-4" />Send Email</Button>
+              <Button variant="outline" className="w-full justify-start gap-2" asChild>
+                <Link
+                  href={`/admin/email-preview?to=${encodeURIComponent(customer.email || "")}&firstName=${encodeURIComponent(customer.firstName || "")}&lastName=${encodeURIComponent(customer.lastName || "")}`}
+                >
+                  <Mail className="w-4 h-4" />Send Email
+                </Link>
+              </Button>
               <Button variant="outline" className="w-full justify-start gap-2"><Phone className="w-4 h-4" />Log Call</Button>
               <Button variant="outline" className="w-full justify-start gap-2"><Calendar className="w-4 h-4" />Schedule</Button>
               <Button variant="outline" className="w-full justify-start gap-2"><FileText className="w-4 h-4" />Upload Results</Button>
