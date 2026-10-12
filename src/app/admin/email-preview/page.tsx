@@ -204,12 +204,8 @@ export default function EmailPreviewPage() {
   };
 
   const sendTestEmail = async () => {
-    if (!testEmail) {
-      toast.error("Please enter an email address");
-      return;
-    }
-    if (!emailHtml) {
-      toast.error("Please generate a preview first");
+    if (!testEmail.trim()) {
+      toast.error("Enter an email address");
       return;
     }
 
@@ -219,21 +215,21 @@ export default function EmailPreviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: testEmail,
+          to: testEmail.trim(),
           templateId: selectedTemplate,
           data: sampleData,
         }),
       });
 
-      const result = await response.json();
-      if (result.success) {
-        toast.success(`Test email sent to ${testEmail}`);
-      } else {
-        toast.error(result.error || "Failed to send test email");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        toast.error(result.error || "Failed to send email");
+        return;
       }
+      toast.success(`Sent "${result.subject || "template"}" to ${testEmail.trim()}`);
     } catch (error) {
       console.error("Send error:", error);
-      toast.error("Failed to send test email");
+      toast.error("Failed to send email");
     } finally {
       setIsSending(false);
     }
@@ -466,8 +462,8 @@ export default function EmailPreviewPage() {
           {/* Send Test Email */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Send Test</CardTitle>
-              <CardDescription>Send a test email to verify</CardDescription>
+              <CardTitle className="text-lg">Send template</CardTitle>
+              <CardDescription>Send this template to the address below</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
@@ -486,7 +482,7 @@ export default function EmailPreviewPage() {
 
               <Button
                 onClick={sendTestEmail}
-                disabled={isSending || !emailHtml}
+                disabled={isSending || !testEmail.trim()}
                 variant="outline"
                 className="w-full"
               >
@@ -498,7 +494,7 @@ export default function EmailPreviewPage() {
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Send Test Email
+                    Send template
                   </>
                 )}
               </Button>
