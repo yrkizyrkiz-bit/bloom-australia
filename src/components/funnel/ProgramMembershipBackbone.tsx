@@ -244,66 +244,70 @@ function QualificationStep({
   onContinue: () => void;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-[#f8faf8] to-white px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 sm:px-6">
-      <div className="mx-auto flex h-full w-full max-w-md min-h-0 flex-1 flex-col overflow-hidden">
-        <div
-          className={
-            config.qualificationImagePortrait
-              ? "relative mx-auto mb-2 w-full max-w-[220px] min-h-[9rem] max-h-[280px] flex-1 overflow-hidden rounded-2xl shadow-sm"
-              : "relative mb-2 min-h-[9rem] max-h-[280px] flex-1 overflow-hidden rounded-2xl shadow-sm"
-          }
-        >
-          <Image
-            src={config.qualificationImage}
-            alt={config.qualificationImageAlt}
-            fill
-            sizes={
-              config.qualificationImagePortrait
-                ? "220px"
-                : "(max-width: 448px) 100vw, 448px"
-            }
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-[#f8faf8] to-white">
+      <div className="mx-auto flex h-full w-full max-w-md min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-1.5 sm:px-6">
+          <div
             className={
               config.qualificationImagePortrait
-                ? "object-contain object-top"
-                : "object-cover object-center"
+                ? "relative mx-auto mb-3 h-[clamp(6rem,24svh,16rem)] w-full max-w-[220px] shrink-0 overflow-hidden rounded-2xl shadow-sm"
+                : "relative mb-3 h-[clamp(4.5rem,22svh,15rem)] w-full shrink-0 overflow-hidden rounded-2xl shadow-sm"
             }
-            priority
-          />
-        </div>
-        <div className="mb-2.5 shrink-0 text-center">
-          <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#5c7a52]/10">
-            <CheckCircle2 className="h-4 w-4 text-[#5c7a52]" />
+          >
+            <Image
+              src={config.qualificationImage}
+              alt={config.qualificationImageAlt}
+              fill
+              sizes={
+                config.qualificationImagePortrait
+                  ? "220px"
+                  : "(max-width: 448px) 100vw, 448px"
+              }
+              className={
+                config.qualificationImagePortrait
+                  ? "object-contain object-top"
+                  : "object-cover object-center"
+              }
+              priority
+            />
           </div>
-          <h1 className="font-serif text-lg leading-tight text-[#2c3628] sm:text-xl">
-            Thanks for completing your assessment
-          </h1>
-          <p className="mt-1 text-sm leading-snug text-[#5c7a52]">
-            Preliminary assessment complete. Here&apos;s what happens next.
-          </p>
-        </div>
-        <div className="space-y-2 shrink-0">
-          {config.nextSteps.map((step, index) => (
-            <div
-              key={step.title}
-              className="flex items-start gap-3 rounded-xl border border-[#e6ebe3] bg-white px-3 py-2.5"
-            >
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5c7a52] text-xs font-semibold text-white">
-                {index + 1}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#2c3628]">{step.title}</p>
-                <p className="text-xs text-[#5c7a52] leading-snug">{step.detail}</p>
-              </div>
+          <div className="mb-3 text-center">
+            <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#5c7a52]/10">
+              <CheckCircle2 className="h-4 w-4 text-[#5c7a52]" />
             </div>
-          ))}
+            <h1 className="font-serif text-lg leading-tight text-[#2c3628] sm:text-xl">
+              Thanks for completing your assessment
+            </h1>
+            <p className="mt-1 text-sm leading-snug text-[#5c7a52]">
+              Preliminary assessment complete. Here&apos;s what happens next.
+            </p>
+          </div>
+          <div className="mb-3 space-y-2">
+            {config.nextSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className="flex items-start gap-3 rounded-xl border border-[#e6ebe3] bg-white px-3 py-2.5"
+              >
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5c7a52] text-xs font-semibold text-white">
+                  {index + 1}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#2c3628]">{step.title}</p>
+                  <p className="text-xs text-[#5c7a52] leading-snug">{step.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onContinue}
-          className="mt-3 w-full rounded-full bg-[#5c7a52] py-3.5 text-base font-semibold text-white hover:bg-[#4a6343]"
-        >
-          Complete your profile
-        </button>
+        <div className="shrink-0 border-t border-[#e6ebe3] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+          <button
+            type="button"
+            onClick={onContinue}
+            className="w-full rounded-full bg-[#5c7a52] py-3.5 text-base font-semibold text-white hover:bg-[#4a6343]"
+          >
+            Complete your profile
+          </button>
+        </div>
       </div>
     </div>
   );

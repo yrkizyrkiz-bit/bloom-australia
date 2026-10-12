@@ -2620,74 +2620,76 @@ export default function WeightLossAssessmentPage() {
     ];
 
     return (
-      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-[#f8faf8] to-white px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 sm:px-6">
-        <div className="mx-auto flex h-full w-full max-w-md min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="relative mb-2 min-h-[6.5rem] max-h-[240px] flex-1 overflow-hidden rounded-2xl shadow-sm">
-            <Image
-              src="/images/membership/WM_quiz.webp"
-              alt="You've come to the right place, doctor-led weight management with Sanative"
-              fill
-              sizes="(max-width: 448px) 100vw, 448px"
-              className="object-cover object-center"
-              priority
-            />
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-[#f8faf8] to-white">
+        <div className="mx-auto flex h-full w-full max-w-md min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-1.5 sm:px-6">
+            <div className="relative mb-3 h-[clamp(4.5rem,22svh,15rem)] w-full shrink-0 overflow-hidden rounded-2xl shadow-sm">
+              <Image
+                src="/images/membership/WM_quiz.webp"
+                alt="You've come to the right place, doctor-led weight management with Sanative"
+                fill
+                sizes="(max-width: 448px) 100vw, 448px"
+                className="object-cover object-center"
+                priority
+              />
+            </div>
+
+            <div className="mb-3 text-center">
+              {hasHardStop ? (
+                <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-amber-50">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                </div>
+              ) : (
+                <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#5c7a52]/10">
+                  <CheckCircle2 className="h-4 w-4 text-[#5c7a52]" />
+                </div>
+              )}
+              <h1 className="font-serif text-lg leading-tight text-[#2c3628] sm:text-xl">
+                {hasHardStop ? "Additional review needed" : "Thanks for completing your assessment"}
+              </h1>
+              <p className="mt-1 text-sm leading-snug text-[#5c7a52]">
+                {hasHardStop
+                  ? "Your doctor will review your assessment and discuss how Sanative can support your metabolic health goals."
+                  : "Preliminary assessment complete. Here's what happens next."}
+              </p>
+            </div>
+
+            <div className="mb-3 rounded-2xl border border-[#e6ebe3] bg-white px-3.5 py-3 shadow-sm">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5c7a52]">
+                Next steps
+              </p>
+              <ol className="space-y-0">
+                {nextSteps.map((step, index) => (
+                  <li key={step.title} className="relative flex gap-2.5 pb-2.5 last:pb-0">
+                    {index < nextSteps.length - 1 && (
+                      <span
+                        className="absolute left-[13px] top-7 bottom-0 w-px bg-[#e6ebe3]"
+                        aria-hidden
+                      />
+                    )}
+                    <div className="relative z-[1] flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#34412f] text-xs font-semibold text-white">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <p className="text-sm font-semibold leading-tight text-[#2c3628]">{step.title}</p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-[#5c7a52]">{step.detail}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </div>
 
-          <div className="mb-2.5 shrink-0 text-center">
-            {hasHardStop ? (
-              <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-amber-50">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-              </div>
-            ) : (
-              <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#5c7a52]/10">
-                <CheckCircle2 className="h-4 w-4 text-[#5c7a52]" />
-              </div>
-            )}
-            <h1 className="font-serif text-lg leading-tight text-[#2c3628] sm:text-xl">
-              {hasHardStop ? "Additional review needed" : "Thanks for completing your assessment"}
-            </h1>
-            <p className="mt-1 text-sm leading-snug text-[#5c7a52]">
-              {hasHardStop
-                ? "Your doctor will review your assessment and discuss how Sanative can support your metabolic health goals."
-                : "Preliminary assessment complete. Here's what happens next."}
-            </p>
-          </div>
-
-          <div className="shrink-0 rounded-2xl border border-[#e6ebe3] bg-white px-3.5 py-3 shadow-sm">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5c7a52]">
-              Next steps
-            </p>
-            <ol className="space-y-0">
-              {nextSteps.map((step, index) => (
-                <li key={step.title} className="relative flex gap-2.5 pb-2.5 last:pb-0">
-                  {index < nextSteps.length - 1 && (
-                    <span
-                      className="absolute left-[13px] top-7 bottom-0 w-px bg-[#e6ebe3]"
-                      aria-hidden
-                    />
-                  )}
-                  <div className="relative z-[1] flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#34412f] text-xs font-semibold text-white">
-                    {index + 1}
-                  </div>
-                  <div className="min-w-0 pt-0.5">
-                    <p className="text-sm font-semibold leading-tight text-[#2c3628]">{step.title}</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-[#5c7a52]">{step.detail}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          <div className="mt-2.5 shrink-0 space-y-1.5">
+          <div className="shrink-0 border-t border-[#e6ebe3] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
             <button
+              type="button"
               onClick={() => animateToStep(19, "forward")}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-[#5c7a52] py-3 text-base font-semibold text-white shadow-[0_4px_20px_rgba(92,122,82,0.35)] transition-colors hover:bg-[#4a6343]"
             >
               Complete your profile
               <ArrowRight className="h-5 w-5" />
             </button>
-
-            <p className="text-center text-[10px] leading-snug text-[#7e9a72] sm:text-xs">
+            <p className="mt-1.5 text-center text-[10px] leading-snug text-[#7e9a72] sm:text-xs">
               AHPRA-registered Australian doctors · Cancel anytime
             </p>
           </div>
