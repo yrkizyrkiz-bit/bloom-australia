@@ -192,30 +192,6 @@ export default function WelcomeCallsPage() {
     }
   };
 
-  const upgradeToPrecision = async (memberId: string) => {
-    setProcessing(true);
-    try {
-      const res = await fetch("/api/admin/billing/upgrade-tier", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          memberId,
-          notes: "Precision upgrade from welcome call",
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to upgrade");
-      }
-      toast.success("Upgraded to Precision (effective next period)");
-      load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to upgrade");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const sendBillingOffer = async (memberId: string) => {
     try {
       const res = await fetch("/api/care-comms", {
@@ -437,18 +413,6 @@ export default function WelcomeCallsPage() {
                         <ExternalLink className="w-3 h-3 mr-1" />
                         Script workflow
                       </Link>
-                    </Button>
-                  )}
-                  {item.patient.selectedPlan === "CORE" &&
-                    item.patient.hasStripeSubscription && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => upgradeToPrecision(item.patient.id)}
-                      disabled={processing}
-                    >
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      Upgrade to Precision
                     </Button>
                   )}
                   <Button

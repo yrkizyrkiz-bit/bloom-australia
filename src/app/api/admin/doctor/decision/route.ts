@@ -22,11 +22,57 @@ import { resolveHairApprovalUserJourney } from "@/lib/program-journey/hair-journ
 import { resolveSexualApprovalUserJourney } from "@/lib/program-journey/sexual-journey";
 import { resolveWomensApprovalUserJourney } from "@/lib/program-journey/womens-journey";
 import { grantEntitlement } from "@/lib/membership/entitlement-service";
-import { isNonWeightDoctorApproval } from "@/lib/admin/doctor-consult-programs";
-import { createWeightManagementCareSubscription } from "@/lib/billing/care-subscription";
+import {
+  defaultDoctorProgramTab,
+  explicitPrescriptionCategory,
+  isNonWeightDoctorApproval,
+  prescriptionCategoryFromProgramTab,
+  resolveDoctorEnrolledPrograms,
+  type DoctorPrescriptionCategory,
+} from "@/lib/admin/doctor-consult-programs";
+import { startApprovedProgramSubscription } from "@/lib/billing/program-care-subscription";
+import { closeReservedIncludedCareSlot } from "@/lib/billing/included-care";
 
 /** Display/fallback only — live billing uses Product.BillingPrice via care-subscription. */
 const WM_CARE_AMOUNT_CENTS = 36000;
+
+function approvalBillingLabel(category: DoctorPrescriptionCategory | null): string {
+  if (category === "HAIR_LOSS") return "Hair";
+  if (category === "SEXUAL_HEALTH") return "Men's Health";
+  if (category === "HORMONE_THERAPY") return "Women's Health";
+  if (category === "WEIGHT_MANAGEMENT") return "Weight Management";
+  return "this program";
+}
+
+async function prescriptionCategoryForApproval(input: {
+  userId: string;
+  email: string;
+  requested: string | null | undefined;
+  programTab: string | null | undefined;
+}): Promise<DoctorPrescriptionCategory | null> {
+  const explicit =
+    explicitPrescriptionCategory(input.requested) ??
+    prescriptionCategoryFromProgramTab(input.programTab);
+  if (explicit) return explicit;
+
+  const [members, entitlements] = await Promise.all([
+    prisma.programMember.findMany({
+      where: { OR: [{ userId: input.userId }, { email: input.email }] },
+      select: { program: true, membershipStatus: true },
+    }),
+    prisma.entitlement.findMany({
+      where: {
+        userId: input.userId,
+        type: "PROGRAM",
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { key: true, status: true },
+    }),
+  ]);
+  return prescriptionCategoryFromProgramTab(
+    defaultDoctorProgramTab(resolveDoctorEnrolledPrograms(members, entitlements))
+  );
+}
 
 async function auditDoctorDecision(
   request: NextRequest,
@@ -109,43 +155,15 @@ const DECISIONS_REQUIRING_VERIFIED_FIRST_MONTH_PAYMENT = new Set([
  */
 async function createOngoingSubscription(
   userId: string,
-  userEmail: string,
-  userName: string,
-  _selectedPlan: "CORE" | "PRECISION",
+  _userEmail: string,
+  _userName: string,
+  prescriptionCategory: string | null | undefined,
   firstPaymentIntentId?: string | null
 ): Promise<{ success: boolean; subscriptionId?: string; error?: string; amountLabel?: string }> {
-  // In-portal Weight Management already has its own recurring charge.
-  // Approval must not open a second care subscription over the top of it.
-  const portalWm = await prisma.entitlement.findFirst({
-    where: {
-      userId,
-      type: "PROGRAM",
-      key: "WEIGHT_MANAGEMENT",
-      status: "ACTIVE",
-      notes: { contains: "Subscription in-portal" },
-    },
-    select: { id: true },
-  });
-  if (portalWm) {
-    const existing = await prisma.memberSubscription.findFirst({
-      where: {
-        userId,
-        status: "ACTIVE",
-        product: { program: "WEIGHT_MANAGEMENT" },
-      },
-      select: { stripeSubscriptionId: true },
-    });
-    if (existing?.stripeSubscriptionId) {
-      return { success: true, subscriptionId: existing.stripeSubscriptionId };
-    }
-  }
-
-  return createWeightManagementCareSubscription({
+  return startApprovedProgramSubscription({
     userId,
-    userEmail,
-    userName,
+    prescriptionCategory,
     firstPaymentIntentId,
-    createdBy: "doctor_approval",
   });
 }
 
@@ -198,18 +216,8 @@ export async function POST(request: NextRequest) {
       treatmentMustWaitForResults,
       testFollowUpTimeframe,
       prescriptionCategory: requestedPrescriptionCategory,
+      programTab,
     } = body;
-    const isHairApproval = requestedPrescriptionCategory === "HAIR_LOSS";
-    const isSexualApproval = requestedPrescriptionCategory === "SEXUAL_HEALTH";
-    const isWomensApproval = requestedPrescriptionCategory === "HORMONE_THERAPY";
-    const isNonWeightApproval = isNonWeightDoctorApproval(requestedPrescriptionCategory);
-    const prescriptionCategory = isHairApproval
-      ? "HAIR_LOSS"
-      : isSexualApproval
-        ? "SEXUAL_HEALTH"
-        : isWomensApproval
-          ? "HORMONE_THERAPY"
-          : "WEIGHT_MANAGEMENT";
 
     // Validate required fields
     if (!userId || !consultationId || !decision) {
@@ -267,6 +275,19 @@ export async function POST(request: NextRequest) {
     if (!consultation) {
       return NextResponse.json({ error: "Consultation not found" }, { status: 404 });
     }
+
+    const resolvedPrescriptionCategory = await prescriptionCategoryForApproval({
+      userId,
+      email: user.email,
+      requested: requestedPrescriptionCategory,
+      programTab: typeof programTab === "string" ? programTab : null,
+    });
+    const isHairApproval = resolvedPrescriptionCategory === "HAIR_LOSS";
+    const isSexualApproval = resolvedPrescriptionCategory === "SEXUAL_HEALTH";
+    const isWomensApproval = resolvedPrescriptionCategory === "HORMONE_THERAPY";
+    const isNonWeightApproval = isNonWeightDoctorApproval(resolvedPrescriptionCategory);
+    const prescriptionCategory = resolvedPrescriptionCategory ?? "WEIGHT_MANAGEMENT";
+    const billingLabel = approvalBillingLabel(resolvedPrescriptionCategory);
 
     // GAP-005: Determine the selected plan (CORE or PRECISION) after payment verification
     let verifiedWmPlan: "CORE" | "PRECISION" | null = null;
@@ -632,15 +653,14 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // ─── GAP-005: Create ongoing monthly subscription ─────────────────────────
+        // Program fee: included slot bills 30 days after this approval, every other program bills now.
         let subscriptionResult: { success: boolean; subscriptionId?: string; error?: string } = { success: false };
-        if (!isNonWeightApproval) {
-          try {
+        try {
             subscriptionResult = await createOngoingSubscription(
               userId,
               user.email,
               `${user.firstName} ${user.lastName}`.trim(),
-              selectedPlan,
+              resolvedPrescriptionCategory,
               consultation.paymentIntentId
             );
 
@@ -657,7 +677,7 @@ export async function POST(request: NextRequest) {
                   subject: `MANUAL SUBSCRIPTION REQUIRED: ${user.firstName} ${user.lastName}`,
                   notes: `Patient was approved but automatic subscription creation failed.
 
-Please manually create the Weight Management Care subscription ($360 every 3 months).
+Please manually create the ${billingLabel} subscription at that program's catalog price.
 
 Error: ${subscriptionResult.error}
 Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
@@ -669,7 +689,6 @@ Payment Intent: ${consultation.paymentIntentId || "N/A"}`,
           } catch (subscriptionError) {
             console.error("[GAP-005] Subscription creation error:", subscriptionError);
           }
-        }
 
         // Create clinical note - DO NOT expose medication details publicly
         await prisma.internalNote.create({
@@ -963,7 +982,7 @@ Welcome call / onboarding walkthrough:
             userId,
             user.email,
             `${user.firstName} ${user.lastName}`.trim(),
-            selectedPlan,
+            resolvedPrescriptionCategory,
             consultation.paymentIntentId
           );
 
@@ -978,7 +997,7 @@ Welcome call / onboarding walkthrough:
                 subject: `MANUAL SUBSCRIPTION REQUIRED: ${user.firstName} ${user.lastName}`,
                 notes: `Patient was approved (lifestyle program) but automatic subscription creation failed.
 
-Please manually create the Weight Management Care subscription ($360 every 3 months).
+Please manually create the ${billingLabel} subscription at that program's catalog price.
 
 Error: ${subscriptionResult.error}`,
                 status: "PENDING",
@@ -1091,9 +1110,9 @@ Tasks:
           programActivated: activation.activated || activation.alreadyActive,
           message: activation.activated || activation.alreadyActive
             ? "Patient approved for lifestyle program and program activated. " +
-              (subscriptionResult.success ? "Weight Management Care subscription created." : "Subscription requires manual setup.")
+              (subscriptionResult.success ? `${billingLabel} subscription created.` : "Subscription requires manual setup.")
             : "Patient approved for lifestyle program. " +
-              (subscriptionResult.success ? "Weight Management Care subscription created." : "Subscription requires manual setup.") +
+              (subscriptionResult.success ? `${billingLabel} subscription created.` : "Subscription requires manual setup.") +
               (activation.error ? ` Program was not activated: ${activation.error}` : ""),
         });
       }
@@ -1133,6 +1152,10 @@ Tasks:
             notes: clinicalNotes,
           },
         });
+
+        await closeReservedIncludedCareSlot(userId).catch((err) =>
+          console.error("[included-care] decline slot failed:", err)
+        );
 
         // Create clinical note
         await prisma.internalNote.create({
@@ -1404,7 +1427,7 @@ Please contact the patient to provide support and guidance.`,
             userId,
             user.email,
             `${user.firstName} ${user.lastName}`.trim(),
-            selectedPlan,
+            resolvedPrescriptionCategory,
             consultation.paymentIntentId
           );
 
@@ -1419,7 +1442,7 @@ Please contact the patient to provide support and guidance.`,
                 subject: `MANUAL SUBSCRIPTION REQUIRED: ${user.firstName} ${user.lastName}`,
                 notes: `Patient was approved (with testing) but automatic subscription creation failed.
 
-Please manually create the Weight Management Care subscription ($360 every 3 months).
+Please manually create the ${billingLabel} subscription at that program's catalog price.
 
 Error: ${subscriptionResult.error}
 Payment Intent: ${consultation.paymentIntentId || "N/A"}`,

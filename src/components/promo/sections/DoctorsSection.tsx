@@ -56,7 +56,14 @@ const doctors: TeamMember[] = [
 
 export function DoctorsSection() {
   return (
-    <section className="py-20 lg:py-28 bg-white">
+    <section
+      className="relative z-[2] py-20 lg:py-28 bg-white"
+      style={{
+        marginTop: "clamp(-36px, -5vw, -56px)",
+        borderTopLeftRadius: "clamp(1.5rem, 2.5vw, 2rem)",
+        borderTopRightRadius: "clamp(1.5rem, 2.5vw, 2rem)",
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <span className="text-[#c17a58] font-serif text-3xl sm:text-4xl italic">

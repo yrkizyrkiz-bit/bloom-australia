@@ -8,7 +8,7 @@ import {
 } from "@/lib/billing/catalog";
 
 function invalidateCatalogCaches() {
-  invalidateCatalogCaches();
+  resetBillingCatalogCache();
   revalidateTag("billing-catalog");
 }
 

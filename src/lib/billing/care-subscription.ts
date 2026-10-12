@@ -4,11 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { ensureBillingCatalog, billingModelsAvailable } from "@/lib/billing/catalog";
 import { ensureStripePriceForBillingPrice } from "@/lib/portal/stripe-subscription";
 import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscription";
+import {
+  findOpenProgramSubscription,
+  findSucceededProgramPayment,
+  schedulePrepaidProgramRenewal,
+} from "@/lib/billing/program-care-subscription";
 import { getStripe } from "@/lib/stripe";
 
 export type CareBillingPrice = BillingPrice & { product: Product };
 
-const WM_CARE_SLUGS = ["weight_management", "wm_care"] as const;
+const WM_CARE_SLUGS = ["weight_management"] as const;
 
 /**
  * Canonical Weight Management care product: $360 every 3 months (first 30 days
@@ -212,6 +217,30 @@ export async function createWeightManagementCareSubscription(params: {
       };
     }
 
+    const openId = await findOpenProgramSubscription({
+      userId: params.userId,
+      programKey: "WEIGHT_MANAGEMENT",
+      customerId,
+    });
+    if (openId) {
+      return { success: true, subscriptionId: openId, amountLabel };
+    }
+
+    const prepaid = await findSucceededProgramPayment(customerId, "WEIGHT_MANAGEMENT");
+    if (prepaid) {
+      const subscriptionId = await schedulePrepaidProgramRenewal({
+        userId: params.userId,
+        customerId,
+        programKey: "WEIGHT_MANAGEMENT",
+        recurringBillingPriceId: prepaid.recurringBillingPriceId || billingPrice.id,
+        billingTerm: prepaid.billingTerm,
+        paidAt: prepaid.paidAt,
+      });
+      if (subscriptionId) {
+        return { success: true, subscriptionId, amountLabel };
+      }
+    }
+
     const billingAnchor =
       params.billingAnchorUnix ??
       Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
@@ -287,9 +316,6 @@ export async function createWeightManagementCareSubscription(params: {
       changeType: "created",
     });
 
-    // Cancel legacy Core/Precision member rows so billing UI does not show $349
-    await cancelLegacyWmCoreMemberSubscriptions(params.userId, stripe);
-
     console.log(
       `[care-subscription] Created ${subscription.id} for ${params.userId} (${amountLabel})`
     );
@@ -301,42 +327,6 @@ export async function createWeightManagementCareSubscription(params: {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
     };
-  }
-}
-
-async function cancelLegacyWmCoreMemberSubscriptions(
-  userId: string,
-  stripe: Stripe
-) {
-  const legacy = await prisma.memberSubscription.findMany({
-    where: {
-      userId,
-      status: "ACTIVE",
-      product: { slug: { in: ["wm_core", "wm_precision"] } },
-    },
-    include: { product: true },
-  });
-
-  for (const row of legacy) {
-    if (row.stripeSubscriptionId) {
-      try {
-        await stripe.subscriptions.cancel(row.stripeSubscriptionId);
-      } catch (err) {
-        console.warn(
-          "[care-subscription] Could not cancel legacy Stripe sub",
-          row.stripeSubscriptionId,
-          err
-        );
-      }
-    }
-    await prisma.memberSubscription.update({
-      where: { id: row.id },
-      data: {
-        status: "CANCELLED",
-        cancelledAt: new Date(),
-        cancelAtPeriodEnd: false,
-      },
-    });
   }
 }
 

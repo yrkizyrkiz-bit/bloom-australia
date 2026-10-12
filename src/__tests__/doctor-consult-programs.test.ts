@@ -3,6 +3,7 @@ import {
   defaultDoctorProgramTab,
   isNonWeightDoctorApproval,
   resolveDoctorEnrolledPrograms,
+  prescriptionCategoryFromProgramTab,
   resolveDoctorPrescriptionCategory,
 } from "@/lib/admin/doctor-consult-programs";
 import { resolveWomensApprovalUserJourney } from "@/lib/program-journey/womens-journey";
@@ -70,6 +71,14 @@ describe("doctor consult programs", () => {
 
   it("maps Men's ED tab to SEXUAL_HEALTH prescriptions", () => {
     expect(resolveDoctorPrescriptionCategory("MENS_HEALTH_SEXUAL")).toBe("SEXUAL_HEALTH");
+  });
+
+  it("keeps no-treatment and pending-tests on the open program tab", () => {
+    expect(prescriptionCategoryFromProgramTab("HAIR_LOSS")).toBe("HAIR_LOSS");
+    expect(prescriptionCategoryFromProgramTab("MENS_HEALTH_SEXUAL")).toBe("SEXUAL_HEALTH");
+    expect(prescriptionCategoryFromProgramTab("WOMENS_HEALTH_SEXUAL")).toBe("HORMONE_THERAPY");
+    expect(prescriptionCategoryFromProgramTab("WEIGHT_MANAGEMENT")).toBe("WEIGHT_MANAGEMENT");
+    expect(prescriptionCategoryFromProgramTab("MEMBERSHIP")).toBeNull();
   });
 
   it("maps Women's Wellness tab to HORMONE_THERAPY prescriptions", () => {

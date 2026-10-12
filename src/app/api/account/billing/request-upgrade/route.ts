@@ -61,7 +61,7 @@ Current plan: ${summary.planLabel}
 Billing: ${summary.recurring.billingLabel || "Monthly"} ${summary.recurring.amountAud != null ? `$${summary.recurring.amountAud}` : ""}
 Paid till: ${summary.recurring.paidTill ? new Date(summary.recurring.paidTill).toLocaleDateString("en-AU") : "n/a"}
 
-Clinical review required before applying the tier upgrade. Apply from CRM → Subscription → Upgrade to Precision when appropriate.`,
+Clinical review required. Sanative Precision is no longer a separate billed product. Weight Management is billed on the weight_management plan.`,
         status: "PENDING",
         dueDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
         assignedTo: user?.assignedCarePartnerId || undefined,

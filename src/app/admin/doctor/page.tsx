@@ -76,6 +76,7 @@ import {
   defaultDoctorProgramTab,
   hasDoctorProgram,
   hasMembershipEnrollment,
+  prescriptionCategoryFromProgramTab,
   resolveDoctorPrescriptionCategory,
   type DoctorProgramTab,
 } from "@/lib/admin/doctor-consult-programs";
@@ -678,6 +679,7 @@ export default function DoctorDashboardPage() {
         decision: decisionType,
         consultationCompleted,
         clinicalNotes,
+        programTab: programConsultTab,
       };
       if (decisionType === "APPROVED") {
         // Send prescribeTreatment flag and individual medication fields (backend expects this format)
@@ -700,6 +702,8 @@ export default function DoctorDashboardPage() {
         payload.contraindicationsReviewed = contraindicationsReviewed;
         payload.patientCounsellingDocumented = patientCounsellingDocumented;
         payload.followUpTiming = followUpTiming;
+        const category = prescriptionCategoryFromProgramTab(programConsultTab);
+        if (category) payload.prescriptionCategory = category;
       } else if (decisionType === "DECLINED") {
         payload.declineReason = declineReason;
         payload.declineReasonOther = declineReasonOther;
@@ -711,6 +715,8 @@ export default function DoctorDashboardPage() {
         payload.reasonForTests = pendingTestsReferralForm.getResolvedIndication();
         payload.treatmentMustWaitForResults = treatmentMustWaitForResults;
         payload.testFollowUpTimeframe = testFollowUpTimeframe;
+        const category = prescriptionCategoryFromProgramTab(programConsultTab);
+        if (category) payload.prescriptionCategory = category;
       }
       const res = await fetch("/api/admin/doctor/decision", {
         method: "POST",

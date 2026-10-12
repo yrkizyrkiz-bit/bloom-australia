@@ -17,6 +17,7 @@ import {
   BIOMARKERS_PANEL_META,
   ORGAN_CARE_UPSELL_META,
 } from "@/lib/programs/offers";
+import { includedCareAvailableFor, getIncludedCarePolicy } from "@/lib/billing/included-care";
 
 export async function GET(request: Request) {
   try {
@@ -144,6 +145,8 @@ export async function GET(request: Request) {
     }
 
     const catalog = await getProgramProductPricing(programKey as ProgramKey);
+    const includedCare = await includedCareAvailableFor(session.user.id, programKey as ProgramKey);
+    const policy = includedCare ? await getIncludedCarePolicy() : null;
     const terms = await Promise.all(
       PORTAL_PROGRAM_BILLING_TERM_OPTIONS.map(async (opt) => {
         try {
@@ -151,9 +154,11 @@ export async function GET(request: Request) {
           return {
             term: opt.term,
             label: opt.label,
-            dueTodayAud: quote.dueTodayAud,
-            dueTodayLabel: quote.dueTodayLabel,
-            recurringLabel: quote.recurringLabel,
+            dueTodayAud: includedCare ? 0 : quote.dueTodayAud,
+            dueTodayLabel: includedCare ? "No charge today" : quote.dueTodayLabel,
+            recurringLabel: includedCare
+              ? `First ${policy?.includedDays ?? 30} days included after doctor approval. Then ${quote.priceLabel}. The card is charged ${policy?.chargeLeadDays ?? 7} days before the paid period starts.`
+              : quote.recurringLabel,
             priceLabel: quote.priceLabel,
             recurringBillingPriceId: quote.recurring.id,
             firstMonthBillingPriceId: quote.firstMonth.id,
@@ -167,7 +172,7 @@ export async function GET(request: Request) {
       })
     );
 
-    return NextResponse.json({ programKey, catalog, terms });
+    return NextResponse.json({ programKey, catalog, terms, includedCare });
   } catch (error) {
     console.error("[portal/program-pricing]", error);
     const message = error instanceof Error ? error.message : "Failed to load pricing";

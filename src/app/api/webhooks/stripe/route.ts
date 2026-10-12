@@ -700,6 +700,51 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
         });
         return;
       }
+
+      if (subscription.metadata?.programCare === "true") {
+        const { applyProgramCareInvoice } = await import("@/lib/billing/included-care-dates");
+        const meta = subscription.metadata;
+        const serviceStart = new Date(meta.servicePeriodStart || "");
+        const serviceEnd = new Date(meta.servicePeriodEnd || "");
+        const nextCharge = new Date(meta.nextChargeAt || "");
+        const intervalDays = Number(meta.serviceIntervalDays || "90");
+        const lead = Number(meta.chargeLeadDays || "7");
+        const datesOk = [serviceStart, serviceEnd, nextCharge].every(
+          (date) => !Number.isNaN(date.getTime())
+        );
+        if (datesOk) {
+          const advanced = applyProgramCareInvoice({
+            servicePeriodStart: serviceStart,
+            servicePeriodEnd: serviceEnd,
+            nextChargeAt: nextCharge,
+            intervalDays,
+            chargeLeadDays: lead,
+            paidAt: new Date(),
+          });
+          if (advanced.kind !== "ignore") {
+            const updated = await stripe.subscriptions.update(subscriptionId, {
+              metadata: {
+                ...meta,
+                servicePeriodStart: advanced.servicePeriodStart.toISOString(),
+                servicePeriodEnd: advanced.servicePeriodEnd.toISOString(),
+                coverageStartsAt: advanced.servicePeriodStart.toISOString(),
+                coverageEndsAt: advanced.servicePeriodEnd.toISOString(),
+                nextChargeAt: advanced.nextChargeAt.toISOString(),
+                includedCare: "false",
+              },
+            });
+            const { syncMemberSubscriptionFromStripe } = await import(
+              "@/lib/billing/sync-subscription"
+            );
+            await syncMemberSubscriptionFromStripe(updated, {
+              userId: meta.userId || undefined,
+              changeType: "PROGRAM_CARE_INVOICE",
+            }).catch((err) =>
+              console.error("[webhook] program care sync failed:", err)
+            );
+          }
+        }
+      }
     } catch (err) {
       console.error("[webhook] membership renewal handling failed:", err);
     }

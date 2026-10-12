@@ -56,8 +56,11 @@ function readSource(relativePath: string): string {
 describe("checkout billing coverage", () => {
   it("portal program purchase grants entitlement and syncs subscription", () => {
     const source = readSource("lib/portal/program-purchase.ts");
+    const renewal = readSource("lib/billing/program-care-subscription.ts");
     expect(source).toContain("grantEntitlement");
-    expect(source).toContain("syncMemberSubscriptionFromStripe");
+    expect(source).toContain("schedulePrepaidProgramRenewal");
+    expect(renewal).toContain("syncMemberSubscriptionFromStripe");
+    expect(renewal).toContain("trial_end");
   });
 
   it("every biomarker panel bundles Organ Care (no longer a separate product)", () => {

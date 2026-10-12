@@ -146,6 +146,7 @@ export async function POST(request: NextRequest) {
       postcode,
       gender: genderValue,
       intentProgram: intentProgram || paymentIntent.metadata?.intentProgram || "weight_management",
+      includedCareIntent: intentProgram || paymentIntent.metadata?.intentProgram || null,
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
     });

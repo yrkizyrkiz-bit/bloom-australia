@@ -107,11 +107,8 @@ export function MemberProgramsSection() {
   return (
     <section
       id="member-programs"
-      className="relative z-[2] scroll-mt-24 bg-white"
+      className="relative scroll-mt-24 bg-white"
       style={{
-        marginTop: "clamp(-36px, -5vw, -56px)",
-        borderTopLeftRadius: "clamp(1.5rem, 2.5vw, 2rem)",
-        borderTopRightRadius: "clamp(1.5rem, 2.5vw, 2rem)",
         paddingTop: "clamp(3.5rem, 7vw, 5.5rem)",
       }}
       aria-labelledby="member-programs-faq-heading"

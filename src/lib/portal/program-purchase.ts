@@ -14,9 +14,13 @@ import {
   recordPortalPaymentInvoice,
 } from "@/lib/portal/purchase-invoice";
 import { enqueuePortalPurchaseTriage } from "@/lib/portal/triage-enqueue";
-import { ensureStripePriceForBillingPrice } from "@/lib/portal/stripe-subscription";
-import { prisma } from "@/lib/prisma";
-import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscription";
+import { periodLabel } from "@/lib/billing/included-care-dates";
+import {
+  getIncludedCarePolicy,
+  includedCareAvailableFor,
+  reserveIncludedCareProgram,
+} from "@/lib/billing/included-care";
+import { schedulePrepaidProgramRenewal } from "@/lib/billing/program-care-subscription";
 
 export type PortalProgramCheckoutIntentInput = {
   userId: string;
@@ -38,6 +42,33 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
   }
 
   const quote = await resolveProgramCheckoutQuote(programKey, input.billingTerm, null);
+  if (await includedCareAvailableFor(input.userId, programKey)) {
+    const reserved = await reserveIncludedCareProgram({
+      userId: input.userId,
+      programKey,
+      billingTerm: input.billingTerm,
+    });
+    if (reserved.reserved) {
+      const label = PROGRAM_LABELS[programKey];
+      const policy = await getIncludedCarePolicy();
+      return {
+        includedCare: true as const,
+        clientSecret: null,
+        paymentIntentId: null,
+        amountAud: 0,
+        programKey,
+        billingTerm: input.billingTerm,
+        planTier: null,
+        label,
+        priceLabel: "Included with membership",
+        dueTodayLabel: "No charge today",
+        recurringLabel: `Program fee starts ${policy.includedDays} days after your doctor approves ${label}. The card is charged ${policy.chargeLeadDays} days before that.`,
+        savingsLabel: quote.savingsLabel,
+        includesConsultation: true,
+      };
+    }
+  }
+
   const { customerId, user } = await getOrCreateStripeCustomer(input.userId);
   const label = PROGRAM_LABELS[programKey];
   const isAnnual = input.billingTerm === "12m";
@@ -86,76 +117,6 @@ export async function createPortalProgramPaymentIntent(input: PortalProgramCheck
   };
 }
 
-async function scheduleRecurringSubscription(params: {
-  userId: string;
-  customerId: string;
-  recurringBillingPriceId: string;
-  programKey: string;
-  planTier?: string;
-}) {
-  const stripe = getStripe();
-  if (!stripe) throw new Error("Stripe is not configured");
-
-  const billingPrice = await prisma.billingPrice.findUnique({
-    where: { id: params.recurringBillingPriceId },
-    include: { product: true },
-  });
-  if (!billingPrice) return;
-
-  const stripePriceId =
-    billingPrice.stripePriceId ??
-    (await ensureStripePriceForBillingPrice({
-      billingPriceId: billingPrice.id,
-      amountCents: billingPrice.amountCents,
-      billingInterval: billingPrice.billingInterval,
-      productName: billingPrice.product.name,
-      metadata: {
-        programKey: params.programKey,
-        source: "portal_upsell",
-      },
-    }));
-
-  if (!billingPrice.stripePriceId) {
-    await prisma.billingPrice.update({
-      where: { id: billingPrice.id },
-      data: { stripePriceId },
-    });
-  }
-
-  // First period was collected via PaymentIntent — next Stripe charge after that period.
-  const periodDays =
-    billingPrice.billingInterval === "YEARLY"
-      ? 365
-      : billingPrice.billingInterval === "BIANNUAL"
-        ? 182
-        : billingPrice.billingInterval === "QUARTERLY"
-          ? 90
-          : 30;
-  const billingAnchor = Math.floor(Date.now() / 1000) + periodDays * 24 * 60 * 60;
-
-  const subscription = await stripe.subscriptions.create({
-    customer: params.customerId,
-    items: [{ price: stripePriceId }],
-    billing_cycle_anchor: billingAnchor,
-    proration_behavior: "none",
-    metadata: {
-      userId: params.userId,
-      programKey: params.programKey,
-      planTier: params.planTier ?? "",
-      sanativeProgram: params.programKey,
-      source: "portal_upsell",
-      billingPriceId: billingPrice.id,
-      billingInterval: billingPrice.billingInterval,
-    },
-  });
-
-  await syncMemberSubscriptionFromStripe(subscription, {
-    userId: params.userId,
-    changedBy: "portal_upsell",
-    changeType: "PORTAL_PROGRAM_PURCHASE",
-  }).catch(() => undefined);
-}
-
 export async function activatePortalProgramPurchase(params: {
   userId: string;
   programKey: string;
@@ -200,16 +161,16 @@ export async function activatePortalProgramPurchase(params: {
     userId: params.userId,
     paymentIntentId: params.paymentIntentId,
     amountAud: params.amountAud,
-    description: `${label}, first month`,
+    description: `${label}, ${periodLabel(params.billingTerm)}`,
   });
 
   if (params.recurringBillingPriceId && params.customerId) {
-    await scheduleRecurringSubscription({
+    await schedulePrepaidProgramRenewal({
       userId: params.userId,
       customerId: params.customerId,
-      recurringBillingPriceId: params.recurringBillingPriceId,
       programKey,
-      planTier: params.planTier,
+      recurringBillingPriceId: params.recurringBillingPriceId,
+      billingTerm: params.billingTerm,
     }).catch((err) => console.error("[portal] schedule recurring failed:", err));
   }
 

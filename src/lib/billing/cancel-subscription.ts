@@ -15,6 +15,7 @@ import {
 } from "@/lib/membership/entitlement-service";
 import { sendMembershipCancellationEmail } from "@/lib/email";
 import { syncMemberSubscriptionFromStripe } from "./sync-subscription";
+import { useIncludedCareSlot } from "./included-care";
 import { getMemberBillingOverview, programSlugFromProgramKey } from "./member-billing-summary";
 import type { BillableScopeKey } from "./paid-till";
 
@@ -268,20 +269,31 @@ export async function cancelMemberProgramSubscription(
   });
 
   for (const memberSub of memberSubs) {
+    const periodMs =
+      memberSub.currentPeriodStart && memberSub.currentPeriodEnd
+        ? memberSub.currentPeriodEnd.getTime() - memberSub.currentPeriodStart.getTime()
+        : 0;
+    const includedTrialStillOpen =
+      !!memberSub.nextChargeAt &&
+      memberSub.nextChargeAt.getTime() > Date.now() &&
+      periodMs > 0 &&
+      periodMs <= 40 * 24 * 60 * 60 * 1000;
+    const stripeEffective = includedTrialStillOpen ? "immediate" : effective;
+
     if (memberSub.stripeSubscriptionId && stripe) {
       const updated = await cancelStripeSubscription(
         stripe,
         memberSub.stripeSubscriptionId,
-        effective
+        stripeEffective
       );
       await syncMemberSubscriptionFromStripe(updated, {
         userId: input.memberId,
         changedBy: input.cancelledBy,
         changeType:
-          effective === "immediate" ? "admin_cancelled" : "admin_cancel_scheduled",
+          stripeEffective === "immediate" ? "admin_cancelled" : "admin_cancel_scheduled",
       });
 
-      if (effective === "immediate") {
+      if (stripeEffective === "immediate") {
         stripeCancelled.push(memberSub.stripeSubscriptionId);
       } else {
         stripeScheduled.push(memberSub.stripeSubscriptionId);
@@ -291,7 +303,7 @@ export async function cancelMemberProgramSubscription(
         data: {
           memberSubscriptionId: memberSub.id,
           changeType:
-            effective === "immediate" ? "ADMIN_CANCELLED" : "ADMIN_CANCEL_SCHEDULED",
+            stripeEffective === "immediate" ? "ADMIN_CANCELLED" : "ADMIN_CANCEL_SCHEDULED",
           changedBy: input.cancelledBy,
           notes: input.reason ?? undefined,
           fromBillingPriceId: memberSub.billingPriceId,
@@ -314,6 +326,14 @@ export async function cancelMemberProgramSubscription(
         data: { cancelAtPeriodEnd: true },
       });
     }
+  }
+
+  if (target.kind === "program") {
+    await useIncludedCareSlot({
+      userId: input.memberId,
+      programKey: target.key,
+      reason: "cancelled",
+    }).catch(() => undefined);
   }
 
   if (

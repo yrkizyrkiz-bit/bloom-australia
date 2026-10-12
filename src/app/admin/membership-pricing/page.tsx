@@ -92,6 +92,10 @@ export default function MembershipPricingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [includedCareEnabled, setIncludedCareEnabled] = useState(true);
+  const [includedCareDays, setIncludedCareDays] = useState("30");
+  const [chargeLeadDays, setChargeLeadDays] = useState(7);
+  const [savingIncludedCare, setSavingIncludedCare] = useState(false);
 
   // New product form
   const [showCreate, setShowCreate] = useState(false);
@@ -134,6 +138,13 @@ export default function MembershipPricingPage() {
       applyProducts(data.products ?? []);
       setProgramOptions(data.programOptions ?? []);
       setBillingIntervals(data.billingIntervals ?? []);
+      const settingsRes = await fetch("/api/admin/billing-settings");
+      if (settingsRes.ok) {
+        const settings = await settingsRes.json();
+        setIncludedCareEnabled(settings.enabled !== false);
+        setIncludedCareDays(String(settings.includedDays ?? 30));
+        setChargeLeadDays(Number(settings.chargeLeadDays ?? 7));
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load pricing");
     } finally {
@@ -144,6 +155,30 @@ export default function MembershipPricingPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const saveIncludedCare = async () => {
+    setSavingIncludedCare(true);
+    try {
+      const res = await fetch("/api/admin/billing-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: includedCareEnabled,
+          includedDays: Number(includedCareDays),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save included care");
+      setIncludedCareEnabled(data.enabled !== false);
+      setIncludedCareDays(String(data.includedDays ?? includedCareDays));
+      setChargeLeadDays(Number(data.chargeLeadDays ?? 7));
+      toast.success("Included care settings saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save included care");
+    } finally {
+      setSavingIncludedCare(false);
+    }
+  };
 
   const programLabel = useCallback(
     (value: string) =>
@@ -343,6 +378,48 @@ export default function MembershipPricingPage() {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Included care period</CardTitle>
+          <CardDescription>
+            The first program a new member chooses can include this many days after
+            the doctor approves it. Turning this off charges new programs straight
+            away. The card is still charged {chargeLeadDays} days before each paid
+            period is due. Plans already on a trial keep that trial.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end gap-4">
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={includedCareEnabled}
+              onCheckedChange={setIncludedCareEnabled}
+              id="included-care-enabled"
+            />
+            <Label htmlFor="included-care-enabled">Included care period</Label>
+          </div>
+          <div>
+            <Label htmlFor="included-care-days">Days</Label>
+            <Input
+              id="included-care-days"
+              type="number"
+              min={0}
+              max={365}
+              value={includedCareDays}
+              onChange={(e) => setIncludedCareDays(e.target.value)}
+              className="mt-1 w-28"
+            />
+          </div>
+          <Button onClick={saveIncludedCare} disabled={savingIncludedCare}>
+            {savingIncludedCare ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save included care
+          </Button>
+        </CardContent>
+      </Card>
 
       {showCreate && (
         <Card className="border-primary/40">

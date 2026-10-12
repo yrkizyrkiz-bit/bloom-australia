@@ -23,8 +23,8 @@ export default function HomePage() {
         <HomeLifestyleBanner />
         <SanativeJourney />
         <MembershipPricingSection />
-        <MemberProgramsSection />
         <DoctorsSection />
+        <MemberProgramsSection />
         <QuestionsSection />
         <TestimonialsSection />
       </main>

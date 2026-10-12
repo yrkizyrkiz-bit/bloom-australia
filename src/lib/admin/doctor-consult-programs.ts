@@ -200,6 +200,31 @@ export function resolveDoctorPrescriptionCategory(
   return "WEIGHT_MANAGEMENT";
 }
 
+/** The open consult tab. Membership is not a Weight Management approval. */
+export function prescriptionCategoryFromProgramTab(
+  programTab: string | null | undefined
+): DoctorPrescriptionCategory | null {
+  if (programTab === "HAIR_LOSS") return "HAIR_LOSS";
+  if (programTab === "MENS_HEALTH_SEXUAL") return "SEXUAL_HEALTH";
+  if (programTab === "WOMENS_HEALTH_SEXUAL") return "HORMONE_THERAPY";
+  if (programTab === "WEIGHT_MANAGEMENT") return "WEIGHT_MANAGEMENT";
+  return null;
+}
+
+export function explicitPrescriptionCategory(
+  value: string | null | undefined
+): DoctorPrescriptionCategory | null {
+  if (
+    value === "HAIR_LOSS" ||
+    value === "SEXUAL_HEALTH" ||
+    value === "HORMONE_THERAPY" ||
+    value === "WEIGHT_MANAGEMENT"
+  ) {
+    return value;
+  }
+  return null;
+}
+
 export function isNonWeightDoctorApproval(
   category: string | null | undefined
 ): boolean {

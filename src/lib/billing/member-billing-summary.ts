@@ -15,6 +15,7 @@ import {
   type ProgramKey,
 } from "@/lib/membership/keys";
 import { getLatestPortalQuizSubmissions } from "@/lib/portal-quiz-submissions";
+import { loadIncludedCareForBilling } from "@/lib/billing/included-care";
 import { resolveProgramMemberProgramKey } from "@/lib/membership/entitlement-service";
 import { isSanativeMembershipProduct } from "@/lib/membership/weight-access";
 import {
@@ -318,6 +319,7 @@ type BillingBuildContext = {
     billingPriceId: string | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
+    nextChargeAt?: Date | null;
     activatedAt: Date | null;
     createdAt: Date;
     id: string;
@@ -350,6 +352,12 @@ type BillingBuildContext = {
     programKey: string;
     result: unknown;
   }>;
+  includedCare?: {
+    policyEnabled: boolean;
+    days: number;
+    chargeLeadDays: number;
+    slot: { status: string; programKey: string | null } | null;
+  } | null;
   stageDescription?: string;
 };
 
@@ -431,7 +439,13 @@ async function buildProgramBillingSummary(
       : programInvoice?.amount ??
         (firstMonthCatalog ? firstMonthCatalog.amountCents / 100 : null);
 
-  const firstMonthIncluded = firstMonthPaid && includedWithMembership && !programInvoice &&
+  const slotHoldsThisProgram =
+    !!ctx.includedCare?.policyEnabled &&
+    ctx.includedCare.slot?.status === "RESERVED" &&
+    ctx.includedCare.slot.programKey === programKey;
+  const firstMonthIncluded =
+    slotHoldsThisProgram &&
+    !programInvoice &&
     !(programKey === "WEIGHT_MANAGEMENT" && ctx.intake?.paymentStatus === "PAID");
 
   const firstMonthAmount = firstMonthIncluded ? 0 : chargedFirstMonthAmount;
@@ -477,19 +491,39 @@ async function buildProgramBillingSummary(
     recurringAmount = memberSub.billingPrice.amountCents / 100;
     billingInterval = memberSub.billingPrice.billingInterval;
     billingLabel = memberSub.billingPrice.label || billingIntervalLabel(billingInterval);
-    nextBilling = memberSub.currentPeriodEnd?.toISOString() ?? null;
-    paidTill = nextBilling;
+    nextBilling =
+      memberSub.nextChargeAt?.toISOString() ??
+      memberSub.currentPeriodEnd?.toISOString() ??
+      null;
+    paidTill = memberSub.currentPeriodEnd?.toISOString() ?? null;
+    const coveredMs =
+      memberSub.currentPeriodStart && memberSub.currentPeriodEnd
+        ? memberSub.currentPeriodEnd.getTime() - memberSub.currentPeriodStart.getTime()
+        : 0;
+    const includedWindowOpen =
+      memberSub.status === "ACTIVE" &&
+      !!memberSub.nextChargeAt &&
+      !!memberSub.currentPeriodEnd &&
+      memberSub.nextChargeAt < memberSub.currentPeriodEnd &&
+      coveredMs > 0 &&
+      coveredMs <= 40 * 24 * 60 * 60 * 1000;
+    if (includedWindowOpen && memberSub.nextChargeAt) {
+      const includedDays = ctx.includedCare?.days ?? 30;
+      recurringLabel = `First ${includedDays} days included. Card is charged on ${memberSub.nextChargeAt.toLocaleDateString("en-AU")} for the following period.`;
+    }
   } else if (memberSub?.status === "CANCELLED") {
     recurringStatus = "cancelled";
     recurringLabel = "Cancelled";
   } else if (firstMonthIncluded) {
     recurringStatus = "pending_approval";
+    const includedDays = ctx.includedCare?.days ?? 30;
+    const leadDays = ctx.includedCare?.chargeLeadDays ?? 7;
     recurringLabel =
       recurringAmount != null
-        ? `First 30 days included with membership. Then $${recurringAmount} ${
+        ? `First ${includedDays} days included after your doctor approves this program. Then $${recurringAmount} ${
             billingLabel ? billingLabel.toLowerCase() : "ongoing"
-          } after doctor approval`
-        : "First 30 days included with membership. Recurring billing starts after doctor approval";
+          }. The card is charged ${leadDays} days before the paid period starts.`
+        : `First ${includedDays} days included after doctor approval. The card is charged ${leadDays} days before the paid period starts.`;
   } else if (isPortalPurchase && firstMonthPaid) {
     recurringStatus = "pending_approval";
     recurringLabel = "Recurring billing starts after doctor approval / welcome call";
@@ -548,7 +582,10 @@ async function buildProgramBillingSummary(
           : null,
     }) ?? includedUntil;
   paidTill = paidTillDate?.toISOString() ?? paidTill;
-  nextBilling = memberSub?.currentPeriodEnd?.toISOString() ?? nextBilling;
+  nextBilling =
+    memberSub?.nextChargeAt?.toISOString() ??
+    memberSub?.currentPeriodEnd?.toISOString() ??
+    nextBilling;
 
   const subscriptionAccess = evaluateSubscriptionAccess({
     paidTill: paidTillDate,
@@ -1125,6 +1162,8 @@ export async function getMemberBillingOverview(
     };
   }
 
+  const includedCare = await loadIncludedCareForBilling(userId).catch(() => null);
+
   const ctx: BillingBuildContext = {
     user,
     intake,
@@ -1134,6 +1173,16 @@ export async function getMemberBillingOverview(
     legacyMembership: user.membershipSubscription,
     memberSubs,
     portalQuizzes,
+    includedCare: includedCare
+      ? {
+          policyEnabled: includedCare.policy.enabled,
+          days: includedCare.policy.includedDays,
+          chargeLeadDays: includedCare.policy.chargeLeadDays,
+          slot: includedCare.slot
+            ? { status: includedCare.slot.status, programKey: includedCare.slot.programKey }
+            : null,
+        }
+      : null,
     stageDescription,
   };
 

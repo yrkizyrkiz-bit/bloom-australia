@@ -306,7 +306,6 @@ export default function CustomerDetailPage() {
     }>
   >([]);
   const [reportView, setReportView] = useState<{ historyId: string | null; mode: "view" | "edit" } | null>(null);
-  const [tierUpgradeLoading, setTierUpgradeLoading] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelProgramSlug, setCancelProgramSlug] = useState("");
@@ -1539,42 +1538,6 @@ export default function CustomerDetailPage() {
                         <CreditCard className="w-4 h-4 mr-2" />
                         {portalLoading ? "Opening..." : "Update payment (Stripe)"}
                       </Button>
-                      {subscription?.selectedPlan === "CORE" &&
-                        subscription?.stripeSubscriptionId && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            setTierUpgradeLoading(true);
-                            try {
-                              const res = await fetch("/api/admin/billing/upgrade-tier", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  memberId: customer.id,
-                                  notes: "Precision tier upgrade from CRM",
-                                }),
-                              });
-                              if (!res.ok) {
-                                const err = await res.json().catch(() => ({}));
-                                throw new Error(err.error || "Failed");
-                              }
-                              toast.success("Upgraded to Precision (effective next period)");
-                              fetchData();
-                            } catch (e) {
-                              toast.error(
-                                e instanceof Error ? e.message : "Failed to upgrade tier"
-                              );
-                            } finally {
-                              setTierUpgradeLoading(false);
-                            }
-                          }}
-                          disabled={tierUpgradeLoading}
-                        >
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          {tierUpgradeLoading ? "Upgrading..." : "Upgrade to Precision"}
-                        </Button>
-                      )}
                       <Button
                         variant="outline"
                         size="sm"

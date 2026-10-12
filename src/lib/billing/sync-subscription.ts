@@ -21,6 +21,25 @@ function getSubscriptionPeriod(subscription: Stripe.Subscription): {
   return getStripeSubscriptionPeriod(subscription);
 }
 
+function serviceWindowFromMetadata(
+  metadata: Stripe.Metadata | null | undefined
+): { start: Date; end: Date } | null {
+  const startRaw = metadata?.coverageStartsAt;
+  const endRaw = metadata?.coverageEndsAt;
+  if (!startRaw || !endRaw) return null;
+  const start = new Date(startRaw);
+  const end = new Date(endRaw);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  return { start, end };
+}
+
+function nextChargeFromMetadata(metadata: Stripe.Metadata | null | undefined): Date | null {
+  const raw = metadata?.nextChargeAt;
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function mapStripeStatus(status: Stripe.Subscription.Status): MembershipStatus {
   switch (status) {
     case "active":
@@ -142,7 +161,8 @@ export async function syncMemberSubscriptionFromStripe(
     return null;
   }
 
-  const period = getSubscriptionPeriod(subscription);
+  const period = serviceWindowFromMetadata(subscription.metadata) ?? getSubscriptionPeriod(subscription);
+  const nextChargeAt = nextChargeFromMetadata(subscription.metadata);
   const status = mapStripeStatus(subscription.status);
   const subData = subscription as unknown as Record<string, unknown>;
   const canceledAt =
@@ -177,6 +197,7 @@ export async function syncMemberSubscriptionFromStripe(
       status,
       currentPeriodStart: period.start,
       currentPeriodEnd: period.end,
+      nextChargeAt,
       cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
       cancelledAt: canceledAt,
       activatedAt: period.start,
@@ -189,6 +210,7 @@ export async function syncMemberSubscriptionFromStripe(
       status,
       currentPeriodStart: period.start,
       currentPeriodEnd: period.end,
+      ...(nextChargeAt ? { nextChargeAt } : {}),
       cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
       cancelledAt: canceledAt,
       activatedAt: existing?.activatedAt ?? period.start,

@@ -120,7 +120,11 @@ const CARE_PROGRAM_SLUGS = [
   "womens_health_sexual",
 ] as const;
 
-/** Retired SKUs — kept for history but never used for new billing. */
+/**
+ * Retired SKUs, never used for new billing.
+ * wm_core stays in the database while a live subscription still points at it.
+ * wm_precision and wm_care are removed; they stay listed so a recreated row is deactivated.
+ */
 const RETIRED_PRODUCT_SLUGS = ["wm_core", "wm_precision", "wm_care"] as const;
 
 let catalogReady = false;
@@ -188,7 +192,7 @@ export async function ensureBillingCatalog() {
   catalogReady = true;
 }
 
-/** Keep legacy Core/Precision and duplicate wm_care inactive. */
+/** Keep retired Weight Management SKUs inactive if a row is recreated. */
 export async function deactivateRetiredProducts() {
   if (!billingModelsAvailable()) return;
   await prisma.product.updateMany({
@@ -316,8 +320,8 @@ export async function findDefaultRecurringPrice(
   await ensureBillingCatalog();
   if (!billingModelsAvailable()) return null;
 
-  // Prefer canonical membership-era care product ($360 / 3 months), never legacy Core/Precision.
-  for (const slug of ["weight_management", "wm_care"] as const) {
+  // Canonical Weight Management care product ($360 / 3 months).
+  for (const slug of ["weight_management"] as const) {
     const care = await prisma.product.findFirst({
       where: { slug, program: "WEIGHT_MANAGEMENT", isActive: true },
     });

@@ -34,6 +34,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePortalContext } from "@/hooks/usePortalContext";
 import { hasProgramMembership } from "@/lib/membership/program-access";
 import { PortalPaymentForm } from "@/components/portal/PortalPaymentForm";
+import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import { ensurePrePaymentConsentRecorded } from "@/lib/legal/ensure-pre-payment-consent";
 
 const PROGRAMS_HUB = "/dashboard/programs";
 
@@ -148,6 +150,8 @@ export default function InPortalProgramPage() {
   const [billingTerm, setBillingTerm] = useState<ProgramBillingTerm>("3m");
   const [termQuotes, setTermQuotes] = useState<TermQuote[]>([]);
   const [pricingLoading, setPricingLoading] = useState(true);
+  const [includedCare, setIncludedCare] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
 
   // Prefer DB gender from portal context — session JWT can lag after funnel signup.
   const knownQuizSex = useMemo(
@@ -165,7 +169,10 @@ export default function InPortalProgramPage() {
     setPricingLoading(true);
     fetch(`/api/portal/program-pricing?programKey=${programKey}`)
       .then((r) => r.json())
-      .then((data) => setTermQuotes(data.terms ?? []))
+      .then((data) => {
+        setTermQuotes(data.terms ?? []);
+        setIncludedCare(data.includedCare === true);
+      })
       .catch(() => setTermQuotes([]))
       .finally(() => setPricingLoading(false));
   }, [programKey]);
@@ -227,6 +234,17 @@ export default function InPortalProgramPage() {
     setLoadingPayment(true);
     setError(null);
     try {
+      if (includedCare) {
+        const consentResult = await ensurePrePaymentConsentRecorded({
+          consentChecked,
+          sourcePage: `/dashboard/programs/${programKey.toLowerCase()}`,
+          email: user?.email,
+          userId: user?.id,
+        });
+        if (!consentResult.ok) {
+          throw new Error(consentResult.error);
+        }
+      }
       const res = await fetch("/api/portal/checkout/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -239,6 +257,11 @@ export default function InPortalProgramPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Could not start checkout");
+      if (data.includedCare) {
+        await refetchPortal();
+        setPaymentComplete(true);
+        return;
+      }
       setClientSecret(data.clientSecret);
       setPaymentIntentId(data.paymentIntentId);
       setAmountLabel(data.dueTodayLabel || data.priceLabel || selectedQuote?.dueTodayLabel || "");
@@ -491,9 +514,12 @@ export default function InPortalProgramPage() {
                 </p>
               )}
               <p className="mt-2 text-xs text-[#5c7a52]">
-                {billingTerm === "12m"
-                  ? "Billed once a year. Includes your doctor consultation in this period."
-                  : "Billed every 3 months. Includes your doctor consultation in the first period."}
+                {includedCare
+                  ? selectedQuote?.recurringLabel ||
+                    "The first 30 days are included after your doctor approves this program. The card is charged 7 days before the paid period starts."
+                  : billingTerm === "12m"
+                    ? "Billed once a year. Includes your doctor consultation in this period."
+                    : "Billed every 3 months. Includes your doctor consultation in the first period."}
               </p>
               <p className="mt-2 flex items-center gap-1.5 text-xs text-[#5c7a52]">
                 <Shield className="h-3.5 w-3.5" /> Consultation included · AHPRA doctor
@@ -518,19 +544,32 @@ export default function InPortalProgramPage() {
                 onPaymentFailed={resetPaymentSession}
               />
             ) : (
+              <>
+                {includedCare && (
+                  <div className="mb-3">
+                    <PrePaymentConsentCheckbox
+                      checked={consentChecked}
+                      onCheckedChange={setConsentChecked}
+                      disabled={loadingPayment}
+                    />
+                  </div>
+                )}
               <Button
                 onClick={startPayment}
-                disabled={loadingPayment}
+                disabled={loadingPayment || (includedCare && !consentChecked)}
                 className="w-full bg-emerald-700 hover:bg-emerald-800"
               >
                 {loadingPayment ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing checkout
                   </>
+                ) : includedCare ? (
+                  "Start included care"
                 ) : (
                   `Subscribe, ${selectedQuote?.dueTodayLabel ?? "…"}`
                 )}
               </Button>
+              </>
             )}
           </CardContent>
         </Card>

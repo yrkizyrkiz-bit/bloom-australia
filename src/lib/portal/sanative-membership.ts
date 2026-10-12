@@ -8,6 +8,7 @@ import {
 } from "@/lib/membership/entitlement-service";
 import { normalizeProgramKey } from "@/lib/membership/keys";
 import { PROGRAM_SLUG } from "@/lib/billing/program-slugs";
+import { openIncludedCareForNewMember } from "@/lib/billing/included-care";
 import { createOnboardingPreTriageTask } from "@/lib/funnel/program-pre-triage";
 import { isClinicalProgramMembershipFunnel } from "@/lib/funnel/clinical-program-funnel";
 import {
@@ -147,6 +148,11 @@ export type ActivateSanativeMembershipInput = {
   gender?: "MALE" | "FEMALE" | null;
   /** Treatment program the member came for (e.g. WEIGHT_MANAGEMENT). */
   intentProgram?: string | null;
+  /**
+   * Program that may reserve the included-care slot. Unlike intentProgram,
+   * a missing value stays open (biomarkers) instead of defaulting to weight management.
+   */
+  includedCareIntent?: string | null;
   currentPeriodStart?: Date | null;
   currentPeriodEnd?: Date | null;
 };
@@ -402,6 +408,12 @@ export async function activateSanativeMembership(
         );
     }
   }
+
+  const slotIntent =
+    input.includedCareIntent !== undefined ? input.includedCareIntent : input.intentProgram;
+  await openIncludedCareForNewMember(user.id, slotIntent).catch((err) =>
+    console.error("[included-care] open slot failed:", err)
+  );
 
   return { userId: user.id, email: user.email, alreadyProcessed };
 }
