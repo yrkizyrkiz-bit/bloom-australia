@@ -7,9 +7,7 @@ import {
   CalendarEventData,
   CalendarEventResult,
 } from "@/lib/google-calendar";
-import { sendEmail } from "@/lib/email";
 import { resolveAppBaseUrl } from "@/lib/app-base-url";
-import { buildPortalActivationMagicLink } from "@/lib/portal-context";
 import {
   genderForPublicConsultSlug,
   genderForSubscriptionTier,
@@ -26,11 +24,7 @@ import {
   type PublicConsultProgram,
 } from "@/lib/funnel/public-consult-programs";
 import { createProgramPreTriageTask, isWeightManagementMembershipFunnel, linkOpenOnboardingPreTriageTasksToBooking, resolvePreTriageProgramForBooking } from "@/lib/funnel/program-pre-triage";
-import {
-  consultationConfirmationCopy,
-  isClinicalProgramMembershipFunnel,
-  type ClinicalFunnelProgramId,
-} from "@/lib/funnel/clinical-program-funnel";
+import { isClinicalProgramMembershipFunnel } from "@/lib/funnel/clinical-program-funnel";
 import { appendPublicFunnelQuizFromIntake } from "@/lib/portal/public-funnel-quiz-submission";
 import { grantProgramPanelEntitlementsAtPayment } from "@/lib/portal/grant-program-panel-at-payment";
 import { verifyFirstMonthPaymentForBooking } from "@/lib/stripe/verify-booking-payment-intent";
@@ -325,105 +319,6 @@ function formatPatientAppointmentTime(
     formatted: withTz,
     clinicFootnote: `Clinic time (Sydney): ${clinicFormatted}`,
   };
-}
-
-// UAT8-GAP-013: Send confirmation email - properly wired up
-async function sendConfirmationEmail(
-  email: string,
-  data: {
-    firstName: string;
-    scheduledAt: Date;
-    doctorName: string;
-    selectedPlan: string;
-    magicLink?: string;
-    patientTimezone?: string;
-    consultationName: string;
-    portalPath: string;
-    programHomePhrase: string;
-  }
-): Promise<void> {
-  const tz = data.patientTimezone ?? CLINIC_TIMEZONE;
-  const { formatted, clinicFootnote } = formatPatientAppointmentTime(data.scheduledAt, tz);
-
-  const planDisplay = "Sanative Membership";
-
-  const baseUrl = resolveAppBaseUrl();
-  const portalCtaHref = data.magicLink
-    ? buildPortalActivationMagicLink(data.magicLink, data.portalPath)
-    : `${baseUrl}${data.portalPath}`;
-
-  try {
-    await sendEmail({
-      process: "bookings",
-      to: email,
-      subject: `Your Sanative consultation is confirmed for ${data.scheduledAt.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: tz })}`,
-      body: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2c3628;">Hi ${data.firstName},</h2>
-
-          <p style="color: #2c3628; font-size: 16px;">Great news! Your ${data.consultationName} consultation is confirmed.</p>
-
-          <div style="background: #f4f7f2; border-radius: 12px; padding: 24px; margin: 24px 0;">
-            <h3 style="color: #2c3628; margin-top: 0;">Appointment Details</h3>
-            <table style="width: 100%; color: #5c7a52;">
-              <tr>
-                <td style="padding: 8px 0; font-weight: 600;">Date & Time:</td>
-                <td style="padding: 8px 0;">${formatted}${clinicFootnote ? `<br><span style="font-size: 13px; color: #7e9a72;">${clinicFootnote}</span>` : ""}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; font-weight: 600;">Doctor:</td>
-                <td style="padding: 8px 0;">${data.doctorName}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; font-weight: 600;">Type:</td>
-                <td style="padding: 8px 0;">Phone consultation (we'll call you)</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; font-weight: 600;">Plan:</td>
-                <td style="padding: 8px 0;">${planDisplay}</td>
-              </tr>
-            </table>
-          </div>
-
-          <h3 style="color: #2c3628;">What happens next?</h3>
-          <ol style="color: #5c7a52; line-height: 1.8;">
-            <li>Activate your portal to follow your program journey</li>
-            <li>Our care team will review your health assessment</li>
-            <li>Your doctor will call you at your scheduled time</li>
-            <li>If clinically appropriate, your doctor will discuss next steps for your care plan</li>
-          </ol>
-
-          <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 24px 0;">
-            <p style="margin: 0; color: #92400e; font-size: 14px;">
-              <strong>Please ensure your phone is available</strong> at your appointment time. If you need to reschedule, please do so at least 24 hours in advance.
-            </p>
-          </div>
-
-          <div style="margin: 32px 0;">
-            <a href="${portalCtaHref}" style="display: inline-block; background: #5c7a52; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-              Activate my portal
-            </a>
-          </div>
-
-          <p style="color: #666; font-size: 14px;">
-            Use the button above to set your password and open your ${data.programHomePhrase}. Progress tracking unlocks once your doctor confirms your care plan. This link is valid for 7 days.
-          </p>
-
-          <p style="color: #666; font-size: 14px;">
-            Questions? Reply to this email or contact our care team at support@sanative.com.au
-          </p>
-
-          <p style="color: #2c3628; margin-top: 32px;">
-            The Sanative Health Team
-          </p>
-        </div>
-      `,
-    });
-    console.log(`[EMAIL] Booking confirmation sent to ${email}`);
-  } catch (error) {
-    console.error(`[EMAIL] Failed to send booking confirmation to ${email}:`, error);
-    // Don't throw - email failure shouldn't fail the booking
-  }
 }
 
 // GAP-032: Create urgent admin exception task when booking fails
@@ -1262,37 +1157,8 @@ export async function POST(req: NextRequest) {
     }
 
     const patientTimezone = user?.timezone ?? CLINIC_TIMEZONE;
-    const confirmationCopy = consultationConfirmationCopy({
-      slug: consultProgram.slug as ClinicalFunnelProgramId,
-      label: consultProgram.label,
-      intentProgram:
-        paymentMeta.intentProgram ||
-        paymentMeta.sourceProgram ||
-        consultProgram.slug,
-    });
-
-    // Send confirmation email with magic link for portal access
-    if (user?.email && bookingUserId) {
-      const magicLink = generateMagicLink(bookingUserId, user.email, magicLinkOptions);
-      await sendConfirmationEmail(user.email, {
-        firstName: user.firstName || "there",
-        scheduledAt: booking.scheduledAt,
-        doctorName: booking.doctorName || "your doctor",
-        selectedPlan: updatedBooking.selectedPlan || "your selected plan",
-        magicLink,
-        patientTimezone,
-        ...confirmationCopy,
-      });
-    } else if (user?.email) {
-      await sendConfirmationEmail(user.email, {
-        firstName: user.firstName || "there",
-        scheduledAt: booking.scheduledAt,
-        doctorName: booking.doctorName || "your doctor",
-        selectedPlan: updatedBooking.selectedPlan || "your selected plan",
-        patientTimezone,
-        ...confirmationCopy,
-      });
-    }
+    // Program-funnel payment already sends the program welcome email. Do not send a
+    // second "Your Sanative consultation is confirmed" message when the consult is booked.
 
     // Format the response
     const { formatted: formattedDate } = formatPatientAppointmentTime(

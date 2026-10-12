@@ -7,6 +7,8 @@ import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscriptio
 import { getStripeSubscriptionPeriod } from "@/lib/stripe/subscription-period";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import { quizDobToDate } from "@/lib/funnel/quiz-dob";
+import { sendProgramFunnelWelcomeOnce } from "@/lib/funnel/program-funnel-welcome";
+import { resolveAppBaseUrl } from "@/lib/app-base-url";
 import {
   enforceIpRateLimit,
   rateLimitExceededResponse,
@@ -159,6 +161,17 @@ export async function POST(request: NextRequest) {
         console.error("[membership-checkout/funnel-complete] subscription sync failed:", err)
       );
     }
+
+    const welcomeIntent =
+      intentProgram || paymentIntent.metadata?.intentProgram || "weight_management";
+    await sendProgramFunnelWelcomeOnce({
+      userId: result.userId,
+      intentProgram: welcomeIntent,
+      paymentIntentId,
+      baseUrl: resolveAppBaseUrl({ request }),
+    }).catch((err) =>
+      console.error("[membership-checkout/funnel-complete] welcome email failed:", err)
+    );
 
     return NextResponse.json({
       success: true,

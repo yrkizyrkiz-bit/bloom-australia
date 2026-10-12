@@ -759,8 +759,7 @@ export async function POST(req: NextRequest) {
       }
     }).catch(console.error);
 
-    // Booking confirmation is the only post-join email (sent from /api/bookings/confirm).
-    // Do not also send a "consultation is being arranged" welcome here.
+    // Membership activation sends the welcome email. Booking does not send another email.
 
     return NextResponse.json({
       userId:              user.id,

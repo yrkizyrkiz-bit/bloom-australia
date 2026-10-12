@@ -126,7 +126,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       }
     }
     if (email) {
-      await activateSanativeMembership({
+      const activation = await activateSanativeMembership({
         paymentIntentId: paymentIntent.id,
         stripeSubscriptionId,
         customerId: (paymentIntent.customer as string) || null,
@@ -136,9 +136,28 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
         intentProgram: paymentIntent.metadata.intentProgram || null,
         currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
-      }).catch((err) =>
-        console.error("[webhook] sanative_membership activation failed:", err)
+      }).catch((err) => {
+        console.error("[webhook] sanative_membership activation failed:", err);
+        return null;
+      });
+
+      const { isPublicProgramFunnelPayment } = await import(
+        "@/lib/funnel/program-funnel-welcome"
       );
+      if (activation && isPublicProgramFunnelPayment(paymentIntent.metadata)) {
+        const { resolveAppBaseUrl } = await import("@/lib/app-base-url");
+        const { sendProgramFunnelWelcomeOnce } = await import(
+          "@/lib/funnel/program-funnel-welcome"
+        );
+        await sendProgramFunnelWelcomeOnce({
+          userId: activation.userId,
+          intentProgram: paymentIntent.metadata.intentProgram || null,
+          paymentIntentId: paymentIntent.id,
+          baseUrl: resolveAppBaseUrl(),
+        }).catch((err) =>
+          console.error("[webhook] program welcome email failed:", err)
+        );
+      }
     }
     return;
   }
