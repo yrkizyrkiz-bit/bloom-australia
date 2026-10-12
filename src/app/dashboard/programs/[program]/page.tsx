@@ -12,7 +12,6 @@ import {
   Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { normalizeProgramKey, PROGRAM_LABELS, type ProgramKey } from "@/lib/membership/keys";
 import {
   getProgramOffer,
@@ -151,6 +150,8 @@ export default function InPortalProgramPage() {
   const [termQuotes, setTermQuotes] = useState<TermQuote[]>([]);
   const [pricingLoading, setPricingLoading] = useState(true);
   const [includedCare, setIncludedCare] = useState(false);
+  const [includedDays, setIncludedDays] = useState(30);
+  const [chargeLeadDays, setChargeLeadDays] = useState(7);
   const [consentChecked, setConsentChecked] = useState(false);
 
   // Prefer DB gender from portal context — session JWT can lag after funnel signup.
@@ -165,6 +166,10 @@ export default function InPortalProgramPage() {
   }, [knownQuizSex]);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
+
+  useEffect(() => {
     if (!programKey) return;
     setPricingLoading(true);
     fetch(`/api/portal/program-pricing?programKey=${programKey}`)
@@ -172,6 +177,8 @@ export default function InPortalProgramPage() {
       .then((data) => {
         setTermQuotes(data.terms ?? []);
         setIncludedCare(data.includedCare === true);
+        if (typeof data.includedDays === "number") setIncludedDays(data.includedDays);
+        if (typeof data.chargeLeadDays === "number") setChargeLeadDays(data.chargeLeadDays);
       })
       .catch(() => setTermQuotes([]))
       .finally(() => setPricingLoading(false));
@@ -341,198 +348,199 @@ export default function InPortalProgramPage() {
     );
   }
 
+  const progress = totalProgress > 0 ? Math.min(100, Math.round(((step + 1) / totalProgress) * 100)) : 0;
+  const focusLabel =
+    sexualHealth && answers.treatmentFocus
+      ? getSexualHealthFocusLabel(programKey, answers.treatmentFocus)
+      : null;
+
   return (
-    <div className="mx-auto max-w-xl px-0 py-8 sm:px-4">
+    <div className="mx-auto max-w-lg py-2 sm:py-4">
       <Link
         href={PROGRAMS_HUB}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-[#5c7a52] hover:text-[#34412f]"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm text-[#5c7a52] hover:text-[#34412f]"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to programs
+        <ArrowLeft className="h-4 w-4" /> Programs
       </Link>
 
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl text-[#2c3628]">{label}</h1>
-        <p className="text-sm text-[#5c7a52]">{offer.headline}</p>
-        {sexualHealth && answers.treatmentFocus && step > 0 && (
-          <p className="mt-2 text-xs font-medium uppercase tracking-wide text-[#7e9a72]">
-            Path: {getSexualHealthFocusLabel(programKey, answers.treatmentFocus)}
+      <div className="mb-5">
+        <p className="text-xs font-medium tracking-wide text-[#7e9a72]">
+          {onQuiz ? `Question ${step + 1} of ${quizSteps.length}` : "Your plan"}
+        </p>
+        <h1 className="mt-1 font-serif text-2xl text-[#2c3628] sm:text-[1.75rem]">{label}</h1>
+        <p className="mt-1 text-sm leading-relaxed text-[#5c7a52]">{offer.headline}</p>
+        {focusLabel && step > 0 && (
+          <p className="mt-3 inline-flex rounded-full bg-[#f4f7f2] px-3 py-1 text-sm text-[#34412f]">
+            {focusLabel}
           </p>
         )}
       </div>
 
-      <div className="mb-6 flex gap-1">
-        {Array.from({ length: totalProgress }).map((_, i) => (
-          <div
-            key={i}
-            className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-[#5c7a52]" : "bg-[#e6ebe3]"}`}
-          />
-        ))}
+      <div className="mb-6 h-1 overflow-hidden rounded-full bg-[#e6ebe3]">
+        <div
+          className="h-full rounded-full bg-[#5c7a52] transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        />
       </div>
 
       {onQuiz && question ? (
-        <Card className="border-[#e6ebe3]">
-          <CardContent className="p-6">
-            <h2 className="font-serif text-xl text-[#2c3628] sm:text-2xl">{question.prompt}</h2>
-            {question.subtitle && (
-              <p className="mt-2 text-sm text-[#5c7a52]">{question.subtitle}</p>
-            )}
-            <div className="mt-5 space-y-3">
-              {question.options.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => selectAnswer(option.id)}
-                  className="flex w-full items-center justify-between rounded-xl border-2 border-[#e6ebe3] bg-white px-4 py-4 text-left transition-all hover:border-[#cdd8c6] hover:bg-[#f4f7f2]"
-                >
-                  <span>
-                    <span className="block font-medium text-[#2c3628]">{option.label}</span>
-                    {option.description && (
-                      <span className="mt-0.5 block text-sm text-[#5c7a52]">{option.description}</span>
-                    )}
-                  </span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-[#7e9a72]" />
-                </button>
-              ))}
-            </div>
-            {step > 0 && (
-              <Button variant="ghost" size="sm" className="mt-4 text-[#5c7a52]" onClick={goBack}>
-                Back
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <div>
+          <h2 className="font-serif text-xl leading-snug text-[#2c3628] sm:text-2xl">
+            {question.prompt}
+          </h2>
+          {question.subtitle && (
+            <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">{question.subtitle}</p>
+          )}
+          <div className="mt-5 space-y-2.5">
+            {question.options.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => selectAnswer(option.id)}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#e6ebe3] bg-white px-4 py-4 text-left shadow-sm transition-colors hover:border-[#5c7a52] hover:bg-[#f7faf6]"
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium leading-snug text-[#2c3628]">{option.label}</span>
+                  {option.description && (
+                    <span className="mt-1 block text-sm leading-relaxed text-[#5c7a52]">
+                      {option.description}
+                    </span>
+                  )}
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-[#7e9a72]" />
+              </button>
+            ))}
+          </div>
+          {step > 0 && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="mt-5 inline-flex items-center gap-1.5 text-sm text-[#5c7a52] hover:text-[#34412f]"
+            >
+              <ArrowLeft className="h-4 w-4" /> Previous question
+            </button>
+          )}
+        </div>
       ) : (
-        <Card className="border-[#e6ebe3]">
-          <CardContent className="p-6">
-            {sexualHealth && (
-              <>
-                <div className="mb-5 flex items-start gap-3 rounded-2xl bg-[#f4f7f2] p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#5c7a52]/10">
-                    <Stethoscope className="h-5 w-5 text-[#5c7a52]" />
-                  </div>
-                  <div>
-                    <h2 className="font-serif text-xl text-[#2c3628]">
-                      Doctor consultation included
-                    </h2>
-                    <p className="mt-2 text-sm leading-relaxed text-[#5c7a52]">
-                      {getSexualHealthConsultationSummary(programKey, answers.treatmentFocus)}
-                    </p>
-                  </div>
-                </div>
-                {answers.treatmentFocus && (
-                  <div className="mb-5 rounded-xl border border-[#e6ebe3] bg-white p-4">
-                    <p className="text-sm font-medium text-[#34412f]">Your focus</p>
-                    <p className="mt-1 text-[#2c3628]">
-                      {getSexualHealthFocusLabel(programKey, answers.treatmentFocus)}
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
+        <div className="space-y-5">
+          {sexualHealth && (
+            <div className="flex items-start gap-3 rounded-2xl bg-[#f4f7f2] px-4 py-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
+                <Stethoscope className="h-5 w-5 text-[#5c7a52]" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-medium text-[#2c3628]">Doctor consultation included</h2>
+                <p className="mt-1 text-sm leading-relaxed text-[#5c7a52]">
+                  {getSexualHealthConsultationSummary(programKey, answers.treatmentFocus)}
+                </p>
+              </div>
+            </div>
+          )}
 
-            <h2 className="mb-1 text-lg font-medium text-[#2c3628]">Choose your billing</h2>
-            <p className="mb-4 text-sm text-[#5c7a52]">
-              Pay every 3 months, or save 10% with annual billing. Your first period includes
-              your doctor consultation and program access.
+          <div>
+            <h2 className="font-serif text-xl text-[#2c3628]">Choose how to pay</h2>
+            <p className="mt-1 text-sm leading-relaxed text-[#5c7a52]">
+              {includedCare
+                ? "No charge today. Pick how often the program fee runs after the included period."
+                : "Every 3 months, or once a year and save 10%."}
             </p>
+          </div>
 
-            <div className="mb-4 space-y-2">
-              {PORTAL_PROGRAM_BILLING_TERM_OPTIONS.map((option) => {
-                const quote = termQuotes.find((t) => t.term === option.term);
-                const selected = billingTerm === option.term;
-                const isAnnual = option.term === "12m";
-                return (
-                  <button
-                    key={option.term}
-                    type="button"
-                    disabled={pricingLoading || quote?.error}
-                    onClick={() => {
-                      setBillingTerm(option.term);
-                      resetPaymentSession();
-                    }}
-                    className={`flex w-full flex-col items-start rounded-xl border-2 px-4 py-3 text-left transition-all sm:flex-row sm:items-center sm:justify-between ${
-                      selected
-                        ? "border-emerald-600 bg-emerald-50"
-                        : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"
-                    }`}
-                  >
-                    <span className="flex flex-col gap-0.5">
-                      <span className="flex items-center gap-2 font-medium text-[#2c3628]">
+          <div className="space-y-3">
+            {PORTAL_PROGRAM_BILLING_TERM_OPTIONS.map((option) => {
+              const quote = termQuotes.find((t) => t.term === option.term);
+              const selected = billingTerm === option.term;
+              const isAnnual = option.term === "12m";
+              const amount = pricingLoading
+                ? "…"
+                : quote?.error
+                  ? "Unavailable"
+                  : includedCare
+                    ? "No charge today"
+                    : isAnnual
+                      ? `$${quote?.dueTodayAud?.toFixed(0) ?? "—"}/year`
+                      : quote?.dueTodayAud != null
+                        ? `$${quote.dueTodayAud.toFixed(0)}`
+                        : "—";
+              const detail = quote?.error
+                ? "This price is not available yet."
+                : includedCare
+                  ? quote?.priceLabel
+                    ? `Then ${quote.priceLabel}`
+                    : ""
+                  : isAnnual
+                    ? quote?.compareAtAud != null
+                      ? `$${quote.compareAtAud.toFixed(0)} if billed every 3 months`
+                      : "Billed once a year"
+                    : "Billed every 3 months";
+
+              return (
+                <button
+                  key={option.term}
+                  type="button"
+                  disabled={pricingLoading || quote?.error}
+                  onClick={() => {
+                    setBillingTerm(option.term);
+                    resetPaymentSession();
+                  }}
+                  className={`w-full rounded-2xl border px-4 py-4 text-left transition-colors disabled:opacity-60 ${
+                    selected
+                      ? "border-[#5c7a52] bg-[#f4f7f2] ring-1 ring-[#5c7a52]"
+                      : "border-[#e6ebe3] bg-white hover:border-[#cdd8c6]"
+                  }`}
+                >
+                  <span className="flex items-start justify-between gap-4">
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2 font-medium text-[#2c3628]">
                         {option.label}
                         {isAnnual && !quote?.error && (
-                          <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          <span className="rounded-full bg-[#5c7a52] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                             Save 10%
                           </span>
                         )}
                       </span>
-                      {isAnnual && quote?.compareAtAud != null && !quote.error && (
-                        <span className="text-xs text-[#7e9a72]">
-                          Usually ${quote.compareAtAud.toFixed(0)}/year if billed quarterly
+                      {detail && (
+                        <span className="mt-1 block text-sm leading-relaxed text-[#5c7a52]">
+                          {isAnnual && quote?.compareAtAud != null && !quote.error && !includedCare ? (
+                            <>
+                              <span className="line-through">${quote.compareAtAud.toFixed(0)}</span>
+                              {" if billed every 3 months"}
+                            </>
+                          ) : (
+                            detail
+                          )}
                         </span>
                       )}
                     </span>
-                    <span className="text-sm text-emerald-800">
-                      {pricingLoading ? (
-                        "Loading…"
-                      ) : quote?.error ? (
-                        "Not configured"
-                      ) : (
-                        <>
-                          {isAnnual && quote?.compareAtAud != null && (
-                            <span className="mr-2 text-[#a8bb9e] line-through">
-                              ${quote.compareAtAud.toFixed(0)}
-                            </span>
-                          )}
-                          <span className="font-semibold">
-                            {isAnnual
-                              ? `$${quote?.dueTodayAud?.toFixed(0) ?? "—"}/year`
-                              : quote?.dueTodayLabel}
-                          </span>
-                          {!isAnnual && quote?.recurringLabel && (
-                            <span className="ml-1 text-[#5c7a52]">{quote.recurringLabel}</span>
-                          )}
-                        </>
-                      )}
+                    <span className="shrink-0 text-right text-base font-semibold text-[#2c3628]">
+                      {amount}
                     </span>
-                  </button>
-                );
-              })}
-            </div>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-            <div className="mb-6 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                <span className="font-medium text-[#2c3628]">{label}</span>
-                <span className="font-semibold text-emerald-800">
-                  {billingTerm === "12m"
-                    ? `$${selectedQuote?.dueTodayAud?.toFixed(0) ?? "—"}/year`
-                    : `${selectedQuote?.dueTodayLabel ?? "—"} ${selectedQuote?.recurringLabel ?? ""}`}
-                </span>
-              </div>
-              {billingTerm === "12m" && selectedQuote?.savingsLabel && (
-                <p className="mt-1 text-sm font-medium text-emerald-800">
-                  {selectedQuote.savingsLabel}
-                </p>
-              )}
-              <p className="mt-2 text-xs text-[#5c7a52]">
-                {includedCare
-                  ? selectedQuote?.recurringLabel ||
-                    "The first 30 days are included after your doctor approves this program. The card is charged 7 days before the paid period starts."
-                  : billingTerm === "12m"
-                    ? "Billed once a year. Includes your doctor consultation in this period."
-                    : "Billed every 3 months. Includes your doctor consultation in the first period."}
-              </p>
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-[#5c7a52]">
-                <Shield className="h-3.5 w-3.5" /> Consultation included · AHPRA doctor
-              </p>
-            </div>
+          <p className="flex items-start gap-2 text-sm leading-relaxed text-[#5c7a52]">
+            <Shield className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {includedCare
+                ? `The first ${includedDays} days are included after your doctor approves ${label}. Your card is charged ${chargeLeadDays} days before the paid period starts. An AHPRA-registered doctor consultation is included.`
+                : "Charged today, then on the same cadence. An AHPRA-registered doctor consultation is included."}
+            </span>
+          </p>
 
-            {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-            {clientSecret && paymentIntentId && amountLabel ? (
+          {error && (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+          )}
+
+          {clientSecret && paymentIntentId && amountLabel ? (
+            <div>
               <PortalPaymentForm
                 clientSecret={clientSecret}
                 paymentIntentId={paymentIntentId}
                 amountLabel={amountLabel}
-                submitLabel={`Subscribe to ${label}`}
+                submitLabel={`Pay and start ${label}`}
                 userId={user?.id}
                 customerEmail={user?.email}
                 returnUrl={
@@ -543,36 +551,42 @@ export default function InPortalProgramPage() {
                 onConfirmed={confirmPayment}
                 onPaymentFailed={resetPaymentSession}
               />
-            ) : (
-              <>
-                {includedCare && (
-                  <div className="mb-3">
-                    <PrePaymentConsentCheckbox
-                      checked={consentChecked}
-                      onCheckedChange={setConsentChecked}
-                      disabled={loadingPayment}
-                    />
-                  </div>
-                )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {includedCare && (
+                <PrePaymentConsentCheckbox
+                  checked={consentChecked}
+                  onCheckedChange={setConsentChecked}
+                  disabled={loadingPayment}
+                />
+              )}
               <Button
                 onClick={startPayment}
-                disabled={loadingPayment || (includedCare && !consentChecked)}
-                className="w-full bg-emerald-700 hover:bg-emerald-800"
+                disabled={loadingPayment || pricingLoading || (includedCare && !consentChecked)}
+                className="h-12 w-full bg-[#5c7a52] text-base hover:bg-[#4a6343]"
               >
                 {loadingPayment ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing checkout
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing
                   </>
                 ) : includedCare ? (
                   "Start included care"
                 ) : (
-                  `Subscribe, ${selectedQuote?.dueTodayLabel ?? "…"}`
+                  `Continue to payment`
                 )}
               </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={goBack}
+            className="inline-flex items-center gap-1.5 text-sm text-[#5c7a52] hover:text-[#34412f]"
+          >
+            <ArrowLeft className="h-4 w-4" /> Previous question
+          </button>
+        </div>
       )}
     </div>
   );

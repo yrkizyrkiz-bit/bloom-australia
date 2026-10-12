@@ -156,9 +156,7 @@ export async function GET(request: Request) {
             label: opt.label,
             dueTodayAud: includedCare ? 0 : quote.dueTodayAud,
             dueTodayLabel: includedCare ? "No charge today" : quote.dueTodayLabel,
-            recurringLabel: includedCare
-              ? `First ${policy?.includedDays ?? 30} days included after doctor approval. Then ${quote.priceLabel}. The card is charged ${policy?.chargeLeadDays ?? 7} days before the paid period starts.`
-              : quote.recurringLabel,
+            recurringLabel: includedCare ? `Then ${quote.priceLabel}` : quote.recurringLabel,
             priceLabel: quote.priceLabel,
             recurringBillingPriceId: quote.recurring.id,
             firstMonthBillingPriceId: quote.firstMonth.id,
@@ -172,7 +170,14 @@ export async function GET(request: Request) {
       })
     );
 
-    return NextResponse.json({ programKey, catalog, terms, includedCare });
+    return NextResponse.json({
+      programKey,
+      catalog,
+      terms,
+      includedCare,
+      includedDays: includedCare ? policy?.includedDays ?? 30 : null,
+      chargeLeadDays: includedCare ? policy?.chargeLeadDays ?? 7 : null,
+    });
   } catch (error) {
     console.error("[portal/program-pricing]", error);
     const message = error instanceof Error ? error.message : "Failed to load pricing";

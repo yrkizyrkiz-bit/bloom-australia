@@ -164,7 +164,7 @@ function CheckoutInner({
       <Button
         type="submit"
         disabled={!stripe || !elements || !consentChecked || processing}
-        className="w-full bg-emerald-700 hover:bg-emerald-800"
+        className="h-12 w-full bg-[#5c7a52] text-base hover:bg-[#4a6343]"
       >
         {processing ? (
           <>
