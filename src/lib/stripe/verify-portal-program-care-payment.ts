@@ -53,6 +53,24 @@ export function orderProgramPaymentIntentIds(input: {
   return ordered;
 }
 
+/**
+ * A PaymentIntent belongs to this member when its user id matches.
+ * Public membership checkout sometimes stores only the email, because the
+ * account is created as the payment completes.
+ */
+export function paymentBelongsToMember(input: {
+  metadataUserId?: string | null;
+  metadataEmail?: string | null;
+  memberId: string;
+  memberEmail?: string | null;
+}): boolean {
+  const metaUserId = (input.metadataUserId || "").trim();
+  if (metaUserId) return metaUserId === input.memberId;
+  const metaEmail = (input.metadataEmail || "").trim().toLowerCase();
+  const memberEmail = (input.memberEmail || "").trim().toLowerCase();
+  return metaEmail.length > 0 && metaEmail === memberEmail;
+}
+
 /** Catalog amount, when we still have the price row, must equal what Stripe charged. */
 export function portalProgramChargeAllowed(
   paidCents: number,
@@ -192,7 +210,18 @@ async function assertPortalProgramPaymentIntent(params: {
   }
 
   const metadata = paymentIntent.metadata ?? {};
-  if ((metadata.userId || "").trim() !== params.userId) {
+  const member = await prisma.user.findUnique({
+    where: { id: params.userId },
+    select: { email: true },
+  });
+  if (
+    !paymentBelongsToMember({
+      metadataUserId: metadata.userId,
+      metadataEmail: metadata.email,
+      memberId: params.userId,
+      memberEmail: member?.email,
+    })
+  ) {
     return { ok: false, error: "Payment does not belong to this user", status: 403 };
   }
 
@@ -254,6 +283,20 @@ async function hasActivePaidProgram(
   return null;
 }
 
+async function reservedIncludedProgram(
+  userId: string,
+  allowedKeys: ProgramKey[]
+): Promise<ProgramKey | null> {
+  const slot = await prisma.includedCareSlot.findUnique({
+    where: { userId },
+    select: { status: true, programKey: true },
+  });
+  if (!slot || slot.status !== "RESERVED") return null;
+  const key = normalizeProgramKey(slot.programKey);
+  if (key && allowedKeys.includes(key)) return key;
+  return null;
+}
+
 /**
  * A verified portal program charge stands on its own.
  * An empty result, or a PaymentIntent that belongs to another program, falls
@@ -291,8 +334,8 @@ export async function verifyPortalProgramCarePaymentForDecision(
     allowedKeys
   );
 
+  let lastFailure: { error: string; status: number } | null = null;
   if (orderedIds.length > 0) {
-    let lastFailure: { error: string; status: number } | null = null;
     for (const candidatePi of orderedIds) {
       const verified = await assertPortalProgramPaymentIntent({
         paymentIntentId: candidatePi,
@@ -309,6 +352,7 @@ export async function verifyPortalProgramCarePaymentForDecision(
         ) {
           return verified;
         }
+        // Another program's charge, or the membership fee, is not this program's payment.
         continue;
       }
 
@@ -333,7 +377,17 @@ export async function verifyPortalProgramCarePaymentForDecision(
       };
     }
 
-    if (lastFailure) return lastFailure;
+  }
+
+  // A reserved included-care program has no program charge yet. That is the payment.
+  const includedProgram = await reservedIncludedProgram(params.userId, allowedKeys);
+  if (includedProgram) {
+    return {
+      ok: true,
+      paymentIntentId: "",
+      programKey: includedProgram,
+      backfilled: false,
+    };
   }
 
   // Paid program on file but PI not recoverable (e.g. legacy) — still allow prescribe.
@@ -345,6 +399,16 @@ export async function verifyPortalProgramCarePaymentForDecision(
       programKey: activeProgram,
       backfilled: false,
     };
+  }
+
+  // A membership fee stored on the consult is not a program charge. Say so, so
+  // weight approval can check the membership amount. A payment that names a
+  // different member is not that fee.
+  if (
+    lastFailure &&
+    lastFailure.error !== "Payment does not belong to this user"
+  ) {
+    return { ok: false, error: lastFailure.error, status: lastFailure.status };
   }
 
   return {

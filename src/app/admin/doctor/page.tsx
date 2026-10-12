@@ -77,7 +77,6 @@ import {
   hasDoctorProgram,
   hasMembershipEnrollment,
   prescriptionCategoryFromProgramTab,
-  resolveDoctorPrescriptionCategory,
   type DoctorProgramTab,
 } from "@/lib/admin/doctor-consult-programs";
 import type { EnrolledProgram } from "@/lib/triage/enrolled-programs";
@@ -696,7 +695,8 @@ export default function DoctorDashboardPage() {
         payload.contraindicationsReviewed = contraindicationsReviewed;
         payload.patientCounsellingDocumented = patientCounsellingDocumented;
         payload.followUpTiming = followUpTiming;
-        payload.prescriptionCategory = resolveDoctorPrescriptionCategory(programConsultTab);
+        const category = prescriptionCategoryFromProgramTab(programConsultTab);
+        if (category) payload.prescriptionCategory = category;
       } else if (decisionType === "APPROVED_NO_TREATMENT") {
         payload.noTreatment = true;
         payload.contraindicationsReviewed = contraindicationsReviewed;

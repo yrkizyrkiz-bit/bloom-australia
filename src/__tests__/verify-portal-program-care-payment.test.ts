@@ -1,11 +1,47 @@
 import { describe, expect, it } from "vitest";
 import {
   orderProgramPaymentIntentIds,
+  paymentBelongsToMember,
   portalPaymentFailureIsTerminal,
   portalProgramChargeAllowed,
   programKeysForPrescriptionCategory,
   weightDecisionShouldUseMembershipPayment,
 } from "@/lib/stripe/verify-portal-program-care-payment";
+
+describe("paymentBelongsToMember", () => {
+  it("accepts a membership charge that stored the email and not the user id", () => {
+    expect(
+      paymentBelongsToMember({
+        metadataUserId: "",
+        metadataEmail: "DinoBeauFabio@gmail.com",
+        memberId: "cmv4ogzz3000112heqnl49l0m",
+        memberEmail: "dinobeaufabio@gmail.com",
+      })
+    ).toBe(true);
+  });
+
+  it("rejects a charge that names a different member", () => {
+    expect(
+      paymentBelongsToMember({
+        metadataUserId: "someone-else",
+        metadataEmail: "dinobeaufabio@gmail.com",
+        memberId: "cmv4ogzz3000112heqnl49l0m",
+        memberEmail: "dinobeaufabio@gmail.com",
+      })
+    ).toBe(false);
+  });
+
+  it("rejects a charge with neither a user id nor a matching email", () => {
+    expect(
+      paymentBelongsToMember({
+        metadataUserId: null,
+        metadataEmail: "other@example.com",
+        memberId: "cmv4ogzz3000112heqnl49l0m",
+        memberEmail: "dinobeaufabio@gmail.com",
+      })
+    ).toBe(false);
+  });
+});
 
 describe("programKeysForPrescriptionCategory", () => {
   it("maps hair / sexual / hormone / weight categories to program keys", () => {

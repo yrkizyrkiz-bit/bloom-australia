@@ -50,6 +50,10 @@ async function prescriptionCategoryForApproval(input: {
   requested: string | null | undefined;
   programTab: string | null | undefined;
 }): Promise<DoctorPrescriptionCategory | null> {
+  // The membership tab is not a Weight Management consult. Approve-and-prescribe
+  // used to send that category from the tab helper; the open tab wins.
+  if (input.programTab === "MEMBERSHIP") return null;
+
   const explicit =
     explicitPrescriptionCategory(input.requested) ??
     prescriptionCategoryFromProgramTab(input.programTab);
@@ -306,7 +310,36 @@ export async function POST(request: NextRequest) {
       const isOrganCareBooking = (consultation.notes || "").includes("Organ & Metabolic Care");
       const isBiomarkersBooking = isBiomarkersPanelBookingNotes(consultation.notes);
 
-      if (isNonWeightApproval) {
+      if (!resolvedPrescriptionCategory && !isOrganCareBooking && !isBiomarkersBooking) {
+        // Membership-only consult. The charge on file is Sanative Membership,
+        // not a program fee, and approval must not open a program subscription.
+        if (!consultation.paymentIntentId) {
+          return NextResponse.json(
+            { error: "No first-month payment on record for this consultation" },
+            { status: 400 }
+          );
+        }
+        const paymentVerification = await verifyFirstMonthPaymentForBooking({
+          paymentIntentId: consultation.paymentIntentId,
+          userId,
+          consultationId,
+          bookingHoldId: consultationId,
+          selectedPlan: consultation.selectedPlan,
+        });
+        if ("error" in paymentVerification) {
+          const membershipFallback = await verifyOrganCareMembershipBookingPayment({
+            paymentIntentId: consultation.paymentIntentId,
+            userId,
+            bookingHoldId: consultationId,
+          });
+          if (!membershipFallback.ok) {
+            return NextResponse.json(
+              { error: paymentVerification.error },
+              { status: paymentVerification.status }
+            );
+          }
+        }
+      } else if (isNonWeightApproval) {
         // Portal program upsells (hair / sexual / women's) often book via care
         // without copying the PI onto the consult — resolve + verify separately.
         const programPayment = await verifyPortalProgramCarePaymentForDecision({

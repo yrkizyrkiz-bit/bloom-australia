@@ -11,6 +11,7 @@ import {
   normalizeWmSelectedPlan,
   paymentMetadataMatchesSelectedPlan,
 } from "@/lib/stripe/plan-pricing";
+import { paymentBelongsToMember } from "@/lib/stripe/verify-portal-program-care-payment";
 
 export type VerifyFirstMonthPaymentParams = {
   paymentIntentId: string;
@@ -211,8 +212,14 @@ async function verifyPaymentIntentCore(
     return { error: "Invalid payment currency", status: 400 };
   }
 
-  const metaUserId = metadata.userId?.trim();
-  if (!metaUserId || metaUserId !== params.bookingUserId) {
+  if (
+    !paymentBelongsToMember({
+      metadataUserId: metadata.userId,
+      metadataEmail: metadata.email,
+      memberId: params.bookingUserId,
+      memberEmail: params.userEmail,
+    })
+  ) {
     return { error: "Payment does not belong to this user", status: 403 };
   }
 
@@ -344,17 +351,19 @@ async function assertPaymentCustomerMatchesUser(
       ? paymentIntent.customer
       : paymentIntent.customer.id;
 
-  const existing = await stripe.customers.list({ email: userEmail, limit: 10 });
-  const linkedCustomer = existing.data.find(
-    (customer) => customer.id === piCustomerId && customer.metadata?.userId === userId
-  );
-  if (linkedCustomer) {
-    return null;
-  }
-
   try {
     const customer = await stripe.customers.retrieve(piCustomerId);
-    if (!("deleted" in customer && customer.deleted) && customer.metadata?.userId === userId) {
+    if ("deleted" in customer && customer.deleted) {
+      return { error: "Payment customer does not match user", status: 403 };
+    }
+    const metaUserId = (customer.metadata?.userId || "").trim();
+    if (metaUserId) {
+      return metaUserId === userId
+        ? null
+        : { error: "Payment customer does not match user", status: 403 };
+    }
+    const customerEmail = (customer.email || "").trim().toLowerCase();
+    if (customerEmail && customerEmail === userEmail.trim().toLowerCase()) {
       return null;
     }
   } catch {
