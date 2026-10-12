@@ -41,6 +41,14 @@ describe("program funnel welcome email", () => {
       expect(rendered.html).toContain(included);
       expect(rendered.text).toContain(label);
       expect(rendered.html).toContain(encodeURIComponent(path));
+      expect(rendered.html).toContain("your blood test");
+      expect(rendered.html).toContain(
+        "A second consultation with the doctor to talk through your results and health report."
+      );
+      expect(rendered.text).toContain("your blood test");
+      expect(rendered.text).toContain(
+        "4. A second consultation with the doctor to talk through your results and health report."
+      );
 
       const others = OTHER_PROGRAMS[copy!.programId];
       for (const other of others) {

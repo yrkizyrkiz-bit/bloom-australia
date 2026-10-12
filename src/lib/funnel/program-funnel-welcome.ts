@@ -97,8 +97,9 @@ export function renderProgramFunnelWelcomeEmail(params: {
     <p><strong>What happens next</strong></p>
     <ol style="padding-left: 20px; line-height: 1.7;">
       <li>Book your doctor consultation to discuss your ${program} care.</li>
-      <li>Your doctor issues your pathology request for the Essential panel.</li>
+      <li>Your doctor issues your pathology request for your blood test.</li>
       <li>Results and personalised insights appear in your portal.</li>
+      <li>A second consultation with the doctor to talk through your results and health report.</li>
     </ol>
     <p style="margin: 28px 0;">
       <a href="${escapeHtml(params.magicLink)}" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">${cta}</a>
@@ -115,8 +116,9 @@ export function renderProgramFunnelWelcomeEmail(params: {
     "",
     "What happens next:",
     `1. Book your doctor consultation to discuss your ${params.copy.programLabel} care.`,
-    "2. Your doctor issues your pathology request for the Essential panel.",
+    "2. Your doctor issues your pathology request for your blood test.",
     "3. Results and personalised insights appear in your portal.",
+    "4. A second consultation with the doctor to talk through your results and health report.",
     "",
     `${cta}: ${params.magicLink}`,
   ].join("\n");
