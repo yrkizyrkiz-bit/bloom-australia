@@ -20,10 +20,6 @@
     "to": "/images/membership/Main_Slide_1.webp"
   },
   {
-    "from": "/images/membership/Main_Slide_2.png",
-    "to": "/images/membership/Main_Slide_2.webp"
-  },
-  {
     "from": "/images/membership/Main_Slide_3.png",
     "to": "/images/membership/Main_Slide_3.webp"
   },
@@ -34,14 +30,6 @@
   {
     "from": "/images/membership/RIsk_factors.png",
     "to": "/images/membership/RIsk_factors.webp"
-  },
-  {
-    "from": "/images/membership/Slide_3.png",
-    "to": "/images/membership/Slide_3.webp"
-  },
-  {
-    "from": "/images/membership/Slide_4.png",
-    "to": "/images/membership/Slide_4.webp"
   },
   {
     "from": "/images/membership/WM_quiz.png",
@@ -92,26 +80,6 @@
     "to": "/images/membership/health_goals.webp"
   },
   {
-    "from": "/images/membership/mobile/slide_1_mobile.png",
-    "to": "/images/membership/mobile/slide_1_mobile.webp"
-  },
-  {
-    "from": "/images/membership/mobile/slide_2_mobile.png",
-    "to": "/images/membership/mobile/slide_2_mobile.webp"
-  },
-  {
-    "from": "/images/membership/mobile/slide_3_mobile.png",
-    "to": "/images/membership/mobile/slide_3_mobile.webp"
-  },
-  {
-    "from": "/images/membership/mobile/slide_4_mobile.png",
-    "to": "/images/membership/mobile/slide_4_mobile.webp"
-  },
-  {
-    "from": "/images/membership/mobile/slide_5_mobile.png",
-    "to": "/images/membership/mobile/slide_5_mobile.webp"
-  },
-  {
     "from": "/images/membership/results_app.png",
     "to": "/images/membership/results_app.webp"
   },
@@ -130,18 +98,6 @@
   {
     "from": "/images/membership/sanative-phone-hand.png",
     "to": "/images/membership/sanative-phone-hand.webp"
-  },
-  {
-    "from": "/images/membership/slide_1.png",
-    "to": "/images/membership/slide_1.webp"
-  },
-  {
-    "from": "/images/membership/slide_2.png",
-    "to": "/images/membership/slide_2.webp"
-  },
-  {
-    "from": "/images/membership/slide_5.png",
-    "to": "/images/membership/slide_5.webp"
   },
   {
     "from": "/images/menopause-hero.png",
