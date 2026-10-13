@@ -10,6 +10,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { Check, Loader2, Lock, Shield } from "lucide-react";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import { PaymentRefreshNotice } from "@/components/checkout/PaymentRefreshNotice";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
 import { STRIPE_CHECKOUT_WALLETS } from "@/lib/checkout/stripe-payment-methods";
@@ -291,6 +292,7 @@ function CardPaymentForm({
           AHPRA Registered Doctors
         </span>
       </div>
+      <PaymentRefreshNotice />
     </form>
   );
 }

@@ -51,7 +51,7 @@ export const DEFAULT_JOURNEY_STEPS: JourneyTimelineStep[] = [
   },
   {
     key: "script",
-    label: "Treatment being prepared",
+    label: "Treatment being assessed",
     description: "Your prescription is being prepared",
     icon: Package,
   },

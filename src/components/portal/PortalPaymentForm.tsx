@@ -5,6 +5,7 @@ import { PaymentElement, Elements, useElements, useStripe } from "@stripe/react-
 import { CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import { PaymentRefreshNotice } from "@/components/checkout/PaymentRefreshNotice";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import {
   ensurePrePaymentConsentRecorded,
@@ -174,6 +175,7 @@ function CheckoutInner({
           submitLabel
         )}
       </Button>
+      <PaymentRefreshNotice />
     </form>
   );
 }

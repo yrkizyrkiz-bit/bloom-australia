@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { TaxInvoiceDocument } from "@/components/billing/TaxInvoiceDocument";
-import { loadMemberTaxInvoice } from "@/lib/billing/load-member-tax-invoice";
+import {
+  isInvoiceStaffRole,
+  loadTaxInvoiceForViewer,
+} from "@/lib/billing/load-member-tax-invoice";
 import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -18,14 +21,18 @@ export default async function MemberTaxInvoicePage({
     redirect("/login");
   }
 
-  const invoice = await loadMemberTaxInvoice(session.user.id, id);
+  const staff = isInvoiceStaffRole(session.user.role);
+  const invoice = await loadTaxInvoiceForViewer(session.user.id, session.user.role, id);
   if (!invoice) notFound();
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       <p className="mb-4">
-        <Link href="/dashboard/billing" className="text-sm text-[#5c7a52]">
-          Back to payment history
+        <Link
+          href={staff ? "/admin/crm/billing" : "/dashboard/billing"}
+          className="text-sm text-[#5c7a52]"
+        >
+          {staff ? "Back to invoices" : "Back to payment history"}
         </Link>
       </p>
       <TaxInvoiceDocument

@@ -10,6 +10,7 @@ import {
 import { loadStripe } from "@stripe/stripe-js";
 import { Loader2, Lock, CreditCard } from "lucide-react";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import { PaymentRefreshNotice } from "@/components/checkout/PaymentRefreshNotice";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
 import { STRIPE_CHECKOUT_WALLETS } from "@/lib/checkout/stripe-payment-methods";
@@ -151,6 +152,7 @@ function CheckoutForm({
         <CreditCard className="w-3 h-3" />
         Secured by Stripe
       </p>
+      <PaymentRefreshNotice />
     </form>
   );
 }

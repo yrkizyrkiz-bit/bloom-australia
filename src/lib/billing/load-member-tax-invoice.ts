@@ -4,6 +4,33 @@ import {
   type TaxInvoiceInput,
 } from "@/lib/billing/tax-invoice-pdf";
 
+const INVOICE_STAFF_ROLES = new Set(["ADMIN", "CARE_PARTNER", "DOCTOR"]);
+
+export function isInvoiceStaffRole(role?: string | null): boolean {
+  return INVOICE_STAFF_ROLES.has((role || "").toUpperCase());
+}
+
+/**
+ * Members only receive their own paid invoice.
+ * Staff can open any paid invoice, still built from that payment record.
+ */
+export async function loadTaxInvoiceForViewer(
+  viewerUserId: string,
+  viewerRole: string | null | undefined,
+  invoiceId: string
+): Promise<TaxInvoiceInput | null> {
+  if (!isInvoiceStaffRole(viewerRole)) {
+    return loadMemberTaxInvoice(viewerUserId, invoiceId);
+  }
+
+  const owned = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { userId: true },
+  });
+  if (!owned) return null;
+  return loadMemberTaxInvoice(owned.userId, invoiceId);
+}
+
 /** Builds a tax invoice from a paid payment. Returns null when it is not this member's paid record. */
 export async function loadMemberTaxInvoice(
   userId: string,

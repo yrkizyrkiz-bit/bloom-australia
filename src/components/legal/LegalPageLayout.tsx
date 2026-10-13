@@ -15,9 +15,11 @@ const relatedLinks = [
 
 export function LegalPageLayout({
   title,
+  entityName = SANATIVE_LEGAL.entityName,
   children,
 }: {
   title: string;
+  entityName?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -25,7 +27,7 @@ export function LegalPageLayout({
       <Header />
       <main className="min-h-screen bg-[#fdfbf7]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-          <p className="text-sm text-[#7e9a72] mb-2">{SANATIVE_LEGAL.entityName}</p>
+          <p className="text-sm text-[#7e9a72] mb-2">{entityName}</p>
           <h1 className="text-3xl sm:text-4xl font-serif text-[#2c3628] mb-2">{title}</h1>
           <p className="text-sm text-[#7e9a72] mb-8">
             Effective date: {SANATIVE_LEGAL.effectiveDate} · Last updated: {SANATIVE_LEGAL.effectiveDate}

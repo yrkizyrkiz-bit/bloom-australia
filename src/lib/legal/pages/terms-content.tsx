@@ -20,9 +20,11 @@ export function TermsContent() {
             Lifeline on <strong>13 11 14</strong>.
           </li>
           <li>
-            <strong>Doctor-led care.</strong> Sanative coordinates access to AHPRA-registered
-            practitioners. Sanative does not replace your ongoing relationship with your regular GP
-            where in-person care is required.
+            <strong>Doctor-led care.</strong> Sanative is a technology company coordinating access to
+            AHPRA-registered practitioners. Sanative does not replace your ongoing relationship with
+            your regular GP where in-person care is required. All pathology and medical services are
+            provided by independent third parties, including trusted AHPRA-registered practitioners
+            and accredited pathology providers.
           </li>
           <li>
             <strong>No guaranteed outcomes.</strong> Clinical suitability and care options are
@@ -401,7 +403,7 @@ export function TermsContent() {
           Join Sanative, access your digital health platform and speak with a participating doctor. If
           you decide it&apos;s not for you before your initial consultation, we&apos;ll refund your{" "}
           <strong>$365 membership in full</strong>. Your Sanative annual membership fee is{" "}
-          <strong>fully refundable before your first doctor consultation</strong>. For the
+          <strong>fully refundable before your first consultation</strong>. For the
           before-and-after consultation rules, missed or unavailable consultations, clinical
           decisions, and quarterly program cancellation and refund rules, please refer to our{" "}
           <Link href={LEGAL_LINKS.refundPolicy} className="underline text-[#5c7a52]">

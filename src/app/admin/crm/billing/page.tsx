@@ -1,74 +1,66 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { subscriptionPlans } from "@/data/crm-data";
 import { toast } from "sonner";
 import {
   DollarSign,
   CreditCard,
   TrendingUp,
-  Download,
-  Send,
   CheckCircle,
   AlertTriangle,
   Clock,
-  MoreHorizontal,
-  Eye,
   RefreshCw,
   Loader2,
   FileText,
-  Plus
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface Invoice {
   id: string;
   userId: string;
   customerName: string;
   customerEmail: string;
-  plan: string;
-  tier: string;
   amount: number;
-  tax: number;
-  total: number;
   status: string;
-  dueDate: string;
+  description: string | null;
+  issuedAt: string;
   paidAt: string | null;
-  createdAt: string;
-  items: { description: string; quantity: number; unitPrice: number; total: number }[];
 }
 
 interface InvoiceSummary {
   total: number;
   paid: number;
   pending: number;
-  overdue: number;
+  failed: number;
+  refunded: number;
   totalRevenue: number;
   pendingRevenue: number;
+  refundedAmount: number;
+  paidThisMonth: number;
+  paidThisMonthCount: number;
+  activeMembers: number;
+  totalMembers: number;
 }
 
-interface Customer {
-  id: string;
-  subscriptionStatus: string;
-  subscriptionTier: string | null;
+interface BillingPlan {
+  slug: string;
+  label: string;
+  name: string;
+  activeSubscribers: number;
+  prices: { amountAud: number; interval: string; label: string | null }[];
 }
 
 export default function BillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [summary, setSummary] = useState<InvoiceSummary | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [plans, setPlans] = useState<BillingPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -81,42 +73,9 @@ export default function BillingPage() {
         const invoicesRes = await fetch("/api/admin/billing/invoices");
         if (invoicesRes.ok) {
           const data = await invoicesRes.json();
-          const mapped = (data.invoices || []).map((inv: {
-            id: string;
-            userId: string;
-            customerName: string;
-            customerEmail: string;
-            plan: string;
-            amount: number;
-            status: string;
-            description: string | null;
-            issuedAt: string;
-            paidAt: string | null;
-          }) => ({
-            id: inv.id,
-            userId: inv.userId,
-            customerName: inv.customerName,
-            customerEmail: inv.customerEmail,
-            plan: inv.plan,
-            tier: inv.plan,
-            amount: inv.amount,
-            tax: 0,
-            total: inv.amount,
-            status: inv.status.toLowerCase(),
-            dueDate: inv.issuedAt,
-            paidAt: inv.paidAt,
-            createdAt: inv.issuedAt,
-            items: [{ description: inv.description || "Payment", quantity: 1, unitPrice: inv.amount, total: inv.amount }],
-          }));
-          setInvoices(mapped);
+          setInvoices(data.invoices || []);
           setSummary(data.summary || null);
-        }
-
-        // Fetch customers for plan stats
-        const customersRes = await fetch("/api/users?role=MEMBER&limit=100&lite=1");
-        if (customersRes.ok) {
-          const data = await customersRes.json();
-          setCustomers(data.users || []);
+          setPlans(data.plans || []);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -132,18 +91,11 @@ export default function BillingPage() {
   const filteredInvoices = useMemo(() => {
     return invoices
       .filter(i => statusFilter === "all" || i.status.toLowerCase() === statusFilter.toLowerCase())
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort(
+        (a, b) =>
+          new Date(b.paidAt || b.issuedAt).getTime() - new Date(a.paidAt || a.issuedAt).getTime()
+      );
   }, [invoices, statusFilter]);
-
-  // Calculate MRR from active subscribers
-  const mrr = useMemo(() => {
-    return customers
-      .filter(c => c.subscriptionStatus === "ACTIVE")
-      .reduce((sum, c) => {
-        const plan = subscriptionPlans.find(p => p.tier === (c.subscriptionTier || "free"));
-        return sum + (plan?.price || 0);
-      }, 0);
-  }, [customers]);
 
   const getStatusBadge = (status: string) => {
     const statusLower = status.toLowerCase();
@@ -167,55 +119,6 @@ export default function BillingPage() {
         {status}
       </Badge>
     );
-  };
-
-  const handleSendReminder = async (invoice: Invoice) => {
-    try {
-      const response = await fetch("/api/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: invoice.customerEmail,
-          subject: `Payment Reminder - Invoice #${invoice.id}`,
-          body: `Hi ${invoice.customerName.split(" ")[0]},\n\nThis is a reminder that your invoice #${invoice.id} for ${invoice.total.toFixed(2)} is ${invoice.status === "OVERDUE" ? "overdue" : "pending"}.\n\nPlease process your payment at your earliest convenience.\n\nThank you,\nSanative Health Team`,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success(`Reminder sent to ${invoice.customerName}`);
-      } else {
-        throw new Error("Failed to send reminder");
-      }
-    } catch (error) {
-      toast.error("Failed to send reminder");
-    }
-  };
-
-  const handleDownloadPDF = async (invoice: Invoice) => {
-    try {
-      toast.loading("Generating PDF...", { id: "pdf-download" });
-
-      const response = await fetch(`/api/invoices/${invoice.id}/pdf`);
-
-      if (!response.ok) {
-        throw new Error("Failed to generate PDF");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Invoice-${invoice.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success("PDF downloaded successfully", { id: "pdf-download" });
-    } catch (error) {
-      console.error("Error downloading PDF:", error);
-      toast.error("Failed to download PDF", { id: "pdf-download" });
-    }
   };
 
   if (isLoading) {
@@ -249,9 +152,13 @@ export default function BillingPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Monthly Revenue</p>
-                <p className="text-3xl font-serif font-bold text-green-600 mt-1">${mrr}</p>
-                <p className="text-xs text-muted-foreground mt-1">MRR</p>
+                <p className="text-sm text-muted-foreground">Paid this month</p>
+                <p className="text-3xl font-serif font-bold text-green-600 mt-1">
+                  ${(summary?.paidThisMonth ?? 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {summary?.paidThisMonthCount || 0} paid
+                </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-green-500" />
@@ -264,9 +171,9 @@ export default function BillingPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
+                <p className="text-sm text-muted-foreground">Total paid</p>
                 <p className="text-3xl font-serif font-bold text-foreground mt-1">
-                  ${summary?.totalRevenue?.toFixed(2) || "0.00"}
+                  ${(summary?.totalRevenue ?? 0).toFixed(2)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{summary?.paid || 0} paid invoices</p>
               </div>
@@ -283,10 +190,10 @@ export default function BillingPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-3xl font-serif font-bold text-yellow-600 mt-1">
-                  ${summary?.pendingRevenue?.toFixed(2) || "0.00"}
+                  ${(summary?.pendingRevenue ?? 0).toFixed(2)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {(summary?.pending || 0) + (summary?.overdue || 0)} invoices
+                  {summary?.pending || 0} invoices
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
@@ -300,11 +207,13 @@ export default function BillingPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active Subscribers</p>
+                <p className="text-sm text-muted-foreground">Active members</p>
                 <p className="text-3xl font-serif font-bold text-foreground mt-1">
-                  {customers.filter(c => c.subscriptionStatus === "ACTIVE").length}
+                  {summary?.activeMembers ?? 0}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">of {customers.length} total</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  of {summary?.totalMembers ?? 0} members
+                </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
                 <CreditCard className="w-6 h-6 text-purple-500" />
@@ -327,7 +236,12 @@ export default function BillingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">Invoices</CardTitle>
-                  <CardDescription>{summary?.total || 0} total invoices</CardDescription>
+                  <CardDescription>
+                    {summary?.total || 0} invoices
+                    {invoices.length < (summary?.total || 0)
+                      ? ` · showing latest ${invoices.length}`
+                      : ""}
+                  </CardDescription>
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[150px]">
@@ -337,7 +251,6 @@ export default function BillingPage() {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -348,59 +261,44 @@ export default function BillingPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Invoice</TableHead>
+                        <TableHead>Date</TableHead>
                         <TableHead>Customer</TableHead>
-                        <TableHead>Plan</TableHead>
-                        <TableHead>Amount</TableHead>
+                        <TableHead>Description</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Due Date</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredInvoices.map(invoice => (
                         <TableRow key={invoice.id}>
-                          <TableCell className="font-medium">#{invoice.id}</TableCell>
+                          <TableCell>
+                            {new Date(invoice.paidAt || invoice.issuedAt).toLocaleDateString("en-AU", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </TableCell>
                           <TableCell>
                             <div>
                               <p className="font-medium">{invoice.customerName}</p>
                               <p className="text-xs text-muted-foreground">{invoice.customerEmail}</p>
                             </div>
                           </TableCell>
+                          <TableCell>{invoice.description || "Payment"}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="capitalize">{invoice.tier}</Badge>
+                            {invoice.status.toUpperCase() === "PAID" ? (
+                              <Link
+                                href={`/invoices/${invoice.id}`}
+                                className={badgeVariants({ variant: "outline" })}
+                              >
+                                Invoice
+                              </Link>
+                            ) : (
+                              getStatusBadge(invoice.status)
+                            )}
                           </TableCell>
-                          <TableCell className="font-bold">${invoice.total.toFixed(2)}</TableCell>
-                          <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(invoice.dueDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  className="gap-2"
-                                  onClick={() => handleDownloadPDF(invoice)}
-                                >
-                                  <Download className="w-4 h-4" />
-                                  Download PDF
-                                </DropdownMenuItem>
-                                {invoice.status !== "PAID" && (
-                                  <DropdownMenuItem
-                                    className="gap-2"
-                                    onClick={() => handleSendReminder(invoice)}
-                                  >
-                                    <Send className="w-4 h-4" />
-                                    Send Reminder
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                          <TableCell className="text-right font-medium">
+                            ${invoice.amount.toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -420,45 +318,38 @@ export default function BillingPage() {
 
         {/* Plans Tab */}
         <TabsContent value="plans" className="mt-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {subscriptionPlans.map(plan => {
-              const subscribers = customers.filter(
-                c => (c.subscriptionTier || "free") === plan.tier && c.subscriptionStatus === "ACTIVE"
-              ).length;
-              return (
-                <Card key={plan.id} className={plan.tier === "premium" ? "border-primary/50 bg-primary/5" : ""}>
+          {plans.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No subscription plans are configured.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-6">
+              {plans.map((plan) => (
+                <Card key={plan.slug}>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>{plan.name}</CardTitle>
-                      {plan.tier === "premium" && <Badge>Popular</Badge>}
-                    </div>
-                    <div className="mt-2">
-                      <span className="text-3xl font-serif font-bold">${plan.price}</span>
-                      <span className="text-muted-foreground">/month</span>
-                    </div>
+                    <CardTitle>{plan.label}</CardTitle>
+                    <CardDescription>{plan.name}</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 mb-4">
-                      {plan.features.map((feature, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span>{feature}</span>
-                        </div>
-                      ))}
-                    </div>
+                  <CardContent className="space-y-3">
+                    {plan.prices.map((price) => (
+                      <div key={`${plan.slug}-${price.interval}-${price.amountAud}`}>
+                        <p className="text-2xl font-serif font-bold">
+                          ${Number.isInteger(price.amountAud) ? price.amountAud.toFixed(0) : price.amountAud.toFixed(2)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {price.label || price.interval}
+                        </p>
+                      </div>
+                    ))}
                     <div className="pt-4 border-t">
                       <p className="text-sm text-muted-foreground">
-                        <span className="font-bold text-foreground">{subscribers}</span> active subscribers
-                      </p>
-                      <p className="text-sm text-green-600">
-                        ${subscribers * plan.price}/mo revenue
+                        <span className="font-bold text-foreground">{plan.activeSubscribers}</span>{" "}
+                        active
                       </p>
                     </div>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

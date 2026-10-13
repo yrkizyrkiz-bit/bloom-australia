@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import { PaymentRefreshNotice } from "@/components/checkout/PaymentRefreshNotice";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -453,6 +454,7 @@ function CheckoutForm({
           </button>
         </>
       )}
+      <PaymentRefreshNotice />
     </form>
   );
 }

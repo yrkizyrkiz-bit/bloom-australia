@@ -16,29 +16,14 @@ export const SANATIVE_LEGAL = {
 /** Subprocessors referenced in the application codebase. */
 export const LEGAL_SUBPROCESSORS = [
   {
-    name: "Stripe",
+    name: "Payment processing",
     purpose: "Payment processing and subscription billing",
     location: "Australia and overseas (including the United States)",
   },
   {
-    name: "Resend",
-    purpose: "Transactional and service email delivery",
-    location: "Overseas (including the United States)",
-  },
-  {
-    name: "SMS provider (e.g. Cellcast when configured)",
-    purpose: "Service-related SMS notifications",
-    location: "Overseas depending on provider configuration",
-  },
-  {
-    name: "Anthropic / Google (Gemini) when enabled",
+    name: "AI-assisted clinical support",
     purpose: "Optional AI-assisted clinical support and program insights",
     location: "Overseas (including the United States)",
-  },
-  {
-    name: "Cal.com when enabled",
-    purpose: "Appointment scheduling integrations",
-    location: "Overseas depending on provider configuration",
   },
 ] as const;
 

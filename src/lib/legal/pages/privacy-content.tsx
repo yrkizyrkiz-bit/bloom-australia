@@ -13,21 +13,21 @@ export function PrivacyContent() {
     <>
       <LegalSection title="Introduction">
         <LegalP>
-          This Privacy Policy (&quot;Privacy Policy&quot;) describes how {SANATIVE_LEGAL.entityName}{" "}
-          (&quot;Sanative&quot;, &quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses,
-          discloses, stores, and protects personal information when you visit our website at{" "}
-          {SANATIVE_LEGAL.website}, use our patient portal, complete health assessments, book
+          This Privacy Policy (&quot;Privacy Policy&quot;) describes how Sanative (&quot;we&quot;,
+          &quot;us&quot;, or &quot;our&quot;) collects, uses, discloses, stores, and protects personal
+          information when you visit our website at{" "}
+          {SANATIVE_LEGAL.website}, use our members portal, complete health assessments, book
           consultations, purchase programs, or otherwise interact with our services (collectively,
           the &quot;Services&quot;).
         </LegalP>
         <LegalP>
-          We provide a digital Platform that enables healthcare practitioners to run their practice
-          and patient-care workflows, and that connects members with those practitioners. Through
-          the Platform, practitioners and members may submit patient details and other sensitive
-          information, including health information. We recognise that
-          such information is subject to rigorous privacy obligations under Australian law. This
-          Privacy Policy explains how we collect, use, store, and safeguard personal information in
-          line with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).
+          Sanative is a technology company that enables healthcare practitioners to provide
+          patient-care workflows, and that connects Sanative members with those practitioners.
+          Through the Platform, practitioners and members may submit patient details and other
+          sensitive information, including health information. This data is protected under
+          Australian privacy laws. This Privacy Policy explains how we collect, use, store, and
+          safeguard personal information in line with the <em>Privacy Act 1988</em> (Cth) and the
+          Australian Privacy Principles (APPs).
         </LegalP>
         <LegalP>
           <strong>
@@ -55,7 +55,7 @@ export function PrivacyContent() {
 
       <LegalSection title="Who we are">
         <LegalP>
-          {SANATIVE_LEGAL.entityName} operates the Sanative platform and coordinates access to
+          Sanative operates the platform and coordinates access to
           AHPRA-registered practitioners and clinical support services. We are responsible for the
           personal information we collect through the Services, except where a health practitioner
           acts as a separate controller of clinical records they create in the course of providing
@@ -179,7 +179,7 @@ export function PrivacyContent() {
         </LegalP>
         <LegalH3>Provide and manage the Services</LegalH3>
         <LegalUl>
-          <li>Create and administer your account and patient portal</li>
+          <li>Create and administer your account and our members portal</li>
           <li>Run health assessments, eligibility checks, and onboarding</li>
           <li>Facilitate telehealth consultations and clinical care coordination</li>
           <li>Provide care partner support, progress tracking, and program communications</li>
@@ -302,11 +302,10 @@ export function PrivacyContent() {
             after consultation
           </li>
           <li>
-            <strong>Payment processors:</strong> e.g. Stripe, to process transactions
+            <strong>Payment processors:</strong> to process transactions
           </li>
           <li>
-            <strong>Communication providers:</strong> email (e.g. Resend) and SMS providers for
-            service messages
+            <strong>Communication providers:</strong> email and SMS for service messages
           </li>
           <li>
             <strong>Technology and hosting providers:</strong> cloud hosting, security, analytics,
@@ -341,14 +340,13 @@ export function PrivacyContent() {
           ensure they handle information in accordance with applicable privacy law. By using the
           Services and providing your information, you acknowledge that Australian Privacy Principle
           8.1 may not apply to certain overseas disclosures and that overseas recipients may not be
-          subject to the Privacy Act. You may not be able to seek redress under the Privacy Act against
-          an overseas recipient that breaches the APPs.
+          subject to the Privacy Act.
         </LegalP>
         <LegalP>Subprocessors used in our Services may include:</LegalP>
         <LegalUl>
           {LEGAL_SUBPROCESSORS.map((sp) => (
             <li key={sp.name}>
-              <strong>{sp.name}</strong>: {sp.purpose}. Location: {sp.location}.
+              <strong>{sp.purpose}</strong>. Location: {sp.location}.
             </li>
           ))}
         </LegalUl>

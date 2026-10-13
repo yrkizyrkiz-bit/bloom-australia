@@ -3,12 +3,12 @@ import { PrivacyContent } from "@/lib/legal/pages/privacy-content";
 
 export const metadata = {
   title: "Privacy Policy | Sanative",
-  description: "How Sanative Health collects, uses, and protects your personal and health information.",
+  description: "How Sanative collects, uses, and protects your personal and health information.",
 };
 
 export default function PrivacyPage() {
   return (
-    <LegalPageLayout title="Privacy Policy">
+    <LegalPageLayout title="Privacy Policy" entityName="Sanative">
       <PrivacyContent />
     </LegalPageLayout>
   );

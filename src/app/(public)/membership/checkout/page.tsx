@@ -27,6 +27,7 @@ import {
   type OrganCareCheckoutPrefill,
 } from "@/lib/programs/organ-care-public-offer";
 import { PrePaymentConsentCheckbox } from "@/components/legal/PrePaymentConsentCheckbox";
+import { PaymentRefreshNotice } from "@/components/checkout/PaymentRefreshNotice";
 import { AustralianAddressLookup } from "@/components/checkout/AustralianAddressLookup";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
@@ -229,6 +230,7 @@ function PaymentForm({
           </>
         )}
       </button>
+      <PaymentRefreshNotice />
     </form>
   );
 }

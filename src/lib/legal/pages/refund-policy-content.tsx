@@ -103,30 +103,34 @@ export function RefundPolicyContent() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="3. Refund Before Your Initial Doctor Consultation">
+      <LegalSection title="3. Refund Before Your Initial Consultation">
         <LegalP>
           If you change your mind after joining Sanative, you may request a{" "}
-          <strong>full refund of your annual membership fee before your initial doctor consultation</strong>
+          <strong>full refund of your annual membership fee before your initial consultation</strong>
           .
         </LegalP>
         <LegalP>To qualify for this change-of-mind refund:</LegalP>
         <LegalUl>
-          <li>your initial doctor consultation must not have commenced; and</li>
+          <li>your initial consultation must not have commenced; and</li>
           <li>
             you must not have missed or been unavailable for a booked consultation in the circumstances
             described below.
           </li>
         </LegalUl>
-        <LegalP>This refund right is an additional benefit offered by Sanative.</LegalP>
+        <LegalP>
+          An initial consultation could be with a doctor directly or a Sanative care partner to review
+          your assessment prior to your doctor consultation, depending on any risk factor identified
+          from your quiz intake. This refund right is an additional benefit offered by Sanative.
+        </LegalP>
         <LegalP>
           It does not replace or limit any rights you may otherwise have under the Australian Consumer
           Law.
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="4. Once Your Initial Doctor Consultation Has Commenced">
+      <LegalSection title="4. Once Your Initial Consultation Has Commenced">
         <LegalP>
-          Once your initial doctor consultation has commenced, your Sanative annual membership fee is{" "}
+          Once your initial consultation has commenced, your Sanative annual membership fee is{" "}
           <strong>not refundable for change of mind</strong>.
         </LegalP>
         <LegalP>This applies even if, after your consultation, you decide not to:</LegalP>
@@ -147,10 +151,11 @@ export function RefundPolicyContent() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="5. Missed or Unavailable Doctor Consultations">
+      <LegalSection title="5. Missed or Unavailable Consultations">
         <LegalP>
-          Your change-of-mind refund entitlement also ends where you have booked an initial doctor
-          consultation and the doctor has been made reasonably available for that consultation, but it
+          Your change-of-mind refund entitlement also ends where you have booked an initial
+          consultation and the practitioner or care partner has been made reasonably available for that
+          consultation, but it
           cannot be completed because you:
         </LegalP>
         <LegalUl>
@@ -408,15 +413,15 @@ export function RefundPolicyContent() {
 
       <LegalSection title="16. Change-of-Mind Refund Summary">
         <LegalP>For clarity:</LegalP>
-        <LegalH3>Before your initial doctor consultation</LegalH3>
+        <LegalH3>Before your initial consultation</LegalH3>
         <LegalP>
           You may cancel and receive a full refund of your annual Sanative Membership fee.
         </LegalP>
-        <LegalH3>Once your initial doctor consultation has commenced</LegalH3>
+        <LegalH3>Once your initial consultation has commenced</LegalH3>
         <LegalP>
           The annual membership fee is not refundable for change of mind.
         </LegalP>
-        <LegalH3>If you miss or are unavailable for your booked initial doctor consultation</LegalH3>
+        <LegalH3>If you miss or are unavailable for your booked initial consultation</LegalH3>
         <LegalP>
           The annual membership fee is not refundable for change of mind where the doctor was reasonably
           available to complete the consultation.
