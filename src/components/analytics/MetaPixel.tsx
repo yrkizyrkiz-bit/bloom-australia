@@ -3,6 +3,7 @@
 import Script from "next/script";
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { viewContentForPath } from "@/lib/analytics/meta-pixel";
 
 /** Meta Pixel ID from Events Manager */
 export const META_PIXEL_ID =
@@ -16,9 +17,10 @@ declare global {
 }
 
 /**
- * Meta Pixel base code. Fires PageView on first load via the snippet,
- * then again on App Router client navigations.
+ * Meta Pixel base code + PageView on App Router navigations.
+ * Also fires ViewContent on key marketing/program pages (Meta standard events).
  * @see https://developers.facebook.com/docs/meta-pixel/get-started
+ * @see https://www.facebook.com/business/help/402791146561655
  */
 export function MetaPixel() {
   const pathname = usePathname();
@@ -28,11 +30,14 @@ export function MetaPixel() {
   useEffect(() => {
     if (isFirstLoad.current) {
       isFirstLoad.current = false;
+      // Base snippet already sent PageView; still send ViewContent for key pages.
+      viewContentForPath(pathname);
       return;
     }
     if (typeof window.fbq === "function") {
       window.fbq("track", "PageView");
     }
+    viewContentForPath(pathname);
   }, [pathname, searchParams]);
 
   return (

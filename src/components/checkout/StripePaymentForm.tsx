@@ -19,6 +19,10 @@ import {
 } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { Shield, Lock, CreditCard, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  trackMetaEvent,
+  trackMetaPurchaseOnce,
+} from "@/lib/analytics/meta-pixel";
 
 // Initialize Stripe - use a getter to handle SSR
 let stripePromise: ReturnType<typeof loadStripe> | null = null;
@@ -152,6 +156,15 @@ function CheckoutForm({
     onReadyChange?.(checkoutReady);
   }, [checkoutReady, onReadyChange]);
 
+  useEffect(() => {
+    trackMetaEvent("AddPaymentInfo", {
+      content_name: planName || "Sanative Membership",
+      content_ids: ["sanative_membership"],
+      currency: "AUD",
+      value: amount,
+    });
+  }, [amount, planName]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -230,6 +243,12 @@ function CheckoutForm({
         setErrorMessage(errorMsg);
         onError(errorMsg);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        trackMetaPurchaseOnce({
+          paymentIntentId: paymentIntent.id,
+          value: amount,
+          content_name: planName || "Sanative Membership",
+          content_ids: ["sanative_membership"],
+        });
         onSuccess({
           paymentIntentId: paymentIntent.id,
           consentRecordId: consentResult.consentRecordId,
@@ -242,6 +261,12 @@ function CheckoutForm({
           setErrorMessage(msg);
           onError(msg);
         } else if (confirmedIntent?.status === "succeeded") {
+          trackMetaPurchaseOnce({
+            paymentIntentId: confirmedIntent.id,
+            value: amount,
+            content_name: planName || "Sanative Membership",
+            content_ids: ["sanative_membership"],
+          });
           onSuccess({
             paymentIntentId: confirmedIntent.id,
             consentRecordId: consentResult.consentRecordId,

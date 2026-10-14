@@ -27,6 +27,10 @@ import {
 import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.module.css";
 import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
 import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
+import {
+  trackMetaEvent,
+  trackMetaPurchaseOnce,
+} from "@/lib/analytics/meta-pixel";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -158,6 +162,15 @@ function CardPaymentForm({
   const [error, setError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
 
+  useEffect(() => {
+    trackMetaEvent("AddPaymentInfo", {
+      content_name: "Sanative Membership",
+      content_ids: ["sanative_membership"],
+      currency: "AUD",
+      value: amountAud,
+    });
+  }, [amountAud]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
@@ -203,6 +216,12 @@ function CardPaymentForm({
     }
 
     if (paymentIntent?.status === "succeeded") {
+      trackMetaPurchaseOnce({
+        paymentIntentId: paymentIntent.id,
+        value: amountAud,
+        content_name: "Sanative Membership",
+        content_ids: ["sanative_membership"],
+      });
       setCompleted(true);
       onSuccess({
         paymentIntentId: paymentIntent.id,
@@ -404,6 +423,22 @@ export function FunnelMembershipPaymentScreen({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Payment succeeded but membership could not be activated");
+      trackMetaPurchaseOnce({
+        paymentIntentId: result.paymentIntentId,
+        value: amountAud,
+        content_name: "Sanative Membership",
+        content_ids: ["sanative_membership"],
+      });
+      trackMetaEvent("CompleteRegistration", {
+        content_name: "Sanative Membership",
+        status: true,
+        currency: "AUD",
+        value: amountAud,
+      });
+      trackMetaEvent("Schedule", {
+        content_name: "Doctor consultation booking",
+        content_category: intentProgram,
+      });
       onSuccess(result);
     } catch (err) {
       completingRef.current = false;
@@ -497,6 +532,17 @@ export function FunnelMembershipPaymentScreen({
         }
 
         setClientSecret(data.clientSecret);
+        const resolvedAmount =
+          typeof data.amountAud === "number" ? data.amountAud : amountAud;
+        trackMetaEvent("InitiateCheckout", {
+          content_name: "Sanative Membership",
+          content_ids: ["sanative_membership"],
+          content_type: "product",
+          content_category: intentProgram,
+          currency: "AUD",
+          value: resolvedAmount,
+          num_items: 1,
+        });
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : "Failed to initialise payment";

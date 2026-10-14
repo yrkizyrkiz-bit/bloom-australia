@@ -48,6 +48,10 @@ import { sameOriginMagicHref } from "@/lib/app-base-url";
 import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.module.css";
 import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
 import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
+import {
+  trackMetaEvent,
+  trackMetaPurchaseOnce,
+} from "@/lib/analytics/meta-pixel";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 import { ESTABLISHED_MEMBER_CHECKOUT_MESSAGE } from "@/lib/auth/member-identity-guard";
 
@@ -136,6 +140,15 @@ function PaymentForm({
   const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    trackMetaEvent("AddPaymentInfo", {
+      content_name: "Sanative Membership",
+      content_ids: ["sanative_membership"],
+      currency: "AUD",
+      value: amountAud,
+    });
+  }, [amountAud]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
@@ -175,6 +188,12 @@ function PaymentForm({
     }
 
     if (paymentIntent?.status === "succeeded") {
+      trackMetaPurchaseOnce({
+        paymentIntentId: paymentIntent.id,
+        value: amountAud,
+        content_name: "Sanative Membership",
+        content_ids: ["sanative_membership"],
+      });
       onSuccess({
         paymentIntentId: paymentIntent.id,
         consentRecordId: consentResult.consentRecordId,
@@ -627,8 +646,18 @@ function MembershipCheckoutPageContent() {
       setClientSecret(data.clientSecret);
       setPaymentIntentId(data.paymentIntentId ?? null);
       setSubscriptionId(data.subscriptionId ?? null);
+      const resolvedAmount =
+        typeof data.amountAud === "number" ? data.amountAud : priceAud;
       if (typeof data.amountAud === "number") setPriceAud(data.amountAud);
       if (typeof data.priceLabel === "string") setPriceLabel(data.priceLabel);
+      trackMetaEvent("InitiateCheckout", {
+        content_name: "Sanative Membership",
+        content_ids: ["sanative_membership"],
+        content_type: "product",
+        currency: "AUD",
+        value: resolvedAmount,
+        num_items: 1,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to initialize payment");
     } finally {
@@ -677,6 +706,15 @@ function MembershipCheckoutPageContent() {
       setUserId(data.userId);
       setMagicLink(data.magicLink ?? null);
       setNeedsPassword(Boolean(data.needsPassword));
+      trackMetaEvent("CompleteRegistration", {
+        content_name: "Sanative Membership",
+        status: true,
+        currency: "AUD",
+        value: priceAud,
+      });
+      trackMetaEvent("Schedule", {
+        content_name: "Doctor consultation booking",
+      });
       setStep("booking");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete onboarding");

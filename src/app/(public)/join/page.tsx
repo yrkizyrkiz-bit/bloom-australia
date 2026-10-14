@@ -202,6 +202,15 @@ function JoinPageContent() {
         setClientSecret(data.clientSecret);
         setStripeCustomerId(data.customerId);
         setPaymentReady(true);
+        const { trackMetaEvent } = await import("@/lib/analytics/meta-pixel");
+        trackMetaEvent("InitiateCheckout", {
+          content_name: "Sanative Membership",
+          content_ids: ["sanative_membership"],
+          content_type: "product",
+          currency: "AUD",
+          value: 365,
+          num_items: 1,
+        });
       } else {
         setErrors({ payment: data.message || "Failed to initialize payment" });
       }

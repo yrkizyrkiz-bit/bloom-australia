@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Send, X } from "lucide-react";
 import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_NAME } from "@/lib/george";
+import { trackMetaEvent } from "@/lib/analytics/meta-pixel";
 
 type ChatTurn = {
   id: string;
@@ -100,6 +101,12 @@ export function GuestSupportChat({
       if (!response.ok) {
         throw new Error(data.error || "Please try again.");
       }
+      trackMetaEvent("Contact", {
+        content_name: "Guest support chat",
+      });
+      trackMetaEvent("Lead", {
+        content_name: "Guest support chat",
+      });
       setTurns((current) => [
         ...current,
         {

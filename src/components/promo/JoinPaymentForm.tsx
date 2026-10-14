@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PaymentElement,
   useStripe,
@@ -18,6 +18,10 @@ import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
 } from "@/lib/legal/ensure-pre-payment-consent";
+import {
+  trackMetaEvent,
+  trackMetaPurchaseOnce,
+} from "@/lib/analytics/meta-pixel";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
@@ -48,6 +52,15 @@ function CheckoutForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackMetaEvent("AddPaymentInfo", {
+      content_name: "Sanative Membership",
+      content_ids: ["sanative_membership"],
+      currency: "AUD",
+      value: amount,
+    });
+  }, [amount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +103,12 @@ function CheckoutForm({
         setErrorMessage(error.message || "Payment failed");
         onError(error.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        trackMetaPurchaseOnce({
+          paymentIntentId: paymentIntent.id,
+          value: amount,
+          content_name: "Sanative Membership",
+          content_ids: ["sanative_membership"],
+        });
         onSuccess({
           paymentIntentId: paymentIntent.id,
           consentRecordId: consentResult.consentRecordId,

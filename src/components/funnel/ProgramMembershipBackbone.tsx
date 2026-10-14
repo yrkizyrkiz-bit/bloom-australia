@@ -31,6 +31,7 @@ import {
   funnelProgressAccentForProgram,
 } from "@/components/funnel/FunnelStepProgress";
 import { formatMaskedQuizDob, validateQuizDob } from "@/lib/funnel/quiz-dob";
+import { trackMetaEvent } from "@/lib/analytics/meta-pixel";
 
 export type FunnelProfileFields = {
   firstName: string;
@@ -128,7 +129,13 @@ export function ProgramMembershipBackbone({
         {phase === "qualify" && (
           <QualificationStep
             config={config}
-            onContinue={() => setPhase("profile")}
+            onContinue={() => {
+              trackMetaEvent("Lead", {
+                content_name: `${config.intentProgram} assessment`,
+                content_category: config.intentProgram,
+              });
+              setPhase("profile");
+            }}
           />
         )}
         {phase === "profile" && (
