@@ -81,19 +81,19 @@ export function BiomarkersHeroBanner() {
 
         <div className={styles.heroCopy}>
           <h1 id="biomarker-marquee-title" className={styles.title}>
-            Doctor-led care with
+            Doctor-led biomarker care
             <br />
-            biomarker insight
+            for Australians
           </h1>
           <p className={styles.subtitle}>
-            Check-up as a foundation for any Sanative health program
+            Annual check-up with AHPRA doctors — the foundation for every Sanative program
           </p>
           <div className={styles.actions}>
-            <Link href="/biomarker-intake?package=advanced" className="btn-primary">
-              Check your health
+            <Link href="/labs" className="btn-primary">
+              See biomarker labs
             </Link>
-            <Link href="/labs" className="btn-secondary">
-              Learn more
+            <Link href="/pricing" className="btn-secondary">
+              View membership pricing
             </Link>
           </div>
         </div>

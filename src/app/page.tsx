@@ -12,13 +12,31 @@ import { SanativeJourney } from "@/components/promo/sections/SanativeJourney";
 import { MembershipPricingSection } from "@/components/promo/sections/MembershipPricingSection";
 import { MemberProgramsSection } from "@/components/promo/sections/MemberProgramsSection";
 import { publicPageMeta } from "@/lib/seo/public-page-meta";
+import { homeMembershipFaqs } from "@/lib/seo/home-faq";
 // GP referral band (GPCTABand) is hidden until the GP portal ships in v2.
 
 export const metadata = publicPageMeta.home;
 
+const homeFaqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: homeMembershipFaqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: faq.answer,
+    },
+  })),
+};
+
 export default function HomePage() {
   return (
     <MarketingFonts className="min-h-screen bg-[#fdfbf7]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeFaqJsonLd) }}
+      />
       <Header />
       <main>
         <BiomarkersHeroBanner />

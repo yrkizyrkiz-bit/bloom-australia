@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { inter, playfair } from "@/lib/fonts";
+import { MetaPixel } from "@/components/analytics/MetaPixel";
 import "./globals.css";
 
 /** Match Netlify production viewport — do not add maximumScale/userScalable overrides. */
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s",
   },
   description:
-    "From biomarkers to doctor-led care plans, Sanative helps Australians understand their health and act on it. AHPRA-registered doctors. Available across Australia.",
+    "Australian doctor-led membership from $365/year: 85+ biomarkers, AHPRA doctor review, and personalised care for weight, hormones, hair, and organ health.",
   applicationName: "Sanative",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -72,14 +74,18 @@ const organizationJsonLd = {
   "@context": "https://schema.org",
   "@graph": [
     {
-      "@type": "Organization",
+      "@type": ["Organization", "MedicalOrganization"],
       "@id": "https://sanative.com.au/#organization",
       name: "Sanative",
       url: "https://sanative.com.au",
       logo: "https://sanative.com.au/icons/sanative-512.png",
       description:
-        "Doctor-led biomarker care and metabolic health programs across Australia.",
-      areaServed: "AU",
+        "Doctor-led biomarker care and metabolic health programs across Australia. AHPRA-registered doctors.",
+      areaServed: {
+        "@type": "Country",
+        name: "Australia",
+      },
+      medicalSpecialty: ["Metabolic health", "Preventive medicine"],
       sameAs: [],
     },
     {
@@ -110,6 +116,9 @@ export default function RootLayout({
             __html: JSON.stringify(organizationJsonLd),
           }}
         />
+        <Suspense fallback={null}>
+          <MetaPixel />
+        </Suspense>
         {children}
       </body>
     </html>

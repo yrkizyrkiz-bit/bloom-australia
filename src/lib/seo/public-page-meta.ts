@@ -5,7 +5,7 @@ export const publicPageMeta = {
   home: buildPageMetadata({
     title: "Sanative | Doctor-Led Biomarker Care Australia",
     description:
-      "From biomarkers to specialists and personalised care plans, Sanative connects you to doctor-led health across Australia. Start with a clear picture of your health.",
+      "Australian doctor-led membership from $365/year: 85+ biomarkers, AHPRA doctor review, and personalised care for weight, hormones, hair, and organ health.",
     path: "/",
   }),
   about: buildPageMetadata({

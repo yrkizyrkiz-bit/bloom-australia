@@ -90,7 +90,7 @@ export function BentoHero() {
 
             <div className="relative flex items-center justify-between mt-4">
               <div className="flex items-center gap-2 text-[#34412f]">
-                <span className="text-sm font-medium">Learn more</span>
+                <span className="text-sm font-medium">Explore hair health</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
               <div className="w-14 h-14 bg-[#c17a58]/20 rounded-full flex items-center justify-center">

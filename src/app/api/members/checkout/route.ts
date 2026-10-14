@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
+import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
+import {
+  enforceIpRateLimit,
+  rateLimitExceededResponse,
+} from "@/lib/security/rate-limit-http";
+import { verifyLegacyMembersCheckoutPayment } from "@/lib/stripe/verify-legacy-members-checkout-payment";
 
 export async function POST(request: NextRequest) {
   try {
+    const ipLimited = await enforceIpRateLimit(
+      request,
+      "members-checkout:ip",
+      RATE_LIMITS.checkoutIp
+    );
+    if (!ipLimited.allowed) {
+      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    }
+
     const body = await request.json();
 
     const {
@@ -38,6 +53,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
         { status: 400 }
+      );
+    }
+
+    if (!stripePaymentIntentId || typeof stripePaymentIntentId !== "string") {
+      return NextResponse.json(
+        { success: false, message: "Payment intent is required" },
+        { status: 400 }
+      );
+    }
+
+    const paymentVerification = await verifyLegacyMembersCheckoutPayment({
+      paymentIntentId: stripePaymentIntentId,
+      email,
+      program,
+      stripeCustomerId: typeof stripeCustomerId === "string" ? stripeCustomerId : null,
+    });
+
+    if (!paymentVerification.ok) {
+      return NextResponse.json(
+        { success: false, message: paymentVerification.error },
+        { status: paymentVerification.status }
       );
     }
 
@@ -95,7 +131,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create the member
+    const baseIntake =
+      intakeData && typeof intakeData === "object" && !Array.isArray(intakeData)
+        ? (intakeData as Record<string, unknown>)
+        : {};
+
+    // Create the member only after Stripe payment verification
     const member = await prisma.programMember.create({
       data: {
         firstName,
@@ -104,8 +145,16 @@ export async function POST(request: NextRequest) {
         mobile,
         dob: new Date(dob),
         program,
-        intakeData: intakeData || {},
-        stripeCustomerId: stripeCustomerId || null,
+        intakeData: {
+          ...baseIntake,
+          stripePaymentIntentId: paymentVerification.paymentIntent.id,
+          verifiedPaymentIntentId: paymentVerification.paymentIntent.id,
+          paymentVerifiedAt: new Date().toISOString(),
+          paymentAmountCents: paymentVerification.paymentIntent.amount,
+        },
+        stripeCustomerId:
+          paymentVerification.customerId ||
+          (typeof stripeCustomerId === "string" ? stripeCustomerId : null),
         membershipEnd,
         clinicId,
         referralId,
@@ -171,9 +220,6 @@ export async function POST(request: NextRequest) {
         },
       });
     }
-
-    // TODO: Send welcome email to member
-    // TODO: Notify care partner of new assignment
 
     return NextResponse.json({
       success: true,

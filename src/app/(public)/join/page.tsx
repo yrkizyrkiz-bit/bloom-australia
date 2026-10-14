@@ -308,6 +308,11 @@ function JoinPageContent() {
     setIsSubmitting(true);
 
     try {
+      if (!result.paymentIntentId) {
+        setErrors({ submit: "Payment confirmation is missing. Please try again." });
+        return;
+      }
+
       const response = await fetch("/api/members/checkout", {
         method: "POST",
         headers: {
