@@ -359,7 +359,7 @@ function downloadPDF(data: Record<string, unknown>[], filename: string) {
       </style>
     </head>
     <body>
-      <h1>Sanative Health Export Report</h1>
+      <h1>Sanative Export Report</h1>
       <p>Generated: ${new Date().toLocaleString()}</p>
       <p>Total Records: ${data.length}</p>
       <table>

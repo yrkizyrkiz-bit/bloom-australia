@@ -5,24 +5,24 @@ describe("alignFromWithGoogleSmtpUser", () => {
   it("rewrites a different From address to the authenticated Google mailbox", () => {
     expect(
       alignFromWithGoogleSmtpUser(
-        "Sanative Health <noreply@sanative.com.au>",
+        "Sanative <noreply@sanative.com.au>",
         "info@sanative.com.au"
       )
-    ).toBe("Sanative Health <info@sanative.com.au>");
+    ).toBe("Sanative <info@sanative.com.au>");
   });
 
   it("leaves a From address that already matches the Google mailbox", () => {
     expect(
       alignFromWithGoogleSmtpUser(
-        "Sanative Health <info@sanative.com.au>",
+        "Sanative <info@sanative.com.au>",
         "INFO@sanative.com.au"
       )
-    ).toBe("Sanative Health <info@sanative.com.au>");
+    ).toBe("Sanative <info@sanative.com.au>");
   });
 
   it("leaves the header unchanged when no Google mailbox is configured", () => {
     expect(
-      alignFromWithGoogleSmtpUser("Sanative Health <info@sanative.com.au>", "")
-    ).toBe("Sanative Health <info@sanative.com.au>");
+      alignFromWithGoogleSmtpUser("Sanative <info@sanative.com.au>", "")
+    ).toBe("Sanative <info@sanative.com.au>");
   });
 });

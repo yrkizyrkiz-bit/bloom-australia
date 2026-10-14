@@ -1,15 +1,12 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { ArrowRight } from "lucide-react";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
 
-export const metadata: Metadata = {
-  title: "Organ Care | Heart, Liver & Kidney | Sanative",
-  description:
-    "Doctor-reviewed organ care for heart, liver and kidney. Essential panel markers your Sanative doctor reviews in context.",
-};
+
+export const metadata = publicPageMeta.organCare;
 
 const organs = [
   {

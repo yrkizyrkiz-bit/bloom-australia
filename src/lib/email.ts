@@ -785,8 +785,8 @@ export const EMAIL_TEMPLATES = {
     name: "Welcome",
     slug: "welcome",
     category: "WELCOME",
-    subject: "Welcome to Sanative Health, {{firstName}}!",
-    body: `Hi {{firstName}},\n\nWelcome to Sanative Health! We're thrilled to have you join our community.\n\nBest regards,\nThe Sanative Health Team`,
+    subject: "Welcome to Sanative, {{firstName}}!",
+    body: `Hi {{firstName}},\n\nWelcome to Sanative! We're thrilled to have you join our community.\n\nBest regards,\nThe Sanative Team`,
     variables: ["firstName", "lastName", "email"],
   },
   resultsReady: {
@@ -794,7 +794,7 @@ export const EMAIL_TEMPLATES = {
     slug: "results-ready",
     category: "RESULTS",
     subject: "Your Lab Results Are Ready, {{firstName}}",
-    body: `Hi {{firstName}},\n\nYour latest lab results have been uploaded and are ready for you to view.\n\nBest regards,\nThe Sanative Health Team`,
+    body: `Hi {{firstName}},\n\nYour latest lab results have been uploaded and are ready for you to view.\n\nBest regards,\nThe Sanative Team`,
     variables: ["firstName", "biomarkerCount", "dashboardUrl"],
   },
   reminder: {
@@ -802,7 +802,7 @@ export const EMAIL_TEMPLATES = {
     slug: "reminder",
     category: "REMINDER",
     subject: "Reminder: {{reminderSubject}}",
-    body: `Hi {{firstName}},\n\nThis is a friendly reminder about: {{reminderSubject}}\n\nBest regards,\nThe Sanative Health Team`,
+    body: `Hi {{firstName}},\n\nThis is a friendly reminder about: {{reminderSubject}}\n\nBest regards,\nThe Sanative Team`,
     variables: ["firstName", "reminderSubject", "reminderDetails"],
   },
   appointmentConfirmation: {
@@ -810,7 +810,7 @@ export const EMAIL_TEMPLATES = {
     slug: "appointment-confirmation",
     category: "APPOINTMENT",
     subject: "Appointment Confirmed: {{appointmentDate}}",
-    body: `Hi {{firstName}},\n\nYour appointment has been confirmed for {{appointmentDate}}.\n\nBest regards,\nThe Sanative Health Team`,
+    body: `Hi {{firstName}},\n\nYour appointment has been confirmed for {{appointmentDate}}.\n\nBest regards,\nThe Sanative Team`,
     variables: ["firstName", "appointmentDate", "appointmentTime"],
   },
   followUp: {
@@ -818,7 +818,7 @@ export const EMAIL_TEMPLATES = {
     slug: "follow-up",
     category: "FOLLOWUP",
     subject: "Following Up: {{subject}}",
-    body: `Hi {{firstName}},\n\nWe're following up on our recent communication.\n\nBest regards,\n{{agentName}}\nSanative Health Care Team`,
+    body: `Hi {{firstName}},\n\nWe're following up on our recent communication.\n\nBest regards,\n{{agentName}}\nSanative Care Team`,
     variables: ["firstName", "subject", "followUpMessage", "agentName"],
   },
 };

@@ -23,7 +23,7 @@ let cache:
 
 function envDefaults() {
   const fromEmail = process.env.EMAIL_FROM || "noreply@sanative.com.au";
-  const fromName = process.env.EMAIL_FROM_NAME || "Sanative Health";
+  const fromName = process.env.EMAIL_FROM_NAME || "Sanative";
   return { fromEmail, fromName };
 }
 
@@ -104,7 +104,7 @@ export async function resolveEmailIdentity(
 }
 
 export function formatFromHeader(fromName: string, fromEmail: string): string {
-  const safeName = fromName.replace(/[\r\n<>]/g, "").trim() || "Sanative Health";
+  const safeName = fromName.replace(/[\r\n<>]/g, "").trim() || "Sanative";
   return `${safeName} <${fromEmail}>`;
 }
 
@@ -125,6 +125,6 @@ export function alignFromWithGoogleSmtpUser(
   if (!user.includes("@")) return fromHeader;
   if (emailFromHeader(fromHeader) === user) return fromHeader;
   const nameMatch = fromHeader.match(/^\s*([^<]+?)\s*</);
-  const name = nameMatch?.[1]?.replace(/["']/g, "").trim() || "Sanative Health";
+  const name = nameMatch?.[1]?.replace(/["']/g, "").trim() || "Sanative";
   return formatFromHeader(name, user);
 }

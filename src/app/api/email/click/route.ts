@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { resolveSafeEmailClickRedirect } from "@/lib/email/click-redirect";
 
-// GET /api/email/click?cid={campaignId}&email={email}&url={url} - Track link click and redirect
+// GET /api/email/click?cid={campaignId}&email={email}&url={url}
+// Track link click and redirect (app domain / approved hosts only)
 export async function GET(request: NextRequest) {
+  const home = new URL("/", request.url);
+  const { searchParams } = new URL(request.url);
+  const campaignId = searchParams.get("cid");
+  const email = searchParams.get("email");
+  const redirectUrl = resolveSafeEmailClickRedirect(
+    searchParams.get("url"),
+    null,
+    request
+  );
+
+  if (!redirectUrl) {
+    return NextResponse.redirect(home);
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const campaignId = searchParams.get("cid");
-    const email = searchParams.get("email");
-    const redirectUrl = searchParams.get("url");
-
-    if (!redirectUrl) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-
     if (campaignId && email) {
       // Find if this is the first click from this user
       const existingClick = await prisma.emailEvent.findFirst({
@@ -48,15 +55,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Redirect to the target URL
-    return NextResponse.redirect(decodeURIComponent(redirectUrl));
+    return NextResponse.redirect(redirectUrl);
   } catch (error) {
     console.error("Error tracking click:", error);
-    // Try to redirect anyway
-    const redirectUrl = new URL(request.url).searchParams.get("url");
-    if (redirectUrl) {
-      return NextResponse.redirect(decodeURIComponent(redirectUrl));
-    }
-    return NextResponse.redirect(new URL("/", request.url));
+    // Still only redirect to the already-validated URL
+    return NextResponse.redirect(redirectUrl);
   }
 }

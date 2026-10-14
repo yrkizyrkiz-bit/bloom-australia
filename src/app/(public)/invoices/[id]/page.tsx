@@ -7,6 +7,9 @@ import {
   loadTaxInvoiceForViewer,
 } from "@/lib/billing/load-member-tax-invoice";
 import { authOptions } from "@/lib/auth";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
+
+export const metadata = publicPageMeta.invoice;
 
 export const dynamic = "force-dynamic";
 

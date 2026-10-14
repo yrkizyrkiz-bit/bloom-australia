@@ -62,12 +62,12 @@ async function sendVerificationEmail(email: string, code: string): Promise<boole
 </head>
 <body style="margin:0;padding:0;background-color:#f7f6f3;">
 <div style="font-family:Georgia, 'Times New Roman', serif;max-width:520px;margin:0 auto;padding:32px 20px;color:#2c3628;">
-<p style="font-size:20px;margin:0 0 24px;">Sanative Health</p>
+<p style="font-size:20px;margin:0 0 24px;">Sanative</p>
 <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">You requested a verification code for Sanative.</p>
 <p style="font-size:28px;font-weight:600;letter-spacing:0.15em;margin:0 0 16px;">${code}</p>
 <p style="font-size:15px;line-height:1.5;margin:0 0 8px;">This code expires in 10 minutes. Enter it on sanative.com.au.</p>
 <p style="font-size:15px;line-height:1.5;margin:0 0 24px;">If you did not request this, please ignore this email.</p>
-<p style="font-size:13px;line-height:1.5;color:#5c6656;margin:0;">Sanative Health<br>Sydney, Australia<br><a href="https://sanative.com.au" style="color:#5c6656;">https://sanative.com.au</a></p>
+<p style="font-size:13px;line-height:1.5;color:#5c6656;margin:0;">Sanative<br>Sydney, Australia<br><a href="https://sanative.com.au" style="color:#5c6656;">https://sanative.com.au</a></p>
 </div>
 </body>
 </html>`;
@@ -80,7 +80,7 @@ async function sendVerificationEmail(email: string, code: string): Promise<boole
     "This code expires in 10 minutes. Enter it on sanative.com.au.",
     "If you did not request this, please ignore this email.",
     "",
-    "Sanative Health",
+    "Sanative",
     "Sydney, Australia",
     "https://sanative.com.au",
   ].join("\n");

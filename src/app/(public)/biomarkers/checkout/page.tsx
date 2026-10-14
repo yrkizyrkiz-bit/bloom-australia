@@ -1,4 +1,8 @@
 import { redirect } from "next/navigation";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
+
+
+export const metadata = publicPageMeta.biomarkersCheckout;
 
 /**
  * DEPRECATED FUNNEL, consolidated into Sanative Membership.

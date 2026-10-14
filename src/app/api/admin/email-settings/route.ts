@@ -53,7 +53,7 @@ export async function GET() {
     transport: getEmailTransportInfo(),
     settings: {
       defaultFromEmail: settings?.defaultFromEmail || "noreply@sanative.com.au",
-      defaultFromName: settings?.defaultFromName || "Sanative Health",
+      defaultFromName: settings?.defaultFromName || "Sanative",
       defaultReplyTo: settings?.defaultReplyTo || "",
     },
     processes: processRows,
@@ -70,7 +70,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const defaultFromEmail = blankToNull(body.defaultFromEmail) || "noreply@sanative.com.au";
-  const defaultFromName = blankToNull(body.defaultFromName) || "Sanative Health";
+  const defaultFromName = blankToNull(body.defaultFromName) || "Sanative";
   const defaultReplyTo = blankToNull(body.defaultReplyTo);
 
   if (!isPlausibleEmail(defaultFromEmail) || !isPlausibleEmail(defaultReplyTo)) {

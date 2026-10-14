@@ -138,7 +138,7 @@ export function FAQSection() {
         <div className="mt-12 text-center">
           <p className="text-[#7e9a72]">
             Still have questions?{" "}
-            <a href="mailto:support@sanative.com.au" className="text-[#5c7a52] underline underline-offset-2 hover:text-[#34412f] transition-colors">
+            <a href="mailto:info@sanative.com.au" className="text-[#5c7a52] underline underline-offset-2 hover:text-[#34412f] transition-colors">
               Contact our support team
             </a>
           </p>

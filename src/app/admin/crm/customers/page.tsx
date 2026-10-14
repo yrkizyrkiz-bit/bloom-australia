@@ -265,7 +265,7 @@ function MembersPageContent() {
       const response = await fetch("/api/email/abandoned-cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: customer.id, includeDiscount: true }),
+        body: JSON.stringify({ userId: customer.id, includeDiscount: false }),
       });
 
       const data = await response.json();
@@ -275,7 +275,9 @@ function MembersPageContent() {
       }
 
       toast.success("Recovery email sent!", {
-        description: `Sent to ${customer.email} with discount code ${data.discountCode}`,
+        description: data.discountCode
+          ? `Sent to ${customer.email} with discount code ${data.discountCode}`
+          : `Sent to ${customer.email}`,
       });
     } catch (error) {
       console.error("Error sending recovery email:", error);
@@ -304,7 +306,7 @@ function MembersPageContent() {
         const response = await fetch("/api/email/abandoned-cart", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: customer.id, includeDiscount: true }),
+          body: JSON.stringify({ userId: customer.id, includeDiscount: false }),
         });
 
         if (response.ok) {
@@ -571,7 +573,7 @@ function MembersPageContent() {
                     {stats.potential} potential members haven't completed payment
                   </p>
                   <p className="text-sm text-amber-700">
-                    Send recovery emails with a $50 discount code to encourage completion
+                    Send recovery emails to encourage them to complete booking
                   </p>
                 </div>
               </div>

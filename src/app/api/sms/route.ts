@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
       const smsMessage =
         message ||
-        `Hi ${member.firstName}, this is a reminder from Sanative Health. Please contact us at your earliest convenience. Reply STOP to unsubscribe.`;
+        `Hi ${member.firstName}, this is a reminder from Sanative. Please contact us at your earliest convenience. Reply STOP to unsubscribe.`;
 
       const notification = await prisma.sMSNotification.create({
         data: {
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
         const member = memberMap.get(followUp.memberId);
         if (!member?.phone) continue;
 
-        const smsMessage = `Hi ${member.firstName}, this is an urgent reminder from Sanative Health regarding: ${followUp.subject}. Please contact us as soon as possible. Reply STOP to unsubscribe.`;
+        const smsMessage = `Hi ${member.firstName}, this is an urgent reminder from Sanative regarding: ${followUp.subject}. Please contact us as soon as possible. Reply STOP to unsubscribe.`;
 
         const notification = await prisma.sMSNotification.create({
           data: {

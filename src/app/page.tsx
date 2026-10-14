@@ -1,5 +1,6 @@
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
+import { MarketingFonts } from "@/components/promo/MarketingFonts";
 import { BentoHero } from "@/components/promo/sections/BentoHero";
 import { LabsSection } from "@/components/promo/sections/LabsSection";
 import { BiomarkersHeroBanner } from "@/components/promo/sections/BiomarkersHeroBanner";
@@ -10,11 +11,14 @@ import { TestimonialsSection } from "@/components/promo/sections/TestimonialsSec
 import { SanativeJourney } from "@/components/promo/sections/SanativeJourney";
 import { MembershipPricingSection } from "@/components/promo/sections/MembershipPricingSection";
 import { MemberProgramsSection } from "@/components/promo/sections/MemberProgramsSection";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
 // GP referral band (GPCTABand) is hidden until the GP portal ships in v2.
+
+export const metadata = publicPageMeta.home;
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-[#fdfbf7]">
+    <MarketingFonts className="min-h-screen bg-[#fdfbf7]">
       <Header />
       <main>
         <BiomarkersHeroBanner />
@@ -29,6 +33,6 @@ export default function HomePage() {
         <TestimonialsSection />
       </main>
       <Footer />
-    </div>
+    </MarketingFonts>
   );
 }

@@ -408,7 +408,7 @@ Await confirmation of dispatch and tracking number.`,
               <li>Our care team will follow up after delivery</li>
             </ul>
             <p>If you have any questions, please contact our care team.</p>
-            <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+            <p style="color:#666;margin-top:24px;">The Sanative Team</p>
           `,
         });
 

@@ -36,5 +36,3 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    # Prevent search engine indexing
-    X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet"

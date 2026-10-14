@@ -1,5 +1,9 @@
 import { TaxInvoiceDocument } from "@/components/billing/TaxInvoiceDocument";
 import { SAMPLE_MEMBERSHIP_INVOICE } from "@/lib/billing/tax-invoice-pdf";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
+
+
+export const metadata = publicPageMeta.invoiceSample;
 
 export default function SampleTaxInvoicePage() {
   return (

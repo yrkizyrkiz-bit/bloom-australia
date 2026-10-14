@@ -71,6 +71,7 @@ const doctors: {
       "Experienced GP with expertise in Preventative Medicine and Weight Management. Dr Seeley has worked across Neonatal, Geriatric, and Emergency care settings.",
     initials: "PS",
     color: "from-[#5c7a52] to-[#4a6243]",
+    image: "/images/team/phillip-seeley.webp",
   },
   {
     name: "Mia Davies",
@@ -573,7 +574,7 @@ function LabsPageContent() {
                             src={doctors[0].image}
                             alt={doctors[0].name}
                             fill
-                            className="object-cover"
+                            className="object-cover object-center"
                           />
                         </div>
                       ) : (
@@ -613,7 +614,7 @@ function LabsPageContent() {
                             src={doctor.image}
                             alt={doctor.name}
                             fill
-                            className="object-cover"
+                            className="object-cover object-center"
                           />
                         </div>
                       ) : (

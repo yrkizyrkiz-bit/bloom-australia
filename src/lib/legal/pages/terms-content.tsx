@@ -600,13 +600,16 @@ export function TermsContent() {
 
       <LegalSection title="Contact">
         <LegalP>
-          {SANATIVE_LEGAL.entityName}
-          <br />
           {SANATIVE_LEGAL.address}
           <br />
           <a href={`mailto:${SANATIVE_LEGAL.supportEmail}`} className="underline text-[#5c7a52]">
             {SANATIVE_LEGAL.supportEmail}
           </a>
+        </LegalP>
+        <LegalP>
+          Knightsbridge M&amp;A Pty Ltd T/A Sanative
+          <br />
+          ABN: {SANATIVE_LEGAL.abn}
         </LegalP>
       </LegalSection>
     </>

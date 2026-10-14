@@ -1,12 +1,10 @@
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { ContactSupportSection } from "@/components/promo/contact/ContactSupportSection";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
 
-export const metadata = {
-  title: "Contact | Sanative",
-  description:
-    "Talk to George, Sanative’s AI care companion, or log in to your member portal for support.",
-};
+
+export const metadata = publicPageMeta.contact;
 
 export default function ContactPage() {
   return (

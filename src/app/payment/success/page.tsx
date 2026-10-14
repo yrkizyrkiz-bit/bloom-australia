@@ -190,8 +190,8 @@ function SuccessPageContent() {
         {/* Support info */}
         <p className="text-center text-xs text-[#7e9a72] mt-8">
           Questions? Contact us at{" "}
-          <a href="mailto:support@sanative.com.au" className="underline">
-            support@sanative.com.au
+          <a href="mailto:info@sanative.com.au" className="underline">
+            info@sanative.com.au
           </a>
         </p>
       </main>

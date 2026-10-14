@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { getEmailTransportInfo, sendEmail } from "@/lib/email";
+import { buildEmailClickTrackingUrl } from "@/lib/email/click-redirect";
 
 interface EmailPayload {
   to: string | string[];
@@ -26,12 +27,17 @@ function addTracking(
 ): string {
   let trackedHtml = html;
 
-  // Add click tracking to links
+  // Add click tracking to links (/api/email/click only redirects to allowlisted hosts)
   if (trackClicks) {
     trackedHtml = trackedHtml.replace(
       /href="(https?:\/\/[^"]+)"/g,
-      (match, url) => {
-        const trackingUrl = `${baseUrl}/api/email/click?cid=${campaignId}&email=${encodeURIComponent(email)}&url=${encodeURIComponent(url)}`;
+      (_match, url: string) => {
+        const trackingUrl = buildEmailClickTrackingUrl({
+          baseUrl,
+          campaignId,
+          email,
+          targetUrl: url,
+        });
         return `href="${trackingUrl}"`;
       }
     );
@@ -65,7 +71,7 @@ function createHtmlEmail(body: string, campaignId: string, email: string, baseUr
     ${body.split('\n').map(line => `<p style="margin: 0 0 10px 0;">${line || '&nbsp;'}</p>`).join('\n')}
     <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
     <p style="font-size: 12px; color: #888;">
-      This email was sent by Sanative Health.
+      This email was sent by Sanative.
     </p>
   </div>
   <img src="${baseUrl}/api/email/track?cid=${campaignId}&email=${encodeURIComponent(email)}" width="1" height="1" style="display:none;" alt="" />

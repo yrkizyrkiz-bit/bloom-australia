@@ -1,6 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe-token";
+import { getStripe } from "@/lib/stripe";
+
+const COMEBACK_DISCOUNT_AUD = 50;
+
+async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== "ADMIN") {
+    return null;
+  }
+  return session;
+}
+
+/**
+ * Resolve a real Stripe promotion code for abandoned-cart offers.
+ * Never invents codes — only returns a code that already exists in Stripe.
+ */
+async function resolveComebackPromotionCode(): Promise<{
+  code: string;
+  amount: number;
+  promotionCodeId: string;
+}> {
+  const stripe = getStripe();
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const configuredCode = process.env.STRIPE_COMEBACK_PROMO_CODE?.trim();
+  if (!configuredCode) {
+    throw new Error(
+      "STRIPE_COMEBACK_PROMO_CODE is not set. Create a $50 AUD promotion code in Stripe and set the env var before sending discounted recovery emails."
+    );
+  }
+
+  const existing = await stripe.promotionCodes.list({
+    code: configuredCode,
+    limit: 1,
+  });
+  const promo = existing.data[0];
+
+  if (!promo || !promo.active) {
+    throw new Error(
+      `Stripe promotion code "${configuredCode}" was not found or is inactive.`
+    );
+  }
+
+  return {
+    code: promo.code,
+    amount: COMEBACK_DISCOUNT_AUD,
+    promotionCodeId: promo.id,
+  };
+}
 
 // Abandoned cart email template
 function getAbandonedCartEmail(data: {
@@ -21,7 +75,7 @@ function getAbandonedCartEmail(data: {
 
   const programName = programNames[data.program] || "Health";
   const baseUrl = process.env.NEXTAUTH_URL || "https://sanative.com.au";
-  const unsubscribeUrl = `${baseUrl}/api/email/unsubscribe?token=${data.userId}`;
+  const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, data.userId);
 
   const subject = `${data.firstName}, your ${programName} assessment is waiting`;
 
@@ -101,13 +155,13 @@ function getAbandonedCartEmail(data: {
                 AHPRA Registered • NATA-Accredited Partner Labs • Australian Privacy Act compliant
               </p>
               <p style="margin: 0; font-size: 12px; color: #a8bb9e;">
-                © ${new Date().getFullYear()} Sanative Health. All rights reserved.
+                © ${new Date().getFullYear()} Sanative. All rights reserved.
               </p>
               <p style="margin: 12px 0 0 0; font-size: 11px; color: #a8bb9e;">
-                You received this email because you started a Sanative Health assessment.<br>
+                You received this email because you started a Sanative assessment.<br>
                 <a href="${unsubscribeUrl}" style="color: #7e9a72;">Unsubscribe from marketing emails</a> •
                 <a href="https://sanative.com.au/privacy" style="color: #7e9a72;">Privacy Policy</a><br>
-                Sanative Health • Australia
+                Sanative • Australia
               </p>
             </td>
           </tr>
@@ -122,11 +176,15 @@ function getAbandonedCartEmail(data: {
   return { subject, html };
 }
 
-// POST /api/email/abandoned-cart - Send abandoned cart recovery email
+// POST /api/email/abandoned-cart - Send abandoned cart recovery email (admin only)
 export async function POST(req: NextRequest) {
   try {
+    if (!(await requireAdmin())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
-    const { userId, includeDiscount = true } = body;
+    const { userId, includeDiscount = false } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
@@ -168,20 +226,36 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate discount code if requested
+    // Only include a discount when a real Stripe promotion code is configured
     let discountCode: string | undefined;
     let discountAmount: number | undefined;
+    let promotionCodeId: string | undefined;
 
     if (includeDiscount) {
-      discountCode = `COMEBACK${user.id.slice(-6).toUpperCase()}`;
-      discountAmount = 50;
+      try {
+        const promo = await resolveComebackPromotionCode();
+        discountCode = promo.code;
+        discountAmount = promo.amount;
+        promotionCodeId = promo.promotionCodeId;
+      } catch (error) {
+        console.error("Abandoned cart discount unavailable:", error);
+        return NextResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Discount offer is not available. Create a Stripe promotion code and set STRIPE_COMEBACK_PROMO_CODE, or send without includeDiscount.",
+          },
+          { status: 503 }
+        );
+      }
     }
 
     // Build resume URL
     const baseUrl = process.env.NEXTAUTH_URL || "https://sanative.com.au";
     const resumeUrl = `${baseUrl}/weight-management/assessment?resume=true&user=${user.id}`;
 
-    // Generate email content with userId for unsubscribe link
+    // Generate email content (unsubscribe link uses a signed token)
     const { subject, html } = getAbandonedCartEmail({
       firstName: user.firstName || "there",
       program: user.subscriptionTier || "weight_management",
@@ -210,6 +284,7 @@ export async function POST(req: NextRequest) {
         metadata: {
           discountCode,
           discountAmount,
+          promotionCodeId,
         },
       },
     }).catch(console.error);
@@ -217,7 +292,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Abandoned cart email sent to ${user.email}`,
-      discountCode,
+      discountCode: discountCode ?? null,
     });
   } catch (error) {
     console.error("Error sending abandoned cart email:", error);
@@ -228,9 +303,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/email/abandoned-cart - Get list of users eligible for recovery emails
+// GET /api/email/abandoned-cart - Get list of users eligible for recovery emails (admin only)
 export async function GET(req: NextRequest) {
   try {
+    if (!(await requireAdmin())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const hoursAgo = parseInt(searchParams.get("hoursAgo") || "24");
 

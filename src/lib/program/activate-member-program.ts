@@ -204,7 +204,7 @@ export async function activateMemberProgram(
           Go to My Dashboard
         </a>
       </div>
-      <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+      <p style="color:#666;margin-top:24px;">The Sanative Team</p>
     `,
     });
   }

@@ -10,6 +10,10 @@ import { EligibilitySection } from "@/components/promo/weight-loss/EligibilitySe
 import { PricingSection } from "@/components/promo/weight-loss/PricingSection";
 
 import { TrustSection } from "@/components/promo/weight-loss/TrustSection";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
+
+
+export const metadata = publicPageMeta.weightManagement;
 
 export default async function WeightManagementPage({
   searchParams,

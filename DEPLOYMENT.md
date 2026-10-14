@@ -1,4 +1,4 @@
-# Sanative Health Portal - Deployment Guide
+# Sanative Portal - Deployment Guide
 
 ## Prerequisites
 
@@ -68,10 +68,9 @@ DATABASE_URL="your-production-url" npx prisma db seed
 
 ### 4. Verify Deployment
 
-1. Visit your Netlify URL
-2. Log in with demo credentials:
-   - Member: `demo@sanative.com.au` / `demo123`
-   - Admin: `admin@sanative.com.au` / `admin123`
+1. Visit your production URL and confirm the marketing home page loads
+2. Sign in with a **production** admin or member account you created (do not use local seed passwords in production)
+3. Confirm Stripe webhooks and email delivery against your live env vars
 
 ## Local Development
 
@@ -89,12 +88,15 @@ bun run db:generate
 # Run migrations
 bun run db:migrate
 
-# Seed the database
+# Seed the database (local only — creates sample accounts for development)
 bun run db:seed
 
 # Start development server
 bun run dev
 ```
+
+> **Security:** Seed/demo passwords from `prisma/seed.ts` are for local development only. Create unique admin and member accounts for every shared or production environment and rotate any credentials that were ever documented in git history.
+
 
 ## Database Commands
 

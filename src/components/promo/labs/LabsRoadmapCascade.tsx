@@ -34,7 +34,7 @@ const steps: RoadmapStep[] = [
     description:
       "Reduce your risk through lifestyle changes and if eligible, access to treatment.",
     image: "/images/membership/health_goals.webp",
-    alt: "Sanative Health Goals, set biomarker targets and track progress",
+    alt: "Sanative Goals, set biomarker targets and track progress",
   },
   {
     number: "04",

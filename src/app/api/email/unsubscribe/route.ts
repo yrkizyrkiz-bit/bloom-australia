@@ -1,8 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resolveAppBaseUrl } from "@/lib/app-base-url";
+import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe-token";
 
-// GET /api/email/unsubscribe?token=userId
-// Simple unsubscribe endpoint for Spam Act compliance
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// GET /api/email/unsubscribe?token=signedOpaqueToken
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -11,33 +21,38 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return new Response(
         generateHTML("Invalid Link", "The unsubscribe link is invalid or has expired."),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
-    // Find user by ID (token)
+    const userId = verifyUnsubscribeToken(token);
+    if (!userId) {
+      return new Response(
+        generateHTML("Invalid Link", "The unsubscribe link is invalid or has expired."),
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
+      );
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: token },
+      where: { id: userId },
       select: { id: true, email: true, firstName: true },
     });
 
     if (!user) {
       return new Response(
         generateHTML("User Not Found", "We couldn't find your account. You may have already been unsubscribed."),
-        { headers: { "Content-Type": "text/html" } }
+        { headers: { "Content-Type": "text/html; charset=utf-8" } }
       );
     }
 
-    // Update user preferences
     await prisma.user.update({
-      where: { id: token },
+      where: { id: user.id },
       data: {
         marketingOptIn: false,
         unsubscribedAt: new Date(),
       },
     });
 
-    // Log the unsubscribe action
     await prisma.automationLog.create({
       data: {
         userId: user.id,
@@ -49,36 +64,41 @@ export async function GET(request: NextRequest) {
       },
     }).catch(console.error);
 
+    const baseUrl = resolveAppBaseUrl({ request });
+    const firstName = escapeHtml(user.firstName || "there");
+    const settingsUrl = escapeHtml(`${baseUrl}/dashboard/settings`);
+
     return new Response(
       generateHTML(
         "You've Been Unsubscribed",
-        `<p>Hi ${user.firstName || "there"},</p>
-         <p>You have been successfully unsubscribed from Sanative Health marketing emails.</p>
+        `<p>Hi ${firstName},</p>
+         <p>You have been successfully unsubscribed from Sanative marketing emails.</p>
          <p>You will still receive important account and transactional emails related to your health program.</p>
          <p style="margin-top: 24px; color: #666; font-size: 14px;">
            Changed your mind? You can update your email preferences anytime in your
-           <a href="${process.env.NEXTAUTH_URL || "https://sanative.com.au"}/dashboard/settings" style="color: #059669;">account settings</a>.
+           <a href="${settingsUrl}" style="color: #059669;">account settings</a>.
          </p>`
       ),
-      { headers: { "Content-Type": "text/html" } }
+      { headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
   } catch (error) {
     console.error("Unsubscribe error:", error);
     return new Response(
       generateHTML("Something Went Wrong", "We encountered an error processing your request. Please try again or contact support."),
-      { headers: { "Content-Type": "text/html" } }
+      { headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
   }
 }
 
 function generateHTML(title: string, content: string): string {
+  const safeTitle = escapeHtml(title);
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} - Sanative Health</title>
+  <title>${safeTitle} - Sanative</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -126,7 +146,7 @@ function generateHTML(title: string, content: string): string {
 <body>
   <div class="container">
     <div class="logo">sanative</div>
-    <h1>${title}</h1>
+    <h1>${safeTitle}</h1>
     <div>${content}</div>
   </div>
 </body>

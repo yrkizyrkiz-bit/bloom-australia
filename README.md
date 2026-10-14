@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sanative
 
-## Getting Started
+Doctor-led biomarker care and member portal for Australians. Marketing site, membership funnels, and authenticated member/admin portals — Next.js App Router on Netlify.
 
-First, run the development server:
+## Stack
+
+- **Next.js 15** (App Router) + TypeScript
+- **PostgreSQL** via Prisma
+- **NextAuth** (credentials)
+- **Stripe** (membership / program payments)
+- **Bun** for local scripts and deploys
+
+## Local setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+cp .env.example .env
+# Fill DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, and Stripe/email keys as needed
+
+bun run db:generate
+bun run db:migrate
+bun run db:seed   # local seed data only — never use seed passwords in production
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Useful scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script | Purpose |
+| --- | --- |
+| `bun run dev` | Dev server |
+| `bun run build` | Production build |
+| `bun run test` | Vitest |
+| `bun run db:studio` | Prisma Studio |
+| `bun run db:migrate:deploy` | Apply migrations in production |
 
-## Learn More
+## Deploy
 
-To learn more about Next.js, take a look at the following resources:
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for Netlify, env vars, and migrations. Copy env keys from [`.env.example`](./.env.example) — never commit real secrets.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Security notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Member portal, admin, GP, and auth routes are `noindex` and disallowed in `robots.ts`.
+- Do not commit audit dumps, patient exports, or scripts that print PHI.
+- Production accounts must use unique strong passwords — seed/demo credentials are for local development only.

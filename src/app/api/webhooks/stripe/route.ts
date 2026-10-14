@@ -493,7 +493,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
           data: {
             memberId: member.id,
             type: "GENERAL",
-            message: "Your payment was successful! Welcome to Sanative Health.",
+            message: "Your payment was successful! Welcome to Sanative.",
           },
         });
 
@@ -793,7 +793,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
             currency: invoice.currency?.toUpperCase() || "AUD",
             status: "PAID",
             paidAt: new Date(),
-            description: invoice.description || "Sanative Health Membership",
+            description: invoice.description || "Sanative Membership",
           },
         })
         .catch((err) => console.error("[webhook] invoice upsert failed:", err));
@@ -967,7 +967,7 @@ Patient has been notified via email.`,
 
         <p>If you have any questions or need assistance, please contact our care team.</p>
 
-        <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+        <p style="color:#666;margin-top:24px;">The Sanative Team</p>
       `,
     }).catch((emailError) => {
       console.error("Failed to send payment failure email:", emailError);
@@ -1017,7 +1017,7 @@ async function sendMagicLinkEmail(user: { id: string; email: string; firstName: 
       to: user.email,
       subject: "Your Sanative account is ready, click to get started",
       body: `
-        <h2>Welcome to Sanative Health, ${user.firstName}!</h2>
+        <h2>Welcome to Sanative, ${user.firstName}!</h2>
         <p>Your payment has been received and your account is ready.</p>
         <p>Click the button below to set your password and access your health portal:</p>
         <a href="${magicLink}" style="display:inline-block;background:#059669;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;">
@@ -1123,7 +1123,7 @@ Reason: ${refundReason}`,
         <p>Your refund of <strong>${amountRefunded.toFixed(2)} AUD</strong> has been processed.</p>
         <p>Please allow 5-10 business days for the refund to appear in your account, depending on your bank.</p>
         <p>If you have any questions, please don't hesitate to contact our support team.</p>
-        <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+        <p style="color:#666;margin-top:24px;">The Sanative Team</p>
       `,
     }).catch(console.error);
 
@@ -1229,7 +1229,7 @@ async function handleSubscriptionPaused(subscription: Stripe.Subscription) {
       <p>Your Sanative subscription has been paused.</p>
       <p>If you'd like to resume your program at any time, please contact our care team or visit your dashboard.</p>
       <p>We're always here to support you on your health journey.</p>
-      <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+      <p style="color:#666;margin-top:24px;">The Sanative Team</p>
     `,
   }).catch(console.error);
 

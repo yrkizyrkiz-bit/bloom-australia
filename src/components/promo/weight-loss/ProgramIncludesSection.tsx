@@ -172,7 +172,7 @@ export function ProgramIncludesSection() {
           ))}
         </div>
 
-        {/* Sanative Health Portal Section */}
+        {/* Sanative Portal Section */}
         <div
           className={`
             text-center mb-12 transition-all duration-700 delay-300
@@ -181,7 +181,7 @@ export function ProgramIncludesSection() {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#5c7a52]/10 rounded-full mb-4">
             <Smartphone className="w-4 h-4 text-[#5c7a52]" />
-            <span className="text-sm font-semibold text-[#5c7a52]">Your Sanative Health Portal</span>
+            <span className="text-sm font-semibold text-[#5c7a52]">Your Sanative Portal</span>
           </div>
           <h3 className="text-2xl sm:text-3xl font-serif text-[#2c3628] leading-tight mb-4">
             Track your program in one secure place

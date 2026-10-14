@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[contact-chat] request failed", error);
     return NextResponse.json(
-      { error: "Something went wrong. Please try again or email support@sanative.com.au." },
+      { error: "Something went wrong. Please try again or email info@sanative.com.au." },
       { status: 500 }
     );
   }

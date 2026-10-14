@@ -2,11 +2,11 @@
 export const LEGAL_VERSION = "2026-08-16";
 
 export const SANATIVE_LEGAL = {
-  entityName: "Sanative Health",
+  entityName: "Sanative",
   tradingName: "Sanative",
   address: "Level 25, 100 Mount Street, North Sydney NSW 2060, Australia",
-  supportEmail: "support@sanative.com.au",
-  privacyEmail: "support@sanative.com.au",
+  supportEmail: "info@sanative.com.au",
+  privacyEmail: "info@sanative.com.au",
   website: "https://sanative.com.au",
   abn: "30 609 735 533",
   governingLaw: "New South Wales, Australia",

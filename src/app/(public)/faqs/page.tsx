@@ -2,6 +2,10 @@ import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { LEGAL_LINKS } from "@/lib/legal/constants";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
+
+
+export const metadata = publicPageMeta.faqs;
 
 const faqs = [
   {
@@ -33,10 +37,6 @@ const faqs = [
     a: "Yes, service-related messages about bookings, your program, and billing. Marketing is optional. Reply STOP to opt out of SMS where supported.",
   },
 ];
-
-export const metadata = {
-  title: "FAQs | Sanative",
-};
 
 export default function FaqsPage() {
   return (

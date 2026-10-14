@@ -120,7 +120,7 @@ export function Footer() {
                 <Linkedin className="h-5 w-5" />
               </a>
               <a
-                href="mailto:hello@sanative.com.au"
+                href="mailto:info@sanative.com.au"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-[#4a6243] transition-colors hover:bg-[#5c7a52]"
                 aria-label="Email"
               >
@@ -130,7 +130,7 @@ export function Footer() {
 
             <div className="mt-12 border-t border-[#4a6243] pt-8">
               <p className="text-sm text-[#a8bb9e]">
-                2026 Sanative Health. All rights reserved.
+                2026 Sanative. All rights reserved.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#a8bb9e]">
                 <span>AHPRA Registered Doctors</span>

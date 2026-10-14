@@ -123,8 +123,11 @@ export function HairHealthMembershipHowItWorks() {
                     <p className="mt-1.5 text-sm font-medium text-black/50">
                       $365/year
                     </p>
-                    <p className="mt-1.5 text-sm font-medium text-black">
-                      Join with confidence · 100% refundable*
+                    <p className="mt-1.5 font-medium text-black">
+                      <span className="block text-base">Join with confidence</span>
+                      <span className="block text-sm">
+                        100% refundable if you change your mind
+                      </span>
                     </p>
                   </div>
                   <Link

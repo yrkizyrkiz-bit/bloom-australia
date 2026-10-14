@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: "ok",
-    service: "Sanative Health Lab Results Webhook",
+    service: "Sanative Lab Results Webhook",
     timestamp: new Date().toISOString(),
   });
 }

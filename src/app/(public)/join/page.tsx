@@ -399,7 +399,7 @@ function JoinPageContent() {
             <h1 className="text-3xl md:text-4xl font-serif text-[#34412f] mb-4">
               {isFromReferral || isFromClinic
                 ? "Join your health program"
-                : "Join Sanative Health"}
+                : "Join Sanative"}
             </h1>
             <p className="text-lg text-[#5c7a52] mb-6">
               Know your health before symptoms appear.

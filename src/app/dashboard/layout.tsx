@@ -1,6 +1,10 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppSessionProviders } from "@/components/AppSessionProviders";
+import { privateSurfaceMetadata } from "@/lib/seo/site";
 import DashboardLayoutClient from "./DashboardLayoutClient";
+
+export const metadata: Metadata = privateSurfaceMetadata("Member Portal | Sanative");
 
 export default function DashboardLayout({
   children,

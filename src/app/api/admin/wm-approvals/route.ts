@@ -417,7 +417,7 @@ ${testsList.map((test: string) => `- ${test}`).join("\n")}
 
             <p>If you have any questions in the meantime, feel free to reply to this email.</p>
 
-            <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+            <p style="color:#666;margin-top:24px;">The Sanative Team</p>
           `,
         });
 

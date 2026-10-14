@@ -64,14 +64,12 @@ const nextConfig = {
   },
 
   images: {
-    unoptimized: true,
+    // Enable Next.js image optimisation (WebP/AVIF, sizing). Required for production perf.
+    unoptimized: false,
+    formats: ["image/avif", "image/webp"],
     qualities: [75, 95],
-    domains: [
-      "source.unsplash.com",
-      "images.unsplash.com",
-      "ext.same-assets.com",
-      "ugc.same-assets.com",
-    ],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     remotePatterns: [
       {
         protocol: "https",

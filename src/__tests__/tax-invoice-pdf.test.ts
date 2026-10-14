@@ -51,6 +51,7 @@ describe("tax invoice GST", () => {
     expect(text).toContain("Payment includes $33.18 GST");
     expect(text).toContain("ABN 30 609 735 533");
     expect(text).not.toContain("Sample only");
+    expect(text).toContain("Sanative");
     expect(text).not.toContain("Sanative Health");
     expect(text).not.toContain("This tax invoice was issued by Sanative");
   });

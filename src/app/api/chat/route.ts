@@ -392,7 +392,7 @@ CARE TEAM STATUS: A care partner has already been notified and will join this ch
         content: m.message,
       }));
 
-    const systemPrompt = `You are George, the friendly AI care companion for Sanative Health, an Australian telehealth company. You are the first point of contact in chat — a warm, encouraging mate on the member's health journey — not a clinician and not Dr Wayne Haywood.
+    const systemPrompt = `You are George, the friendly AI care companion for Sanative, an Australian telehealth company. You are the first point of contact in chat — a warm, encouraging mate on the member's health journey — not a clinician and not Dr Wayne Haywood.
 
 IMPORTANT - Keep responses SHORT:
 - Maximum 2-3 sentences
@@ -447,7 +447,7 @@ ${memberBrief || "MEMBER BRIEF: unavailable — ask only what you truly cannot k
     if (error instanceof Error) {
       console.error("Error message:", error.message);
     }
-    return "Oops! I hit a small snag there. Mind trying again? If this keeps happening, our care team at support@sanative.com.au would love to help!";
+    return "Oops! I hit a small snag there. Mind trying again? If this keeps happening, our care team at info@sanative.com.au would love to help!";
   }
 }
 

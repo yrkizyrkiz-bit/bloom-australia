@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
             If you didn't request this password reset, please contact our support team immediately.
           </p>
 
-          <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+          <p style="color:#666;margin-top:24px;">The Sanative Team</p>
         `,
       });
     }

@@ -20,16 +20,18 @@ const doctors: TeamMember[] = [
     specialties: [],
     description:
       "Experienced in preventative medicine, metabolic health and obesity care. Dr. Seeley ensures our weight management protocols meet the highest clinical standards.",
+    image: "/images/team/phillip-seeley.webp",
     initials: "PS",
     color: "from-[#7b8967] to-[#5d6a4d]",
   },
   {
-    name: "Dr Wayne Haywood",
-    title: "General Practitioner",
-    specialties: ["MBBS", "Men's Health"],
+    name: "Kath Edwards",
+    title: "Health Coach",
+    specialties: ["Health Coach", "Nutrition"],
     description:
-      "Dedicated practitioner specialising in men's health and metabolic care. Dr Haywood takes a patient-centred approach to metabolic weight management.",
-    initials: "WH",
+      "Kath is our Health Coach. She works with Sanative members on personalised nutrition plans, healthy weight management, and lasting lifestyle change.",
+    image: "/images/team/kath-edwards.webp",
+    initials: "KE",
     color: "from-[#9abdb1] to-[#7b8967]",
   },
   {
@@ -37,7 +39,7 @@ const doctors: TeamMember[] = [
     title: "Head of Metabolic Health | Care Partner",
     specialties: ["Patient Care Journey"],
     description:
-      "With years of experience in health and wellbeing support, Mia ensures you feel cared for at every step of your weight management journey. She focuses on metabolic health, helping you understand your markers and stay on track.",
+      "With years of experience in health and wellbeing support, Mia ensures you feel cared for at every step of your Sanative journey, so you understand your metabolic health and stay on track.",
     image: "/images/team/mia.webp",
     initials: "MD",
     color: "from-[#5d6a4d] to-[#313630]",
@@ -92,7 +94,7 @@ export function DoctorsSection() {
                       <img
                         src={doctor.image}
                         alt={doctor.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover object-center"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                           e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center text-white text-xl font-medium">${doctor.initials}</div>`;

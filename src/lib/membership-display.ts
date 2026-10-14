@@ -183,7 +183,7 @@ export function buildMembershipSummary(input: {
 
   return {
     program: isWeight ? "weight_management" : "other",
-    programLabel: isWeight ? "Weight Management" : "Sanative Health",
+    programLabel: isWeight ? "Weight Management" : "Sanative",
     planLabel: getPlanLabel(tier),
     planTier: tier,
     firstMonth: {

@@ -22,6 +22,34 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          "var(--font-inter)",
+          "Inter",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+        serif: [
+          "var(--font-playfair)",
+          "Georgia",
+          "Times New Roman",
+          "serif",
+        ],
+        display: [
+          "var(--font-cormorant)",
+          "Palatino Linotype",
+          "Palatino",
+          "serif",
+        ],
+        hers: [
+          "var(--font-outfit)",
+          "Helvetica Neue",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
+      },
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

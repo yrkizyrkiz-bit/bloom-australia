@@ -1020,7 +1020,7 @@ function emptyBillingSummary(
 ): MemberBillingSummary {
   return {
     program: "other",
-    programLabel: "Sanative Health",
+    programLabel: "Sanative",
     billingModel: "program_first_month",
     selectedPlan: null,
     planLabel: "No active program",

@@ -1,4 +1,4 @@
-// Email Templates for Sanative Health GP Referral System
+// Email Templates for Sanative GP Referral System
 
 export interface EmailTemplate {
   subject: string;
@@ -73,7 +73,7 @@ function wrapEmail(content: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sanative Health</title>
+  <title>Sanative</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fdfbf7;">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -99,7 +99,7 @@ function wrapEmail(content: string): string {
                 AHPRA Registered &bull; NATA-Accredited Partner Labs &bull; Australian Privacy Act compliant
               </p>
               <p style="margin: 0; font-size: 12px; color: #5c7a52;">
-                &copy; ${new Date().getFullYear()} Sanative Health. All rights reserved.
+                &copy; ${new Date().getFullYear()} Sanative. All rights reserved.
               </p>
             </td>
           </tr>
@@ -161,7 +161,7 @@ export function clinicWelcomeEmail(data: ClinicWelcomeData): EmailTemplate {
   `;
 
   return {
-    subject: `Welcome to Sanative Health, ${data.gpName}`,
+    subject: `Welcome to Sanative, ${data.gpName}`,
     html: wrapEmail(content),
     text: `Welcome to Sanative, ${data.gpName}!\n\nYour clinic ${data.clinicName} has been registered. You can now start referring patients to our supervised health programs.\n\nYour QR Token: ${data.qrToken}\n\nAccess your dashboard: ${data.loginUrl}`,
   };

@@ -381,7 +381,7 @@ export function buildEventDescription(data: {
   lines.push(`Intake ID: ${data.intakeId || "N/A"}`);
   lines.push(``);
   lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  lines.push(`Created by Sanative Health`);
+  lines.push(`Created by Sanative`);
 
   return lines.join("\n");
 }

@@ -23,6 +23,14 @@
 # misc
 .DS_Store
 *.pem
+*.zip
+
+# One-off dumps / local PHI tooling (never commit)
+/audit-package/
+/uploads/
+/check-patients.ts
+/test-anthropic.js
+sanative-*-audit*.zip
 
 # debug
 npm-debug.log*

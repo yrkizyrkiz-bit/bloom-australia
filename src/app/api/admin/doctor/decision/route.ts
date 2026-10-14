@@ -843,7 +843,7 @@ Welcome call / onboarding walkthrough:
                 <li>Your care partner will reach out to discuss next steps</li>
               </ul>
               <p>We're excited to support you on this journey!</p>
-              <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+              <p style="color:#666;margin-top:24px;">The Sanative Team</p>
             `,
           });
         } catch (emailError) {
@@ -1105,7 +1105,7 @@ Tasks:
               </a>
             </div>
             <p>We're excited to support you on this journey!</p>
-            <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+            <p style="color:#666;margin-top:24px;">The Sanative Team</p>
           `,
         });
 
@@ -1255,7 +1255,7 @@ Please contact the patient to provide support and guidance.`,
             ${carePartnerFollowUpRequired ? "<p>Our team will contact you with safe next steps where appropriate.</p>" : ""}
             ${gpReferralSuggested ? "<p>We recommend discussing your health goals with your regular GP, who can provide personalised guidance.</p>" : ""}
             <p>If you have any questions, please contact our support team.</p>
-            <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+            <p style="color:#666;margin-top:24px;">The Sanative Team</p>
           `,
         });
 
@@ -1665,7 +1665,7 @@ Tasks:
             </ul>
 
             <p>We're excited to support you on this journey!</p>
-            <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+            <p style="color:#666;margin-top:24px;">The Sanative Team</p>
           `,
         });
 

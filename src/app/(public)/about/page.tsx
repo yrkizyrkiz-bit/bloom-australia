@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
 
-export const metadata = {
-  title: "About Us | Sanative",
-  description:
-    "Sanative is an Australian doctor-led clinic. Your membership starts with a health check and results reviewed by an AHPRA-registered doctor.",
-};
+
+export const metadata = publicPageMeta.about;
 
 export default function AboutPage() {
   return (

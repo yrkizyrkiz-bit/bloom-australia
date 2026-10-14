@@ -15,7 +15,7 @@ transport; Resend stays as fallback until Workspace is proven, then it can be re
 ```env
 EMAIL_PROVIDER=google_workspace
 EMAIL_FROM=info@sanative.com.au
-EMAIL_FROM_NAME=Sanative Health
+EMAIL_FROM_NAME=Sanative
 GOOGLE_SMTP_USER=info@sanative.com.au
 GOOGLE_SMTP_PASS=xxxx-xxxx-xxxx-xxxx
 GOOGLE_SMTP_HOST=smtp.gmail.com
@@ -116,7 +116,7 @@ If it fails to load, a fallback link opens Cal.com in a new tab.
 # Email
 EMAIL_PROVIDER=google_workspace
 EMAIL_FROM=info@sanative.com.au
-EMAIL_FROM_NAME=Sanative Health
+EMAIL_FROM_NAME=Sanative
 GOOGLE_SMTP_USER=info@sanative.com.au
 GOOGLE_SMTP_PASS=xxxx-xxxx-xxxx-xxxx
 GOOGLE_SMTP_HOST=smtp.gmail.com

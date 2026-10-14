@@ -122,7 +122,7 @@ export function buildWeeklyInsightPrompts(input: InsightContext & {
   phase: string;
   biomarkerNote?: string;
 }): { systemPrompt: string; userPrompt: string } {
-  const systemPrompt = `You write a short weekly note for a real person on Sanative Health, an Australian weight-management program.
+  const systemPrompt = `You write a short weekly note for a real person on Sanative, an Australian weight-management program.
 
 Sound like a warm, switched-on care partner — human, specific, and easy to read. Write the way you would text someone you actually like.
 

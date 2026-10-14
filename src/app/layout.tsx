@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Playfair_Display, Inter, Cormorant_Garamond, Outfit } from "next/font/google";
+import { inter, playfair } from "@/lib/fonts";
 import "./globals.css";
 
 /** Match Netlify production viewport — do not add maximumScale/userScalable overrides. */
@@ -9,36 +9,14 @@ export const viewport: Viewport = {
   themeColor: "#34412f",
 };
 
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  style: ["normal", "italic"],
-  display: "swap",
-});
-
-/** Geometric sans close to Hers CareSans (custom; not licensable). */
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "Sanative Health | Biomarker Tracking Portal",
-  description: "Track your biomarkers, understand your health, and optimize your wellbeing with Sanative Health.",
+  metadataBase: new URL("https://sanative.com.au"),
+  title: {
+    default: "Sanative | Doctor-Led Biomarker Care Australia",
+    template: "%s",
+  },
+  description:
+    "From biomarkers to doctor-led care plans, Sanative helps Australians understand their health and act on it. AHPRA-registered doctors. Available across Australia.",
   applicationName: "Sanative",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -53,18 +31,66 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icons/sanative-180.png", sizes: "180x180", type: "image/png" }],
   },
-  // Prevent search engine indexing - private deployment
+  openGraph: {
+    type: "website",
+    locale: "en_AU",
+    url: "https://sanative.com.au",
+    siteName: "Sanative",
+    title: "Sanative | Doctor-Led Biomarker Care Australia",
+    description:
+      "From biomarkers to doctor-led care plans, Sanative helps Australians understand their health and act on it.",
+    images: [
+      {
+        url: "/images/tablet-slider/sanative-hero-clean.webp",
+        width: 1200,
+        height: 630,
+        alt: "Sanative doctor-led biomarker care",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sanative | Doctor-Led Biomarker Care Australia",
+    description:
+      "From biomarkers to doctor-led care plans, Sanative helps Australians understand their health and act on it.",
+    images: ["/images/tablet-slider/sanative-hero-clean.webp"],
+  },
   robots: {
-    index: false,
-    follow: false,
-    nocache: true,
+    index: true,
+    follow: true,
     googleBot: {
-      index: false,
-      follow: false,
-      noimageindex: true,
-      'max-snippet': -1,
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
     },
   },
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://sanative.com.au/#organization",
+      name: "Sanative",
+      url: "https://sanative.com.au",
+      logo: "https://sanative.com.au/icons/sanative-512.png",
+      description:
+        "Doctor-led biomarker care and metabolic health programs across Australia.",
+      areaServed: "AU",
+      sameAs: [],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://sanative.com.au/#website",
+      url: "https://sanative.com.au",
+      name: "Sanative",
+      publisher: { "@id": "https://sanative.com.au/#organization" },
+      inLanguage: "en-AU",
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -75,9 +101,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${inter.variable} ${cormorant.variable} ${outfit.variable}`}
+      className={`${inter.variable} ${playfair.variable}`}
     >
-      <body className="font-sans">{children}</body>
+      <body className="font-sans antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

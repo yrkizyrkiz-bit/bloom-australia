@@ -3,6 +3,10 @@ import { Footer } from "@/components/promo/Footer";
 import { DietitianHero } from "@/components/promo/dietitian/DietitianHero";
 import { MealRecommendations } from "@/components/promo/dietitian/MealRecommendations";
 import { DietitianCTA } from "@/components/promo/dietitian/DietitianCTA";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
+
+
+export const metadata = publicPageMeta.dietitianSupport;
 
 export default function DietitianSupportPage() {
   return (

@@ -110,8 +110,11 @@ export function MembershipPricingCard({
           <p className="mt-1.5 text-sm text-[#7e9a72]">
             ${annualPrice}/year
           </p>
-          <p className="mt-1.5 text-sm font-medium text-[#2c3628]">
-            Join with confidence · 100% refundable*
+          <p className="mt-1.5 font-medium text-[#2c3628]">
+            <span className="block text-base">Join with confidence</span>
+            <span className="block text-sm">
+              100% refundable if you change your mind
+            </span>
           </p>
 
           <Link

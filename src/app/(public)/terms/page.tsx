@@ -3,11 +3,10 @@ import { MedicalDisclaimerContent } from "@/lib/legal/pages/medical-disclaimer-c
 import { SubscriptionTermsContent } from "@/lib/legal/pages/subscription-terms-content";
 import { TelehealthConsentContent } from "@/lib/legal/pages/telehealth-consent-content";
 import { TermsContent } from "@/lib/legal/pages/terms-content";
+import { publicPageMeta } from "@/lib/seo/public-page-meta";
 
-export const metadata = {
-  title: "Terms & Conditions | Sanative",
-  description: "Terms and conditions for using Sanative Health services and website.",
-};
+
+export const metadata = publicPageMeta.terms;
 
 export default function TermsPage() {
   return (

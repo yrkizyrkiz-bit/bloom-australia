@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const sendgridApiKey = process.env.SENDGRID_API_KEY;
     const fromEmail = process.env.EMAIL_FROM || "noreply@sanative.com.au";
-    const fromName = process.env.EMAIL_FROM_NAME || "Sanative Health";
+    const fromName = process.env.EMAIL_FROM_NAME || "Sanative";
 
     const isConfigured = !!sendgridApiKey && sendgridApiKey.startsWith("SG.");
 

@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
             <p>If you have any questions or would like to discuss this further, please don't hesitate to reply to this email or call us.</p>
 
-            <p style="color:#666;margin-top:24px;">Warm regards,<br>The Sanative Health Team</p>
+            <p style="color:#666;margin-top:24px;">Warm regards,<br>The Sanative Team</p>
           `,
         });
 
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
               <p>We've processed a refund for your Sanative Weight Management program payment.</p>
               <p>The refund has been issued to your original payment method and should appear within 5-10 business days.</p>
               <p>If you have any questions or don't see the refund after this period, please contact our support team.</p>
-              <p style="color:#666;margin-top:24px;">The Sanative Health Team</p>
+              <p style="color:#666;margin-top:24px;">The Sanative Team</p>
             `,
           });
         }
