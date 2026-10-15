@@ -3,11 +3,13 @@
 import Script from "next/script";
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { viewContentForPath } from "@/lib/analytics/meta-pixel";
+import {
+  META_PIXEL_ID,
+  trackMetaPageView,
+  viewContentForPath,
+} from "@/lib/analytics/meta-pixel";
 
-/** Meta Pixel ID from Events Manager */
-export const META_PIXEL_ID =
-  process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || "28517477271253490";
+export { META_PIXEL_ID };
 
 declare global {
   interface Window {
@@ -19,6 +21,7 @@ declare global {
 /**
  * Meta Pixel base code + PageView on App Router navigations.
  * Also fires ViewContent on key marketing/program pages (Meta standard events).
+ * Pixel ID and standard events share META_PIXEL_ID from @/lib/analytics/meta-pixel.
  * @see https://developers.facebook.com/docs/meta-pixel/get-started
  * @see https://www.facebook.com/business/help/402791146561655
  */
@@ -34,9 +37,7 @@ export function MetaPixel() {
       viewContentForPath(pathname);
       return;
     }
-    if (typeof window.fbq === "function") {
-      window.fbq("track", "PageView");
-    }
+    trackMetaPageView();
     viewContentForPath(pathname);
   }, [pathname, searchParams]);
 

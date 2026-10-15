@@ -3,6 +3,10 @@
  * @see https://www.facebook.com/business/help/402791146561655
  */
 
+/** Single source of truth — base code and standard events use this ID. */
+export const META_PIXEL_ID =
+  process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || "28517477271253490";
+
 export type MetaStandardEvent =
   | "AddPaymentInfo"
   | "AddToCart"
@@ -45,11 +49,18 @@ export function trackMetaEvent(
   params?: MetaEventParams
 ): void {
   if (typeof window === "undefined" || typeof window.fbq !== "function") return;
+  // trackSingle binds the event to the configured pixel ID (avoids old/multi-pixel drift).
   if (params && Object.keys(params).length > 0) {
-    window.fbq("track", event, params);
+    window.fbq("trackSingle", META_PIXEL_ID, event, params);
   } else {
-    window.fbq("track", event);
+    window.fbq("trackSingle", META_PIXEL_ID, event);
   }
+}
+
+/** PageView for App Router navigations — same pixel as base init. */
+export function trackMetaPageView(): void {
+  if (typeof window === "undefined" || typeof window.fbq !== "function") return;
+  window.fbq("trackSingle", META_PIXEL_ID, "PageView");
 }
 
 /** Fire Purchase once per payment intent (avoids double-count on remount). */
