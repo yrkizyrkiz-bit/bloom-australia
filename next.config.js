@@ -16,9 +16,37 @@ function lanDevOrigins() {
   return [...origins];
 }
 
+/**
+ * Security headers applied to every response. Netlify's `[[headers]]` block is not
+ * applied to routes served by the Next.js runtime, so they must live here.
+ * CSP is limited to frame-ancestors (clickjacking) — a full script CSP needs
+ * nonces for Stripe/Meta/Next inline scripts and is tracked separately.
+ */
+const securityHeaders = [
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  // SAMEORIGIN rather than DENY so the CSP frame-ancestors list below is authoritative
+  // (X-Frame-Options has no allow-list; browsers prefer CSP when both are present).
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      'camera=(), microphone=(), geolocation=(), browsing-topics=(), interest-cohort=(), payment=(self "https://js.stripe.com" "https://checkout.stripe.com")',
+  },
+  {
+    key: "Content-Security-Policy",
+    // Google's search-result site preview embeds the page from google.com domains.
+    value:
+      "frame-ancestors 'self' https://www.google.com https://www.google.com.au https://*.google.com; upgrade-insecure-requests",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins: lanDevOrigins(),
+  poweredByHeader: false,
   eslint: {
     // Allow production builds to complete even with ESLint errors
     ignoreDuringBuilds: true,
@@ -37,6 +65,10 @@ const nextConfig = {
   // CORS headers for cross-origin API requests from promo site
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
       {
         source: "/api/intake",
         headers: [

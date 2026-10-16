@@ -31,6 +31,7 @@ export const publicPageMeta = {
     description:
       "See Sanative membership pricing for doctor-led biomarker care, weight management, men’s and women’s health, and organ care programs.",
     path: "/pricing",
+    index: false,
   }),
   services: buildPageMetadata({
     title: "Our Services | Sanative",
@@ -46,15 +47,15 @@ export const publicPageMeta = {
     index: false,
   }),
   labs: buildPageMetadata({
-    title: "Labs & Biomarker Testing | Sanative",
+    title: "Blood Tests & Biomarker Testing Australia | 85+ Markers, Doctor-Reviewed | Sanative",
     description:
-      "Doctor-ordered biomarker panels with clear results and a care plan. Pathology partners across Australia.",
+      "Comprehensive blood tests in Australia: 85+ biomarkers ordered by AHPRA doctors, collected at a pathology lab near you, explained in plain English. From $365/year.",
     path: "/labs",
   }),
   labsBiomarkers: buildPageMetadata({
-    title: "Biomarker Panels | Sanative Labs",
+    title: "Biomarker Panels: Heart, Metabolic, Liver, Kidney, Thyroid & Hormone Blood Tests | Sanative",
     description:
-      "See which biomarkers Sanative reviews — metabolic, hormonal, cardiovascular, and organ health markers in one clear panel.",
+      "See every biomarker panel Sanative tests — cholesterol & ApoB, HbA1c & insulin, liver and kidney function, thyroid, hormones, iron, vitamins and inflammation.",
     path: "/labs/biomarkers",
   }),
   labsActionPlan: buildPageMetadata({
@@ -64,9 +65,9 @@ export const publicPageMeta = {
     path: "/labs/action-plan",
   }),
   weightManagement: buildPageMetadata({
-    title: "Weight Management Program | Sanative",
+    title: "Medical Weight Loss Program Australia | Doctor-Led, Biomarker-Guided | Sanative",
     description:
-      "Doctor-led weight management with biomarkers, personalised care planning, and ongoing support across Australia.",
+      "Doctor-led weight loss in Australia. Start with 85+ biomarkers, get a personalised plan, dietitian support and ongoing doctor review. Telehealth nationwide.",
     path: "/weight-management",
   }),
   weightAssessment: buildPageMetadata({
@@ -82,9 +83,9 @@ export const publicPageMeta = {
     path: "/weight-management/dietitian-support",
   }),
   mensHealth: buildPageMetadata({
-    title: "Men’s Health | Energy, Vitality & Sexual Health | Sanative",
+    title: "Men's Health Clinic Online Australia | Testosterone, Energy, Sexual Health | Sanative",
     description:
-      "Doctor-led men’s health for energy, vitality, hair, and sexual health — with biomarker-guided care where appropriate.",
+      "Doctor-led men's health in Australia: testosterone and metabolic blood tests, energy, hair, erectile dysfunction and sexual health — confidential telehealth care.",
     path: "/mens-health",
   }),
   mensAssessment: buildPageMetadata({
@@ -94,21 +95,21 @@ export const publicPageMeta = {
     path: "/mens-health/assessment",
   }),
   sexualHealth: buildPageMetadata({
-    title: "Men’s Sexual Health | Sanative",
+    title: "Men's Sexual Health & Erectile Dysfunction Clinic Online | Sanative",
     description:
-      "Confidential, doctor-led men’s sexual health care in Australia. Clinical assessment and personalised planning.",
+      "Confidential, doctor-led men's sexual health care in Australia. Blood tests for testosterone, diabetes and heart risk, with a personalised, doctor-led care plan.",
     path: "/mens-health/sexual-health",
   }),
   erectileDysfunction: buildPageMetadata({
-    title: "Erectile Dysfunction Care | Sanative",
+    title: "Erectile Dysfunction Care Australia | Doctor-Led ED Assessment Online | Sanative",
     description:
-      "Private, doctor-led erectile dysfunction assessment and care planning with Sanative.",
+      "Private, doctor-led erectile dysfunction care in Australia. AHPRA doctors assess the cause — heart, metabolic, hormonal — with blood tests and a personalised plan. Telehealth nationwide.",
     path: "/mens-health/erectile-dysfunction",
   }),
   womensHealth: buildPageMetadata({
-    title: "Women’s Health | Hormones & Metabolic Care | Sanative",
+    title: "Women's Health Clinic Online Australia | Menopause, Hormones, PCOS | Sanative",
     description:
-      "Doctor-led women’s health for menopause, hormones, PCOS, and metabolic wellbeing — with biomarkers where appropriate.",
+      "Doctor-led women's health in Australia: menopause and perimenopause, hormone and thyroid blood tests, PCOS and metabolic care via confidential telehealth.",
     path: "/womens-health",
   }),
   womensAssessment: buildPageMetadata({
@@ -124,15 +125,15 @@ export const publicPageMeta = {
     path: "/womens-health/book",
   }),
   menopause: buildPageMetadata({
-    title: "Menopause & Perimenopause Care | Sanative",
+    title: "Menopause & Perimenopause: Symptoms, Blood Tests & Treatment in Australia | Sanative",
     description:
-      "Doctor-led menopause and perimenopause care with personalised assessment and ongoing support.",
+      "Doctor-led menopause and perimenopause care in Australia. Understand symptoms, which blood tests are useful (and which aren't), the cardiometabolic changes of menopause, and MHT and non-hormonal treatment options.",
     path: "/womens-health/menopause",
   }),
   hairHealth: buildPageMetadata({
-    title: "Hair Health & Hair Loss Care | Sanative",
+    title: "Hair Loss Treatment Australia | Doctor-Led Hair Health Program | Sanative",
     description:
-      "Doctor-led hair health assessment and care planning for thinning and hormone-related hair loss.",
+      "Doctor-led hair loss care in Australia. Blood tests for iron, thyroid and hormones, clinical assessment and personalised treatment planning for thinning hair.",
     path: "/hair-health",
   }),
   hairAssessment: buildPageMetadata({
@@ -142,33 +143,33 @@ export const publicPageMeta = {
     path: "/hair-assessment",
   }),
   metabolicCare: buildPageMetadata({
-    title: "Metabolic Care | Sanative",
+    title: "Metabolic Health Program Australia | Heart, Liver, Kidney & PCOS | Sanative",
     description:
-      "Doctor-led metabolic care for heart, liver, kidney, PCOS, and related conditions — guided by biomarkers.",
+      "Doctor-led metabolic care in Australia: insulin resistance, fatty liver, heart health, kidney function and PCOS — guided by 85+ biomarkers.",
     path: "/metabolic-care",
   }),
   fattyLiver: buildPageMetadata({
-    title: "Fatty Liver Care | Metabolic Health | Sanative",
+    title: "Fatty Liver Treatment Australia | Liver Function Tests & Doctor-Led Care | Sanative",
     description:
-      "Doctor-reviewed fatty liver and metabolic liver care with biomarker insights and a personalised plan.",
+      "Fatty liver (MASLD/NAFLD) care in Australia: liver function tests, FIB-4 fibrosis score, insulin resistance markers and a doctor-led plan to reverse it.",
     path: "/metabolic-care/fatty-liver",
   }),
   heartHealth: buildPageMetadata({
-    title: "Heart Health | Metabolic Care | Sanative",
+    title: "Heart Health Check Australia | Cholesterol, ApoB, Lp(a) & Cardiovascular Risk | Sanative",
     description:
-      "Doctor-led heart and cardiovascular risk care using lipids, inflammation, and metabolic biomarkers.",
+      "Doctor-led heart health check in Australia: full lipid panel, ApoB, Lipoprotein(a), hs-CRP, HbA1c and kidney markers to assess and lower cardiovascular disease risk.",
     path: "/metabolic-care/heart-health",
   }),
   kidneyHealth: buildPageMetadata({
-    title: "Kidney Health | Metabolic Care | Sanative",
+    title: "Kidney Health Check Australia | eGFR, Creatinine & Urine ACR | Sanative",
     description:
-      "Doctor-reviewed kidney health insights and metabolic care planning with Sanative.",
+      "Doctor-reviewed kidney function tests in Australia — eGFR, creatinine, urine albumin-creatinine ratio — with metabolic care to protect kidney health.",
     path: "/metabolic-care/kidney-health",
   }),
   pcos: buildPageMetadata({
-    title: "PCOS Care | Metabolic & Hormonal Health | Sanative",
+    title: "PCOS Treatment Australia | Hormone & Metabolic Blood Tests, Doctor-Led Care | Sanative",
     description:
-      "Doctor-led PCOS care with hormonal and metabolic assessment, biomarkers, and personalised planning.",
+      "Doctor-led PCOS care in Australia: androgen, insulin resistance and thyroid blood tests with a personalised metabolic and hormonal plan via telehealth.",
     path: "/metabolic-care/pcos",
   }),
   pcosBook: buildPageMetadata({
@@ -178,9 +179,9 @@ export const publicPageMeta = {
     path: "/metabolic-care/pcos/book",
   }),
   organCare: buildPageMetadata({
-    title: "Organ Care | Heart, Liver & Kidney | Sanative",
+    title: "Organ Health Check Australia | Heart, Liver & Kidney Blood Tests | Sanative",
     description:
-      "Doctor-reviewed organ care for heart, liver and kidney. Essential panel markers your Sanative doctor reviews in context.",
+      "Doctor-reviewed heart, liver and kidney health check in Australia. Essential organ biomarkers tested together and explained in one clear picture.",
     path: "/organ-care",
   }),
   forDoctors: buildPageMetadata({

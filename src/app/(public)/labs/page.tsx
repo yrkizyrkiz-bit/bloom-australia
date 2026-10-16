@@ -95,10 +95,18 @@ const doctors: {
   },
 ];
 
-function LabsPageContent() {
+/**
+ * Only this leaf reads the URL, so the Suspense boundary around it keeps the rest of
+ * the page server-rendered (a top-level useSearchParams bails the whole route to CSR
+ * and crawlers see an empty document).
+ */
+function HoneycombFromUrl() {
   const searchParams = useSearchParams();
   const categoryFromUrl = searchParams.get("category") || "heart";
+  return <BiomarkerHoneycomb defaultCategory={categoryFromUrl} />;
+}
 
+function LabsPageContent() {
   return (
     <>
       <Header />
@@ -388,7 +396,9 @@ function LabsPageContent() {
               </p>
             </div>
 
-            <BiomarkerHoneycomb defaultCategory={categoryFromUrl} />
+            <Suspense fallback={<BiomarkerHoneycomb defaultCategory="heart" />}>
+              <HoneycombFromUrl />
+            </Suspense>
           </div>
         </section>
 
@@ -804,11 +814,7 @@ function LabsPageContent() {
 }
 
 export default function LabsPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-white" />}>
-      <LabsPageContent />
-    </Suspense>
-  );
+  return <LabsPageContent />;
 }
 
 function TrendingUp({ className }: { className?: string }) {

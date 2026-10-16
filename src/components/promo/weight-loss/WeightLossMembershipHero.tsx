@@ -24,9 +24,9 @@ export function WeightLossMembershipHero({
           <div>
             <p className={styles.eyebrow}>Your complete structured weight loss program</p>
             <h1 id="weight-loss-membership-heading" className={styles.heading}>
-              Start with Sanative
+              Doctor-led weight loss
               <br />
-              Health Check
+              program in Australia
             </h1>
           </div>
 
