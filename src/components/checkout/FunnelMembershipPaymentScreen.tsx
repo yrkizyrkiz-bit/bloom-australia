@@ -28,6 +28,7 @@ import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.mod
 import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
 import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
 import {
+  rememberMetaFunnelSource,
   trackMetaEvent,
   trackMetaPurchaseOnce,
 } from "@/lib/analytics/meta-pixel";
@@ -370,6 +371,11 @@ export function FunnelMembershipPaymentScreen({
   const [activating, setActivating] = useState(false);
   const completingRef = useRef(false);
 
+  // Tag the session with the assessment hand-off so every Meta event carries funnel_source.
+  useEffect(() => {
+    rememberMetaFunnelSource(source);
+  }, [source]);
+
   const elementsOptions = useMemo(
     () =>
       clientSecret
@@ -428,9 +434,11 @@ export function FunnelMembershipPaymentScreen({
         value: amountAud,
         content_name: "Sanative Membership",
         content_ids: ["sanative_membership"],
+        content_category: intentProgram,
       });
       trackMetaEvent("CompleteRegistration", {
         content_name: "Sanative Membership",
+        content_category: intentProgram,
         status: true,
         currency: "AUD",
         value: amountAud,

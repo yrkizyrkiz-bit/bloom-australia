@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   META_PIXEL_ID,
+  rememberMetaOrigin,
   trackMetaPageView,
   viewContentForPath,
 } from "@/lib/analytics/meta-pixel";
@@ -31,6 +32,8 @@ export function MetaPixel() {
   const isFirstLoad = useRef(true);
 
   useEffect(() => {
+    // Landing page + last content page before a funnel → attached to every event.
+    rememberMetaOrigin(pathname);
     if (isFirstLoad.current) {
       isFirstLoad.current = false;
       // Base snippet already sent PageView; still send ViewContent for key pages.

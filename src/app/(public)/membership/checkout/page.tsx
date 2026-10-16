@@ -49,6 +49,8 @@ import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.mod
 import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
 import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
 import {
+  rememberMetaFunnelSource,
+  trackMetaCheckoutStep,
   trackMetaEvent,
   trackMetaPurchaseOnce,
 } from "@/lib/analytics/meta-pixel";
@@ -484,6 +486,11 @@ function MembershipCheckoutPageContent() {
       .catch(() => {});
   }, []);
 
+  // Tag this checkout session with its hand-off source so every Meta event carries it.
+  useEffect(() => {
+    rememberMetaFunnelSource(funnelSource || intentProgram || "direct_checkout");
+  }, [funnelSource, intentProgram]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const raw = localStorage.getItem(ORGAN_CARE_CHECKOUT_PREFILL_KEY);
@@ -525,6 +532,13 @@ function MembershipCheckoutPageContent() {
 
       setDevBypass(Boolean(data.devBypass));
       setCodeSent(true);
+      // Contact details captured = Lead (Meta classification); first measurable checkout step.
+      trackMetaEvent("Lead", {
+        content_name: "Membership checkout contact",
+        content_category: intentProgram || "membership",
+        status: verifyMethod,
+      });
+      trackMetaCheckoutStep("verify_code_sent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send code");
     } finally {
@@ -547,7 +561,9 @@ function MembershipCheckoutPageContent() {
       if (!res.ok) throw new Error(data.error);
 
       setSessionToken(data.sessionToken);
+      trackMetaCheckoutStep("contact_verified");
       if (verifyMethod === "phone" && data.phoneAlreadyRegistered) {
+        trackMetaCheckoutStep("existing_account");
         setExistingUser(null);
         setContinuingAsExisting(false);
         setPhoneAlreadyRegistered(true);
@@ -564,6 +580,7 @@ function MembershipCheckoutPageContent() {
         setEmail(contact);
         setPhone("");
         setContinuingAsExisting(false);
+        if (data.existingUser.isEstablished) trackMetaCheckoutStep("existing_account");
         setStep(data.existingUser.isEstablished ? "existing_account" : "payment");
       } else if (verifyMethod === "email") {
         setExistingUser(null);
@@ -654,10 +671,12 @@ function MembershipCheckoutPageContent() {
         content_name: "Sanative Membership",
         content_ids: ["sanative_membership"],
         content_type: "product",
+        content_category: intentProgram || undefined,
         currency: "AUD",
         value: resolvedAmount,
         num_items: 1,
       });
+      trackMetaCheckoutStep("payment_shown", { value: resolvedAmount, currency: "AUD" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to initialize payment");
     } finally {
@@ -708,13 +727,16 @@ function MembershipCheckoutPageContent() {
       setNeedsPassword(Boolean(data.needsPassword));
       trackMetaEvent("CompleteRegistration", {
         content_name: "Sanative Membership",
+        content_category: intentProgram || undefined,
         status: true,
         currency: "AUD",
         value: priceAud,
       });
       trackMetaEvent("Schedule", {
         content_name: "Doctor consultation booking",
+        content_category: intentProgram || undefined,
       });
+      trackMetaCheckoutStep("onboarding_completed");
       setStep("booking");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete onboarding");
@@ -741,6 +763,8 @@ function MembershipCheckoutPageContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setQuizDone(answers !== null);
+      if (answers !== null) trackMetaCheckoutStep("quiz_completed");
+      trackMetaCheckoutStep("checkout_completed");
       setStep("complete");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save your answers");
@@ -1383,6 +1407,7 @@ function MembershipCheckoutPageContent() {
           postcode={postcode}
           onComplete={() => {
             setConsultationBooked(true);
+            trackMetaCheckoutStep("booking_completed");
             setStep("quiz");
           }}
         />
