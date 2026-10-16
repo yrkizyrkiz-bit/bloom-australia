@@ -8,6 +8,7 @@ import {
   formatFromHeader,
   resolveEmailIdentity,
 } from "@/lib/email-identity";
+import { isUndeliverableOutboundEmail } from "@/lib/email/outbound-recipient";
 import {
   clinicWelcomeEmail,
   patientWelcomeEmail,
@@ -667,6 +668,11 @@ async function sendEmailInternal(
   text: string,
   options?: SendEmailInternalOptions
 ): Promise<SendEmailResult> {
+  if (isUndeliverableOutboundEmail(to)) {
+    console.warn(`[Email] Skipping undeliverable address ${to}`);
+    return { success: false, error: "Recipient address is undeliverable" };
+  }
+
   const identity = await resolveEmailIdentity(options?.process);
   if (!identity.enabled) {
     console.warn(
