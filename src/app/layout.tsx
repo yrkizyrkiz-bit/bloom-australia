@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { inter, playfair } from "@/lib/fonts";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import "./globals.css";
 
 /** Match Netlify production viewport — do not add maximumScale/userScalable overrides. */
@@ -118,6 +119,7 @@ export default function RootLayout({
         />
         <Suspense fallback={null}>
           <MetaPixel />
+          <GoogleAnalytics />
         </Suspense>
         {children}
       </body>

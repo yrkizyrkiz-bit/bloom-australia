@@ -3,6 +3,8 @@
  * @see https://www.facebook.com/business/help/402791146561655
  */
 
+import { mirrorMetaEventToGa } from "@/lib/analytics/ga";
+
 /** Single source of truth — base code and standard events use this ID. */
 export const META_PIXEL_ID =
   process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || "28517477271253490";
@@ -65,23 +67,34 @@ export function trackMetaEvent(
   event: MetaStandardEvent,
   params?: MetaEventParams
 ): void {
-  if (typeof window === "undefined" || typeof window.fbq !== "function") return;
-  // trackSingle binds the event to the configured pixel ID (avoids old/multi-pixel drift).
+  if (typeof window === "undefined") return;
   const merged = withMetaAttribution(params);
-  if (Object.keys(merged).length > 0) {
-    window.fbq("trackSingle", META_PIXEL_ID, event, merged);
-  } else {
-    window.fbq("trackSingle", META_PIXEL_ID, event);
+  // trackSingle binds the event to the configured pixel ID (avoids old/multi-pixel drift).
+  if (typeof window.fbq === "function") {
+    if (Object.keys(merged).length > 0) {
+      window.fbq("trackSingle", META_PIXEL_ID, event, merged);
+    } else {
+      window.fbq("trackSingle", META_PIXEL_ID, event);
+    }
   }
+  // Same funnel event into GA4 (mapped to GA4 recommended event names) — independent of fbq.
+  mirrorMetaEventToGa(event, merged, { transactionId: currentTransactionId });
 }
+
+/** Set by trackMetaPurchaseOnce so the mirrored GA4 purchase carries transaction_id. */
+let currentTransactionId: string | null = null;
 
 /** Custom (non-standard) event, e.g. CheckoutStep — also carries attribution params. */
 export function trackMetaCustomEvent(
   event: string,
   params?: MetaEventParams
 ): void {
-  if (typeof window === "undefined" || typeof window.fbq !== "function") return;
-  window.fbq("trackSingleCustom", META_PIXEL_ID, event, withMetaAttribution(params));
+  if (typeof window === "undefined") return;
+  const merged = withMetaAttribution(params);
+  if (typeof window.fbq === "function") {
+    window.fbq("trackSingleCustom", META_PIXEL_ID, event, merged);
+  }
+  mirrorMetaEventToGa(event, merged);
 }
 
 /** Checkout funnel step (single custom event; break down by `checkout_step` in Events Manager). */
@@ -179,6 +192,7 @@ export function metaProgramForPath(pathname: string): string {
   if (path.startsWith("/metabolic-care/pcos")) return "pcos";
   if (path.startsWith("/metabolic-care")) return "metabolic_care";
   if (path.startsWith("/labs") || path.startsWith("/biomarker")) return "labs";
+  if (path.startsWith("/guides")) return "guides";
   if (path.startsWith("/pricing") || path.startsWith("/membership")) return "membership";
   if (path.startsWith("/for-doctors")) return "for_doctors";
   return "other";
@@ -228,6 +242,7 @@ export function trackMetaPurchaseOnce(input: {
   }
 
   const attribution = getMetaAttribution();
+  currentTransactionId = id ?? null;
   trackMetaEvent("Purchase", {
     value: input.value,
     currency: input.currency || "AUD",
@@ -237,6 +252,7 @@ export function trackMetaPurchaseOnce(input: {
     content_category: input.content_category || attribution.origin_program || "membership",
     num_items: 1,
   });
+  currentTransactionId = null;
   trackMetaCheckoutStep("payment_succeeded", { value: input.value, currency: input.currency || "AUD" });
 }
 
