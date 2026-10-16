@@ -14,6 +14,32 @@ declare global {
   }
 }
 
+/**
+ * Logged-in / private surfaces where the Google tag must not load or send
+ * (member portal, admin, GP/doctor tools, auth). Public marketing + checkout stay tracked.
+ */
+const GA_EXCLUDED_PREFIXES = [
+  "/dashboard",
+  "/admin",
+  "/gp",
+  "/auth",
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/invoices",
+  "/api",
+];
+
+export function isGaExcludedPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const path = pathname.replace(/\/$/, "") || "/";
+  return GA_EXCLUDED_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
+function onExcludedPage(): boolean {
+  return typeof window !== "undefined" && isGaExcludedPath(window.location.pathname);
+}
+
 export type GaEventParams = Record<string, string | number | boolean | undefined | unknown[]>;
 
 /**
@@ -21,7 +47,7 @@ export type GaEventParams = Record<string, string | number | boolean | undefined
  * executed yet (events fired before the script loads are queued, not lost).
  */
 function ensureGtag(): ((...args: unknown[]) => void) | null {
-  if (typeof window === "undefined" || !GA_MEASUREMENT_ID) return null;
+  if (typeof window === "undefined" || !GA_MEASUREMENT_ID || onExcludedPage()) return null;
   if (typeof window.gtag === "function") return window.gtag;
   window.dataLayer = window.dataLayer || [];
   window.gtag = function gtag() {
