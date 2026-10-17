@@ -97,29 +97,11 @@ export default function OrganCarePage() {
                 Heart, liver and kidney markers insights decoded. Your doctor reviews them in
                 context, not as a diagnosis from a shopping list.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link
-                  href="/membership/checkout"
-                  className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-[#34412f] font-semibold rounded-full hover:bg-[#f4f7f2] transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto"
-                >
-                  Become a member
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link
-                  href="#organs"
-                  className="inline-flex items-center justify-center px-8 py-4 text-white/90 font-medium rounded-full border border-white/25 hover:bg-white/10 transition-colors w-full sm:w-auto"
-                >
-                  Explore the organs
-                </Link>
-              </div>
-              <p className="mt-4 text-sm text-[#a8bb9e]/80">
-                $1/day. Comprehensive health check, biomarker report and doctor review included.
-              </p>
             </div>
           </div>
         </section>
 
-        <section id="organs" className="py-16 lg:py-24 scroll-mt-24">
+        <section className="py-16 lg:py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
               {organs.map((organ) => (
@@ -171,33 +153,6 @@ export default function OrganCarePage() {
                   </div>
                 </Link>
               ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="pb-16 lg:pb-24">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#34412f] via-[#3d4f38] to-[#2c3628] px-6 py-12 sm:px-12 lg:px-16 lg:py-16 text-center">
-              <div className="max-w-2xl mx-auto">
-                <h2 className="text-3xl sm:text-4xl font-serif text-white leading-tight">
-                  See how your heart, liver and kidneys are{" "}
-                  <span className="text-[#a8bb9e] italic">really doing.</span>
-                </h2>
-                <p className="mt-4 text-lg text-[#a8bb9e] leading-relaxed">
-                  Become a member and get a comprehensive health check, your biomarker report and
-                  a doctor review of your organ markers, all in one place.
-                </p>
-                <Link
-                  href="/membership/checkout"
-                  className="mt-8 inline-flex items-center justify-center gap-3 text-lg px-12 py-5 bg-white text-[#34412f] font-semibold rounded-full hover:bg-[#f4f7f2] transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto"
-                >
-                  Become a member
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
-                <p className="mt-4 text-sm text-[#a8bb9e]/80">
-                  $1/day. AHPRA-registered Australian doctors. Cancel anytime.
-                </p>
-              </div>
             </div>
           </div>
         </section>
