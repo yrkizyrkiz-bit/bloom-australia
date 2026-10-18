@@ -55,6 +55,15 @@
   padding-inline: 0;
 }
 
+/* Stats row removed: drop the block's top margin so the next section sits closer. */
+.journey-section--no-stats {
+  padding-bottom: clamp(28px, 4vw, 48px);
+}
+
+.journey-section--no-stats .journey-stack::after {
+  height: 8vh;
+}
+
 .journey-section--full .journey-heading,
 .journey-section--full .journey-stats {
   width: min(calc(100% - 32px), 1180px);
@@ -275,6 +284,10 @@
 
   .journey-stack::after {
     height: 10vh;
+  }
+
+  .journey-section--no-stats .journey-stack::after {
+    height: 4vh;
   }
 
   .journey-card {

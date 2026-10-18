@@ -473,6 +473,7 @@ export default function MensHealthPage() {
 
         <SanativeJourney
           fullWidth
+          showStats={false}
           heading={
             <>
               Your health at your <em>fingertips</em>

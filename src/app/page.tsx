@@ -43,7 +43,7 @@ export default function HomePage() {
         <BentoHero />
         <LabsSection />
         <HomeLifestyleBanner />
-        <SanativeJourney />
+        <SanativeJourney showStats={false} />
         <MembershipPricingSection />
         <DoctorsSection />
         <MemberProgramsSection />

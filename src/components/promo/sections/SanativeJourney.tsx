@@ -60,6 +60,7 @@ type SanativeJourneyProps = {
   fullWidth?: boolean;
   heading?: ReactNode;
   subheading?: string | null;
+  showStats?: boolean;
 };
 
 export function SanativeJourney({
@@ -70,11 +71,12 @@ export function SanativeJourney({
     </>
   ),
   subheading = "Healthcare that fits your life. No waiting rooms, no hassle.",
+  showStats = true,
 }: SanativeJourneyProps) {
   return (
     <section
       id="how-it-works"
-      className={`journey-section${fullWidth ? " journey-section--full" : ""}`}
+      className={`journey-section${fullWidth ? " journey-section--full" : ""}${showStats ? "" : " journey-section--no-stats"}`}
       aria-label="How Sanative works"
     >
       <header className={`journey-heading${subheading ? "" : " journey-heading--tight"}`}>
@@ -114,14 +116,16 @@ export function SanativeJourney({
         ))}
       </div>
 
-      <div className="journey-stats">
-        {stats.map((stat) => (
-          <div key={stat.label} className="journey-stats__item">
-            <p className="journey-stats__value">{stat.value}</p>
-            <p className="journey-stats__label">{stat.label}</p>
-          </div>
-        ))}
-      </div>
+      {showStats ? (
+        <div className="journey-stats">
+          {stats.map((stat) => (
+            <div key={stat.label} className="journey-stats__item">
+              <p className="journey-stats__value">{stat.value}</p>
+              <p className="journey-stats__label">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
