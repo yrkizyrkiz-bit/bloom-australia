@@ -22,8 +22,14 @@ function lanDevOrigins() {
  * CSP is limited to frame-ancestors (clickjacking) — a full script CSP needs
  * nonces for Stripe/Meta/Next inline scripts and is tracked separately.
  */
+const isDev = process.env.NODE_ENV !== "production";
+
 const securityHeaders = [
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  // HSTS and upgrade-insecure-requests force the browser onto HTTPS. The dev
+  // server is HTTP-only, so those directives make Safari drop CSS, JS and images.
+  ...(isDev
+    ? []
+    : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]),
   // SAMEORIGIN rather than DENY so the CSP frame-ancestors list below is authoritative
   // (X-Frame-Options has no allow-list; browsers prefer CSP when both are present).
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -37,8 +43,12 @@ const securityHeaders = [
   {
     key: "Content-Security-Policy",
     // Google's search-result site preview embeds the page from google.com domains.
-    value:
-      "frame-ancestors 'self' https://www.google.com https://www.google.com.au https://*.google.com; upgrade-insecure-requests",
+    value: [
+      "frame-ancestors 'self' https://www.google.com https://www.google.com.au https://*.google.com",
+      isDev ? null : "upgrade-insecure-requests",
+    ]
+      .filter(Boolean)
+      .join("; "),
   },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
 ];
