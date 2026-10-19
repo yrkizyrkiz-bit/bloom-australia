@@ -3,9 +3,9 @@ import { buildPageMetadata } from "@/lib/seo/site";
 /** Unique SEO copy for public marketing and funnel routes. */
 export const publicPageMeta = {
   home: buildPageMetadata({
-    title: "Sanative | Doctor-Led Biomarker Care Australia",
+    title: "Sanative | Doctor-Led Health Check Australia",
     description:
-      "Australian doctor-led membership from $365/year: 85+ biomarkers, AHPRA doctor review, and personalised care for weight, hormones, hair, and organ health.",
+      "Sanative health check in Australia: doctor-led membership from $365/year, 85+ biomarkers, pathology near you, and review by an AHPRA-registered doctor.",
     path: "/",
   }),
   about: buildPageMetadata({
@@ -201,35 +201,41 @@ export const publicPageMeta = {
     title: "Terms & Conditions | Sanative",
     description: "Terms and conditions for using Sanative services and website.",
     path: "/terms",
+    maxSnippet: 50,
   }),
   privacy: buildPageMetadata({
     title: "Privacy Policy | Sanative",
     description:
       "How Sanative collects, uses, and protects your personal and health information.",
     path: "/privacy",
+    maxSnippet: 50,
   }),
   refundPolicy: buildPageMetadata({
     title: "Refunds & Cancellations | Sanative",
     description:
       "Sanative membership and program refund, cancellation and payment terms.",
     path: "/refund-policy",
+    maxSnippet: 50,
   }),
   subscriptionTerms: buildPageMetadata({
     title: "Subscription Terms | Sanative",
     description:
       "Subscription billing and cancellation terms for Sanative programs.",
     path: "/subscription-terms",
+    maxSnippet: 50,
   }),
   telehealthConsent: buildPageMetadata({
     title: "Telehealth Consent | Sanative",
     description: "Consent information for Sanative telehealth consultations.",
     path: "/telehealth-consent",
+    maxSnippet: 50,
   }),
   medicalDisclaimer: buildPageMetadata({
     title: "Medical Disclaimer | Sanative",
     description:
       "Important medical disclaimer for Sanative health information and assessments.",
     path: "/medical-disclaimer",
+    maxSnippet: 50,
   }),
   // Transactional / private-ish — unique titles but noindex
   checkout: buildPageMetadata({

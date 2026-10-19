@@ -33,7 +33,10 @@ export function LegalPageLayout({
             Effective date: {SANATIVE_LEGAL.effectiveDate} · Last updated: {SANATIVE_LEGAL.effectiveDate}
           </p>
 
-          <div className="prose-legal space-y-6 text-[#34412f] text-sm leading-relaxed">
+          <div
+            data-nosnippet=""
+            className="prose-legal space-y-6 text-[#34412f] text-sm leading-relaxed"
+          >
             {children}
           </div>
 

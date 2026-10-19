@@ -30,12 +30,60 @@ const homeFaqJsonLd = {
   })),
 };
 
+const homePagesJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "Sanative health check and care programs",
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Health check in Australia",
+      url: "https://sanative.com.au/guides/health-check-australia",
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "Biomarker labs",
+      url: "https://sanative.com.au/labs",
+    },
+    {
+      "@type": "ListItem",
+      position: 3,
+      name: "Organ health check",
+      url: "https://sanative.com.au/organ-care",
+    },
+    {
+      "@type": "ListItem",
+      position: 4,
+      name: "Weight management",
+      url: "https://sanative.com.au/weight-management",
+    },
+    {
+      "@type": "ListItem",
+      position: 5,
+      name: "Men's health",
+      url: "https://sanative.com.au/mens-health",
+    },
+    {
+      "@type": "ListItem",
+      position: 6,
+      name: "Women's health",
+      url: "https://sanative.com.au/womens-health",
+    },
+  ],
+};
+
 export default function HomePage() {
   return (
     <MarketingFonts className="min-h-screen bg-[#fdfbf7]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(homeFaqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homePagesJsonLd) }}
       />
       <Header />
       <main>

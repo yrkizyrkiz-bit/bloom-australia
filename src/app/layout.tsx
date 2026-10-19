@@ -15,11 +15,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://sanative.com.au"),
   title: {
-    default: "Sanative | Doctor-Led Biomarker Care Australia",
+    default: "Sanative | Doctor-Led Health Check Australia",
     template: "%s",
   },
   description:
-    "Australian doctor-led membership from $365/year: 85+ biomarkers, AHPRA doctor review, and personalised care for weight, hormones, hair, and organ health.",
+    "Sanative health check in Australia: doctor-led membership from $365/year, 85+ biomarkers, pathology near you, and review by an AHPRA-registered doctor.",
   applicationName: "Sanative",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
     locale: "en_AU",
     url: "https://sanative.com.au",
     siteName: "Sanative",
-    title: "Sanative | Doctor-Led Biomarker Care Australia",
+    title: "Sanative | Doctor-Led Health Check Australia",
     description:
-      "From biomarkers to doctor-led care plans, Sanative helps Australians understand their health and act on it.",
+      "Sanative health check in Australia: doctor-led membership from $365/year, 85+ biomarkers, pathology near you, and review by an AHPRA-registered doctor.",
     images: [
       {
         url: "/images/tablet-slider/sanative-hero-clean.webp",
@@ -53,9 +53,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sanative | Doctor-Led Biomarker Care Australia",
+    title: "Sanative | Doctor-Led Health Check Australia",
     description:
-      "From biomarkers to doctor-led care plans, Sanative helps Australians understand their health and act on it.",
+      "Sanative health check in Australia: doctor-led membership from $365/year, 85+ biomarkers, pathology near you, and review by an AHPRA-registered doctor.",
     images: ["/images/tablet-slider/sanative-hero-clean.webp"],
   },
   robots: {
@@ -81,7 +81,7 @@ const organizationJsonLd = {
       url: "https://sanative.com.au",
       logo: "https://sanative.com.au/icons/sanative-512.png",
       description:
-        "Doctor-led biomarker care and metabolic health programs across Australia. AHPRA-registered doctors.",
+        "Sanative is an Australian doctor-led health check. Membership includes 85+ biomarkers, pathology collection near you, and review by an AHPRA-registered doctor.",
       areaServed: {
         "@type": "Country",
         name: "Australia",

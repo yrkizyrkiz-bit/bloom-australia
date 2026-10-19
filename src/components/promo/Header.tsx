@@ -63,7 +63,7 @@ export function Header() {
       href: "/labs",
       dropdown: [
         { label: "Biomarker Categories", href: "/labs#biomarkers" },
-        { label: "Check Your Health", href: "/biomarker-intake" },
+        { label: "Check Your Health", href: "/guides/health-check-australia" },
       ],
     },
     {

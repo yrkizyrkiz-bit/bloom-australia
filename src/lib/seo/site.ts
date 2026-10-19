@@ -23,7 +23,7 @@ export const privateSurfaceMetadata = (title = "Sanative"): Metadata => ({
 });
 
 export const SITE_DEFAULT_TITLE =
-  "Sanative | Doctor-Led Biomarker Care Australia";
+  "Sanative | Doctor-Led Health Check Australia";
 export const SITE_DEFAULT_DESCRIPTION =
   "From biomarkers to doctor-led care plans, Sanative helps Australians understand their health and act on it. AHPRA-registered doctors. Available across Australia.";
 
@@ -34,6 +34,11 @@ type PageMetaInput = {
   /** Default true for marketing pages; set false for checkout/private flows */
   index?: boolean;
   ogImage?: string;
+  /**
+   * Cap the text Google can quote from this page. Use on legal pages so AI
+   * Overviews and side panels prefer the health-check and program pages.
+   */
+  maxSnippet?: number;
 };
 
 export function buildPageMetadata({
@@ -42,6 +47,7 @@ export function buildPageMetadata({
   path,
   index = true,
   ogImage = DEFAULT_OG_IMAGE,
+  maxSnippet,
 }: PageMetaInput): Metadata {
   const url = path === "/" ? SITE_URL : `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const imageUrl = ogImage.startsWith("http") ? ogImage : `${SITE_URL}${ogImage}`;
@@ -75,7 +81,19 @@ export function buildPageMetadata({
       images: [imageUrl],
     },
     robots: index
-      ? { index: true, follow: true }
+      ? {
+          index: true,
+          follow: true,
+          ...(maxSnippet != null
+            ? {
+                googleBot: {
+                  index: true,
+                  follow: true,
+                  "max-snippet": maxSnippet,
+                },
+              }
+            : {}),
+        }
       : { index: false, follow: false },
   };
 }
