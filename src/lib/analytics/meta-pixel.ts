@@ -41,6 +41,8 @@ export type MetaAttributionParams = {
   origin_program?: string;
   /** Funnel hand-off tag (checkout `source`/`intent` or assessment `source`). */
   funnel_source?: string;
+  /** Which button started checkout, when the link provided one. */
+  button?: string;
   /** Step label for CheckoutStep custom events. */
   checkout_step?: string;
 };
@@ -68,7 +70,7 @@ export function trackMetaEvent(
   params?: MetaEventParams
 ): void {
   if (typeof window === "undefined") return;
-  const merged = withMetaAttribution(params);
+  const merged = withForwardedContentIds(withMetaAttribution(params));
   // trackSingle binds the event to the configured pixel ID (avoids old/multi-pixel drift).
   if (typeof window.fbq === "function") {
     if (Object.keys(merged).length > 0) {
@@ -90,11 +92,28 @@ export function trackMetaCustomEvent(
   params?: MetaEventParams
 ): void {
   if (typeof window === "undefined") return;
-  const merged = withMetaAttribution(params);
+  const merged = withForwardedContentIds(withMetaAttribution(params));
   if (typeof window.fbq === "function") {
     window.fbq("trackSingleCustom", META_PIXEL_ID, event, merged);
   }
   mirrorMetaEventToGa(event, merged);
+}
+
+/**
+ * Same as trackMetaCustomEvent, but waits until the pixel stub exists.
+ * Page-load events can run before the afterInteractive pixel script.
+ */
+export function trackMetaCustomEventWhenReady(
+  event: string,
+  params?: MetaEventParams,
+  attempts = 20
+): void {
+  if (typeof window === "undefined") return;
+  if (typeof window.fbq === "function" || attempts <= 0) {
+    trackMetaCustomEvent(event, params);
+    return;
+  }
+  window.setTimeout(() => trackMetaCustomEventWhenReady(event, params, attempts - 1), 200);
 }
 
 /** Checkout funnel step (single custom event; break down by `checkout_step` in Events Manager). */
@@ -119,6 +138,7 @@ export function trackMetaCheckoutStep(
 const ATTR_LANDING_KEY = "meta_attr_landing_page";
 const ATTR_ORIGIN_KEY = "meta_attr_origin_page";
 const ATTR_FUNNEL_SOURCE_KEY = "meta_attr_funnel_source";
+const ATTR_BUTTON_KEY = "meta_attr_checkout_button";
 
 /** Paths that are funnel steps (not content pages) — never recorded as origin_page. */
 const FUNNEL_PATH_PATTERNS: RegExp[] = [
@@ -174,6 +194,18 @@ export function rememberMetaFunnelSource(source?: string | null): void {
   if (value) safeSessionSet(ATTR_FUNNEL_SOURCE_KEY, value);
 }
 
+/** Record which button on the originating page started checkout. */
+export function rememberMetaCheckoutButton(button?: string | null): void {
+  const value = button?.trim();
+  if (value) safeSessionSet(ATTR_BUTTON_KEY, value);
+}
+
+/** Checkout URL that carries the program page and the button that was clicked. */
+export function membershipCheckoutPath(source: string, button: string): string {
+  const params = new URLSearchParams({ source, button });
+  return `/membership/checkout?${params.toString()}`;
+}
+
 /** Program bucket for a path — used for origin_program and funnel content_category. */
 export function metaProgramForPath(pathname: string): string {
   const path = normalisePath(pathname);
@@ -203,6 +235,7 @@ export function getMetaAttribution(): MetaAttributionParams {
   const landing = safeSessionGet(ATTR_LANDING_KEY) ?? undefined;
   const origin = safeSessionGet(ATTR_ORIGIN_KEY) ?? landing;
   const funnelSource = safeSessionGet(ATTR_FUNNEL_SOURCE_KEY) ?? undefined;
+  const button = safeSessionGet(ATTR_BUTTON_KEY) ?? undefined;
   const out: MetaAttributionParams = {};
   if (landing) out.landing_page = landing;
   if (origin) {
@@ -210,12 +243,31 @@ export function getMetaAttribution(): MetaAttributionParams {
     out.origin_program = metaProgramForPath(origin);
   }
   if (funnelSource) out.funnel_source = funnelSource;
+  if (button) out.button = button;
   return out;
 }
 
 function withMetaAttribution(params?: MetaEventParams): MetaEventParams {
   // Explicit params win over stored attribution.
   return { ...getMetaAttribution(), ...(params ?? {}) };
+}
+
+/**
+ * The browser pixel currently forwards content_ids (and content_type) and drops
+ * other custom keys such as button and funnel_source. Copy those into content_ids
+ * so custom conversions can filter on them.
+ */
+function withForwardedContentIds(params: MetaEventParams): MetaEventParams {
+  const ids = [...(params.content_ids ?? [])];
+  const add = (prefix: string, value?: string) => {
+    if (!value) return;
+    const id = `${prefix}_${value}`;
+    if (!ids.includes(id)) ids.push(id);
+  };
+  add("source", params.funnel_source);
+  add("button", params.button);
+  if (ids.length === (params.content_ids?.length ?? 0)) return params;
+  return { ...params, content_ids: ids };
 }
 
 /** PageView for App Router navigations — same pixel as base init. */

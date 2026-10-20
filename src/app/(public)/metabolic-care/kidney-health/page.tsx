@@ -312,7 +312,7 @@ export default function KidneyHealthPage() {
                 <div className="mt-8 p-6 bg-teal-600 rounded-2xl text-white">
                   <p className="font-medium mb-3">Want to know your eGFR score?</p>
                   <p className="text-sm text-teal-100 mb-4">Our biomarker insight report includes eGFR plus 15+ other markers that give you the complete picture.</p>
-                  <Link href="/membership/checkout" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors text-sm">
+                  <Link href="/membership/checkout?source=kidney_health&button=egfr_cta" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors text-sm">
                     Get my kidney panel report <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>
@@ -432,7 +432,7 @@ export default function KidneyHealthPage() {
                 <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-2xl p-6 text-white text-center">
                   <p className="text-lg font-medium mb-2">Tick any of these boxes?</p>
                   <p className="text-sm text-teal-100 mb-4">Become a member and get your biomarkers report to see what's happening with your kidneys.</p>
-                  <Link href="/membership/checkout" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors">
+                  <Link href="/membership/checkout?source=kidney_health&button=risk_factors" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors">
                     See what my kidneys are doing <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>
@@ -592,7 +592,7 @@ export default function KidneyHealthPage() {
             <p className="text-lg text-teal-100 mb-10 max-w-2xl mx-auto">
               Kidney changes are often quiet at first. Check your health and stay ahead, you do not have to wait for symptoms.
             </p>
-            <Link href="/membership/checkout" className="inline-flex items-center justify-center gap-3 text-lg px-12 py-5 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-md mx-auto">
+            <Link href="/membership/checkout?source=kidney_health&button=closing_cta" className="inline-flex items-center justify-center gap-3 text-lg px-12 py-5 bg-white text-teal-700 font-semibold rounded-full hover:bg-teal-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-md mx-auto">
               Start your membership now <ArrowRight className="w-5 h-5" />
             </Link>
           </div>

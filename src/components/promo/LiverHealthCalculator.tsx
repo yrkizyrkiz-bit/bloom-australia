@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { calculateBmi } from "@/lib/bmi";
+import { trackMetaCustomEvent } from "@/lib/analytics/meta-pixel";
 import {
   ArrowRight,
   ArrowLeft,
@@ -198,6 +199,11 @@ export function LiverHealthCalculator() {
 
   const handleBMISubmit = () => {
     if (weight && height && bmi) {
+      trackMetaCustomEvent("LiverAssessmentStarted", {
+        content_name: "Fatty liver risk assessment",
+        content_category: "fatty_liver",
+        content_ids: ["fatty_liver_assessment"],
+      });
       setAnswers({ ...answers, bmi: bmiScore });
       setCurrentQuestion(0);
     }
@@ -211,6 +217,11 @@ export function LiverHealthCalculator() {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
+      trackMetaCustomEvent("LiverAssessmentCompleted", {
+        content_name: "Fatty liver risk assessment",
+        content_category: "fatty_liver",
+        content_ids: ["fatty_liver_assessment"],
+      });
       setShowResults(true);
     }
   };

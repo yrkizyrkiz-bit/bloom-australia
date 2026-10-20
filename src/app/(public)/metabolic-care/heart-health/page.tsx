@@ -441,7 +441,7 @@ export default function HeartHealthPage() {
             <p className="text-lg text-rose-100 mb-10 max-w-2xl mx-auto">
               You do not have to wait for symptoms. A doctor-reviewed lipid and metabolic panel can inform the conversation about your cardiovascular risk.
             </p>
-            <Link href="/membership/checkout" className="inline-flex items-center justify-center gap-3 text-base sm:text-lg px-6 sm:px-10 py-5 bg-white text-rose-700 font-semibold rounded-full hover:bg-rose-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-xl mx-auto">
+            <Link href="/membership/checkout?source=heart_health&button=closing_cta" className="inline-flex items-center justify-center gap-3 text-base sm:text-lg px-6 sm:px-10 py-5 bg-white text-rose-700 font-semibold rounded-full hover:bg-rose-50 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto max-w-xl mx-auto">
               Check your health and stay ahead for $1/day <ArrowRight className="w-5 h-5" />
             </Link>
           </div>

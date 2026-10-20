@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
 import { LiverHealthCalculator } from "@/components/promo/LiverHealthCalculator";
+import {
+  membershipCheckoutPath,
+  trackMetaCustomEvent,
+  trackMetaCustomEventWhenReady,
+} from "@/lib/analytics/meta-pixel";
 import { OrganCareMembershipSection } from "@/components/promo/sections/OrganCareMembershipSection";
 import {
   BiomarkerHoneycomb,
@@ -84,8 +89,26 @@ function FAQItem({
   );
 }
 
+function trackLiverMembershipClick(button: string) {
+  trackMetaCustomEvent("LiverMembershipClicked", {
+    content_name: "Fatty Liver membership",
+    content_category: "fatty_liver",
+    content_ids: ["fatty_liver"],
+    button,
+    funnel_source: "fatty_liver",
+  });
+}
+
 export default function FattyLiverPage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(0);
+
+  useEffect(() => {
+    trackMetaCustomEventWhenReady("LiverPageView", {
+      content_name: "Fatty Liver Care",
+      content_category: "fatty_liver",
+      content_ids: ["fatty_liver"],
+    });
+  }, []);
 
   const epidemicStats = [
     {
@@ -467,7 +490,8 @@ export default function FattyLiverPage() {
                   </p>
                 </div>
                 <Link
-                  href="/membership/checkout"
+                  href={membershipCheckoutPath("fatty_liver", "biomarker_panel")}
+                  onClick={() => trackLiverMembershipClick("biomarker_panel")}
                   className="mt-6 w-full bg-white text-[#34412f] rounded-full py-3 px-4 sm:px-6 font-medium flex items-center justify-center gap-2 hover:bg-[#f4f7f2] transition-colors text-center text-sm sm:text-base"
                 >
                   Check your health and stay ahead for $1/day
@@ -648,7 +672,11 @@ export default function FattyLiverPage() {
           </div>
         </section>
 
-        <OrganCareMembershipSection accent="sage" />
+        <OrganCareMembershipSection
+          accent="sage"
+          checkoutHref={membershipCheckoutPath("fatty_liver", "membership_card")}
+          onCheckoutClick={() => trackLiverMembershipClick("membership_card")}
+        />
 
         {/* FAQ Section */}
         <section className="py-20 lg:py-28 bg-[#fdfbf7]">
@@ -693,7 +721,8 @@ export default function FattyLiverPage() {
             </p>
 
             <Link
-              href="/membership/checkout"
+              href={membershipCheckoutPath("fatty_liver", "closing_cta")}
+              onClick={() => trackLiverMembershipClick("closing_cta")}
               className="btn-white inline-flex items-center justify-center gap-2 text-base sm:text-lg px-6 sm:px-10 py-4"
             >
               Check your health and stay ahead for $1/day

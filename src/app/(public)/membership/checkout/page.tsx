@@ -49,6 +49,8 @@ import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.mod
 import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
 import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
 import {
+  getMetaAttribution,
+  rememberMetaCheckoutButton,
   rememberMetaFunnelSource,
   trackMetaCheckoutStep,
   trackMetaEvent,
@@ -433,6 +435,7 @@ function MembershipCheckoutPageContent() {
   const searchParams = useSearchParams();
   const funnelSource = searchParams.get("source");
   const intentProgram = searchParams.get("intent");
+  const checkoutButton = searchParams.get("button");
   const [step, setStep] = useState<Step>("verify");
   const [verifyMethod, setVerifyMethod] = useState<"email" | "phone">("email");
   const [contact, setContact] = useState("");
@@ -487,9 +490,13 @@ function MembershipCheckoutPageContent() {
   }, []);
 
   // Tag this checkout session with its hand-off source so every Meta event carries it.
+  // A bare /membership/checkout visit keeps the program page the visitor came from.
   useEffect(() => {
-    rememberMetaFunnelSource(funnelSource || intentProgram || "direct_checkout");
-  }, [funnelSource, intentProgram]);
+    rememberMetaFunnelSource(
+      funnelSource || intentProgram || getMetaAttribution().origin_program || "direct_checkout"
+    );
+    rememberMetaCheckoutButton(checkoutButton);
+  }, [funnelSource, intentProgram, checkoutButton]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

@@ -367,7 +367,7 @@ export function HeartHealthCalculator() {
             </div>
 
             <Link
-              href="/membership/checkout"
+              href="/membership/checkout?source=heart_health&button=risk_result"
               className="block w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-center transition-colors"
             >
               Get your heart health assessment

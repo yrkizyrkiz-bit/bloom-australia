@@ -2959,6 +2959,7 @@ export default function WeightLossAssessmentPage() {
         state={formData.state}
         postcode={formData.postcode}
         alreadyPaid={membershipPaid}
+        source="weight_management_assessment"
         onContinueAfterPaid={() => animateToStep(21, "forward")}
         onSuccess={handleCheckoutPaymentSuccess}
         onError={handleCheckoutPaymentError}

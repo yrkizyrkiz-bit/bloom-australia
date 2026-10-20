@@ -16,6 +16,7 @@ type OrganCareMembershipSectionProps = {
   programName?: string;
   heading?: ReactNode;
   checkoutHref?: string;
+  onCheckoutClick?: () => void;
 };
 
 export function OrganCareMembershipSection({
@@ -23,6 +24,7 @@ export function OrganCareMembershipSection({
   programName = "Organ Care",
   heading,
   checkoutHref,
+  onCheckoutClick,
 }: OrganCareMembershipSectionProps) {
   const tones = ACCENT[accent];
 
@@ -42,6 +44,7 @@ export function OrganCareMembershipSection({
         <MembershipPricingCard
           imageMarquee={ORDER_SUMMARY_MARQUEE}
           checkoutHref={checkoutHref}
+          onCheckoutClick={onCheckoutClick}
         />
       </div>
     </section>

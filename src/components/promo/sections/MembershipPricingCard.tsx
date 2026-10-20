@@ -36,6 +36,7 @@ type MembershipMarqueeImage = {
 type MembershipPricingCardProps = {
   annualPrice?: number;
   checkoutHref?: string;
+  onCheckoutClick?: () => void;
   className?: string;
   /** Optional looping image strip in the left column, above $1/day. */
   imageMarquee?: readonly MembershipMarqueeImage[];
@@ -74,6 +75,7 @@ function ImageMarquee({ items }: { items: readonly MembershipMarqueeImage[] }) {
 export function MembershipPricingCard({
   annualPrice = 365,
   checkoutHref = "/membership/checkout",
+  onCheckoutClick,
   className = "",
   imageMarquee,
 }: MembershipPricingCardProps) {
@@ -119,6 +121,7 @@ export function MembershipPricingCard({
 
           <Link
             href={checkoutHref}
+            onClick={onCheckoutClick}
             className="mt-5 flex w-full items-center justify-center rounded-full bg-[#c17a58] px-8 py-3 text-base font-medium text-white transition-colors hover:bg-[#a96848] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c17a58] focus-visible:ring-offset-2"
           >
             Join Sanative

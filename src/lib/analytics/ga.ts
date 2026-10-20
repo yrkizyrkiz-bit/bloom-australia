@@ -132,6 +132,7 @@ export function mirrorMetaEventToGa(
     origin_program: p.origin_program as string | undefined,
     landing_page: p.landing_page as string | undefined,
     funnel_source: p.funnel_source as string | undefined,
+    button: p.button as string | undefined,
     checkout_step: p.checkout_step as string | undefined,
     content_category: p.content_category as string | undefined,
   });

@@ -414,7 +414,7 @@ export function KidneyHealthCalculator() {
             </div>
 
             <Link
-              href="/membership/checkout"
+              href="/membership/checkout?source=kidney_health&button=risk_result"
               className="block w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl text-center transition-colors"
             >
               Get your kidney health assessment
