@@ -27,6 +27,14 @@ export const SITE_DEFAULT_TITLE =
 export const SITE_DEFAULT_DESCRIPTION =
   "From biomarkers to doctor-led care plans, Sanative helps Australians understand their health and act on it. AHPRA-registered doctors. Available across Australia.";
 
+/** Search snippet. Not rendered on the page. */
+export const SANATIVE_DEFINITION_SNIPPET =
+  "Stay ahead of your health with Sanative. Preventive health and precision medicine programs, built for your longevity.";
+
+/** Full description for the organization record Google reads. Not rendered on the page. */
+export const SANATIVE_DEFINITION_TEXT =
+  "Stay ahead of your health with Sanative. Preventive health and precision medicine programs, built for your longevity. 85+ biomarkers for a clear picture of your health. Doctor-led care from AHPRA-registered doctors. AI-assisted Sanative portal to track your results and progress over time. Sanative precision programs for weight management, organ care, hair health, men’s health and women’s health. Sanative membership: $365 a year. That’s just $1 a day.";
+
 type PageMetaInput = {
   title: string;
   description: string;

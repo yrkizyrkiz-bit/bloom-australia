@@ -1,17 +1,15 @@
-import { buildPageMetadata } from "@/lib/seo/site";
+import { buildPageMetadata, SANATIVE_DEFINITION_SNIPPET } from "@/lib/seo/site";
 
 /** Unique SEO copy for public marketing and funnel routes. */
 export const publicPageMeta = {
   home: buildPageMetadata({
     title: "Sanative | Doctor-Led Health Check Australia",
-    description:
-      "Sanative health check in Australia: doctor-led membership from $365/year, 85+ biomarkers, pathology near you, and review by an AHPRA-registered doctor.",
+    description: SANATIVE_DEFINITION_SNIPPET,
     path: "/",
   }),
   about: buildPageMetadata({
     title: "About Sanative | Doctor-Led Metabolic Care",
-    description:
-      "Sanative is an Australian doctor-led clinic. Membership starts with a health check and results reviewed by an AHPRA-registered doctor.",
+    description: SANATIVE_DEFINITION_SNIPPET,
     path: "/about",
   }),
   contact: buildPageMetadata({

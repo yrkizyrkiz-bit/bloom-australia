@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { inter, playfair } from "@/lib/fonts";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { SANATIVE_DEFINITION_SNIPPET, SANATIVE_DEFINITION_TEXT } from "@/lib/seo/site";
 import "./globals.css";
 
 /** Match Netlify production viewport — do not add maximumScale/userScalable overrides. */
@@ -18,8 +19,7 @@ export const metadata: Metadata = {
     default: "Sanative | Doctor-Led Health Check Australia",
     template: "%s",
   },
-  description:
-    "Sanative health check in Australia: doctor-led membership from $365/year, 85+ biomarkers, pathology near you, and review by an AHPRA-registered doctor.",
+  description: SANATIVE_DEFINITION_SNIPPET,
   applicationName: "Sanative",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -40,8 +40,7 @@ export const metadata: Metadata = {
     url: "https://sanative.com.au",
     siteName: "Sanative",
     title: "Sanative | Doctor-Led Health Check Australia",
-    description:
-      "Sanative health check in Australia: doctor-led membership from $365/year, 85+ biomarkers, pathology near you, and review by an AHPRA-registered doctor.",
+    description: SANATIVE_DEFINITION_SNIPPET,
     images: [
       {
         url: "/images/tablet-slider/sanative-hero-clean.webp",
@@ -54,8 +53,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Sanative | Doctor-Led Health Check Australia",
-    description:
-      "Sanative health check in Australia: doctor-led membership from $365/year, 85+ biomarkers, pathology near you, and review by an AHPRA-registered doctor.",
+    description: SANATIVE_DEFINITION_SNIPPET,
     images: ["/images/tablet-slider/sanative-hero-clean.webp"],
   },
   robots: {
@@ -80,8 +78,7 @@ const organizationJsonLd = {
       name: "Sanative",
       url: "https://sanative.com.au",
       logo: "https://sanative.com.au/icons/sanative-512.png",
-      description:
-        "Sanative is an Australian doctor-led health check. Membership includes 85+ biomarkers, pathology collection near you, and review by an AHPRA-registered doctor.",
+      description: SANATIVE_DEFINITION_TEXT,
       areaServed: {
         "@type": "Country",
         name: "Australia",
