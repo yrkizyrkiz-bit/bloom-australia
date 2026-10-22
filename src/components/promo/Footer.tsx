@@ -15,8 +15,8 @@ export function Footer() {
     ],
     resources: [
       { label: "Biomarkers A–Z", href: "/biomarkers" },
-      { label: "Health Check Guide", href: "/guides/health-check-australia" },
-      { label: "Heart & Cardiovascular Risk", href: "/guides/heart-health-cardiovascular-disease-risk" },
+      { label: "Health Check Guide", href: "/labs" },
+      { label: "Heart & Cardiovascular Risk", href: "/metabolic-care/heart-health" },
       { label: "BMI Calculator", href: "/weight-management#bmi" },
       { label: "Heart Risk Assessment", href: "/metabolic-care/heart-health#heart-assessment" },
       { label: "Kidney Risk Assessment", href: "/metabolic-care/kidney-health#kidney-assessment" },

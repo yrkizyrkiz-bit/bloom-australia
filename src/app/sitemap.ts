@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo/site";
 import { sitemapPaths } from "@/lib/seo/public-page-meta";
-import { publishedGuides as seoGuides } from "@/lib/seo/guides";
+import { guidesUnderGuidesRoute as seoGuides } from "@/lib/seo/guides";
 import { biomarkerDefinitions } from "@/data/biomarkers";
 import { biomarkerSlug } from "@/lib/seo/biomarker-seo";
 
@@ -16,9 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: path === "/" ? 1 : path.split("/").length <= 2 ? 0.8 : 0.6,
   }));
 
-  const guides: MetadataRoute.Sitemap = seoGuides
-    .filter((g) => g.path.startsWith("/guides/"))
-    .map((g) => ({
+  const guides: MetadataRoute.Sitemap = seoGuides.map((g) => ({
       url: toUrl(g.path),
       lastModified: new Date(g.dateModified),
       changeFrequency: "monthly" as const,

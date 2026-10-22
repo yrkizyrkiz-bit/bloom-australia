@@ -39,7 +39,7 @@ const homePagesJsonLd = {
       "@type": "ListItem",
       position: 1,
       name: "Health check in Australia",
-      url: "https://sanative.com.au/guides/health-check-australia",
+      url: "https://sanative.com.au/labs",
     },
     {
       "@type": "ListItem",

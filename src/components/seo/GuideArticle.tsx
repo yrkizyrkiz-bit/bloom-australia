@@ -73,7 +73,8 @@ export function GuideArticle({
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-[#3f4a38]">{guide.intro}</p>
             <p className="mt-5 text-xs text-[#5f6d55]">
-              Medically reviewed by Sanative&apos;s AHPRA-registered doctors · Updated{" "}
+              For educational purposes only. This should not be used or considered as medical
+              advice. · Updated{" "}
               <time dateTime={guide.dateModified}>{formatDate(guide.dateModified)}</time>
             </p>
           </header>

@@ -4,7 +4,7 @@ import { publicPageMeta } from "@/lib/seo/public-page-meta";
 
 export const metadata = publicPageMeta.pricing;
 
-/** Legacy pricing URL; keep it from 404ing by sending old links home. */
+/** Legacy pricing URL; keep it from 404ing by sending old links to membership checkout. */
 export default function PricingPage() {
-  redirect("/");
+  redirect("/membership/checkout");
 }

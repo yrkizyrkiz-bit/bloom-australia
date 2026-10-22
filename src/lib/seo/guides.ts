@@ -1,11 +1,11 @@
 /**
  * Long-form SEO guides (server-rendered). Each guide targets a search intent that
- * competitors rank for (health check, fatty liver, heart health / CVD, weight loss
- * medications, ED medications, biomarkers, menopause, blood tests / pathology).
+ * competitors rank for (health check, fatty liver, heart health / CVD, biomarkers,
+ * menopause, blood tests / pathology).
  *
- * Medication guides are educational only. In Australia, advertising prescription-only
- * medicines to the public is prohibited (Therapeutic Goods Act 1989 / TGA Advertising
- * Code). Keep copy balanced, name risks, never promote a product or price.
+ * Do not publish guides that name prescription medicines. Advertising prescription-only
+ * medicines to the public is prohibited in Australia (Therapeutic Goods Act 1989 /
+ * TGA Advertising Code).
  */
 
 export type GuideSection = {
@@ -33,23 +33,20 @@ export type SeoGuide = {
   /** Shown prominently on medication guides. */
   regulatoryNote?: string;
   /**
-   * "draft" guides are kept in the repo but NOT routed, linked or listed in the sitemap.
-   * Medication-name guides are drafts until Sanative's legal/medical review signs off:
-   * they conflict with BANNED_PUBLIC_MEDICATION_TERMS in src/lib/legal/marketing-compliance.ts.
+   * "draft" guides stay in the repo but are not routed, linked, or listed in the sitemap.
+   * Published guides omit status, or set status to "published".
    */
   status?: "published" | "draft";
   datePublished: string;
   dateModified: string;
 };
 
-const MEDICATION_NOTE =
-  "This page is general health information, not medical advice and not an advertisement for any medicine. The medicines mentioned are prescription-only in Australia. Only a registered doctor can decide whether a medicine is appropriate for you after assessing your health, and they may recommend against it. Always read the Consumer Medicine Information and speak to your doctor or pharmacist about side effects.";
-
 export const seoGuides: SeoGuide[] = [
   // ───────────────────────────────────────────────────────────────────────────
   {
     slug: "health-check-australia",
     path: "/guides/health-check-australia",
+    status: "draft",
     title: "Full Health Check in Australia: What to Test & When (2026 Guide)",
     h1: "Health check in Australia: what a complete check-up should include",
     description:
@@ -64,7 +61,7 @@ export const seoGuides: SeoGuide[] = [
     ],
     eyebrow: "Preventive health",
     intro:
-      "Most chronic disease — type 2 diabetes, fatty liver, cardiovascular disease, kidney disease — develops silently for years before symptoms appear. A structured health check is how you find those changes while they are still reversible. This guide explains what a complete health check should include, how often to do one, and what the Medicare, GP and private options look like in Australia.",
+      "Most chronic disease — type 2 diabetes, fatty liver, cardiovascular disease, kidney disease — develops silently for years before symptoms appear. A structured health check is how you find those changes, and those results are discussed with a medical practitioner. This guide explains what a complete health check should include, how often to do one, and what the Medicare, GP and private options look like in Australia.",
     sections: [
       {
         heading: "What should a full health check include?",
@@ -120,12 +117,11 @@ export const seoGuides: SeoGuide[] = [
       {
         question: "What age should you start having health checks?",
         answer:
-          "Risk factors begin accumulating in your 20s and 30s. A baseline panel by 30, then annually from 40, is a reasonable approach for most people; earlier if you have a family history of heart disease, diabetes or cancer.",
+          "Risk factors begin accumulating in your 20s and 30s.",
       },
     ],
     related: [
-      { label: "Biomarkers explained", href: "/guides/biomarkers-explained" },
-      { label: "Blood tests & pathology in Australia", href: "/guides/blood-tests-pathology-australia" },
+      { label: "Biomarkers explained", href: "/labs" },
       { label: "See the 85+ biomarkers Sanative tests", href: "/biomarkers" },
     ],
     cta: {
@@ -141,10 +137,10 @@ export const seoGuides: SeoGuide[] = [
   {
     slug: "fatty-liver-blood-test",
     path: "/guides/fatty-liver-blood-test",
-    title: "Fatty Liver (MASLD): Symptoms, Blood Tests & How to Reverse It | Sanative",
-    h1: "Fatty liver disease: symptoms, blood tests and how it is reversed",
+    title: "Fatty Liver (MASLD): Symptoms, Blood Tests & How It Is Managed | Sanative",
+    h1: "Fatty liver disease: symptoms, blood tests and how it is managed",
     description:
-      "Fatty liver (MASLD/NAFLD) affects around 1 in 3 Australian adults and is often silent. Learn the liver function tests, FIB-4 score and metabolic markers that detect it — and how it is reversed.",
+      "Fatty liver (MASLD/NAFLD) affects around 1 in 3 Australian adults and is often silent. Learn the liver function tests, FIB-4 score and metabolic markers that detect it — and how it is managed.",
     keywords: [
       "fatty liver",
       "fatty liver blood test",
@@ -192,7 +188,7 @@ export const seoGuides: SeoGuide[] = [
         ],
       },
       {
-        heading: "How fatty liver is reversed",
+        heading: "How fatty liver is managed",
         paragraphs: [
           "Weight loss is the most effective treatment. Losing 5% of body weight reduces liver fat; 7–10% improves inflammation and can regress early fibrosis. How you get there matters less than sustaining it: reducing refined carbohydrates, added sugar and alcohol, increasing protein and fibre, resistance training, and treating sleep apnoea all improve liver fat independently of weight. Coffee is associated with lower fibrosis risk. For people with obesity or type 2 diabetes who cannot reach these targets with lifestyle alone, a doctor may discuss other clinically appropriate options as part of a supervised plan.",
           "Re-testing liver enzymes, FIB-4 and metabolic markers every 3–6 months shows whether the plan is working — and most people see ALT and GGT fall within months of meaningful change.",
@@ -241,7 +237,7 @@ export const seoGuides: SeoGuide[] = [
     slug: "heart-health-cardiovascular-disease-risk",
     path: "/guides/heart-health-cardiovascular-disease-risk",
     title: "Heart Health & Cardiovascular Disease Risk: Tests That Matter | Sanative",
-    h1: "Heart health and cardiovascular disease risk: the blood tests that actually predict it",
+    h1: "Heart health and cardiovascular disease risk: the blood tests that can detect early signs of heart disease",
     description:
       "Cardiovascular disease is Australia's leading cause of death and mostly preventable. Learn the heart health blood tests — LDL, ApoB, Lipoprotein(a), hs-CRP, HbA1c — and how your 5-year CVD risk is calculated.",
     keywords: [
@@ -332,254 +328,9 @@ export const seoGuides: SeoGuide[] = [
 
   // ───────────────────────────────────────────────────────────────────────────
   {
-    slug: "weight-loss-medications-australia",
-    path: "/guides/weight-loss-medications-australia",
-    title: "Weight Loss Medications in Australia: Ozempic, Wegovy, Mounjaro & Saxenda Explained",
-    h1: "Weight loss medications in Australia: how Ozempic, Wegovy, Mounjaro and Saxenda work, who they suit, and the risks",
-    description:
-      "An independent, doctor-reviewed guide to prescription weight loss medications in Australia — semaglutide (Ozempic, Wegovy), tirzepatide (Mounjaro), liraglutide (Saxenda), phentermine — how they work, eligibility, side effects and PBS status.",
-    keywords: [
-      "weight loss medication Australia",
-      "weight loss drugs",
-      "Ozempic Australia",
-      "Wegovy Australia",
-      "Mounjaro Australia",
-      "Saxenda",
-      "semaglutide weight loss",
-      "tirzepatide",
-      "GLP-1 Australia",
-      "medical weight loss",
-    ],
-    eyebrow: "Medical weight management",
-    status: "draft",
-    regulatoryNote: MEDICATION_NOTE,
-    intro:
-      "A new class of medicines has changed what medical weight management can achieve. GLP-1 receptor agonists such as semaglutide (sold as Ozempic and Wegovy) and the dual GIP/GLP-1 agonist tirzepatide (Mounjaro) produce average weight loss in clinical trials far beyond earlier medicines — but they are prescription-only, not suitable for everyone, carry side effects, and work best inside a structured program with blood test monitoring. This guide explains the options available in Australia so you can have an informed conversation with a doctor.",
-    sections: [
-      {
-        heading: "How GLP-1 medicines work",
-        paragraphs: [
-          "GLP-1 (glucagon-like peptide-1) is a gut hormone released after eating. GLP-1 receptor agonists mimic it: they slow stomach emptying, increase the feeling of fullness, act on appetite centres in the brain to reduce food noise and cravings, and improve the body's insulin response. Tirzepatide additionally activates the GIP receptor, which appears to amplify these effects. They are given as a once-weekly (semaglutide, tirzepatide) or daily (liraglutide) injection under the skin, starting at a low dose and increasing gradually to limit nausea.",
-        ],
-      },
-      {
-        heading: "Weight loss medicines available in Australia",
-        paragraphs: [
-          "The following medicines are registered by the Therapeutic Goods Administration (TGA). Registration and indication determine how a doctor may prescribe them; 'off-label' use means prescribing outside the registered indication, which doctors may do with appropriate clinical judgement and informed consent.",
-        ],
-        bullets: [
-          "Semaglutide — Ozempic: registered for type 2 diabetes. Widely used off-label for weight loss, which contributed to the supply shortages of 2022–2024. PBS-subsidised only for type 2 diabetes.",
-          "Semaglutide — Wegovy: the higher-dose formulation registered for chronic weight management in adults with obesity, or overweight with a weight-related condition. Not PBS-subsidised; private script.",
-          "Tirzepatide — Mounjaro: registered for type 2 diabetes and for chronic weight management. Trials reported the largest average weight loss of any current medicine. Not PBS-subsidised for weight.",
-          "Liraglutide — Saxenda: a daily GLP-1 injection registered for weight management. Generally less weight loss than weekly agents.",
-          "Phentermine — Duromine, Metermine: a stimulant appetite suppressant registered for short-term use. Not suitable with high blood pressure, heart disease or anxiety disorders.",
-          "Orlistat — Xenical: blocks fat absorption; available through a pharmacist. Modest effect with gastrointestinal side effects.",
-          "Naltrexone/bupropion — Contrave: an oral combination acting on appetite and reward pathways.",
-        ],
-      },
-      {
-        heading: "How much weight do people lose?",
-        paragraphs: [
-          "In the registration trials, average weight loss over roughly 68–72 weeks was around 15% of body weight with semaglutide 2.4 mg (STEP trials) and around 20% with tirzepatide at the highest dose (SURMOUNT trials), compared with 2–3% on placebo alongside the same lifestyle program. Individual results vary widely — some people lose far more, around one in ten lose little. Weight regain after stopping is common, which is why these medicines are considered long-term treatments for a chronic condition, and why the lifestyle, protein intake and resistance training components of a program matter so much for preserving muscle.",
-        ],
-      },
-      {
-        heading: "Who is eligible — and who should not take them",
-        paragraphs: [
-          "Weight-management indications generally require a BMI of 30 or above, or 27 and above with a weight-related condition such as prediabetes, high blood pressure, sleep apnoea or fatty liver. A doctor will also check kidney and liver function, pancreatic history, thyroid history and medications before prescribing.",
-        ],
-        bullets: [
-          "Do not use in pregnancy, when planning pregnancy or while breastfeeding.",
-          "Contraindicated with a personal or family history of medullary thyroid cancer or MEN2 syndrome.",
-          "Caution with a history of pancreatitis, gallbladder disease, severe gastrointestinal disease or diabetic retinopathy.",
-          "Not appropriate for people with a history of eating disorders without specialist input.",
-          "Not a substitute for addressing sleep, stress, alcohol and movement — which drive weight independently.",
-        ],
-      },
-      {
-        heading: "Side effects and monitoring",
-        paragraphs: [
-          "Most people experience some nausea, reflux, constipation or diarrhoea, especially in the first weeks and after dose increases; these usually settle. Less common but serious effects include pancreatitis, gallstones, kidney injury from dehydration, and — a concern with rapid weight loss of any kind — loss of muscle and bone. Blood tests before starting and during treatment (liver and kidney function, HbA1c, lipids, lipase if symptomatic, ferritin and B12, vitamin D) are how a doctor confirms the medicine is helping metabolic health rather than just the number on the scale.",
-        ],
-      },
-      {
-        heading: "How Sanative approaches medical weight loss",
-        paragraphs: [
-          "Sanative's weight management program begins with an 85+ biomarker panel and a doctor consultation, so decisions about any treatment — lifestyle, dietitian support, or medication where clinically appropriate — are based on your actual metabolic picture: insulin resistance, liver fat, lipids, thyroid and inflammation. Whether a medicine is prescribed is entirely the treating doctor's clinical decision after assessing you individually. Repeat testing tracks what is changing beneath the surface.",
-        ],
-      },
-    ],
-    faqs: [
-      {
-        question: "Is Ozempic approved for weight loss in Australia?",
-        answer:
-          "Ozempic is TGA-registered for type 2 diabetes. Wegovy — the same active ingredient, semaglutide, at a higher dose — is the formulation registered for chronic weight management. Doctors may prescribe off-label with appropriate judgement, but this is their clinical decision.",
-      },
-      {
-        question: "Are weight loss injections covered by the PBS?",
-        answer:
-          "No GLP-1 medicine is PBS-subsidised for weight management. Ozempic is subsidised only for type 2 diabetes. Wegovy, Mounjaro and Saxenda for weight are private prescriptions.",
-      },
-      {
-        question: "Can I get weight loss medication online in Australia?",
-        answer:
-          "Prescription medicines require a consultation with a registered doctor, which can be done by telehealth. Any service that supplies without a genuine medical assessment, or that advertises specific prescription medicines to the public, is operating outside Australian law.",
-      },
-      {
-        question: "What is the difference between Mounjaro and Ozempic?",
-        answer:
-          "Ozempic contains semaglutide, a GLP-1 receptor agonist. Mounjaro contains tirzepatide, which activates both GLP-1 and GIP receptors. In head-to-head and registration trials tirzepatide produced greater average weight loss and HbA1c reduction. Side-effect profiles are similar.",
-      },
-      {
-        question: "Do you regain weight after stopping Ozempic or Mounjaro?",
-        answer:
-          "Trials that withdrew the medicine showed most participants regained a large proportion of lost weight within a year. Ongoing treatment, or a structured plan for coming off with dietitian support and resistance training, is needed to maintain results.",
-      },
-    ],
-    related: [
-      { label: "Sanative doctor-led weight management", href: "/weight-management" },
-      { label: "Dietitian support", href: "/weight-management/dietitian-support" },
-      { label: "Fatty liver and weight", href: "/guides/fatty-liver-blood-test" },
-      { label: "HbA1c blood test", href: "/biomarkers/hba1c" },
-    ],
-    cta: {
-      label: "Talk to a doctor about your weight — starting with your biomarkers",
-      href: "/weight-management",
-      note: "Doctor consultation and 85+ biomarker panel included in membership. Treatment decisions are made by your doctor.",
-    },
-    datePublished: "2026-10-16",
-    dateModified: "2026-10-16",
-  },
-
-  // ───────────────────────────────────────────────────────────────────────────
-  {
-    slug: "erectile-dysfunction-treatment-australia",
-    path: "/guides/erectile-dysfunction-treatment-australia",
-    title: "Erectile Dysfunction Treatment in Australia: Causes, Tests & ED Medications (Viagra, Cialis)",
-    h1: "Erectile dysfunction in Australia: causes, the tests you should have, and how ED medications work",
-    description:
-      "A doctor-reviewed guide to erectile dysfunction: why ED is an early sign of cardiovascular and metabolic disease, the blood tests to ask for, and how PDE5 inhibitors — sildenafil (Viagra), tadalafil (Cialis), vardenafil, avanafil — work, including risks.",
-    keywords: [
-      "erectile dysfunction",
-      "erectile dysfunction treatment Australia",
-      "ED treatment",
-      "ED medication",
-      "Viagra Australia",
-      "Cialis Australia",
-      "sildenafil",
-      "tadalafil",
-      "erectile dysfunction causes",
-      "ED blood test",
-    ],
-    eyebrow: "Men's health",
-    status: "draft",
-    regulatoryNote: MEDICATION_NOTE,
-    intro:
-      "Erectile dysfunction (ED) affects around 40% of Australian men over 40 and becomes more common with age — but it is not an inevitable part of ageing, and it is rarely 'just psychological'. In most men over 40, ED is the first visible sign of a vascular or metabolic problem: narrowed arteries, insulin resistance, low testosterone or medication side effects. Treating only the symptom with a tablet misses the warning. This guide covers causes, the tests a thorough doctor orders, and how the medications work.",
-    sections: [
-      {
-        heading: "What causes erectile dysfunction?",
-        paragraphs: [
-          "An erection requires healthy blood vessels, nerves, hormones and a mind that is not in fight-or-flight. Anything that damages the lining of small arteries — high blood pressure, high LDL/ApoB, high blood sugar, smoking, inactivity — reduces blood flow to the penis years before it affects the heart. Other common causes:",
-        ],
-        bullets: [
-          "Cardiovascular disease and atherosclerosis — the most common organic cause over 40",
-          "Type 2 diabetes and insulin resistance — damages both vessels and nerves",
-          "Low testosterone (hypogonadism) — reduces libido and erectile quality",
-          "Obesity, sleep apnoea and fatty liver — all lower testosterone and impair vascular function",
-          "Medications — some blood pressure tablets, antidepressants (SSRIs), finasteride, opioids",
-          "Alcohol, smoking, recreational drugs",
-          "Depression, anxiety and performance anxiety — often alongside a physical cause",
-          "Pelvic surgery, prostate treatment, spinal or nerve injury",
-        ],
-      },
-      {
-        heading: "Blood tests for erectile dysfunction",
-        paragraphs: [
-          "Because ED is a marker of cardiovascular and metabolic disease, guidelines recommend every man presenting with ED has a metabolic work-up — not just a prescription.",
-        ],
-        bullets: [
-          "Fasting glucose and HbA1c — undiagnosed diabetes is common in men with ED",
-          "Lipid panel including ApoB and Lipoprotein(a) — cardiovascular risk",
-          "Morning total testosterone (ideally two samples before 10 am), SHBG and calculated free testosterone",
-          "Prolactin and LH/FSH if testosterone is low — to find the cause",
-          "TSH — thyroid dysfunction affects libido and energy",
-          "Full blood count, liver and kidney function",
-          "hs-CRP, fasting insulin — inflammation and insulin resistance",
-          "PSA where age-appropriate and before any testosterone treatment",
-        ],
-      },
-      {
-        heading: "How ED medications (PDE5 inhibitors) work",
-        paragraphs: [
-          "Phosphodiesterase-5 (PDE5) inhibitors increase blood flow into the penis in response to sexual stimulation by preventing the breakdown of a signalling molecule (cGMP) that relaxes smooth muscle. They do not cause an erection on their own and do not increase desire. All are prescription-only in Australia.",
-        ],
-        bullets: [
-          "Sildenafil (Viagra and generics) — onset 30–60 minutes, lasts about 4–6 hours; absorption slowed by fatty meals.",
-          "Tadalafil (Cialis and generics) — onset 30–60 minutes, lasts up to 36 hours; also available as a low daily dose. Less affected by food.",
-          "Vardenafil — similar profile to sildenafil.",
-          "Avanafil (Spedra) — faster onset (around 15–30 minutes).",
-        ],
-      },
-      {
-        heading: "Risks and who must not take ED medication",
-        paragraphs: [
-          "Common side effects include headache, flushing, nasal congestion, indigestion and visual disturbance (blue tinge with sildenafil); back and muscle pain with tadalafil. PDE5 inhibitors are absolutely contraindicated with nitrate medicines (such as glyceryl trinitrate spray or isosorbide for angina) and with some recreational 'poppers' — the combination can cause a dangerous fall in blood pressure. They need caution with certain heart conditions, very low blood pressure, severe liver or kidney disease, retinal disease and some alpha-blocker prostate medicines. A doctor must assess your cardiovascular fitness for sexual activity before prescribing. Buying ED tablets online without a prescription risks counterfeit products — a well-documented problem in Australia.",
-        ],
-      },
-      {
-        heading: "Treating the cause, not just the symptom",
-        paragraphs: [
-          "Improving the underlying drivers improves erectile function and protects your heart: weight loss (particularly visceral fat), regular aerobic exercise, stopping smoking, limiting alcohol, treating sleep apnoea, managing blood pressure and lipids, and correcting genuinely low testosterone where indicated. Many men find that as metabolic markers improve, their need for medication falls. Sanative's men's health program starts with the full biomarker panel and a doctor consultation, so any treatment — including medication where appropriate — is prescribed in the context of your whole health, and tracked.",
-        ],
-      },
-    ],
-    faqs: [
-      {
-        question: "Can I buy Viagra over the counter in Australia?",
-        answer:
-          "No. Sildenafil and all other PDE5 inhibitors are prescription-only medicines in Australia. A doctor must assess you first, which can be done by telehealth. Unregulated online sellers frequently supply counterfeit tablets.",
-      },
-      {
-        question: "Is erectile dysfunction a sign of heart disease?",
-        answer:
-          "Often, yes. The penile arteries are smaller than the coronary arteries, so atherosclerosis affects them first. ED commonly precedes a heart attack or stroke by two to five years, which is why a cardiovascular and metabolic check is recommended for any man with new ED.",
-      },
-      {
-        question: "What blood tests should I have for erectile dysfunction?",
-        answer:
-          "At minimum: HbA1c or fasting glucose, a lipid panel, and a morning testosterone. A thorough assessment adds ApoB, Lipoprotein(a), SHBG, prolactin, TSH, hs-CRP, fasting insulin, liver and kidney function.",
-      },
-      {
-        question: "Does low testosterone cause erectile dysfunction?",
-        answer:
-          "Low testosterone reduces libido and can contribute to ED, but most ED in men over 40 is vascular. Testosterone should be measured properly (morning, repeated) and treated only when genuinely low with symptoms, after excluding reversible causes like obesity and sleep apnoea.",
-      },
-      {
-        question: "What is the difference between Viagra and Cialis?",
-        answer:
-          "Viagra (sildenafil) works for about 4–6 hours and is best taken on an empty stomach. Cialis (tadalafil) lasts up to 36 hours, is less affected by food and can be taken as a low daily dose. Both require sexual stimulation to work and have similar contraindications.",
-      },
-    ],
-    related: [
-      { label: "Sanative Erectile Dysfunction care", href: "/mens-health/erectile-dysfunction" },
-      { label: "Men's sexual health", href: "/mens-health/sexual-health" },
-      { label: "Testosterone blood test", href: "/biomarkers/testosterone-total" },
-      { label: "Heart health and cardiovascular risk", href: "/guides/heart-health-cardiovascular-disease-risk" },
-    ],
-    cta: {
-      label: "Start a confidential, doctor-led ED assessment",
-      href: "/mens-health/erectile-dysfunction",
-      note: "Full metabolic and hormone panel plus doctor consultation. Any treatment is your doctor's clinical decision.",
-    },
-    datePublished: "2026-10-16",
-    dateModified: "2026-10-16",
-  },
-
-  // ───────────────────────────────────────────────────────────────────────────
-  {
     slug: "biomarkers-explained",
     path: "/guides/biomarkers-explained",
+    status: "draft",
     title: "Biomarkers Explained: What Blood Biomarkers Reveal About Your Health | Sanative",
     h1: "Biomarkers explained: what they are, which ones matter, and how to read your results",
     description:
@@ -589,7 +340,7 @@ export const seoGuides: SeoGuide[] = [
       "what are biomarkers",
       "blood biomarkers",
       "biomarker testing Australia",
-      "biomarker test",
+      "biomarkers insights",
       "optimal range vs reference range",
       "longevity biomarkers",
     ],
@@ -657,7 +408,7 @@ export const seoGuides: SeoGuide[] = [
     related: [
       { label: "Browse all 85+ biomarkers", href: "/biomarkers" },
       { label: "Biomarker Labs", href: "/labs" },
-      { label: "Health check in Australia", href: "/guides/health-check-australia" },
+      { label: "Health check in Australia", href: "/labs" },
     ],
     cta: {
       label: "See every biomarker Sanative tests and what it means",
@@ -722,7 +473,7 @@ export const seoGuides: SeoGuide[] = [
       {
         heading: "Treatment options",
         paragraphs: [
-          "Menopausal hormone therapy (MHT, previously HRT) is the most effective treatment for hot flushes, night sweats and sleep disturbance, and it protects bone. Modern body-identical oestrogen through the skin (patch or gel) with micronised progesterone has a better safety profile than older oral regimens; for most healthy women under 60 or within ten years of menopause, benefits outweigh risks. Local vaginal oestrogen treats genitourinary symptoms with minimal absorption. Non-hormonal prescription options exist for women who cannot or prefer not to use MHT, including certain antidepressants and newer neurokinin-receptor antagonists. Lifestyle — resistance training, protein intake, alcohol reduction, sleep and stress management — meaningfully improves symptoms and counters the metabolic shift. Whether MHT or any medicine is appropriate is an individual decision made with your doctor after reviewing your history and risk factors.",
+          "Menopausal hormone therapy (MHT, previously HRT) is a treatment a doctor may discuss for hot flushes, night sweats and sleep disturbance. Body-identical oestrogen through the skin (patch or gel) with micronised progesterone is one form a doctor may consider. Local vaginal oestrogen treats genitourinary symptoms with minimal absorption. Non-hormonal prescription options exist for women who cannot or prefer not to use MHT, including certain antidepressants and newer neurokinin-receptor antagonists. Lifestyle — resistance training, protein intake, alcohol reduction, sleep and stress management — meaningfully improves symptoms and counters the metabolic shift. Whether MHT or any medicine is appropriate is an individual decision made with your doctor after reviewing your history and risk factors.",
         ],
       },
       {
@@ -746,7 +497,7 @@ export const seoGuides: SeoGuide[] = [
       {
         question: "Is HRT (MHT) safe?",
         answer:
-          "For most healthy women who start within ten years of menopause or before 60, current evidence shows benefits outweigh risks, particularly with transdermal oestrogen and micronised progesterone. Individual history — breast cancer, clots, liver disease, migraine with aura — changes the assessment, which is why a doctor review is essential.",
+          "Whether HRT (MHT) is appropriate is a decision for your doctor. Individual history — breast cancer, clots, liver disease, migraine with aura — changes the assessment, which is why a doctor review is essential.",
       },
       {
         question: "Can menopause cause high cholesterol and weight gain?",
@@ -768,114 +519,28 @@ export const seoGuides: SeoGuide[] = [
     datePublished: "2026-10-16",
     dateModified: "2026-10-16",
   },
-
-  // ───────────────────────────────────────────────────────────────────────────
-  {
-    slug: "blood-tests-pathology-australia",
-    path: "/guides/blood-tests-pathology-australia",
-    title: "Blood Tests in Australia: Pathology Labs, Fasting, Costs & What to Ask For | Sanative",
-    h1: "Blood tests in Australia: how pathology works, what it costs, and how to get the tests you actually need",
-    description:
-      "How to get a blood test in Australia — GP referral vs private pathology, Medicare rebates, fasting rules, collection centres, turnaround times, and the comprehensive blood test panel worth asking for.",
-    keywords: [
-      "blood test",
-      "blood tests Australia",
-      "pathology lab",
-      "pathology test",
-      "comprehensive blood test",
-      "full blood test",
-      "blood test without referral",
-      "how much does a blood test cost Australia",
-      "fasting blood test",
-    ],
-    eyebrow: "Pathology",
-    intro:
-      "Blood tests are the foundation of preventive medicine, yet most Australians only have them when something is wrong, and then only the handful their GP can justify to Medicare. This guide explains how pathology works in Australia — who can order tests, what Medicare covers, where samples are collected, how to prepare — and what a genuinely comprehensive blood test panel looks like.",
-    sections: [
-      {
-        heading: "How pathology works in Australia",
-        paragraphs: [
-          "A doctor (GP, specialist, or a telehealth doctor) writes a pathology request. You take it to a collection centre — Australia's large pathology providers such as Sonic Healthcare (Douglass Hanly Moir, Melbourne Pathology, Sullivan Nicolaides and others), Healius (QML, Laverty, Dorevitch) and Australian Clinical Labs run thousands of collection rooms in GP clinics, shopping centres and hospitals. The sample goes to an accredited laboratory, and results return to the requesting doctor, typically within one to three business days for routine tests. Doctors, not the lab, interpret and communicate the results.",
-        ],
-      },
-      {
-        heading: "Medicare rebates vs private blood tests",
-        paragraphs: [
-          "When a GP orders a test that is clinically indicated and listed on the Medicare Benefits Schedule, it is usually bulk-billed. The limitation is scope: Medicare has rules about which tests can be ordered, how often, and for what reason — a GP cannot order a broad preventive panel 'just to check' without the indications. Markers such as ApoB, Lipoprotein(a), fasting insulin, hs-CRP, extended hormone panels or repeated vitamin D testing frequently fall outside those rules.",
-          "Private pathology — ordered by a doctor but paid by you — removes those limits. Costs vary with the number of tests; a comprehensive 80+ marker panel purchased test-by-test typically runs into several hundred dollars, which is why membership models that bundle the panel with doctor review are often better value than piecemeal testing.",
-        ],
-      },
-      {
-        heading: "Can you get a blood test without a GP referral?",
-        paragraphs: [
-          "Every pathology test in Australia must be requested by a registered medical practitioner, but that practitioner does not have to be your regular GP. Services like Sanative have their own AHPRA-registered doctors who order a comprehensive panel for members, review the results, and then work with you — and with your GP if you wish — on a plan. This is different from direct-to-consumer kits that return numbers without a doctor.",
-        ],
-      },
-      {
-        heading: "How to prepare for a blood test",
-        paragraphs: [],
-        bullets: [
-          "Fasting: 8–12 hours with water only for fasting glucose and insulin; your doctor will tell you if required. Lipids may be done non-fasting.",
-          "Timing: hormone tests (testosterone, cortisol) are best collected before 10 am; iron and B12 can be affected by recent supplements — ask whether to pause.",
-          "Hydration: drink water; it makes collection easier and does not affect most results.",
-          "Exercise: avoid heavy training in the 24–48 hours before — it transiently raises CK, ALT, AST and creatinine.",
-          "Alcohol: avoid for 48–72 hours; it raises GGT and triglycerides.",
-          "Illness: a cold or infection raises CRP, white cells and ferritin — reschedule if unwell.",
-          "Biotin supplements can interfere with thyroid and hormone assays; stop 48 hours prior.",
-        ],
-      },
-      {
-        heading: "What a comprehensive blood test panel should include",
-        paragraphs: [
-          "A true baseline covers metabolism (glucose, HbA1c, insulin), lipids (including ApoB and a one-off Lp(a)), liver, kidney, thyroid, full blood count, iron studies, key vitamins (D, B12, folate), electrolytes and minerals, inflammation (hs-CRP), and sex hormones where relevant. Derived indices — HOMA-IR, FIB-4, TG:HDL ratio, eGFR — add predictive value at no extra cost. Sanative's standard membership panel reviews 85+ markers in exactly this structure, explained individually in plain English.",
-        ],
-      },
-    ],
-    faqs: [
-      {
-        question: "How much does a blood test cost in Australia?",
-        answer:
-          "Tests ordered by a GP for a clinical reason and listed on Medicare are usually bulk-billed. Private tests range from about $20–$40 for a single common marker to several hundred dollars for a comprehensive panel. Sanative membership from $365/year includes an 85+ biomarker panel and doctor review.",
-      },
-      {
-        question: "Can I order my own blood tests in Australia?",
-        answer:
-          "Not directly — a registered doctor must request pathology. You can, however, use a service whose doctors order a comprehensive panel for you, such as a Sanative membership, without going through your GP.",
-      },
-      {
-        question: "How long do blood test results take?",
-        answer:
-          "Routine chemistry and haematology usually return within 1–3 business days. Some hormone, antibody and specialised tests take up to a week or two. Your doctor receives the results and reviews them with you.",
-      },
-      {
-        question: "Do I need to fast for a full blood test?",
-        answer:
-          "Fasting (8–12 hours, water only) is needed for fasting glucose and fasting insulin and is often requested for lipids so results are comparable over time. Most other tests do not require fasting. A morning appointment makes fasting easiest.",
-      },
-    ],
-    related: [
-      { label: "Sanative Biomarker Labs", href: "/labs" },
-      { label: "Browse all biomarkers", href: "/biomarkers" },
-      { label: "Health check in Australia", href: "/guides/health-check-australia" },
-    ],
-    cta: {
-      label: "Get an 85+ biomarker panel ordered and reviewed by a doctor",
-      href: "/labs",
-      note: "Collected at a partner pathology centre near you. Available Australia-wide.",
-    },
-    datePublished: "2026-10-16",
-    dateModified: "2026-10-16",
-  },
 ];
 
 /** Guides that are live (routed, linked, in sitemap). */
 export const publishedGuides = seoGuides.filter((g) => g.status !== "draft");
 
-/** Drafts awaiting legal/medical sign-off — never routed. */
+/** Guides with status "draft" — never routed, linked, or listed in the sitemap. */
 export const draftGuides = seoGuides.filter((g) => g.status === "draft");
 
 export const guideBySlug = new Map(publishedGuides.map((g) => [g.slug, g]));
 export const guideByPath = new Map(publishedGuides.map((g) => [g.path, g]));
 
+/**
+ * Retired /guides articles. Each slug has a static redirect page, so it is
+ * omitted from the article route and the sitemap.
+ */
+export const redirectedGuideSlugs = new Set([
+  "fatty-liver-blood-test",
+  "heart-health-cardiovascular-disease-risk",
+  "blood-tests-pathology-australia",
+]);
+
 /** Guides served from /guides/[slug] (others map onto existing program URLs). */
-export const guidesUnderGuidesRoute = publishedGuides.filter((g) => g.path.startsWith("/guides/"));
+export const guidesUnderGuidesRoute = publishedGuides.filter(
+  (g) => g.path.startsWith("/guides/") && !redirectedGuideSlugs.has(g.slug),
+);

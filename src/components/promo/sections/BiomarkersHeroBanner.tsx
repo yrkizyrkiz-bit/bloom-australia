@@ -92,9 +92,6 @@ export function BiomarkersHeroBanner() {
             <Link href="/labs" className="btn-primary">
               See biomarker labs
             </Link>
-            <Link href="/pricing" className="btn-secondary">
-              View membership pricing
-            </Link>
           </div>
         </div>
       </div>
