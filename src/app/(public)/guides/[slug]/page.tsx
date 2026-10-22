@@ -45,7 +45,6 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
       guide={guide}
       breadcrumbs={[
         { name: "Home", path: "/" },
-        { name: "Health guides", path: "/guides" },
         { name: guide.eyebrow, path: guide.path },
       ]}
     />

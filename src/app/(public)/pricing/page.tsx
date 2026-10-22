@@ -4,7 +4,7 @@ import { publicPageMeta } from "@/lib/seo/public-page-meta";
 
 export const metadata = publicPageMeta.pricing;
 
-/** Pricing lives in FAQs / program how-it-works; keep this URL for old links. */
+/** Legacy pricing URL; keep it from 404ing by sending old links home. */
 export default function PricingPage() {
-  redirect("/faqs");
+  redirect("/");
 }

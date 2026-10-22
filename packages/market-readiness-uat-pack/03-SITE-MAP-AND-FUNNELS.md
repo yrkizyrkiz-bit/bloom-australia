@@ -23,7 +23,6 @@ Checkout steps (high level): verify → payment → onboard → booking → quiz
 | `/membership/checkout` | Membership purchase |
 | `/services` | Services overview |
 | `/pricing` | Pricing |
-| `/faqs` | FAQs |
 | `/contact` | Contact |
 | `/join` | Referral / clinic join |
 

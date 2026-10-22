@@ -1,20 +1,32 @@
 import Link from "next/link";
 import { Header } from "@/components/promo/Header";
 import { Footer } from "@/components/promo/Footer";
+import { getBiomarkerTierMarkerIds } from "@/lib/biomarkers/public-subscription-panels";
 import { biomarkersGroupedByCategory, biomarkerSlug, formatRange } from "@/lib/seo/biomarker-seo";
 import { buildPageMetadata } from "@/lib/seo/site";
 import { breadcrumbJsonLd } from "@/lib/seo/structured-data";
 
+/** Markers on a Sanative test panel (Essential, Advanced, or Complete). */
+const testedBiomarkerIds = new Set<string>([
+  ...getBiomarkerTierMarkerIds("essential"),
+  ...getBiomarkerTierMarkerIds("advanced"),
+  ...getBiomarkerTierMarkerIds("complete"),
+]);
+
 export const metadata = buildPageMetadata({
   title: "Blood Biomarkers A–Z: 85+ Tests Explained with Optimal Ranges | Sanative",
   description:
-    "Every blood biomarker Sanative tests, explained in plain English: cholesterol, ApoB, HbA1c, insulin, liver and kidney function, thyroid, hormones, iron, vitamins and inflammation — with optimal ranges.",
+    "The blood biomarkers Sanative tests, explained in plain English: cholesterol, HbA1c, insulin, liver and kidney function, thyroid, hormones, iron, vitamins and inflammation — with optimal ranges.",
   path: "/biomarkers",
 });
 
 export default function BiomarkersIndexPage() {
-  const groups = biomarkersGroupedByCategory();
-  const total = groups.reduce((n, g) => n + g.biomarkers.length, 0);
+  const groups = biomarkersGroupedByCategory()
+    .map((g) => ({
+      ...g,
+      biomarkers: g.biomarkers.filter((b) => testedBiomarkerIds.has(b.id)),
+    }))
+    .filter((g) => g.biomarkers.length > 0);
 
   return (
     <>
@@ -36,7 +48,7 @@ export default function BiomarkersIndexPage() {
             Biomarker library
           </p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            {total} blood biomarkers, explained
+            The blood biomarkers we test, explained
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-[#3f4a38]">
             What each blood test measures, Sanative&apos;s optimal range, why it matters and how to
@@ -83,7 +95,7 @@ export default function BiomarkersIndexPage() {
 
           <div className="mt-16 rounded-3xl bg-[#34412f] p-8 text-white sm:p-10">
             <h2 className="text-2xl font-semibold tracking-tight">
-              Get all {total} markers tested and reviewed by a doctor
+              Get these biomarkers tested and reviewed by a doctor
             </h2>
             <p className="mt-3 text-[#cdd8c6]">
               Membership from $365/year. Collected at a partner pathology centre near you, anywhere in

@@ -35,5 +35,4 @@ export const LEGAL_LINKS = {
   refundPolicy: "/refund-policy",
   subscriptionTerms: "/terms#subscription-terms",
   contact: "/contact",
-  faqs: "/faqs",
 } as const;

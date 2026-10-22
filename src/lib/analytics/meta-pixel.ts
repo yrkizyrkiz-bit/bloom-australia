@@ -423,11 +423,6 @@ const VIEW_CONTENT_PATHS: Record<
     content_category: "marketing",
     content_ids: ["about"],
   },
-  "/faqs": {
-    content_name: "FAQs",
-    content_category: "marketing",
-    content_ids: ["faqs"],
-  },
   "/contact": {
     content_name: "Contact",
     content_category: "marketing",

@@ -14,7 +14,6 @@ export function Footer() {
       { label: "Organ Care", href: "/organ-care" },
     ],
     resources: [
-      { label: "Health Guides", href: "/guides" },
       { label: "Biomarkers A–Z", href: "/biomarkers" },
       { label: "Health Check Guide", href: "/guides/health-check-australia" },
       { label: "Heart & Cardiovascular Risk", href: "/guides/heart-health-cardiovascular-disease-risk" },

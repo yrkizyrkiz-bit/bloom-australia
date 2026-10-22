@@ -16,17 +16,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: path === "/" ? 1 : path.split("/").length <= 2 ? 0.8 : 0.6,
   }));
 
-  const guides: MetadataRoute.Sitemap = [
-    { url: toUrl("/guides"), lastModified: now, changeFrequency: "weekly", priority: 0.7 },
-    ...seoGuides
-      .filter((g) => g.path.startsWith("/guides/"))
-      .map((g) => ({
-        url: toUrl(g.path),
-        lastModified: new Date(g.dateModified),
-        changeFrequency: "monthly" as const,
-        priority: 0.7,
-      })),
-  ];
+  const guides: MetadataRoute.Sitemap = seoGuides
+    .filter((g) => g.path.startsWith("/guides/"))
+    .map((g) => ({
+      url: toUrl(g.path),
+      lastModified: new Date(g.dateModified),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    }));
 
   const biomarkers: MetadataRoute.Sitemap = [
     { url: toUrl("/biomarkers"), lastModified: now, changeFrequency: "weekly", priority: 0.7 },

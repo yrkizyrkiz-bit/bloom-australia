@@ -18,12 +18,6 @@ export const publicPageMeta = {
       "Talk to Sanative’s care team or AI care companion, or log in to your member portal for support.",
     path: "/contact",
   }),
-  faqs: buildPageMetadata({
-    title: "FAQs | Sanative Membership & Care",
-    description:
-      "Answers about Sanative membership, doctor-led care, biomarkers, billing, privacy, and how our Australian telehealth programs work.",
-    path: "/faqs",
-  }),
   pricing: buildPageMetadata({
     title: "Pricing & Membership | Sanative",
     description:
