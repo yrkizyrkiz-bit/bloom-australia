@@ -361,7 +361,7 @@ export function HeartHealthCalculator() {
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                  <span>Consult with a doctor about your results</span>
+                  <span>Personalised health insights reviewed by your Sanative doctors</span>
                 </li>
               </ul>
             </div>
