@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowRight, ArrowLeft, Heart, AlertTriangle, CheckCircle, Activity } from "lucide-react";
 import Link from "next/link";
+import { trackMetaCustomEvent } from "@/lib/analytics/meta-pixel";
 
 type Step = "age" | "cholesterol" | "bp" | "smoking" | "diabetes" | "bmi" | "family" | "result";
 
@@ -16,6 +17,12 @@ interface Answers {
   family: string;
 }
 
+const HEART_ASSESSMENT_EVENT = {
+  content_name: "Heart health risk assessment",
+  content_category: "heart_health",
+  content_ids: ["heart_health_assessment"],
+} as const;
+
 export function HeartHealthCalculator() {
   const [step, setStep] = useState<Step>("age");
   const [answers, setAnswers] = useState<Answers>({
@@ -27,6 +34,8 @@ export function HeartHealthCalculator() {
     bmi: "",
     family: "",
   });
+  const startedRef = useRef(false);
+  const completedRef = useRef(false);
 
   const calculateRisk = (): { level: "low" | "moderate" | "elevated" | "high"; score: number; message: string } => {
     let score = 0;
@@ -80,9 +89,16 @@ export function HeartHealthCalculator() {
 
   const nextStep = () => {
     const nextIndex = currentIndex + 1;
-    if (nextIndex < steps.length) {
-      setStep(steps[nextIndex]);
+    if (nextIndex >= steps.length) return;
+    if (step === "age" && !startedRef.current) {
+      startedRef.current = true;
+      trackMetaCustomEvent("HeartAssessmentStarted", HEART_ASSESSMENT_EVENT);
     }
+    if (step === "family" && !completedRef.current) {
+      completedRef.current = true;
+      trackMetaCustomEvent("HeartAssessmentCompleted", HEART_ASSESSMENT_EVENT);
+    }
+    setStep(steps[nextIndex]);
   };
 
   const prevStep = () => {
@@ -376,6 +392,8 @@ export function HeartHealthCalculator() {
 
             <button
               onClick={() => {
+                startedRef.current = false;
+                completedRef.current = false;
                 setStep("age");
                 setAnswers({ age: "", cholesterol: "", bp: "", smoking: "", diabetes: "", bmi: "", family: "" });
               }}
