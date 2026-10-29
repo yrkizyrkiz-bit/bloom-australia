@@ -307,18 +307,22 @@ export function LiverHealthCalculator() {
             <div className="space-y-2">
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span className="text-[#5c7a52] text-sm">Get comprehensive liver metabolic biomarker insights</span>
+                <span className="text-[#5c7a52] text-sm">
+                  Check your health. Just $365 per year. $1 /day,
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span className="text-[#5c7a52] text-sm">Consult with a doctor who specialises in metabolic health</span>
+                <span className="text-[#5c7a52] text-sm">85+ biomarkers covering your liver insights.</span>
               </div>
-              {riskLevel.level !== "low" && (
-                <div className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                  <span className="text-[#5c7a52] text-sm">Consider lifestyle modifications while awaiting results</span>
-                </div>
-              )}
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
+                <span className="text-[#5c7a52] text-sm">Results explained by your Sanative doctor</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
+                <span className="text-[#5c7a52] text-sm">Follow your plan. Take action. Test again.</span>
+              </div>
             </div>
           </div>
 
@@ -328,7 +332,7 @@ export function LiverHealthCalculator() {
               href="/biomarker-intake?service=metabolic-panel"
               className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-3"
             >
-              Get liver metabolic biomarker insights
+              Claim your offer. Start Testing
               <ArrowRight className="w-4 h-4" />
             </Link>
             <button
