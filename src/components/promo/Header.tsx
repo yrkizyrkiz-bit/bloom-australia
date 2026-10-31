@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
 
 export function Header() {
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const joinCtaLabel =
+    pathname === "/weight-management" ? "Start your journey" : "Become a member";
 
   // Lock page scroll while the mobile overhead menu is open so gestures
   // scroll the menu panel instead of the page underneath.
@@ -187,7 +191,7 @@ export function Header() {
                 href="/#membership"
                 className="btn-primary hidden lg:inline-flex text-sm lg:text-[15px] px-4"
               >
-                Become a member
+                {joinCtaLabel}
               </Link>
               <button
                 type="button"
