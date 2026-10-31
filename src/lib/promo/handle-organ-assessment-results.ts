@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email";
+import { createEmailDraft } from "@/lib/email-draft";
 import { LEGAL_LINKS, SANATIVE_LEGAL } from "@/lib/legal/constants";
 import { HEART_DRIVER_TITLES, HEART_RESULT_DISCLAIMER, HEART_RESULT_HEADLINES } from "@/lib/promo/heart-assessment-results";
 import { KIDNEY_DRIVER_TITLES, KIDNEY_RESULT_DISCLAIMER, KIDNEY_RESULT_HEADLINES } from "@/lib/promo/kidney-assessment-results";
@@ -23,7 +24,6 @@ type OrganEmailCopy = {
   rateLimitPrefix: string;
   logTag: string;
   visitorSubject: (firstName: string) => string;
-  supportSubject: (firstName: string) => string;
   checkoutPath: string;
   ctaLabel: string;
   markersSentence: string;
@@ -41,7 +41,6 @@ const ORGAN_EMAIL: Record<OrganAssessmentKind, OrganEmailCopy> = {
     rateLimitPrefix: "liver-results",
     logTag: "liver-assessment-results",
     visitorSubject: (firstName) => `${firstName}, your Sanative liver check`,
-    supportSubject: (firstName) => `Liver check email lead: ${firstName}`,
     checkoutPath: "/membership/checkout?source=fatty_liver&button=liver_quiz_email",
     ctaLabel: "Check My Liver Risk",
     markersSentence:
@@ -58,7 +57,6 @@ const ORGAN_EMAIL: Record<OrganAssessmentKind, OrganEmailCopy> = {
     rateLimitPrefix: "heart-results",
     logTag: "heart-assessment-results",
     visitorSubject: (firstName) => `${firstName}, your Sanative heart check`,
-    supportSubject: (firstName) => `Heart check email lead: ${firstName}`,
     checkoutPath: "/membership/checkout?source=heart_health&button=heart_quiz_email",
     ctaLabel: "Check My Heart Risk",
     markersSentence:
@@ -75,7 +73,6 @@ const ORGAN_EMAIL: Record<OrganAssessmentKind, OrganEmailCopy> = {
     rateLimitPrefix: "kidney-results",
     logTag: "kidney-assessment-results",
     visitorSubject: (firstName) => `${firstName}, your Sanative kidney check`,
-    supportSubject: (firstName) => `Kidney check email lead: ${firstName}`,
     checkoutPath: "/membership/checkout?source=kidney_health&button=kidney_quiz_email",
     ctaLabel: "Check My Kidneys Risk",
     markersSentence:
@@ -100,6 +97,65 @@ function escapeHtml(value: string) {
 
 export function isOrganAssessmentKind(value: unknown): value is OrganAssessmentKind {
   return value === "liver" || value === "heart" || value === "kidney";
+}
+
+export function composeOrganAssessmentVisitorEmail(params: {
+  organ: OrganAssessmentKind;
+  firstName: string;
+  email: string;
+  tier: OrganResultTier;
+  drivers: string[];
+}) {
+  const copy = ORGAN_EMAIL[params.organ];
+  const checkoutUrl = `${siteOrigin()}${copy.checkoutPath}`;
+  const privacyUrl = `${siteOrigin()}${LEGAL_LINKS.privacy}`;
+  const driverHtml =
+    params.drivers.length > 0
+      ? `<p><strong>What's driving your result</strong></p><ul>${params.drivers
+          .map((title) => `<li>${escapeHtml(title)}</li>`)
+          .join("")}</ul>`
+      : "";
+
+  return {
+    to: params.email,
+    subject: copy.visitorSubject(params.firstName),
+    html: `<p>Hi ${escapeHtml(params.firstName)},</p>
+<p>${escapeHtml(copy.headlines[params.tier])}</p>
+${driverHtml}
+<p>${copy.markersSentence}</p>
+<p><a href="${checkoutUrl}">${copy.ctaLabel}</a></p>
+<p>${escapeHtml(copy.disclaimer)}</p>
+<p>${copy.visitorTips} You can unsubscribe any time via the <a href="${privacyUrl}">privacy policy</a> or by emailing ${SANATIVE_LEGAL.supportEmail}.</p>
+<p>Sanative</p>`,
+  };
+}
+
+async function sendOrganQuizDraftReviewEmail(params: {
+  organ: OrganAssessmentKind;
+  firstName: string;
+  email: string;
+  tier: OrganResultTier;
+  drivers: string[];
+  composed: { subject: string; html: string };
+}) {
+  const copy = ORGAN_EMAIL[params.organ];
+  return sendEmail({
+    to: SANATIVE_LEGAL.supportEmail,
+    replyTo: params.email,
+    process: "crm",
+    subject: `[DRAFT FOR REVIEW — not sent] ${params.composed.subject}`,
+    body: `<p><strong>DRAFT FOR REVIEW — this was not sent to the visitor.</strong></p>
+<p>Mailbox drafts were unavailable. Review the message below, then send it yourself from Gmail (To: the visitor address).</p>
+<p>${copy.supportIntro}</p>
+<p><strong>Send to:</strong> ${escapeHtml(params.email)}</p>
+<p><strong>Subject:</strong> ${escapeHtml(params.composed.subject)}</p>
+<p><strong>Name:</strong> ${escapeHtml(params.firstName)}</p>
+<p><strong>Tier:</strong> ${params.tier}</p>
+<p><strong>Drivers:</strong> ${params.drivers.length ? escapeHtml(params.drivers.join(", ")) : "None"}</p>
+<p>${copy.supportConsent}</p>
+<hr />
+${params.composed.html}`,
+  });
 }
 
 export async function handleOrganAssessmentResultsPost(
@@ -144,51 +200,40 @@ export async function handleOrganAssessmentResultsPost(
       return rateLimitExceededResponse(limited.retryAfterSec);
     }
 
-    const headline = copy.headlines[tier];
-    const checkoutUrl = `${siteOrigin()}${copy.checkoutPath}`;
-    const privacyUrl = `${siteOrigin()}${LEGAL_LINKS.privacy}`;
-    const driverHtml =
-      drivers.length > 0
-        ? `<p><strong>What's driving your result</strong></p><ul>${drivers
-            .map((title) => `<li>${escapeHtml(title)}</li>`)
-            .join("")}</ul>`
-        : "";
+    const composed = composeOrganAssessmentVisitorEmail({
+      organ,
+      firstName,
+      email,
+      tier,
+      drivers,
+    });
 
-    const visitorResult = await sendEmail({
+    const draftResult = await createEmailDraft({
       to: email,
       process: "crm",
-      subject: copy.visitorSubject(firstName),
-      body: `<p>Hi ${escapeHtml(firstName)},</p>
-<p>${escapeHtml(headline)}</p>
-${driverHtml}
-<p>${copy.markersSentence}</p>
-<p><a href="${checkoutUrl}">${copy.ctaLabel}</a></p>
-<p>${escapeHtml(copy.disclaimer)}</p>
-<p>${copy.visitorTips} You can unsubscribe any time via the <a href="${privacyUrl}">privacy policy</a> or by emailing ${SANATIVE_LEGAL.supportEmail}.</p>
-<p>Sanative</p>`,
+      subject: composed.subject,
+      html: composed.html,
     });
 
-    if (!visitorResult.success) {
-      return NextResponse.json(
-        { error: "We could not send that email. Please try again." },
-        { status: 502 }
+    if (!draftResult.success) {
+      const review = await sendOrganQuizDraftReviewEmail({
+        organ,
+        firstName,
+        email,
+        tier,
+        drivers,
+        composed,
+      });
+      if (!review.success) {
+        return NextResponse.json(
+          { error: "We could not send that email. Please try again." },
+          { status: 502 }
+        );
+      }
+      console.warn(
+        `[${copy.logTag}] mailbox draft unavailable; left a review copy in ${SANATIVE_LEGAL.supportEmail}`
       );
     }
-
-    await sendEmail({
-      to: SANATIVE_LEGAL.supportEmail,
-      replyTo: email,
-      process: "crm",
-      subject: copy.supportSubject(firstName),
-      body: `<p>${copy.supportIntro}</p>
-<p><strong>Name:</strong> ${escapeHtml(firstName)}</p>
-<p><strong>Email:</strong> ${escapeHtml(email)}</p>
-<p><strong>Tier:</strong> ${tier}</p>
-<p><strong>Drivers:</strong> ${drivers.length ? escapeHtml(drivers.join(", ")) : "None"}</p>
-<p>${copy.supportConsent}</p>`,
-    }).catch((error) => {
-      console.error(`[${copy.logTag}] support email failed`, error);
-    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

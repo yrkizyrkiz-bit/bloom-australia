@@ -113,7 +113,7 @@ export function OrganAssessmentResults({
           <h4 className="text-sm font-medium text-[#2c3628]">Not ready yet? Get your results by email.</h4>
           {emailStatus === "sent" ? (
             <p className="text-sm leading-relaxed text-[#5c7a52]">
-              We&apos;ve sent your results to {email}.
+              Thanks — your results will be emailed to {email}.
             </p>
           ) : (
             <>
