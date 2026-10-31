@@ -245,8 +245,8 @@ export default function FattyLiverPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-[#f4f7f2] via-[#e6ebe3] to-[#cdd8c6]" />
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Main Title */}
-            <div className="text-center mb-10">
+            {/* Main Title — desktop only, above both columns */}
+            <div className="hidden lg:block text-center mb-10">
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-serif text-[#2c3628] leading-[1.05]">
                 It&apos;s All{" "}
                 <span className="text-[#5c7a52] italic">Connected</span>
@@ -255,8 +255,8 @@ export default function FattyLiverPage() {
 
             {/* Two Column Layout - Perfectly Aligned */}
             <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 items-stretch">
-              {/* Left - Liver Image Panel */}
-              <div className="bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col">
+              {/* Left - Liver Image Panel (third on mobile, first on desktop) */}
+              <div className="order-3 lg:order-1 bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col">
                 {/* Image Container */}
                 <div className="flex-1 flex items-center justify-center p-4 lg:p-6 bg-gradient-to-b from-[#f8faf7] to-[#eef2eb]">
                   <Image
@@ -281,10 +281,10 @@ export default function FattyLiverPage() {
                 </div>
               </div>
 
-              {/* Right - Assessment Calculator */}
+              {/* Right - Assessment Calculator (first on mobile, second on desktop) */}
               <div
                 id="liver-assessment"
-                className="scroll-mt-24 bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col"
+                className="order-1 lg:order-2 scroll-mt-24 bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col"
               >
                 {/* Header */}
                 <div className="p-5 lg:p-6 border-b border-[#e6ebe3] bg-[#f4f7f2]">
@@ -299,6 +299,14 @@ export default function FattyLiverPage() {
                 <div className="flex-1 overflow-hidden">
                   <LiverHealthCalculator />
                 </div>
+              </div>
+
+              {/* Mobile title — under the assessment card only */}
+              <div className="order-2 lg:hidden text-center">
+                <h1 className="text-5xl sm:text-6xl font-serif text-[#2c3628] leading-[1.05]">
+                  It&apos;s All{" "}
+                  <span className="text-[#5c7a52] italic">Connected</span>
+                </h1>
               </div>
             </div>
 
@@ -490,12 +498,12 @@ export default function FattyLiverPage() {
                   </p>
                 </div>
                 <Link
-                  href={membershipCheckoutPath("fatty_liver", "biomarker_panel")}
-                  onClick={() => trackLiverMembershipClick("biomarker_panel")}
-                  className="mt-6 w-full bg-white text-[#34412f] rounded-full py-3 px-4 sm:px-6 font-medium flex items-center justify-center gap-2 hover:bg-[#f4f7f2] transition-colors text-center text-sm sm:text-base"
+                  href={membershipCheckoutPath("fatty_liver", "liver_biomarkers_cta")}
+                  onClick={() => trackLiverMembershipClick("liver_biomarkers_cta")}
+                  className="btn-primary mt-6 flex w-full items-center justify-center gap-2 py-3 text-sm"
                 >
-                  Check your health and stay ahead for $1/day
-                  <ArrowRight className="w-4 h-4 flex-shrink-0" />
+                  Check My Liver Risk
+                  <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
@@ -568,6 +576,14 @@ export default function FattyLiverPage() {
                     align="center"
                   />
                 </div>
+                <Link
+                  href={membershipCheckoutPath("fatty_liver", "liver_decode_cta")}
+                  onClick={() => trackLiverMembershipClick("liver_decode_cta")}
+                  className="btn-white mt-6 flex w-full items-center justify-center gap-2 py-3 text-sm"
+                >
+                  Check My Liver Risk
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
 
               {/* Outcomes */}
@@ -721,12 +737,12 @@ export default function FattyLiverPage() {
             </p>
 
             <Link
-              href={membershipCheckoutPath("fatty_liver", "closing_cta")}
-              onClick={() => trackLiverMembershipClick("closing_cta")}
-              className="btn-white inline-flex items-center justify-center gap-2 text-base sm:text-lg px-6 sm:px-10 py-4"
+              href={membershipCheckoutPath("fatty_liver", "liver_closing_cta")}
+              onClick={() => trackLiverMembershipClick("liver_closing_cta")}
+              className="btn-primary inline-flex items-center justify-center gap-2 py-3 text-sm sm:text-base px-6 sm:px-10"
             >
-              Check your health and stay ahead for $1/day
-              <ArrowRight className="w-5 h-5" />
+              Check My Liver Risk
+              <ArrowRight className="w-4 h-4" />
             </Link>
 
             {/* GAP-026: Removed 'No commitment' - payment required */}

@@ -1,9 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowRight, ArrowLeft, Heart, AlertTriangle, CheckCircle, Activity } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight, ArrowLeft } from "lucide-react";
 import { trackMetaCustomEvent } from "@/lib/analytics/meta-pixel";
+import { OrganAssessmentResults } from "@/components/promo/OrganAssessmentResults";
+import {
+  HEART_ASSESSMENT_UI,
+  heartDisplayTier,
+  heartDriversFromAnswers,
+  heartScoreFromAnswers,
+} from "@/lib/promo/heart-assessment-results";
 
 type Step = "age" | "cholesterol" | "bp" | "smoking" | "diabetes" | "bmi" | "family" | "result";
 
@@ -37,52 +43,6 @@ export function HeartHealthCalculator() {
   const startedRef = useRef(false);
   const completedRef = useRef(false);
 
-  const calculateRisk = (): { level: "low" | "moderate" | "elevated" | "high"; score: number; message: string } => {
-    let score = 0;
-
-    // Age scoring
-    const age = parseInt(answers.age) || 0;
-    if (age >= 65) score += 3;
-    else if (age >= 55) score += 2;
-    else if (age >= 45) score += 1;
-
-    // Cholesterol
-    if (answers.cholesterol === "high") score += 3;
-    else if (answers.cholesterol === "borderline") score += 2;
-    else if (answers.cholesterol === "unknown") score += 1;
-
-    // Blood pressure
-    if (answers.bp === "high") score += 3;
-    else if (answers.bp === "borderline") score += 2;
-    else if (answers.bp === "unknown") score += 1;
-
-    // Smoking
-    if (answers.smoking === "current") score += 3;
-    else if (answers.smoking === "former") score += 1;
-
-    // Diabetes
-    if (answers.diabetes === "yes") score += 3;
-    else if (answers.diabetes === "prediabetes") score += 2;
-
-    // BMI
-    if (answers.bmi === "obese") score += 3;
-    else if (answers.bmi === "overweight") score += 2;
-
-    // Family history
-    if (answers.family === "yes-early") score += 3;
-    else if (answers.family === "yes") score += 2;
-
-    if (score >= 12) {
-      return { level: "high", score, message: "Your responses suggest elevated cardiovascular risk factors. We recommend a comprehensive heart health assessment." };
-    } else if (score >= 8) {
-      return { level: "elevated", score, message: "You have several cardiovascular risk factors that warrant attention. A doctor-reviewed lipid and metabolic panel can inform the conversation about your cardiovascular risk." };
-    } else if (score >= 4) {
-      return { level: "moderate", score, message: "You have some risk factors to monitor. Regular testing can help track your heart health over time." };
-    } else {
-      return { level: "low", score, message: "Your current risk profile appears favorable. Maintaining healthy habits and regular check-ups is still recommended." };
-    }
-  };
-
   const steps: Step[] = ["age", "cholesterol", "bp", "smoking", "diabetes", "bmi", "family", "result"];
   const currentIndex = steps.indexOf(step);
   const progress = ((currentIndex) / (steps.length - 1)) * 100;
@@ -107,6 +67,16 @@ export function HeartHealthCalculator() {
       setStep(steps[prevIndex]);
     }
   };
+
+  if (step === "result") {
+    return (
+      <OrganAssessmentResults
+        copy={HEART_ASSESSMENT_UI}
+        tier={heartDisplayTier(heartScoreFromAnswers(answers))}
+        drivers={heartDriversFromAnswers(answers)}
+      />
+    );
+  }
 
   const canProceed = () => {
     switch (step) {
@@ -134,7 +104,7 @@ export function HeartHealthCalculator() {
                 { value: "35-44", label: "35-44" },
                 { value: "45-54", label: "45-54" },
                 { value: "55-64", label: "55-64" },
-                { value: "65+", label: "65+" },
+                { value: "65+", label: "65+", span: true },
               ].map((option) => (
                 <button
                   key={option.value}
@@ -143,6 +113,8 @@ export function HeartHealthCalculator() {
                     setTimeout(nextStep, 200);
                   }}
                   className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                    option.span ? "col-span-2" : ""
+                  } ${
                     answers.age === option.value
                       ? "border-rose-500 bg-rose-50 text-rose-700"
                       : "border-gray-200 hover:border-rose-300"
@@ -338,75 +310,8 @@ export function HeartHealthCalculator() {
           </div>
         );
 
-      case "result":
-        const risk = calculateRisk();
-        const riskColors = {
-          low: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700", icon: CheckCircle },
-          moderate: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", icon: Activity },
-          elevated: { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", icon: AlertTriangle },
-          high: { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", icon: Heart },
-        };
-        const colors = riskColors[risk.level];
-        const RiskIcon = colors.icon;
-
-        return (
-          <div className="space-y-4">
-            <div className={`${colors.bg} ${colors.border} border rounded-2xl p-5`}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 rounded-full ${colors.bg} flex items-center justify-center`}>
-                  <RiskIcon className={`w-5 h-5 ${colors.text}`} />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Your estimated risk level</p>
-                  <p className={`text-lg font-semibold capitalize ${colors.text}`}>{risk.level} Risk</p>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">{risk.message}</p>
-            </div>
-
-            <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
-              <p className="font-medium text-gray-900 mb-2">Recommended next steps:</p>
-              <ul className="space-y-1.5">
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                  <span>Get a comprehensive lipid panel with inflammation markers</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                  <span>Check inflammation markers (hs-CRP)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                  <span>Personalised health insights reviewed by your Sanative doctors</span>
-                </li>
-              </ul>
-            </div>
-
-            <Link
-              href="/membership/checkout?source=heart_health&button=risk_result"
-              className="block w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-center transition-colors"
-            >
-              Get your heart health assessment
-              <ArrowRight className="w-4 h-4 inline ml-2" />
-            </Link>
-
-            <button
-              onClick={() => {
-                startedRef.current = false;
-                completedRef.current = false;
-                setStep("age");
-                setAnswers({ age: "", cholesterol: "", bp: "", smoking: "", diabetes: "", bmi: "", family: "" });
-              }}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
-            >
-              Start over
-            </button>
-
-            <p className="text-xs text-gray-400 text-center">
-              This assessment is for informational purposes only and does not constitute medical advice.
-            </p>
-          </div>
-        );
+      default:
+        return null;
     }
   };
 

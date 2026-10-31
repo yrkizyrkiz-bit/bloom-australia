@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { calculateBmi } from "@/lib/bmi";
 import { trackMetaCustomEvent } from "@/lib/analytics/meta-pixel";
+import { OrganAssessmentResults } from "@/components/promo/OrganAssessmentResults";
+import {
+  LIVER_ASSESSMENT_UI,
+  liverDisplayTier,
+  liverDriversFromAnswers,
+} from "@/lib/promo/liver-assessment-results";
 import {
   ArrowRight,
   ArrowLeft,
-  CheckCircle,
-  AlertTriangle,
-  AlertCircle,
   Scale,
   Activity,
   Heart,
@@ -136,53 +138,6 @@ function getBMICategory(bmi: number): string {
   return "Severely obese";
 }
 
-function getRiskLevel(score: number): {
-  level: "low" | "moderate" | "elevated" | "high";
-  title: string;
-  description: string;
-  color: string;
-  bgColor: string;
-  icon: React.ElementType;
-} {
-  if (score <= 8) {
-    return {
-      level: "low",
-      title: "Low Risk",
-      description: "Your responses suggest a lower risk of fatty liver disease. However, metabolic health can change over time. Consider a baseline biomarker test to confirm and establish your metabolic baseline.",
-      color: "text-[#5c7a52]",
-      bgColor: "bg-[#5c7a52]",
-      icon: CheckCircle,
-    };
-  } else if (score <= 16) {
-    return {
-      level: "moderate",
-      title: "Moderate Risk",
-      description: "Your responses indicate some risk factors for fatty liver disease. A doctor-reviewed liver and metabolic panel can inform the conversation about your liver health.",
-      color: "text-[#c17a58]",
-      bgColor: "bg-[#c17a58]",
-      icon: AlertTriangle,
-    };
-  } else if (score <= 24) {
-    return {
-      level: "elevated",
-      title: "Elevated Risk",
-      description: "Your responses suggest elevated risk for fatty liver disease. Multiple risk factors are present. We strongly recommend comprehensive metabolic testing to understand your liver health and create a treatment plan.",
-      color: "text-[#c17a58]",
-      bgColor: "bg-[#c17a58]",
-      icon: AlertTriangle,
-    };
-  } else {
-    return {
-      level: "high",
-      title: "High Risk",
-      description: "Your responses indicate significant risk factors for fatty liver disease. This does not mean you have it. A doctor-reviewed assessment can inform next steps. Individual results vary.",
-      color: "text-red-600",
-      bgColor: "bg-red-600",
-      icon: AlertCircle,
-    };
-  }
-}
-
 export function LiverHealthCalculator() {
   const [currentQuestion, setCurrentQuestion] = useState(-1); // -1 for BMI input screen
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -234,123 +189,12 @@ export function LiverHealthCalculator() {
     }
   };
 
-  const handleReset = () => {
-    setCurrentQuestion(-1);
-    setAnswers({});
-    setShowResults(false);
-    setWeight("");
-    setHeight("");
-  };
-
   const totalScore = Object.values(answers).reduce((sum, val) => sum + val, 0);
-  const maxScore = questions.reduce(
-    (sum, q) => sum + Math.max(...q.options.map((o) => o.value)),
-    0
-  ) + 6; // +6 for max BMI score
-  const riskLevel = getRiskLevel(totalScore);
+  const tier = liverDisplayTier(totalScore);
+  const drivers = liverDriversFromAnswers(answers, bmi);
 
   if (showResults) {
-    return (
-      <div className="h-full flex flex-col">
-        {/* Results Header */}
-        <div className={`${riskLevel.bgColor} p-4 text-white text-center flex-shrink-0`}>
-          <div className="flex items-center justify-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <riskLevel.icon className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <h3 className="text-lg font-serif">{riskLevel.title}</h3>
-              <p className="text-white/80 text-xs">Score: {totalScore} / {maxScore}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Scrollable Results Content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <p className="text-[#5c7a52] leading-relaxed mb-6 text-sm">
-            {riskLevel.description}
-          </p>
-
-          {/* Risk Factors Summary */}
-          <div className="bg-[#f4f7f2] rounded-2xl p-4 mb-6">
-            <h4 className="font-medium text-[#2c3628] mb-3 text-sm">Your Risk Factors</h4>
-            <div className="space-y-2">
-              {/* BMI Result */}
-              {bmi && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[#5c7a52] truncate pr-2">BMI?</span>
-                  <span className={`font-medium flex-shrink-0 ${bmiScore >= 3 ? "text-[#c17a58]" : "text-[#5c7a52]"}`}>
-                    {bmi.toFixed(1)} ({getBMICategory(bmi)})
-                  </span>
-                </div>
-              )}
-              {questions.map((q) => {
-                const answer = answers[q.id];
-                const selectedOption = q.options.find((o) => o.value === answer);
-                const isHighRisk = answer >= 3;
-
-                return (
-                  <div key={q.id} className="flex items-center justify-between text-xs">
-                    <span className="text-[#5c7a52] truncate pr-2">{q.question.split("?")[0]}?</span>
-                    <span className={`font-medium flex-shrink-0 ${isHighRisk ? "text-[#c17a58]" : "text-[#5c7a52]"}`}>
-                      {selectedOption?.label.split(" (")[0]}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Recommendations */}
-          <div className="mb-6">
-            <h4 className="font-medium text-[#2c3628] mb-3 text-sm">Recommended Next Steps</h4>
-            <div className="space-y-2">
-              <div className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span className="text-[#5c7a52] text-sm">
-                  Check your health. Just $365 per year. $1 /day,
-                </span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span className="text-[#5c7a52] text-sm">85+ biomarkers covering your liver insights.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span className="text-[#5c7a52] text-sm">Results explained by your Sanative doctor</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-[#5c7a52] mt-0.5 flex-shrink-0" />
-                <span className="text-[#5c7a52] text-sm">Follow your plan. Take action. Test again.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* CTAs */}
-          <div className="space-y-2">
-            <Link
-              href="/biomarker-intake?service=metabolic-panel"
-              className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-3"
-            >
-              Claim your offer. Start Testing
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="w-full py-2 text-[#5c7a52] hover:text-[#34412f] transition-colors text-xs"
-            >
-              Take assessment again
-            </button>
-          </div>
-
-          {/* Disclaimer */}
-          <p className="mt-4 text-[10px] text-[#7e9a72] text-center">
-            This assessment is for educational purposes only and does not constitute medical diagnosis. Please consult a healthcare professional for proper evaluation.
-          </p>
-        </div>
-      </div>
-    );
+    return <OrganAssessmentResults copy={LIVER_ASSESSMENT_UI} tier={tier} drivers={drivers} />;
   }
 
   // BMI Input Screen (first question)

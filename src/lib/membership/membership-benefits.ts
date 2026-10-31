@@ -14,6 +14,11 @@ export const MEMBERSHIP_PITCH =
 /** Canonical public pricing and program scope George must use. */
 export const SANATIVE_PRICING_BRIEF = `PRICING AND PROGRAMS — answer these yourself. Do not invent prices or named prescription medicines.
 
+When asked what membership includes or costs, use this sense. Do not merge extras into one "after 30 days" clause:
+The Sanative membership is $365 a year — about $1 a day, billed annually. It includes your health check with 85+ biomarker insights, a doctor consult, personalised dashboards in the app, and the first 30 days of one eligible care program (Weight Management, Hair Health, Men's Health, or Women's Health). Medicines and pathology/lab fees are always separate. After those 30 days, continuing a care program is also billed separately.
+
+Never say medicines or pathology are extra only after the 30 days. Medicines and lab/pathology fees are always private/separate. The 30 days only refers to included care-program time.
+
 SANATIVE MEMBERSHIP — $365 per year ($1 per day), billed yearly:
 Included:
 - 85+ biomarker insights from a blood test at a partner collection centre (Sanative does not collect the blood)
@@ -21,12 +26,13 @@ Included:
 - Personalised insights, health action plan, Biological Clock and Organ Care dashboards in the app
 - Care partner support and 24/7 AI companion (George)
 - First 30 days of ONE eligible care program: Weight Management, Hair Health, Men's Health, or Women's Health
-Not included in the $365:
+Always extra — not only after the 30 days:
 - Medicines, pharmacy or dispensing fees
 - Pathology / laboratory / collection fees charged by the pathology provider (some Medicare-eligible tests may attract a rebate; this is not guaranteed)
 - Extra or repeat blood tests during the year (a repeated member health check is $199, only if the doctor requests it)
 - Courier or delivery charges
 - Supplements (member shop, extra)
+Separate after the included 30 days (care-program time only):
 - Ongoing program fees after the included 30 days
 - A second program's first 30 days (only one included program period)
 - The included 30 days if they pick the program after the first doctor consult
@@ -38,7 +44,7 @@ How the included 30 days work:
 - They can cancel the program before the first paid renewal so ongoing program fees do not start
 - Membership billing stays separate from program billing
 
-ONGOING PROGRAM CARE — only if they continue after the included 30 days. Billed every 3 months. Cancel anytime. Medicines and pathology stay extra.
+ONGOING PROGRAM CARE — only if they continue after the included 30 days. Billed every 3 months. Cancel anytime. Medicines and pathology are always extra, including during the first 30 days.
 
 Weight Management — $360 every 3 months ($120 per month, billed quarterly, not $120 for three months):
 Included: doctor-led weight plan, clinical monitoring, Care Partner support, portal access, dietitian support

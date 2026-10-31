@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowRight, ArrowLeft, Droplets, AlertTriangle, CheckCircle, Activity, Gauge } from "lucide-react";
-import Link from "next/link";
+import { useRef, useState } from "react";
+import { ArrowRight, ArrowLeft, CheckCircle } from "lucide-react";
+import { trackMetaCustomEvent } from "@/lib/analytics/meta-pixel";
+import { OrganAssessmentResults } from "@/components/promo/OrganAssessmentResults";
+import {
+  KIDNEY_ASSESSMENT_UI,
+  kidneyDisplayTier,
+  kidneyDriversFromAnswers,
+  kidneyScoreFromAnswers,
+} from "@/lib/promo/kidney-assessment-results";
 
 type Step = "age" | "diabetes" | "bp" | "weight" | "family" | "symptoms" | "medications" | "result";
 
@@ -16,6 +23,12 @@ interface Answers {
   medications: string;
 }
 
+const KIDNEY_ASSESSMENT_EVENT = {
+  content_name: "Kidney health risk assessment",
+  content_category: "kidney_health",
+  content_ids: ["kidney_health_assessment"],
+} as const;
+
 export function KidneyHealthCalculator() {
   const [step, setStep] = useState<Step>("age");
   const [answers, setAnswers] = useState<Answers>({
@@ -27,65 +40,8 @@ export function KidneyHealthCalculator() {
     symptoms: [],
     medications: "",
   });
-
-  const calculateRisk = (): { level: "low" | "moderate" | "elevated" | "high"; stage: string; message: string } => {
-    let score = 0;
-
-    // Age scoring (CKD risk increases significantly with age)
-    const ageMap: Record<string, number> = { "under35": 0, "35-44": 1, "45-54": 2, "55-64": 3, "65+": 4 };
-    score += ageMap[answers.age] || 0;
-
-    // Diabetes (leading cause of CKD)
-    if (answers.diabetes === "type2") score += 4;
-    else if (answers.diabetes === "type1") score += 3;
-    else if (answers.diabetes === "prediabetes") score += 2;
-
-    // Blood pressure (second leading cause)
-    if (answers.bp === "high-uncontrolled") score += 4;
-    else if (answers.bp === "high-controlled") score += 2;
-    else if (answers.bp === "borderline") score += 1;
-
-    // Weight
-    if (answers.weight === "obese") score += 3;
-    else if (answers.weight === "overweight") score += 2;
-
-    // Family history
-    if (answers.family === "kidney-disease") score += 3;
-    else if (answers.family === "diabetes-bp") score += 2;
-
-    // Symptoms (each adds risk)
-    score += answers.symptoms.length;
-
-    // Medications
-    if (answers.medications === "frequent") score += 2;
-    else if (answers.medications === "occasional") score += 1;
-
-    if (score >= 14) {
-      return {
-        level: "high",
-        stage: "Elevated Risk",
-        message: "Your responses suggest multiple significant CKD risk factors. We strongly recommend a comprehensive kidney function assessment including eGFR, creatinine, and uACR."
-      };
-    } else if (score >= 10) {
-      return {
-        level: "elevated",
-        stage: "Moderate-High Risk",
-        message: "You have several risk factors for kidney disease. A doctor-reviewed kidney panel can inform the conversation about your kidney health."
-      };
-    } else if (score >= 5) {
-      return {
-        level: "moderate",
-        stage: "Moderate Risk",
-        message: "You have some risk factors that warrant monitoring. Regular kidney function tests can help track your health over time."
-      };
-    } else {
-      return {
-        level: "low",
-        stage: "Lower Risk",
-        message: "Your current risk profile appears favorable. Maintaining healthy habits and periodic check-ups is still recommended."
-      };
-    }
-  };
+  const startedRef = useRef(false);
+  const completedRef = useRef(false);
 
   const steps: Step[] = ["age", "diabetes", "bp", "weight", "family", "symptoms", "medications", "result"];
   const currentIndex = steps.indexOf(step);
@@ -93,9 +49,16 @@ export function KidneyHealthCalculator() {
 
   const nextStep = () => {
     const nextIndex = currentIndex + 1;
-    if (nextIndex < steps.length) {
-      setStep(steps[nextIndex]);
+    if (nextIndex >= steps.length) return;
+    if (step === "age" && !startedRef.current) {
+      startedRef.current = true;
+      trackMetaCustomEvent("KidneyAssessmentStarted", KIDNEY_ASSESSMENT_EVENT);
     }
+    if (step === "medications" && !completedRef.current) {
+      completedRef.current = true;
+      trackMetaCustomEvent("KidneyAssessmentCompleted", KIDNEY_ASSESSMENT_EVENT);
+    }
+    setStep(steps[nextIndex]);
   };
 
   const prevStep = () => {
@@ -104,6 +67,16 @@ export function KidneyHealthCalculator() {
       setStep(steps[prevIndex]);
     }
   };
+
+  if (step === "result") {
+    return (
+      <OrganAssessmentResults
+        copy={KIDNEY_ASSESSMENT_UI}
+        tier={kidneyDisplayTier(kidneyScoreFromAnswers(answers))}
+        drivers={kidneyDriversFromAnswers(answers)}
+      />
+    );
+  }
 
   const canProceed = () => {
     switch (step) {
@@ -140,7 +113,7 @@ export function KidneyHealthCalculator() {
                 { value: "35-44", label: "35-44" },
                 { value: "45-54", label: "45-54" },
                 { value: "55-64", label: "55-64" },
-                { value: "65+", label: "65+" },
+                { value: "65+", label: "65+", span: true },
               ].map((option) => (
                 <button
                   key={option.value}
@@ -149,6 +122,8 @@ export function KidneyHealthCalculator() {
                     setTimeout(nextStep, 200);
                   }}
                   className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                    option.span ? "col-span-2" : ""
+                  } ${
                     answers.age === option.value
                       ? "border-teal-500 bg-teal-50 text-teal-700"
                       : "border-gray-200 hover:border-teal-300"
@@ -365,77 +340,8 @@ export function KidneyHealthCalculator() {
           </div>
         );
 
-      case "result":
-        const risk = calculateRisk();
-        const riskColors = {
-          low: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700", icon: CheckCircle },
-          moderate: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", icon: Activity },
-          elevated: { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", icon: AlertTriangle },
-          high: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", icon: Gauge },
-        };
-        const colors = riskColors[risk.level];
-        const RiskIcon = colors.icon;
-
-        return (
-          <div className="space-y-4">
-            <div className={`${colors.bg} ${colors.border} border rounded-2xl p-5`}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 rounded-full ${colors.bg} flex items-center justify-center`}>
-                  <RiskIcon className={`w-5 h-5 ${colors.text}`} />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Your estimated CKD risk</p>
-                  <p className={`text-lg font-semibold ${colors.text}`}>{risk.stage}</p>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">{risk.message}</p>
-            </div>
-
-            <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
-              <p className="font-medium text-gray-900 mb-2">Recommended kidney tests:</p>
-              <ul className="space-y-1.5">
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0 mt-0.5" />
-                  <span>eGFR and Creatinine (kidney filtration)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0 mt-0.5" />
-                  <span>uACR (protein in urine - kidney damage)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0 mt-0.5" />
-                  <span>HbA1c and fasting glucose (metabolic risk)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0 mt-0.5" />
-                  <span>Electrolytes (Na, K, Calcium)</span>
-                </li>
-              </ul>
-            </div>
-
-            <Link
-              href="/membership/checkout?source=kidney_health&button=risk_result"
-              className="block w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl text-center transition-colors"
-            >
-              Get your kidney health assessment
-              <ArrowRight className="w-4 h-4 inline ml-2" />
-            </Link>
-
-            <button
-              onClick={() => {
-                setStep("age");
-                setAnswers({ age: "", diabetes: "", bp: "", weight: "", family: "", symptoms: [], medications: "" });
-              }}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
-            >
-              Start over
-            </button>
-
-            <p className="text-xs text-gray-400 text-center">
-              This assessment is for informational purposes only and does not constitute medical advice. Reference: National Kidney Foundation.
-            </p>
-          </div>
-        );
+      default:
+        return null;
     }
   };
 

@@ -5,6 +5,7 @@ import { Send, X } from "lucide-react";
 import { GeorgeMascot } from "@/components/george/GeorgeMascot";
 import { GEORGE_NAME } from "@/lib/george";
 import { trackMetaEvent } from "@/lib/analytics/meta-pixel";
+import { isValidContactEmail, isValidContactMobile } from "@/lib/public/contact-chat";
 
 type ChatTurn = {
   id: string;
@@ -12,62 +13,75 @@ type ChatTurn = {
   content: string;
 };
 
-const SUGGESTED_QUESTION = "I have a question about Sanative";
-
-const WELCOME: ChatTurn[] = [
-  {
-    id: "welcome-1",
-    role: "assistant",
-    content:
-      "Hi, welcome to Sanative. I am George, your care companion — not a doctor. I can help with membership, programs and how Sanative works.",
-  },
-  {
-    id: "welcome-2",
-    role: "assistant",
-    content: "How can I help?",
-  },
-];
+function welcomeTurns(requireMobile: boolean): ChatTurn[] {
+  return [
+    {
+      id: "welcome-1",
+      role: "assistant",
+      content:
+        "Hi, welcome to Sanative. I am George, your care companion — not a doctor. I can help with membership, programs and how Sanative works.",
+    },
+    {
+      id: "welcome-2",
+      role: "assistant",
+      content: requireMobile
+        ? "How can I help? Leave a mobile too — a care partner can call or text if I cannot answer."
+        : "How can I help?",
+    },
+  ];
+}
 
 export function GuestSupportChat({
   open,
   onClose,
+  initialEmail,
+  initialFirstName,
+  initialMobile,
+  requireMobile = false,
 }: {
   open: boolean;
   onClose: () => void;
+  initialEmail?: string;
+  initialFirstName?: string;
+  initialMobile?: string;
+  requireMobile?: boolean;
 }) {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => initialEmail?.trim() ?? "");
+  const [mobile, setMobile] = useState(() => initialMobile?.trim() ?? "");
   const [draft, setDraft] = useState("");
-  const [turns, setTurns] = useState<ChatTurn[]>(WELCOME);
+  const [turns, setTurns] = useState<ChatTurn[]>(() => welcomeTurns(requireMobile));
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [suggestedUsed, setSuggestedUsed] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const next = initialEmail?.trim();
+    if (next && !email.trim()) {
+      setEmail(next);
+    }
+  }, [initialEmail, email]);
+
+  useEffect(() => {
+    const next = initialMobile?.trim();
+    if (next && !mobile.trim()) {
+      setMobile(next);
+    }
+  }, [initialMobile, mobile]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [turns, open]);
 
-  function useSuggestedQuestion() {
-    if (suggestedUsed) return;
-    setSuggestedUsed(true);
-    setTurns((current) => [
-      ...current,
-      { id: "suggested-user", role: "user", content: SUGGESTED_QUESTION },
-      {
-        id: "suggested-reply",
-        role: "assistant",
-        content:
-          "Got it — share your question below. Leave an email so we can follow up if you need the team.",
-      },
-    ]);
-  }
-
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     const message = draft.trim();
     if (!message || sending) return;
-    if (!email.trim()) {
+    if (!isValidContactEmail(email)) {
       setError("Add your email so we can follow up.");
+      return;
+    }
+    if (requireMobile && !isValidContactMobile(mobile)) {
+      setError("Add an Australian mobile so a care partner can call or text you back.");
       return;
     }
 
@@ -90,8 +104,11 @@ export function GuestSupportChat({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
+          ...(requireMobile || mobile.trim() ? { mobile } : {}),
+          firstName: initialFirstName,
           message,
           history,
+          requireMobile,
         }),
       });
       const data = (await response.json().catch(() => ({}))) as {
@@ -112,7 +129,11 @@ export function GuestSupportChat({
         {
           id: `assistant-${Date.now()}`,
           role: "assistant",
-          content: data.reply || "Thanks — the team can follow up at your email.",
+          content:
+            data.reply ||
+            (requireMobile
+              ? "Thanks — a care partner can follow up at your email or mobile."
+              : "Thanks — a care partner can follow up at your email."),
         },
       ]);
     } catch (submitError) {
@@ -164,16 +185,6 @@ export function GuestSupportChat({
             </div>
           ))}
 
-          {!suggestedUsed && (
-            <button
-              type="button"
-              onClick={useSuggestedQuestion}
-              className="rounded-full border border-[#e6ebe3] px-4 py-2 text-sm text-[#2c3628] hover:border-[#c17a58] hover:text-[#c17a58]"
-            >
-              {SUGGESTED_QUESTION}
-            </button>
-          )}
-
           {sending && (
             <p className="text-xs text-[#7e9a72]">George is typing…</p>
           )}
@@ -185,9 +196,23 @@ export function GuestSupportChat({
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="email@example.com"
+            aria-label="Email"
             autoComplete="email"
+            inputMode="email"
             className="w-full rounded-xl border border-[#c17a58]/50 px-3 py-2.5 text-sm text-[#2c3628] outline-none focus:border-[#c17a58] focus:ring-2 focus:ring-[#c17a58]/20"
           />
+          {requireMobile ? (
+            <input
+              type="tel"
+              value={mobile}
+              onChange={(event) => setMobile(event.target.value)}
+              placeholder="Mobile (04xx xxx xxx)"
+              aria-label="Mobile"
+              autoComplete="tel"
+              inputMode="tel"
+              className="w-full rounded-xl border border-[#c17a58]/50 px-3 py-2.5 text-sm text-[#2c3628] outline-none focus:border-[#c17a58] focus:ring-2 focus:ring-[#c17a58]/20"
+            />
+          ) : null}
           <div className="relative">
             <textarea
               value={draft}
@@ -207,8 +232,9 @@ export function GuestSupportChat({
           </div>
           {error && <p className="text-xs text-[#c17a58]">{error}</p>}
           <p className="text-[11px] leading-relaxed text-[#7e9a72]">
-            For emergencies call 000. George does not give medical advice. Your email is only used
-            to reply to this enquiry.
+            {requireMobile
+              ? "For emergencies call 000. George does not give medical advice. Your email and mobile are only used so we can reply to this enquiry."
+              : "For emergencies call 000. George does not give medical advice. Your email is only used so we can reply to this enquiry."}
           </p>
         </form>
       </aside>
