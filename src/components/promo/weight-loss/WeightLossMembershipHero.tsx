@@ -36,7 +36,7 @@ export function WeightLossMembershipHero({
               and your first 30 days of Weight Management Care included.
             </p>
             <Link href="/weight-management/assessment" className={styles.cta}>
-              Become a member
+              Start your journey
             </Link>
           </div>
         </div>
