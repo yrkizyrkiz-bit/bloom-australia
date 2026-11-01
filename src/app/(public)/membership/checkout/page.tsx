@@ -47,7 +47,11 @@ import { validateQuizDob } from "@/lib/funnel/quiz-dob";
 import { sameOriginMagicHref } from "@/lib/app-base-url";
 import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.module.css";
 import { MEMBERSHIP_BENEFITS, MEMBERSHIP_PITCH } from "@/lib/membership/membership-benefits";
-import { ORDER_SUMMARY_MARQUEE } from "@/lib/membership/order-summary-marquee";
+import {
+  ORDER_SUMMARY_MARQUEE,
+  type OrderSummaryMarqueeItem,
+} from "@/lib/membership/order-summary-marquee";
+import { getOrganCheckoutSummary } from "@/lib/membership/organ-checkout-summary";
 import {
   getMetaAttribution,
   rememberMetaCheckoutButton,
@@ -71,8 +75,12 @@ type Step =
   | "quiz"
   | "complete";
 
-function SummaryImageMarquee() {
-  const loop = [...ORDER_SUMMARY_MARQUEE, ...ORDER_SUMMARY_MARQUEE];
+function SummaryImageMarquee({
+  items = ORDER_SUMMARY_MARQUEE,
+}: {
+  items?: readonly OrderSummaryMarqueeItem[];
+}) {
+  const loop = [...items, ...items];
   return (
     <div
       className={`${marqueeStyles.viewport} ${marqueeStyles.viewportBlend} max-w-full`}
@@ -120,6 +128,35 @@ function MembershipBenefitsList() {
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function OrganCheckoutSteps({
+  steps,
+  included,
+}: {
+  steps: readonly string[];
+  included: string;
+}) {
+  return (
+    <div className="space-y-2.5 sm:space-y-3">
+      {steps.map((step, index) => (
+        <div key={step} className="flex items-start gap-2.5 sm:gap-3">
+          <span
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full
+              bg-[#eef4e6] text-[#4f6038] text-xs font-semibold mt-0.5"
+          >
+            {index + 1}
+          </span>
+          <span className="text-sm sm:text-[15px] lg:text-base text-gray-700 leading-snug">
+            {step}
+          </span>
+        </div>
+      ))}
+      <p className="text-sm sm:text-[15px] lg:text-base text-gray-600 leading-snug pt-1">
+        {included}
+      </p>
     </div>
   );
 }
@@ -441,6 +478,7 @@ function MembershipCheckoutPageContent() {
   const [contact, setContact] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
   const [devBypass, setDevBypass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -489,6 +527,20 @@ function MembershipCheckoutPageContent() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = window.setTimeout(() => setResendIn((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendIn]);
+
+  // Phone viewports default to SMS. Desktop keeps email. Prefill below can still switch to email.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setVerifyMethod("phone");
+    }
+  }, []);
+
   // Tag this checkout session with its hand-off source so every Meta event carries it.
   // A bare /membership/checkout visit keeps the program page the visitor came from.
   useEffect(() => {
@@ -521,9 +573,11 @@ function MembershipCheckoutPageContent() {
     }
   }, [funnelSource]);
 
+  const organSummary = getOrganCheckoutSummary(funnelSource);
+
   // ─── Handlers ────────────────────────────────────────────────────────────
 
-  const sendVerificationCode = async () => {
+  const sendVerificationCode = async (opts?: { resend?: boolean }) => {
     setIsLoading(true);
     setError(null);
 
@@ -539,13 +593,16 @@ function MembershipCheckoutPageContent() {
 
       setDevBypass(Boolean(data.devBypass));
       setCodeSent(true);
-      // Contact details captured = Lead (Meta classification); first measurable checkout step.
-      trackMetaEvent("Lead", {
-        content_name: "Membership checkout contact",
-        content_category: intentProgram || "membership",
-        status: verifyMethod,
-      });
-      trackMetaCheckoutStep("verify_code_sent");
+      setResendIn(30);
+      if (!opts?.resend) {
+        // Contact details captured = Lead (Meta classification); first measurable checkout step.
+        trackMetaEvent("Lead", {
+          content_name: "Membership checkout contact",
+          content_category: intentProgram || "membership",
+          status: verifyMethod,
+        });
+        trackMetaCheckoutStep("verify_code_sent");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send code");
     } finally {
@@ -810,6 +867,7 @@ function MembershipCheckoutPageContent() {
             setCode("");
             setError(null);
             setDevBypass(false);
+            setResendIn(0);
           }}
           className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
             transition-all ${
@@ -828,6 +886,7 @@ function MembershipCheckoutPageContent() {
             setCode("");
             setError(null);
             setDevBypass(false);
+            setResendIn(0);
           }}
           className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
             transition-all ${
@@ -850,7 +909,6 @@ function MembershipCheckoutPageContent() {
             onChange={(e) => setContact(e.target.value)}
             className="w-full border-2 border-gray-200 focus:border-gray-900 rounded-xl
               px-4 py-3.5 text-base outline-none transition-colors"
-            autoFocus
           />
           {error && (
             <p className="text-sm text-red-600">{error}</p>
@@ -904,6 +962,18 @@ function MembershipCheckoutPageContent() {
               autoFocus
               maxLength={6}
             />
+            <p className="text-sm text-gray-500 mt-2 text-center">
+              Can&apos;t see it? Check your Spam or Promotions folder.
+            </p>
+            <button
+              type="button"
+              onClick={() => sendVerificationCode({ resend: true })}
+              disabled={resendIn > 0 || isLoading}
+              className="mt-2 w-full text-sm text-gray-700 hover:text-gray-900 disabled:text-gray-400
+                disabled:cursor-not-allowed"
+            >
+              {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
+            </button>
           </div>
           {error && (
             <p className="text-sm text-red-600">{error}</p>
@@ -930,6 +1000,7 @@ function MembershipCheckoutPageContent() {
               setCode("");
               setError(null);
               setDevBypass(false);
+              setResendIn(0);
             }}
             className="w-full text-sm text-gray-500 hover:text-gray-700"
           >
@@ -1572,12 +1643,12 @@ function MembershipCheckoutPageContent() {
               <div className="mb-6">
                 <span className="inline-block px-3 py-1 bg-[#4f6038] text-white text-xs
                   font-semibold rounded-full">
-                  Sanative Membership
+                  {organSummary?.formBadge ?? "Sanative Membership"}
                 </span>
               </div>
 
               <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-                One membership. Full clarity.
+                {organSummary?.formHeadline ?? "One membership. Full clarity."}
               </h1>
               <p className="text-gray-500 mb-6">
                 Doctor-led biomarker insights. {priceLabel},
@@ -1616,25 +1687,34 @@ function MembershipCheckoutPageContent() {
             <div className="min-w-0 max-w-full overflow-hidden bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 lg:p-8 lg:sticky lg:top-8">
               <div className="mb-3 sm:mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                  Order Summary
+                  {organSummary?.cardTitle ?? "Order Summary"}
                 </h2>
-                <p className="text-sm sm:text-base font-semibold text-gray-900">
-                  Sanative Membership
-                </p>
+                {!organSummary && (
+                  <p className="text-sm sm:text-base font-semibold text-gray-900">
+                    Sanative Membership
+                  </p>
+                )}
               </div>
 
               <div className="min-w-0 rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 lg:p-5 mb-4 sm:mb-5">
                 <div className="min-w-0">
-                  <SummaryImageMarquee />
+                  <SummaryImageMarquee items={organSummary?.marquee} />
                 </div>
               </div>
 
               <p className="mb-3 sm:mb-4 text-base sm:text-lg font-semibold text-gray-900 leading-snug">
-                {MEMBERSHIP_PITCH}
+                {organSummary?.headline ?? MEMBERSHIP_PITCH}
               </p>
 
               <div className="mb-4 sm:mb-6">
-                <MembershipBenefitsList />
+                {organSummary ? (
+                  <OrganCheckoutSteps
+                    steps={organSummary.steps}
+                    included={organSummary.included}
+                  />
+                ) : (
+                  <MembershipBenefitsList />
+                )}
               </div>
 
               <div className="border-t border-gray-200 pt-3 sm:pt-4">
