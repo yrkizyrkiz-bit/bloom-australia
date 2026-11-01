@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email";
 import { createEmailDraft } from "@/lib/email-draft";
 import { LEGAL_LINKS, SANATIVE_LEGAL } from "@/lib/legal/constants";
@@ -158,6 +158,56 @@ ${params.composed.html}`,
   });
 }
 
+/** IMAP/SMTP work. Never block the visitor response on this. */
+export async function deliverOrganAssessmentResultsEmail(params: {
+  organ: OrganAssessmentKind;
+  firstName: string;
+  email: string;
+  tier: OrganResultTier;
+  drivers: string[];
+}) {
+  const copy = ORGAN_EMAIL[params.organ];
+  const composed = composeOrganAssessmentVisitorEmail(params);
+
+  try {
+    const draftResult = await createEmailDraft({
+      to: params.email,
+      process: "crm",
+      subject: composed.subject,
+      html: composed.html,
+    });
+
+    if (draftResult.success) return;
+
+    const review = await sendOrganQuizDraftReviewEmail({
+      ...params,
+      composed,
+    });
+    if (!review.success) {
+      console.error(
+        `[${copy.logTag}] mailbox draft and review email failed`,
+        draftResult.error,
+        review.error
+      );
+      return;
+    }
+    console.warn(
+      `[${copy.logTag}] mailbox draft unavailable; left a review copy in ${SANATIVE_LEGAL.supportEmail}`
+    );
+  } catch (error) {
+    console.error(`[${copy.logTag}] background email failed`, error);
+  }
+}
+
+function scheduleOrganResultsEmail(work: () => Promise<void>) {
+  try {
+    after(work);
+  } catch {
+    // Tests (and any non-request context) have no after() scope. Do not block the response.
+    void work();
+  }
+}
+
 export async function handleOrganAssessmentResultsPost(
   request: NextRequest,
   organ: OrganAssessmentKind,
@@ -200,40 +250,15 @@ export async function handleOrganAssessmentResultsPost(
       return rateLimitExceededResponse(limited.retryAfterSec);
     }
 
-    const composed = composeOrganAssessmentVisitorEmail({
-      organ,
-      firstName,
-      email,
-      tier,
-      drivers,
-    });
-
-    const draftResult = await createEmailDraft({
-      to: email,
-      process: "crm",
-      subject: composed.subject,
-      html: composed.html,
-    });
-
-    if (!draftResult.success) {
-      const review = await sendOrganQuizDraftReviewEmail({
+    scheduleOrganResultsEmail(() =>
+      deliverOrganAssessmentResultsEmail({
         organ,
         firstName,
         email,
         tier,
         drivers,
-        composed,
-      });
-      if (!review.success) {
-        return NextResponse.json(
-          { error: "We could not send that email. Please try again." },
-          { status: 502 }
-        );
-      }
-      console.warn(
-        `[${copy.logTag}] mailbox draft unavailable; left a review copy in ${SANATIVE_LEGAL.supportEmail}`
-      );
-    }
+      })
+    );
 
     return NextResponse.json({ ok: true });
   } catch (error) {

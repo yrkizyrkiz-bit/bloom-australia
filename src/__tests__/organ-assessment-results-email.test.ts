@@ -2,11 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { SANATIVE_LEGAL } from "@/lib/legal/constants";
 
-const { createEmailDraft, sendEmail, enforceDbRateLimits } = vi.hoisted(() => ({
+const { createEmailDraft, sendEmail, enforceDbRateLimits, afterTasks } = vi.hoisted(() => ({
   createEmailDraft: vi.fn(),
   sendEmail: vi.fn(),
   enforceDbRateLimits: vi.fn(),
+  afterTasks: [] as Array<() => unknown>,
 }));
+
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return {
+    ...actual,
+    after: (task: () => unknown) => {
+      afterTasks.push(task);
+    },
+  };
+});
 
 vi.mock("@/lib/email-draft", () => ({
   createEmailDraft,
@@ -38,6 +49,11 @@ function requestWith(body: Record<string, unknown>) {
   });
 }
 
+async function flushBackgroundEmail() {
+  const pending = afterTasks.splice(0);
+  await Promise.all(pending.map((task) => Promise.resolve().then(task)));
+}
+
 const validBody = {
   firstName: "Alex",
   email: "alex@example.com",
@@ -51,6 +67,7 @@ describe("organ assessment result emails", () => {
     createEmailDraft.mockReset();
     sendEmail.mockReset();
     enforceDbRateLimits.mockReset();
+    afterTasks.splice(0);
     enforceDbRateLimits.mockResolvedValue({ allowed: true });
     createEmailDraft.mockResolvedValue({ success: true, method: "imap", mailbox: "[Gmail]/Drafts" });
     sendEmail.mockResolvedValue({ success: true });
@@ -91,6 +108,18 @@ describe("organ assessment result emails", () => {
     expect(kidney.html).toContain("Check My Kidneys Risk");
   });
 
+  it("records the lead immediately without waiting for the mailbox draft", async () => {
+    createEmailDraft.mockImplementation(() => new Promise(() => {}));
+
+    const response = await handleOrganAssessmentResultsPost(requestWith(validBody), "liver");
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({ ok: true });
+    expect(createEmailDraft).not.toHaveBeenCalled();
+    expect(afterTasks).toHaveLength(1);
+  });
+
   it.each(["liver", "heart", "kidney"] as const)(
     "saves a %s draft and does not email the visitor",
     async (organ) => {
@@ -99,6 +128,9 @@ describe("organ assessment result emails", () => {
 
       expect(response.status).toBe(200);
       expect(payload).toEqual({ ok: true });
+      expect(createEmailDraft).not.toHaveBeenCalled();
+
+      await flushBackgroundEmail();
       expect(createEmailDraft).toHaveBeenCalledOnce();
       expect(createEmailDraft.mock.calls[0][0]).toMatchObject({
         to: "alex@example.com",
@@ -117,6 +149,9 @@ describe("organ assessment result emails", () => {
 
     expect(response.status).toBe(200);
     expect(payload).toEqual({ ok: true });
+    expect(sendEmail).not.toHaveBeenCalled();
+
+    await flushBackgroundEmail();
     expect(sendEmail).toHaveBeenCalledOnce();
     expect(sendEmail.mock.calls[0][0]).toMatchObject({
       to: SANATIVE_LEGAL.supportEmail,
@@ -128,15 +163,19 @@ describe("organ assessment result emails", () => {
     expect(sendEmail.mock.calls[0][0].to).not.toBe("alex@example.com");
   });
 
-  it("returns 502 when neither a draft nor a staff review copy can be saved", async () => {
+  it("still records the lead when draft and review email both fail later", async () => {
     createEmailDraft.mockResolvedValue({ success: false, error: "IMAP login failed" });
     sendEmail.mockResolvedValue({ success: false, error: "transport down" });
 
     const response = await handleOrganAssessmentResultsPost(requestWith(validBody), "heart");
     const payload = await response.json();
 
-    expect(response.status).toBe(502);
-    expect(payload.error).toMatch(/could not send/i);
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({ ok: true });
+
+    await flushBackgroundEmail();
+    expect(createEmailDraft).toHaveBeenCalledOnce();
+    expect(sendEmail).toHaveBeenCalledOnce();
   });
 
   it("still requires name, email, consent and a completed quiz", async () => {
@@ -146,6 +185,7 @@ describe("organ assessment result emails", () => {
     );
     expect(missingName.status).toBe(400);
     expect(createEmailDraft).not.toHaveBeenCalled();
+    expect(afterTasks).toHaveLength(0);
 
     const noConsent = await handleOrganAssessmentResultsPost(
       requestWith({ ...validBody, consent: false }),

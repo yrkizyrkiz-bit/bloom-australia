@@ -4,6 +4,8 @@ import {
   isOrganAssessmentKind,
 } from "@/lib/promo/handle-organ-assessment-results";
 
+export const maxDuration = 30;
+
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   if (!isOrganAssessmentKind(body.organ)) {
