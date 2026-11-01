@@ -1,47 +1,71 @@
-import { Cormorant_Garamond, Inter, Outfit, Playfair_Display } from "next/font/google";
+import localFont from "next/font/local";
 
 /**
  * Site-wide fonts (loaded from root layout).
  * Inter = body/UI; Playfair = serif headings (font-serif).
  * Only Inter is preloaded — it is on the critical path for every page.
+ *
+ * Self-hosted so `next build` does not fetch Google Fonts. next/font/google
+ * crashes when Google returns extensionless `/l/font?kit=` URLs
+ * (vercel/next.js#99114), which is what failed the Netlify production build.
  */
-export const inter = Inter({
+export const inter = localFont({
+  src: "../app/fonts/inter-latin-wght-normal.woff2",
   variable: "--font-inter",
-  subsets: ["latin"],
   display: "swap",
   preload: true,
-  adjustFontFallback: true,
+  weight: "100 900",
+  adjustFontFallback: "Arial",
 });
 
-export const playfair = Playfair_Display({
+export const playfair = localFont({
+  src: "../app/fonts/playfair-display-latin-wght-normal.woff2",
   variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   display: "swap",
   preload: false,
-  adjustFontFallback: true,
+  weight: "400 700",
+  adjustFontFallback: "Times New Roman",
 });
 
 /**
  * Marketing-only display fonts (loaded from (public)/layout).
  * Keeps portal/admin pages from downloading Cormorant + Outfit.
  */
-export const cormorant = Cormorant_Garamond({
+export const cormorant = localFont({
+  src: [
+    {
+      path: "../app/fonts/cormorant-garamond-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../app/fonts/cormorant-garamond-latin-500-normal.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../app/fonts/cormorant-garamond-latin-400-italic.woff2",
+      weight: "400",
+      style: "italic",
+    },
+    {
+      path: "../app/fonts/cormorant-garamond-latin-500-italic.woff2",
+      weight: "500",
+      style: "italic",
+    },
+  ],
   variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  style: ["normal", "italic"],
   display: "swap",
   preload: false,
-  adjustFontFallback: true,
+  adjustFontFallback: "Times New Roman",
 });
 
 /** Geometric sans close to Hers CareSans (custom; not licensable). */
-export const outfit = Outfit({
+export const outfit = localFont({
+  src: "../app/fonts/outfit-latin-wght-normal.woff2",
   variable: "--font-outfit",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
   display: "swap",
   preload: false,
-  adjustFontFallback: true,
+  weight: "400 600",
+  adjustFontFallback: "Arial",
 });
