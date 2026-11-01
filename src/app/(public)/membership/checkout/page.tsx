@@ -851,8 +851,12 @@ function MembershipCheckoutPageContent() {
   const renderVerificationStep = () => (
     <div className="space-y-6">
       <div>
-        {stepBadge(1)}
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Create your account</h3>
+        {!organSummary && (
+          <>
+            {stepBadge(1)}
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Create your account</h3>
+          </>
+        )}
         <p className="text-sm text-gray-500">
           We&apos;ll send you a verification code to confirm your identity
         </p>

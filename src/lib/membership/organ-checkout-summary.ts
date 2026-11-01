@@ -49,7 +49,7 @@ const ORGAN_CHECKOUT_SUMMARIES: Record<OrganCheckoutSource, OrganCheckoutSummary
     included:
       "Includes ALT, AST, GGT, HbA1c, insulin, triglycerides, HDL and 85+ more markers, plus 2 doctor consultations",
     formBadge: "Liver health check",
-    formHeadline: "Step 1: Create your account",
+    formHeadline: "Step 1: Join today",
     marquee: [
       {
         src: "/images/membership/organ-slider/liver.webp",
@@ -78,7 +78,7 @@ const ORGAN_CHECKOUT_SUMMARIES: Record<OrganCheckoutSource, OrganCheckoutSummary
     included:
       "Includes LDL, HDL, triglycerides, total cholesterol, hs-CRP, HbA1c, ApoB and 85+ more markers, plus 2 doctor consultations",
     formBadge: "Heart health check",
-    formHeadline: "Step 1: Create your account",
+    formHeadline: "Step 1: Join today",
     marquee: [
       {
         src: "/images/membership/organ-slider/heart.webp",
@@ -107,7 +107,7 @@ const ORGAN_CHECKOUT_SUMMARIES: Record<OrganCheckoutSource, OrganCheckoutSummary
     included:
       "Includes eGFR, creatinine, uACR, BUN, HbA1c, insulin, electrolytes and 85+ more markers, plus 2 doctor consultations",
     formBadge: "Kidney health check",
-    formHeadline: "Step 1: Create your account",
+    formHeadline: "Step 1: Join today",
     marquee: [
       {
         src: "/images/membership/organ-slider/kidney.webp",

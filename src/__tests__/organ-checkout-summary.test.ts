@@ -29,7 +29,7 @@ describe("organ checkout summary", () => {
     expect(liver.formBadge).toBe("Liver health check");
     expect(heart.formBadge).toBe("Heart health check");
     expect(kidney.formBadge).toBe("Kidney health check");
-    expect(liver.formHeadline).toBe("Step 1: Create your account");
+    expect(liver.formHeadline).toBe("Step 1: Join today");
     expect(heart.formHeadline).toBe(liver.formHeadline);
     expect(kidney.formHeadline).toBe(liver.formHeadline);
 
