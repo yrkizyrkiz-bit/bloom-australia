@@ -11,7 +11,8 @@ import {
   trackMetaCustomEvent,
   trackMetaCustomEventWhenReady,
 } from "@/lib/analytics/meta-pixel";
-import { OrganCareMembershipSection } from "@/components/promo/sections/OrganCareMembershipSection";
+import { LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG } from "@/lib/membership/checkout-product-select";
+import { LIVER_ASSESSMENT_UI } from "@/lib/promo/liver-assessment-results";
 import {
   BiomarkerHoneycomb,
   LIVER_PANEL_HONEYCOMB_IDS,
@@ -89,9 +90,17 @@ function FAQItem({
   );
 }
 
+function liverHealthCheckCheckoutPath(button: string) {
+  return membershipCheckoutPath(
+    "fatty_liver",
+    button,
+    LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG
+  );
+}
+
 function trackLiverMembershipClick(button: string) {
   trackMetaCustomEvent("LiverMembershipClicked", {
-    content_name: "Fatty Liver membership",
+    content_name: "Liver Health Check",
     content_category: "fatty_liver",
     content_ids: ["fatty_liver"],
     button,
@@ -238,7 +247,7 @@ export default function FattyLiverPage() {
 
   return (
     <>
-      <Header />
+      <Header announcementPrice="Liver Health Check – $79" />
       <main className="min-h-screen bg-[#fdfbf7]">
         {/* Hero Section - Liver Left, Assessment Right */}
         <section className="relative py-10 lg:py-14 overflow-hidden">
@@ -498,11 +507,11 @@ export default function FattyLiverPage() {
                   </p>
                 </div>
                 <Link
-                  href={membershipCheckoutPath("fatty_liver", "liver_biomarkers_cta")}
+                  href={liverHealthCheckCheckoutPath("liver_biomarkers_cta")}
                   onClick={() => trackLiverMembershipClick("liver_biomarkers_cta")}
                   className="btn-primary mt-6 flex w-full items-center justify-center gap-2 py-3 text-sm"
                 >
-                  Check My Liver Risk
+                  {LIVER_ASSESSMENT_UI.ctaLabel}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -577,11 +586,11 @@ export default function FattyLiverPage() {
                   />
                 </div>
                 <Link
-                  href={membershipCheckoutPath("fatty_liver", "liver_decode_cta")}
+                  href={liverHealthCheckCheckoutPath("liver_decode_cta")}
                   onClick={() => trackLiverMembershipClick("liver_decode_cta")}
                   className="btn-white mt-6 flex w-full items-center justify-center gap-2 py-3 text-sm"
                 >
-                  Check My Liver Risk
+                  {LIVER_ASSESSMENT_UI.ctaLabel}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -688,12 +697,6 @@ export default function FattyLiverPage() {
           </div>
         </section>
 
-        <OrganCareMembershipSection
-          accent="sage"
-          checkoutHref={membershipCheckoutPath("fatty_liver", "membership_card")}
-          onCheckoutClick={() => trackLiverMembershipClick("membership_card")}
-        />
-
         {/* FAQ Section */}
         <section className="py-20 lg:py-28 bg-[#fdfbf7]">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -737,17 +740,17 @@ export default function FattyLiverPage() {
             </p>
 
             <Link
-              href={membershipCheckoutPath("fatty_liver", "liver_closing_cta")}
+              href={liverHealthCheckCheckoutPath("liver_closing_cta")}
               onClick={() => trackLiverMembershipClick("liver_closing_cta")}
               className="btn-primary inline-flex items-center justify-center gap-2 py-3 text-sm sm:text-base px-6 sm:px-10"
             >
-              Check My Liver Risk
+              {LIVER_ASSESSMENT_UI.ctaLabel}
               <ArrowRight className="w-4 h-4" />
             </Link>
 
             {/* GAP-026: Removed 'No commitment' - payment required */}
             <p className="mt-6 text-sm text-[#7e9a72]">
-              Free assessment · membership includes Organ Care
+              Free assessment · Liver Health Check $79
             </p>
           </div>
         </section>

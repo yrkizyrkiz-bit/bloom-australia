@@ -67,6 +67,7 @@ import { getOrganCheckoutSummary } from "@/lib/membership/organ-checkout-summary
 import {
   isLiverBiomarkerInsightsCheckout,
   membershipCheckoutDisplayFallback,
+  membershipPurchaseAnalytics,
 } from "@/lib/membership/checkout-product-select";
 import {
   checkoutPrefillSelectsEmailTab,
@@ -271,6 +272,7 @@ function PaymentForm({
       trackMetaPurchaseOnce({
         paymentIntentId: paymentIntent.id,
         value: amountAud,
+        currency: "AUD",
         content_name: contentName,
         content_ids: contentIds,
       });
@@ -645,6 +647,10 @@ function MembershipCheckoutPageContent() {
   const [productName, setProductName] = useState(checkoutDisplay.productName);
   const [intervalLabel, setIntervalLabel] = useState(checkoutDisplay.intervalLabel);
   const [autoRenew, setAutoRenew] = useState(checkoutDisplay.autoRenew);
+  const purchaseAnalytics = membershipPurchaseAnalytics(
+    { product: checkoutProduct, button: checkoutButton },
+    priceAud
+  );
 
   // Onboarding state
   const [firstName, setFirstName] = useState("");
@@ -910,13 +916,17 @@ function MembershipCheckoutPageContent() {
       if (typeof data.amountAud === "number") setPriceAud(data.amountAud);
       if (typeof data.priceLabel === "string") setPriceLabel(data.priceLabel);
       if (typeof data.productName === "string") setProductName(data.productName);
+      const purchaseAnalytics = membershipPurchaseAnalytics(
+        { product: checkoutProduct, button: checkoutButton },
+        resolvedAmount
+      );
       trackMetaEvent("InitiateCheckout", {
-        content_name: data.productName || productName,
-        content_ids: [data.productSlug || (liverInsightsCheckout ? "liver_biomarker_insights" : "sanative_membership")],
+        content_name: purchaseAnalytics.content_name,
+        content_ids: purchaseAnalytics.content_ids,
         content_type: "product",
         content_category: intentProgram || undefined,
-        currency: "AUD",
-        value: resolvedAmount,
+        currency: purchaseAnalytics.currency,
+        value: purchaseAnalytics.value,
         num_items: 1,
       });
       trackMetaCheckoutStep("payment_shown", { value: resolvedAmount, currency: "AUD" });
@@ -1469,15 +1479,13 @@ function MembershipCheckoutPageContent() {
         >
           <PaymentForm
             onSuccess={handlePaymentSuccess}
-            amountAud={priceAud}
+            amountAud={purchaseAnalytics.value}
             customerEmail={
               (verifyMethod === "email" ? contact : email) || undefined
             }
             customerName={`${firstName} ${lastName}`.trim() || undefined}
-            contentName={productName}
-            contentIds={[
-              liverInsightsCheckout ? "liver_biomarker_insights" : "sanative_membership",
-            ]}
+            contentName={purchaseAnalytics.content_name}
+            contentIds={purchaseAnalytics.content_ids}
           />
         </Elements>
       )}

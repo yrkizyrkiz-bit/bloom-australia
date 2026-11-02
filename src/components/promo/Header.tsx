@@ -4,7 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
 
-export function Header() {
+const DEFAULT_ANNOUNCEMENT_PRICE = "Just $365 per year—$1 per day.";
+
+type HeaderProps = {
+  /** Replaces the default membership price in the top banner. Pass null to hide it. */
+  announcementPrice?: string | null;
+};
+
+export function Header({ announcementPrice }: HeaderProps = {}) {
+  const priceText =
+    announcementPrice === undefined ? DEFAULT_ANNOUNCEMENT_PRICE : announcementPrice;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
@@ -119,10 +128,14 @@ export function Header() {
           <span className="font-serif text-[15px] sm:text-base tracking-wide italic">
             Preventative medicine + Precise care = Longevity built for Australians
           </span>
-          <span className="hidden sm:inline text-[#a8bb9e] mx-1">·</span>
-          <span className="text-[13px] sm:text-sm font-light text-[#cdd8c6]">
-            Just $365 per year—$1 per day.
-          </span>
+          {priceText ? (
+            <>
+              <span className="hidden sm:inline text-[#a8bb9e] mx-1">·</span>
+              <span className="text-[13px] sm:text-sm font-light text-[#cdd8c6]">
+                {priceText}
+              </span>
+            </>
+          ) : null}
         </div>
       </div>
 

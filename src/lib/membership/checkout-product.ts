@@ -8,12 +8,18 @@ import {
 
 export {
   LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG,
+  LIVER_HEALTH_CHECK_ITEM_NAME,
   LIVER_QUIZ_RESULT_BUTTON,
+  MEMBERSHIP_PURCHASE_ITEM_NAME,
   isLiverBiomarkerInsightsCheckout,
   membershipCheckoutDisplayFallback,
+  membershipPurchaseAnalytics,
 } from "@/lib/membership/checkout-product-select";
 
-export type { CheckoutProductQuery } from "@/lib/membership/checkout-product-select";
+export type {
+  CheckoutProductQuery,
+  MembershipPurchaseAnalytics,
+} from "@/lib/membership/checkout-product-select";
 
 export type MembershipCheckoutOffer = {
   slug: string;

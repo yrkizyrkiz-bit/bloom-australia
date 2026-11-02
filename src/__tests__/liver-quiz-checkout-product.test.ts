@@ -4,9 +4,12 @@ import { describe, expect, it } from "vitest";
 import { membershipCheckoutPath } from "@/lib/analytics/meta-pixel";
 import {
   LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG,
+  LIVER_HEALTH_CHECK_ITEM_NAME,
   LIVER_QUIZ_RESULT_BUTTON,
+  MEMBERSHIP_PURCHASE_ITEM_NAME,
   isLiverBiomarkerInsightsCheckout,
   membershipCheckoutDisplayFallback,
+  membershipPurchaseAnalytics,
 } from "@/lib/membership/checkout-product";
 import { HEART_ASSESSMENT_UI } from "@/lib/promo/heart-assessment-results";
 import { KIDNEY_ASSESSMENT_UI } from "@/lib/promo/kidney-assessment-results";
@@ -137,17 +140,97 @@ describe("liver quiz $79 checkout product", () => {
     ).toBe("/membership/checkout?source=kidney_health&button=kidney_quiz_result");
   });
 
-  it("keeps other liver page CTAs on membership checkout without a product query", () => {
+  it("points the three liver page CTAs at $79 checkout with source=fatty_liver and product slug", () => {
     const liverPage = readSource("app/(public)/metabolic-care/fatty-liver/page.tsx");
-    expect(liverPage).toContain('membershipCheckoutPath("fatty_liver", "liver_biomarkers_cta")');
-    expect(liverPage).toContain('membershipCheckoutPath("fatty_liver", "liver_decode_cta")');
-    expect(liverPage).toContain('membershipCheckoutPath("fatty_liver", "membership_card")');
-    expect(liverPage).toContain('membershipCheckoutPath("fatty_liver", "liver_closing_cta")');
-    expect(liverPage).not.toContain("liver_biomarker_insights");
-    expect(liverPage).not.toContain("liver_quiz_result");
+    expect(liverPage).toContain('liverHealthCheckCheckoutPath("liver_biomarkers_cta")');
+    expect(liverPage).toContain('liverHealthCheckCheckoutPath("liver_decode_cta")');
+    expect(liverPage).toContain('liverHealthCheckCheckoutPath("liver_closing_cta")');
+    expect(liverPage).toContain("LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG");
+    expect(liverPage).toContain("LIVER_ASSESSMENT_UI.ctaLabel");
+    expect(liverPage).not.toContain("Check My Liver Risk");
+    expect(liverPage).not.toContain("OrganCareMembershipSection");
+    expect(liverPage).not.toContain("$365");
+    expect(liverPage).not.toContain("$1 per day");
+    expect(liverPage).toContain('announcementPrice="Liver Health Check – $79"');
+
+    expect(
+      membershipCheckoutPath(
+        "fatty_liver",
+        "liver_biomarkers_cta",
+        LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG
+      )
+    ).toBe(
+      "/membership/checkout?source=fatty_liver&button=liver_biomarkers_cta&product=liver_biomarker_insights"
+    );
+    expect(
+      membershipCheckoutPath(
+        "fatty_liver",
+        "liver_decode_cta",
+        LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG
+      )
+    ).toBe(
+      "/membership/checkout?source=fatty_liver&button=liver_decode_cta&product=liver_biomarker_insights"
+    );
+    expect(
+      membershipCheckoutPath(
+        "fatty_liver",
+        "liver_closing_cta",
+        LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG
+      )
+    ).toBe(
+      "/membership/checkout?source=fatty_liver&button=liver_closing_cta&product=liver_biomarker_insights"
+    );
+
+    expect(
+      isLiverBiomarkerInsightsCheckout({
+        product: LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG,
+        button: "liver_biomarkers_cta",
+      })
+    ).toBe(true);
+    expect(
+      isLiverBiomarkerInsightsCheckout({
+        product: null,
+        button: "liver_biomarkers_cta",
+      })
+    ).toBe(false);
 
     const email = readSource("lib/promo/handle-organ-assessment-results.ts");
     expect(email).toContain("/membership/checkout?source=fatty_liver&button=liver_quiz_email");
     expect(email).not.toContain("product=liver_biomarker_insights");
+  });
+
+  it("emits Liver Health Check purchase analytics for $79 and membership for $365", () => {
+    expect(
+      membershipPurchaseAnalytics(
+        { product: LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG, button: "liver_biomarkers_cta" },
+        79
+      )
+    ).toEqual({
+      value: 79,
+      currency: "AUD",
+      content_name: LIVER_HEALTH_CHECK_ITEM_NAME,
+      content_ids: [LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG],
+    });
+    expect(
+      membershipPurchaseAnalytics({ product: null, button: LIVER_QUIZ_RESULT_BUTTON }, 79)
+    ).toEqual({
+      value: 79,
+      currency: "AUD",
+      content_name: "Liver Health Check",
+      content_ids: ["liver_biomarker_insights"],
+    });
+    expect(
+      membershipPurchaseAnalytics({ product: null, button: "liver_biomarkers_cta" }, 365)
+    ).toEqual({
+      value: 365,
+      currency: "AUD",
+      content_name: MEMBERSHIP_PURCHASE_ITEM_NAME,
+      content_ids: ["sanative_membership"],
+    });
+
+    const checkout = readSource("app/(public)/membership/checkout/page.tsx");
+    expect(checkout).toContain("membershipPurchaseAnalytics");
+    expect(checkout).toContain("purchaseAnalytics.content_name");
+    expect(checkout).toContain("currency: \"AUD\"");
   });
 });
