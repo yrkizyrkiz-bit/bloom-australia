@@ -13,6 +13,7 @@ import {
 } from "@/lib/membership/subscription-access";
 import { OPEN_CONSULTATION_BOOKING_STATUSES } from "@/lib/program-journey/upcoming-consultation";
 import { listAwaitingConsultationPrograms } from "@/lib/portal/awaiting-consultation";
+import { hasLiverBiomarkerInsightsAccess } from "@/lib/membership/liver-biomarker-insights-access";
 
 const PAID_JOURNEY_STATUSES = Array.from(PAID_WEIGHT_JOURNEY_STATUSES);
 
@@ -47,6 +48,7 @@ export async function GET() {
           where: { userId },
           select: {
             status: true,
+            currentPeriodEnd: true,
             product: { select: { program: true, slug: true, name: true, planTier: true } },
           },
         }),
@@ -103,6 +105,11 @@ export async function GET() {
       gender: user.gender,
       hasPaidWeightIntake,
       membership,
+      hasLiverBiomarkerInsights: hasLiverBiomarkerInsightsAccess({
+        subscriptionTier: user.subscriptionTier,
+        entitlements,
+        memberSubscriptions,
+      }),
     });
 
     return NextResponse.json({

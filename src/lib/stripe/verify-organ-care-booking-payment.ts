@@ -16,6 +16,7 @@ function isMembershipPaymentMetadata(metadata: Stripe.Metadata | null | undefine
   if (!metadata) return false;
   // New consolidated Sanative Membership funnel (Stripe Subscription first invoice).
   if (metadata.purchaseType === "sanative_membership") return true;
+  if (metadata.purchaseType === "liver_biomarker_insights") return true;
   // Legacy Organ & Metabolic Care public checkout.
   if (metadata.type === "organ_care_membership") return true;
   return false;

@@ -16,6 +16,7 @@ import {
   type ProgramKey,
   type ScopeKey,
 } from "@/lib/membership/keys";
+import { LIVER_BIOMARKER_INSIGHTS_ENTITLEMENT_KEY } from "@/lib/membership/liver-biomarker-insights-access";
 import {
   resolveMensHealthCanonicalKey,
   resolveWomensHealthCanonicalKey,
@@ -443,7 +444,7 @@ export async function upsertEntitlementsFromMemberSubscription(
 export async function grantEntitlement(params: {
   userId: string;
   type: EntitlementTypeValue;
-  key: ProgramKey | ScopeKey;
+  key: ProgramKey | ScopeKey | typeof LIVER_BIOMARKER_INSIGHTS_ENTITLEMENT_KEY;
   source?: EntitlementSourceValue;
   status?: EntitlementStatusValue;
   expiresAt?: Date | null;

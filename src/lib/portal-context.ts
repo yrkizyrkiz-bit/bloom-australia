@@ -42,6 +42,8 @@ export interface PortalContextPayload {
   features: PortalFeatures;
   /** Derived membership entitlements (persisted Entitlement layer + biomarker readiness). */
   membership?: DerivedMembershipEntitlements;
+  /** $79 Liver Biomarker Insights purchase — not implied by $365 membership. */
+  hasLiverBiomarkerInsights?: boolean;
   /**
    * Clinical programs the member added in-portal that still need care to arrange a consult.
    * Scoped per program — do not show this copy on programs that already have a booking.
@@ -138,6 +140,7 @@ export function derivePortalContext(input: {
   gender?: string | null;
   hasPaidWeightIntake?: boolean;
   membership?: DerivedMembershipEntitlements;
+  hasLiverBiomarkerInsights?: boolean;
 }): PortalContextPayload {
   const journeyStatus = input.journeyStatus || "LEAD";
   const hasPassword = Boolean(input.passwordHash);
@@ -201,5 +204,6 @@ export function derivePortalContext(input: {
     },
     features,
     membership: input.membership,
+    hasLiverBiomarkerInsights: Boolean(input.hasLiverBiomarkerInsights),
   };
 }

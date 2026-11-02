@@ -12,8 +12,8 @@ export type OrganCheckoutSummary = {
   source: OrganCheckoutSource;
   cardTitle: string;
   headline: string;
-  steps: readonly [string, string, string, string];
-  included: string;
+  steps: readonly string[];
+  included?: string;
   formBadge: string;
   formHeadline: string;
   marquee: readonly OrderSummaryMarqueeItem[];
@@ -38,16 +38,15 @@ const APP_SCREEN: OrderSummaryMarqueeItem = {
 const ORGAN_CHECKOUT_SUMMARIES: Record<OrganCheckoutSource, OrganCheckoutSummary> = {
   fatty_liver: {
     source: "fatty_liver",
-    cardTitle: "Check your liver in 4 simple steps",
+    cardTitle: "Check your liver in 5 simple steps",
     headline: "Your liver blood test + doctor review",
     steps: [
       JOIN_STEP,
       PATHOLOGY_STEP,
       COLLECTION_STEP,
-      "A doctor reviews your results and you see them in the app on your liver care dashboard",
+      "Your results explained in the Sanative app, including your liver scarring risk score (FIB-4).",
+      "A follow-up consultation with a Sanative doctor to explain your results, together with a care plan.",
     ],
-    included:
-      "Includes ALT, AST, GGT, HbA1c, insulin, triglycerides, HDL and 85+ more markers, plus 2 doctor consultations",
     formBadge: "Liver health check",
     formHeadline: "Step 1: Join today",
     marquee: [

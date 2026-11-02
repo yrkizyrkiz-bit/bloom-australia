@@ -6,7 +6,20 @@ import { ArrowRight } from "lucide-react";
 import { membershipCheckoutPath, trackMetaEvent } from "@/lib/analytics/meta-pixel";
 import { GuestSupportChat } from "@/components/promo/contact/GuestSupportChat";
 import { LEGAL_LINKS } from "@/lib/legal/constants";
+import { LIVER_CTA_RECOMMENDATION } from "@/lib/promo/liver-assessment-results";
 import type { OrganAssessmentUiCopy, OrganDriver, OrganResultTier } from "@/lib/promo/organ-assessment-results";
+
+const TIER_LABEL: Record<OrganResultTier, string> = {
+  high: "High",
+  moderate: "Moderate",
+  low: "Low",
+};
+
+const TIER_LABEL_CLASS: Record<OrganResultTier, string> = {
+  high: "text-red-700",
+  moderate: "text-orange-700",
+  low: "text-sage-600",
+};
 
 export function OrganAssessmentResults({
   copy,
@@ -23,6 +36,7 @@ export function OrganAssessmentResults({
   const [emailStatus, setEmailStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const isLiver = copy.organ === "liver";
 
   async function handleEmailResults(event: FormEvent) {
     event.preventDefault();
@@ -61,8 +75,10 @@ export function OrganAssessmentResults({
   return (
     <div className="h-full flex flex-col">
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#7e9a72]">
-          {tier === "high" ? "High" : tier === "moderate" ? "Moderate" : "Low"}
+        <p
+          className={`text-3xl font-bold leading-none tracking-tight ${TIER_LABEL_CLASS[tier]}${isLiver ? " font-serif" : ""}`}
+        >
+          {TIER_LABEL[tier]}
         </p>
         <h3 className="font-serif text-2xl leading-snug text-[#2c3628]">
           {copy.headlines[tier]}
@@ -82,31 +98,44 @@ export function OrganAssessmentResults({
           </div>
         ) : null}
 
-        <div>
-          <h4 className="mb-2 text-sm font-medium text-[#2c3628]">What a blood test would show</h4>
-          <div className="flex flex-wrap gap-1.5">
-            {copy.markers.map((marker) => (
-              <span
-                key={marker}
-                className="rounded-full border border-[#cdd8c6] bg-white px-2.5 py-1 text-xs text-[#34412f]"
-              >
-                {marker}
-              </span>
-            ))}
+        {!isLiver ? (
+          <div>
+            <h4 className="mb-2 text-sm font-medium text-[#2c3628]">What a blood test would show</h4>
+            <div className="flex flex-wrap gap-1.5">
+              {copy.markers.map((marker) => (
+                <span
+                  key={marker}
+                  className="rounded-full border border-[#cdd8c6] bg-white px-2.5 py-1 text-xs text-[#34412f]"
+                >
+                  {marker}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div>
+          {isLiver ? (
+            <p className="mb-3 text-sm leading-relaxed text-[#5c7a52]">
+              {LIVER_CTA_RECOMMENDATION[tier]}
+            </p>
+          ) : null}
           <Link
-            href={membershipCheckoutPath(copy.checkoutSource, copy.checkoutButton)}
+            href={membershipCheckoutPath(
+              copy.checkoutSource,
+              copy.checkoutButton,
+              copy.checkoutProduct
+            )}
             className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-sm"
           >
             {copy.ctaLabel}
             <ArrowRight className="w-4 h-4" />
           </Link>
-          <p className="mt-2 text-center text-[11px] leading-relaxed text-[#5c7a52]">
-            85+ biomarkers · results reviewed by top doctors · health plan · biological clock · results in your app
-          </p>
+          {!isLiver ? (
+            <p className="mt-2 text-center text-[11px] leading-relaxed text-[#5c7a52]">
+              85+ biomarkers · results reviewed by top doctors · health plan · biological clock · results in your app
+            </p>
+          ) : null}
         </div>
 
         <form onSubmit={handleEmailResults} className="rounded-2xl border border-[#e6ebe3] bg-[#fdfbf7] p-4 space-y-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -146,10 +146,6 @@ export function MembershipConsultationBooking({
   const [confirming, setConfirming] = useState(false);
   const holdRequestRef = useRef(0);
   const bookingHoldIdRef = useRef<string | null>(null);
-
-  useLayoutEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, []);
 
   useEffect(() => {
     bookingHoldIdRef.current = bookingHoldId;

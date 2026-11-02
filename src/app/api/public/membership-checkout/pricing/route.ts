@@ -1,15 +1,22 @@
-import { NextResponse } from "next/server";
-import { getSanativeMembershipPricing } from "@/lib/portal/sanative-membership";
+import { NextRequest, NextResponse } from "next/server";
+import { resolveMembershipCheckoutOffer } from "@/lib/membership/checkout-product";
 
-/** Public pricing for the consolidated Sanative Membership checkout. */
-export async function GET() {
+/** Public pricing for membership checkout, or the $79 liver product when selected. */
+export async function GET(req: NextRequest) {
   try {
-    const pricing = await getSanativeMembershipPricing();
+    const { searchParams } = new URL(req.url);
+    const offer = await resolveMembershipCheckoutOffer({
+      product: searchParams.get("product"),
+      button: searchParams.get("button"),
+    });
     return NextResponse.json({
-      productName: pricing.productName,
-      amountCents: pricing.amountCents,
-      amountAud: pricing.amountAud,
-      priceLabel: pricing.priceLabel,
+      productSlug: offer.slug,
+      productName: offer.productName,
+      amountCents: offer.amountCents,
+      amountAud: offer.amountAud,
+      priceLabel: offer.priceLabel,
+      intervalLabel: offer.intervalLabel,
+      autoRenew: offer.autoRenew,
     });
   } catch (error) {
     console.error("[public/membership-checkout/pricing]", error);

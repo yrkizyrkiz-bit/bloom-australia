@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { activateSanativeMembership } from "@/lib/portal/sanative-membership";
+import { activateLiverBiomarkerInsights } from "@/lib/portal/liver-biomarker-insights";
+import { LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG } from "@/lib/membership/checkout-product";
 import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
 import { MAGIC_LINK_BROWSER_TTL, signMagicLoginToken } from "@/lib/magic-link";
 import { resolveAppBaseUrl } from "@/lib/app-base-url";
@@ -163,7 +165,9 @@ export async function POST(request: NextRequest) {
     if (paymentIntent.status !== "succeeded") {
       return NextResponse.json({ error: "Payment not completed" }, { status: 400 });
     }
-    if (paymentIntent.metadata?.purchaseType !== "sanative_membership") {
+    const purchaseType = paymentIntent.metadata?.purchaseType;
+    const isLiverInsights = purchaseType === LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG;
+    if (purchaseType !== "sanative_membership" && !isLiverInsights) {
       return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
     }
     // The intent route stamped the verified email (and account, if any) on the
@@ -177,10 +181,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Payment does not match this checkout" }, { status: 400 });
     }
 
-    const stripeSubscriptionId =
-      bodySubscriptionId ||
-      paymentIntent.metadata?.subscriptionId ||
-      null;
+    const stripeSubscriptionId = isLiverInsights
+      ? null
+      : bodySubscriptionId || paymentIntent.metadata?.subscriptionId || null;
 
     let periodStart: Date | null = null;
     let periodEnd: Date | null = null;
@@ -191,9 +194,8 @@ export async function POST(request: NextRequest) {
       periodEnd = period.end;
     }
 
-    const result = await activateSanativeMembership({
+    const sharedProfile = {
       paymentIntentId,
-      stripeSubscriptionId,
       customerId: (paymentIntent.customer as string) || null,
       email: resolvedEmail,
       firstName,
@@ -206,10 +208,17 @@ export async function POST(request: NextRequest) {
       state,
       postcode,
       gender: gender === "MALE" || gender === "FEMALE" ? gender : null,
-      intentProgram: intentProgram || paymentIntent.metadata?.intentProgram || null,
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-    });
+    };
+
+    const result = isLiverInsights
+      ? await activateLiverBiomarkerInsights(sharedProfile)
+      : await activateSanativeMembership({
+          ...sharedProfile,
+          stripeSubscriptionId,
+          intentProgram: intentProgram || paymentIntent.metadata?.intentProgram || null,
+          currentPeriodStart: periodStart,
+          currentPeriodEnd: periodEnd,
+        });
 
     if (stripeSubscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
@@ -229,9 +238,11 @@ export async function POST(request: NextRequest) {
     let magicLink: string | null = null;
     if (userForLink?.email) {
       const baseUrl = resolveAppBaseUrl({ clientOrigin, request });
-      const postCheckoutPath = resolvePostCheckoutRedirect(
-        intentProgram || paymentIntent.metadata?.intentProgram || null
-      );
+      const postCheckoutPath = isLiverInsights
+        ? "/dashboard/organ-care"
+        : resolvePostCheckoutRedirect(
+            intentProgram || paymentIntent.metadata?.intentProgram || null
+          );
       const linkFor = (token: string) =>
         `${baseUrl}/auth/magic?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(postCheckoutPath)}`;
       // The browser that just paid gets a short-lived link; the emailed copy keeps the 7-day life.
@@ -239,7 +250,7 @@ export async function POST(request: NextRequest) {
         signMagicLoginToken(userForLink.id, userForLink.email, MAGIC_LINK_BROWSER_TTL)
       );
 
-      if (!result.alreadyProcessed) {
+      if (!result.alreadyProcessed && !isLiverInsights) {
         await sendMembershipWelcomeEmail({
           to: userForLink.email,
           firstName: userForLink.firstName || firstName || "",

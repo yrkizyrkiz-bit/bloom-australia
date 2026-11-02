@@ -54,14 +54,21 @@ const DRIVER_COPY = {
 
 export const LIVER_DRIVER_TITLES = Object.values(DRIVER_COPY).map((item) => item.title);
 
+export const LIVER_CTA_RECOMMENDATION: Record<LiverResultTier, string> = {
+  high: "Recommendation based on your risk: take a closer look at your liver biomarkers.",
+  moderate: "Recommendation based on your risk: take a closer look at your liver biomarkers.",
+  low: "Your risk looks low. If you’d still like peace of mind, you can check your liver biomarkers.",
+};
+
 export const LIVER_ASSESSMENT_UI: OrganAssessmentUiCopy = {
   organ: "liver",
   headlines: LIVER_RESULT_HEADLINES,
   markers: LIVER_BLOOD_MARKERS,
   disclaimer: LIVER_RESULT_DISCLAIMER,
-  ctaLabel: "Check My Liver Risk",
+  ctaLabel: "Catch issues early – $79",
   checkoutSource: "fatty_liver",
   checkoutButton: "liver_quiz_result",
+  checkoutProduct: "liver_biomarker_insights",
   consentOrgan: "liver",
   apiPath: "/api/public/liver-assessment-results",
   leadContentName: "Liver assessment email results",

@@ -37,6 +37,7 @@ export const PRODUCT_PROGRAM_OPTIONS: Array<{ value: string; label: string }> = 
   { value: "WOMENS_HEALTH_SEXUAL", label: "Women's Wellness" },
   { value: "BIOLOGICAL_CLOCK", label: "Biomarker Panels" },
   { value: "ORGAN_CARE", label: "Organ Care / Membership" },
+  { value: "LIVER_BIOMARKER_INSIGHTS", label: "Liver Biomarker Insights" },
 ];
 
 export type AdminPriceRow = {

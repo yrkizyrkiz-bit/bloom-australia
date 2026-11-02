@@ -14,6 +14,7 @@ import {
 } from "@/lib/portal/first-visit-greeting";
 import {
   BIOMARKERS_HERO,
+  LIVER_BIOMARKER_INSIGHTS_CARD,
   SUPPLEMENTS_CARD,
   getProgramCardsForGender,
   type CardTheme,
@@ -347,6 +348,62 @@ function ProgramTile({
   );
 }
 
+function LiverInsightsTile({ onNavigate }: { onNavigate?: () => void }) {
+  const Icon = LIVER_BIOMARKER_INSIGHTS_CARD.icon;
+  const theme = LIVER_BIOMARKER_INSIGHTS_CARD.theme;
+  const colors = toneClasses(theme.tone);
+
+  return (
+    <CleanCardShell
+      href={LIVER_BIOMARKER_INSIGHTS_CARD.route}
+      theme={theme}
+      onNavigate={onNavigate}
+      className="min-h-0 flex-row items-center gap-3 p-3.5 sm:gap-5 sm:p-4 md:hover:scale-[1.005]"
+    >
+      <div
+        className={cn(
+          "relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11",
+          theme.iconCircle
+        )}
+      >
+        <Icon className={cn("h-5 w-5", theme.iconColor)} />
+      </div>
+
+      <div className="relative z-10 min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className={cn("font-serif text-lg leading-tight sm:text-xl", colors.title)}>
+            Liver{" "}
+            <span className={colors.accent}>{LIVER_BIOMARKER_INSIGHTS_CARD.titleAccent}</span>
+          </h3>
+          {theme.badge && (
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                theme.badge.className
+              )}
+            >
+              {theme.badge.label}
+            </span>
+          )}
+        </div>
+        <p className={cn("mt-0.5 truncate text-sm leading-snug", colors.body)}>
+          {LIVER_BIOMARKER_INSIGHTS_CARD.tagline}
+        </p>
+      </div>
+
+      <div
+        className={cn(
+          "relative z-10 flex shrink-0 items-center gap-1.5 text-sm font-medium",
+          colors.cta
+        )}
+      >
+        <span className="hidden sm:inline">{LIVER_BIOMARKER_INSIGHTS_CARD.priceHint}</span>
+        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+      </div>
+    </CleanCardShell>
+  );
+}
+
 function SupplementsTile({ onNavigate }: { onNavigate?: () => void }) {
   const Icon = SUPPLEMENTS_CARD.icon;
   const theme = SUPPLEMENTS_CARD.theme;
@@ -428,6 +485,7 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
   );
   const cards = getProgramCardsForGender(user?.gender, { entitledProgramKeys });
   const firstName = user?.firstName;
+  const showLiverInsightsCard = Boolean(portal?.hasLiverBiomarkerInsights);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -473,6 +531,7 @@ export function ProgramGridDashboard({ onNavigate }: { onNavigate?: () => void }
         ))}
       </div>
 
+      {showLiverInsightsCard && <LiverInsightsTile onNavigate={onNavigate} />}
       <SupplementsTile onNavigate={onNavigate} />
     </div>
   );

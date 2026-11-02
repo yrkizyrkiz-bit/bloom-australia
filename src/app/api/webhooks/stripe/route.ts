@@ -107,6 +107,25 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 
   // Consolidated Sanative Membership funnel, safety net if the client never
   // reaches /api/public/membership-checkout/complete (e.g. closed the tab).
+  if (paymentIntent.metadata?.purchaseType === "liver_biomarker_insights") {
+    const { activateLiverBiomarkerInsights } = await import(
+      "@/lib/portal/liver-biomarker-insights"
+    );
+    const email = paymentIntent.metadata.email;
+    if (email) {
+      await activateLiverBiomarkerInsights({
+        paymentIntentId: paymentIntent.id,
+        customerId: (paymentIntent.customer as string) || null,
+        email,
+        phone: paymentIntent.metadata.phone || null,
+        postcode: paymentIntent.metadata.postcode || null,
+      }).catch((err) => {
+        console.error("[webhook] liver_biomarker_insights activation failed:", err);
+      });
+    }
+    return;
+  }
+
   if (paymentIntent.metadata?.purchaseType === "sanative_membership") {
     const { activateSanativeMembership } = await import(
       "@/lib/portal/sanative-membership"

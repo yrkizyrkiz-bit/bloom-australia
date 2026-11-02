@@ -645,6 +645,7 @@ export async function POST(req: NextRequest) {
             isBiomarkersBooking = true;
           } else if (
             piPeek.metadata?.purchaseType === "sanative_membership" ||
+            piPeek.metadata?.purchaseType === "liver_biomarker_insights" ||
             piPeek.metadata?.type === "organ_care_membership"
           ) {
             // Consolidated membership funnel PI, even if hold notes still say

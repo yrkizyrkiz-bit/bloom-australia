@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -52,6 +52,10 @@ import {
   type OrderSummaryMarqueeItem,
 } from "@/lib/membership/order-summary-marquee";
 import { getOrganCheckoutSummary } from "@/lib/membership/organ-checkout-summary";
+import {
+  isLiverBiomarkerInsightsCheckout,
+  membershipCheckoutDisplayFallback,
+} from "@/lib/membership/checkout-product-select";
 import {
   getMetaAttribution,
   rememberMetaCheckoutButton,
@@ -137,7 +141,7 @@ function OrganCheckoutSteps({
   included,
 }: {
   steps: readonly string[];
-  included: string;
+  included?: string;
 }) {
   return (
     <div className="space-y-2.5 sm:space-y-3">
@@ -154,9 +158,11 @@ function OrganCheckoutSteps({
           </span>
         </div>
       ))}
-      <p className="text-sm sm:text-[15px] lg:text-base text-gray-600 leading-snug pt-1">
-        {included}
-      </p>
+      {included ? (
+        <p className="text-sm sm:text-[15px] lg:text-base text-gray-600 leading-snug pt-1">
+          {included}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -168,12 +174,16 @@ function PaymentForm({
   customerEmail,
   customerName,
   userId,
+  contentName = "Sanative Membership",
+  contentIds = ["sanative_membership"],
 }: {
   onSuccess: (result: CheckoutPaymentSuccess) => void;
   amountAud: number;
   customerEmail?: string;
   customerName?: string;
   userId?: string;
+  contentName?: string;
+  contentIds?: string[];
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -183,12 +193,12 @@ function PaymentForm({
 
   useEffect(() => {
     trackMetaEvent("AddPaymentInfo", {
-      content_name: "Sanative Membership",
-      content_ids: ["sanative_membership"],
+      content_name: contentName,
+      content_ids: contentIds,
       currency: "AUD",
       value: amountAud,
     });
-  }, [amountAud]);
+  }, [amountAud, contentName, contentIds]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,8 +242,8 @@ function PaymentForm({
       trackMetaPurchaseOnce({
         paymentIntentId: paymentIntent.id,
         value: amountAud,
-        content_name: "Sanative Membership",
-        content_ids: ["sanative_membership"],
+        content_name: contentName,
+        content_ids: contentIds,
       });
       onSuccess({
         paymentIntentId: paymentIntent.id,
@@ -473,6 +483,15 @@ function MembershipCheckoutPageContent() {
   const funnelSource = searchParams.get("source");
   const intentProgram = searchParams.get("intent");
   const checkoutButton = searchParams.get("button");
+  const checkoutProduct = searchParams.get("product");
+  const liverInsightsCheckout = isLiverBiomarkerInsightsCheckout({
+    product: checkoutProduct,
+    button: checkoutButton,
+  });
+  const checkoutDisplay = membershipCheckoutDisplayFallback({
+    product: checkoutProduct,
+    button: checkoutButton,
+  });
   const [step, setStep] = useState<Step>("verify");
   const [verifyMethod, setVerifyMethod] = useState<"email" | "phone">("email");
   const [contact, setContact] = useState("");
@@ -497,8 +516,11 @@ function MembershipCheckoutPageContent() {
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [consentRecordId, setConsentRecordId] = useState<string | null>(null);
-  const [priceAud, setPriceAud] = useState(365);
-  const [priceLabel, setPriceLabel] = useState("$365/yr");
+  const [priceAud, setPriceAud] = useState(checkoutDisplay.amountAud);
+  const [priceLabel, setPriceLabel] = useState(checkoutDisplay.priceLabel);
+  const [productName, setProductName] = useState(checkoutDisplay.productName);
+  const [intervalLabel, setIntervalLabel] = useState(checkoutDisplay.intervalLabel);
+  const [autoRenew, setAutoRenew] = useState(checkoutDisplay.autoRenew);
 
   // Onboarding state
   const [firstName, setFirstName] = useState("");
@@ -516,16 +538,24 @@ function MembershipCheckoutPageContent() {
   const [quizDone, setQuizDone] = useState(false);
   const [magicLink, setMagicLink] = useState<string | null>(null);
   const [needsPassword, setNeedsPassword] = useState(false);
+  const bookingStepRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/public/membership-checkout/pricing")
+    const params = new URLSearchParams();
+    if (checkoutProduct) params.set("product", checkoutProduct);
+    if (checkoutButton) params.set("button", checkoutButton);
+    const query = params.toString();
+    fetch(`/api/public/membership-checkout/pricing${query ? `?${query}` : ""}`)
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.amountAud === "number") setPriceAud(data.amountAud);
         if (typeof data.priceLabel === "string") setPriceLabel(data.priceLabel);
+        if (typeof data.productName === "string") setProductName(data.productName);
+        if (typeof data.intervalLabel === "string") setIntervalLabel(data.intervalLabel);
+        if (typeof data.autoRenew === "boolean") setAutoRenew(data.autoRenew);
       })
       .catch(() => {});
-  }, []);
+  }, [checkoutProduct, checkoutButton]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -572,6 +602,19 @@ function MembershipCheckoutPageContent() {
       // ignore malformed prefill
     }
   }, [funnelSource]);
+
+  useLayoutEffect(() => {
+    if (step !== "booking") return;
+    const node = bookingStepRef.current;
+    if (!node) return;
+    node.focus({ preventScroll: true });
+    const alignBookingStep = () => {
+      node.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
+    };
+    alignBookingStep();
+    const frame = window.requestAnimationFrame(alignBookingStep);
+    return () => window.cancelAnimationFrame(frame);
+  }, [step]);
 
   const organSummary = getOrganCheckoutSummary(funnelSource);
 
@@ -718,6 +761,8 @@ function MembershipCheckoutPageContent() {
           lastName: lastName.trim(),
           phone: phone || (verifyMethod === "phone" ? contact : null),
           intentProgram,
+          product: checkoutProduct,
+          button: checkoutButton,
         }),
       });
 
@@ -731,9 +776,10 @@ function MembershipCheckoutPageContent() {
         typeof data.amountAud === "number" ? data.amountAud : priceAud;
       if (typeof data.amountAud === "number") setPriceAud(data.amountAud);
       if (typeof data.priceLabel === "string") setPriceLabel(data.priceLabel);
+      if (typeof data.productName === "string") setProductName(data.productName);
       trackMetaEvent("InitiateCheckout", {
-        content_name: "Sanative Membership",
-        content_ids: ["sanative_membership"],
+        content_name: data.productName || productName,
+        content_ids: [data.productSlug || (liverInsightsCheckout ? "liver_biomarker_insights" : "sanative_membership")],
         content_type: "product",
         content_category: intentProgram || undefined,
         currency: "AUD",
@@ -790,7 +836,7 @@ function MembershipCheckoutPageContent() {
       setMagicLink(data.magicLink ?? null);
       setNeedsPassword(Boolean(data.needsPassword));
       trackMetaEvent("CompleteRegistration", {
-        content_name: "Sanative Membership",
+        content_name: productName,
         content_category: intentProgram || undefined,
         status: true,
         currency: "AUD",
@@ -801,6 +847,9 @@ function MembershipCheckoutPageContent() {
         content_category: intentProgram || undefined,
       });
       trackMetaCheckoutStep("onboarding_completed");
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       setStep("booking");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete onboarding");
@@ -1288,6 +1337,10 @@ function MembershipCheckoutPageContent() {
               (verifyMethod === "email" ? contact : email) || undefined
             }
             customerName={`${firstName} ${lastName}`.trim() || undefined}
+            contentName={productName}
+            contentIds={[
+              liverInsightsCheckout ? "liver_biomarker_insights" : "sanative_membership",
+            ]}
           />
         </Elements>
       )}
@@ -1455,7 +1508,7 @@ function MembershipCheckoutPageContent() {
   const userEmail = email || (verifyMethod === "email" ? contact : "");
 
   const renderBookingStep = () => (
-    <div className="space-y-6">
+    <div ref={bookingStepRef} tabIndex={-1} className="space-y-6 outline-none">
       <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200
         rounded-xl">
         <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
@@ -1651,13 +1704,14 @@ function MembershipCheckoutPageContent() {
                 </span>
               </div>
 
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+              <h1 className={`text-2xl lg:text-3xl font-bold text-gray-900 ${liverInsightsCheckout ? "mb-6" : "mb-2"}`}>
                 {organSummary?.formHeadline ?? "One membership. Full clarity."}
               </h1>
-              <p className="text-gray-500 mb-6">
-                Doctor-led biomarker insights. {priceLabel},
-                auto-renews annually. Cancel anytime.
-              </p>
+              {!liverInsightsCheckout && (
+                <p className="text-gray-500 mb-6">
+                  Doctor-led biomarker insights. {priceLabel}, auto-renews annually. Cancel anytime.
+                </p>
+              )}
 
               {/* Form steps */}
               {step === "verify" && renderVerificationStep()}
@@ -1695,7 +1749,7 @@ function MembershipCheckoutPageContent() {
                 </h2>
                 {!organSummary && (
                   <p className="text-sm sm:text-base font-semibold text-gray-900">
-                    Sanative Membership
+                    {productName}
                   </p>
                 )}
               </div>
@@ -1723,7 +1777,7 @@ function MembershipCheckoutPageContent() {
 
               <div className="border-t border-gray-200 pt-3 sm:pt-4">
                 <div className="flex items-center justify-between gap-3 mb-2 text-sm sm:text-base">
-                  <span className="text-gray-600 min-w-0">Sanative Membership</span>
+                  <span className="text-gray-600 min-w-0">{productName}</span>
                   <span className="font-semibold tabular-nums shrink-0">{priceLabel}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-base sm:text-lg font-bold">
@@ -1731,7 +1785,9 @@ function MembershipCheckoutPageContent() {
                   <span className="tabular-nums">${priceAud}</span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-gray-400 mt-2 leading-snug">
-                  Everything included · auto-renews yearly · cancel anytime
+                  {liverInsightsCheckout || !autoRenew
+                    ? intervalLabel
+                    : "Everything included · auto-renews yearly · cancel anytime"}
                 </p>
               </div>
             </div>

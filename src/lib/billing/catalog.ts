@@ -109,6 +109,21 @@ const ALL_CATALOG: CatalogProductSeed[] = [
     sortOrder: 6,
     prices: CARE_CADENCES(24000),
   },
+  {
+    slug: "liver_biomarker_insights",
+    name: "Liver Biomarker Insights",
+    program: "LIVER_BIOMARKER_INSIGHTS",
+    planTier: null,
+    sortOrder: 7,
+    prices: [
+      {
+        billingInterval: "ONE_TIME",
+        amountCents: 7900,
+        isDefault: true,
+        label: "2 months Liver portal access",
+      },
+    ],
+  },
 ];
 
 const CARE_PROGRAM_SLUGS = [

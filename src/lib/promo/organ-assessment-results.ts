@@ -16,6 +16,8 @@ export type OrganAssessmentUiCopy = {
   ctaLabel: string;
   checkoutSource: string;
   checkoutButton: string;
+  /** Optional catalog product for this CTA only (e.g. liver_biomarker_insights). */
+  checkoutProduct?: string;
   consentOrgan: string;
   apiPath: string;
   leadContentName: string;

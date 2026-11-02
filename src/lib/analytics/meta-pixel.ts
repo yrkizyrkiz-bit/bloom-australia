@@ -201,8 +201,13 @@ export function rememberMetaCheckoutButton(button?: string | null): void {
 }
 
 /** Checkout URL that carries the program page and the button that was clicked. */
-export function membershipCheckoutPath(source: string, button: string): string {
+export function membershipCheckoutPath(
+  source: string,
+  button: string,
+  product?: string
+): string {
   const params = new URLSearchParams({ source, button });
+  if (product) params.set("product", product);
   return `/membership/checkout?${params.toString()}`;
 }
 

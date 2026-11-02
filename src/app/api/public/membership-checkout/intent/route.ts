@@ -14,6 +14,12 @@ import {
 import { resolvePublicCheckoutStripeCustomer } from "@/lib/portal/stripe-customer";
 import { isEstablishedCheckoutUser } from "@/lib/auth/assert-phone-available";
 import { ESTABLISHED_MEMBER_CHECKOUT_MESSAGE } from "@/lib/auth/member-identity-guard";
+import {
+  isLiverBiomarkerInsightsCheckout,
+  resolveMembershipCheckoutOffer,
+} from "@/lib/membership/checkout-product";
+import { resolveLiverBiomarkerInsightsStripePriceId } from "@/lib/portal/liver-biomarker-insights";
+import { STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES } from "@/lib/checkout/stripe-payment-methods";
 
 let stripeClient: Stripe | null = null;
 function getStripeClient(): Stripe {
@@ -43,8 +49,17 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { sessionToken, email, phone, firstName, lastName, postcode, intentProgram } =
-      body as Record<string, string | undefined>;
+    const {
+      sessionToken,
+      email,
+      phone,
+      firstName,
+      lastName,
+      postcode,
+      intentProgram,
+      product,
+      button,
+    } = body as Record<string, string | undefined>;
 
     if (!sessionToken) {
       return NextResponse.json({ error: "Verification required" }, { status: 401 });
@@ -75,7 +90,7 @@ export async function POST(req: NextRequest) {
 
     // Duplicate mobiles must not block payment — activation flags triage if needed.
 
-    const { stripePriceId, pricing } = await resolveSanativeMembershipStripePriceId();
+    const offer = await resolveMembershipCheckoutOffer({ product, button });
     const stripe = getStripeClient();
 
     const customerId = await resolvePublicCheckoutStripeCustomer({
@@ -86,6 +101,52 @@ export async function POST(req: NextRequest) {
       lastName,
       phone: resolvedPhone,
     });
+
+    if (isLiverBiomarkerInsightsCheckout({ product, button })) {
+      const { stripePriceId } = await resolveLiverBiomarkerInsightsStripePriceId();
+      const metadata = {
+        purchaseType: offer.purchaseType,
+        productSlug: offer.slug,
+        billingPriceId: offer.billingPriceId ?? "",
+        stripePriceId: stripePriceId ?? "",
+        intentProgram: intentProgram || "",
+        email: resolvedEmail,
+        phone: resolvedPhone || "",
+        postcode: postcode || "",
+        userId: identity.userId || "",
+      };
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: offer.amountCents,
+        currency: "aud",
+        customer: customerId,
+        payment_method_types: [...STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES],
+        metadata,
+        description: `${offer.productName}, ${offer.intervalLabel}`,
+      });
+
+      if (!paymentIntent.client_secret) {
+        throw new Error("Could not initialise liver insights payment");
+      }
+
+      await stripe.paymentIntents
+        .update(paymentIntent.id, { receipt_email: "" })
+        .catch(() => undefined);
+
+      return NextResponse.json({
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        subscriptionId: null,
+        customerId,
+        amountAud: offer.amountAud,
+        priceLabel: offer.priceLabel,
+        productName: offer.productName,
+        intervalLabel: offer.intervalLabel,
+        autoRenew: false,
+      });
+    }
+
+    const { stripePriceId, pricing } = await resolveSanativeMembershipStripePriceId();
 
     const metadata = {
       purchaseType: "sanative_membership",

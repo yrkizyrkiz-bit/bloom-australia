@@ -13,6 +13,7 @@ import {
   Flower2,
   Pill,
   Beaker,
+  Bean,
   type LucideIcon,
 } from "lucide-react";
 import type { ProgramKey } from "@/lib/membership/keys";
@@ -171,6 +172,23 @@ export const ORGAN_CARE_CARD = {
     { letter: "H", label: "Heart", dot: "bg-red-400" },
   ],
   organPreviewCaption: "Liver, Kidney, Heart & more",
+} as const;
+
+/** Compact Programs tile — $79 Liver Biomarker Insights only, not $365 membership. */
+export const LIVER_BIOMARKER_INSIGHTS_CARD = {
+  label: "Liver Care",
+  titleAccent: "Care",
+  tagline: "Liver Biomarker Insights — your fatty-liver program",
+  route: "/dashboard/liver-test",
+  icon: Bean,
+  theme: {
+    gradient: "from-[#e6ebe3] to-[#cdd8c6]",
+    tone: "light" as CardTone,
+    iconCircle: "bg-[#7e9a72]/25",
+    iconColor: "text-[#4a6243]",
+    badge: { label: "Insights", className: "bg-[#4a6243] text-white" },
+  },
+  priceHint: "Open",
 } as const;
 
 export const SUPPLEMENTS_CARD = {

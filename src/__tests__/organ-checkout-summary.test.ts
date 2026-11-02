@@ -13,12 +13,20 @@ describe("organ checkout summary", () => {
     expect(getOrganCheckoutSummary("weight_management")).toBeNull();
   });
 
+  it("keeps the liver explainer for fatty_liver even when checkout product is $79", () => {
+    const liver = getOrganCheckoutSummary("fatty_liver")!;
+    expect(liver.cardTitle).toBe("Check your liver in 5 simple steps");
+    expect(liver.formBadge).toBe("Liver health check");
+    expect(liver.formHeadline).toBe("Step 1: Join today");
+    expect(liver.steps).toHaveLength(5);
+  });
+
   it("keeps liver, heart, and kidney copy parallel", () => {
     const liver = getOrganCheckoutSummary("fatty_liver")!;
     const heart = getOrganCheckoutSummary("heart_health")!;
     const kidney = getOrganCheckoutSummary("kidney_health")!;
 
-    expect(liver.cardTitle).toBe("Check your liver in 4 simple steps");
+    expect(liver.cardTitle).toBe("Check your liver in 5 simple steps");
     expect(heart.cardTitle).toBe("Check your heart in 4 simple steps");
     expect(kidney.cardTitle).toBe("Check your kidneys in 4 simple steps");
 
@@ -34,11 +42,19 @@ describe("organ checkout summary", () => {
     expect(kidney.formHeadline).toBe(liver.formHeadline);
 
     expect(liver.steps.slice(0, 3)).toEqual(heart.steps.slice(0, 3));
-    expect(liver.steps[3]).toContain("liver care dashboard");
+    expect(liver.steps).toEqual([
+      "Join today – takes 2 minutes.",
+      "Get your pathology request form after first consult.",
+      "Visit a collection centre near you.",
+      "Your results explained in the Sanative app, including your liver scarring risk score (FIB-4).",
+      "A follow-up consultation with a Sanative doctor to explain your results, together with a care plan.",
+    ]);
+    expect(heart.steps).toHaveLength(4);
+    expect(kidney.steps).toHaveLength(4);
     expect(heart.steps[3]).toContain("heart care dashboard");
     expect(kidney.steps[3]).toContain("kidney care dashboard");
 
-    expect(liver.included).toContain("ALT, AST, GGT");
+    expect(liver.included).toBeUndefined();
     expect(heart.included).toContain("LDL, HDL, triglycerides, total cholesterol, hs-CRP, HbA1c, ApoB");
     expect(kidney.included).toContain("eGFR, creatinine, uACR, BUN, HbA1c, insulin, electrolytes");
   });
