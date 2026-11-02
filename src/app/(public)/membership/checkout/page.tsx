@@ -5,10 +5,16 @@ import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
+  ExpressCheckoutElement,
   PaymentElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import type {
+  StripeExpressCheckoutElementClickEvent,
+  StripeExpressCheckoutElementConfirmEvent,
+  StripeExpressCheckoutElementReadyEvent,
+} from "@stripe/stripe-js";
 import {
   Check,
   Shield,
@@ -31,7 +37,13 @@ import { PaymentRefreshNotice } from "@/components/checkout/PaymentRefreshNotice
 import { AustralianAddressLookup } from "@/components/checkout/AustralianAddressLookup";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import { stripePaymentMethodBillingDetails } from "@/lib/checkout/stripe-billing-details";
-import { STRIPE_CHECKOUT_WALLETS } from "@/lib/checkout/stripe-payment-methods";
+import {
+  CHECKOUT_WALLET_PHONE_MEDIA_QUERY,
+  detectCheckoutWalletOs,
+  isMobileWalletCheckout,
+  stripeExpressCheckoutOptions,
+  stripePaymentElementWallets,
+} from "@/lib/checkout/stripe-payment-methods";
 import {
   ensurePrePaymentConsentRecorded,
   paymentSourcePage,
@@ -196,6 +208,8 @@ function PaymentForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMobileCheckout, setIsMobileCheckout] = useState(false);
+  const [expressCheckoutAvailable, setExpressCheckoutAvailable] = useState(false);
 
   useEffect(() => {
     trackMetaEvent("AddPaymentInfo", {
@@ -206,12 +220,25 @@ function PaymentForm({
     });
   }, [amountAud, contentName, contentIds]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
+  useEffect(() => {
+    const update = () => setIsMobileCheckout(isMobileWalletCheckout());
+    update();
+    const media = window.matchMedia(CHECKOUT_WALLET_PHONE_MEDIA_QUERY);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
-    setIsProcessing(true);
-    setError(null);
+  const walletOs = detectCheckoutWalletOs(
+    typeof navigator !== "undefined" ? navigator.userAgent : ""
+  );
+  const showExpressCheckout = isMobileCheckout;
+  const hidePaymentElementWallets =
+    showExpressCheckout && expressCheckoutAvailable;
+
+  const completeCheckoutPayment = async () => {
+    if (!stripe || !elements) {
+      return { error: "Payment is not ready. Please try again." };
+    }
 
     const consentResult = await ensurePrePaymentConsentRecorded({
       consentChecked,
@@ -221,9 +248,7 @@ function PaymentForm({
     });
 
     if (!consentResult.ok) {
-      setError(consentResult.error);
-      setIsProcessing(false);
-      return;
+      return { error: consentResult.error };
     }
 
     const { error: submitError, paymentIntent } = await stripe.confirmPayment({
@@ -239,9 +264,7 @@ function PaymentForm({
     });
 
     if (submitError) {
-      setError(submitError.message || "Payment failed");
-      setIsProcessing(false);
-      return;
+      return { error: submitError.message || "Payment failed" };
     }
 
     if (paymentIntent?.status === "succeeded") {
@@ -255,18 +278,105 @@ function PaymentForm({
         paymentIntentId: paymentIntent.id,
         consentRecordId: consentResult.consentRecordId,
       });
-    } else {
-      setError("Payment was not completed. Please try again.");
+      return {};
+    }
+
+    return { error: "Payment was not completed. Please try again." };
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+    setError(null);
+    const result = await completeCheckoutPayment();
+    if (result.error) setError(result.error);
+    setIsProcessing(false);
+  };
+
+  const handleExpressCheckoutClick = (
+    event: StripeExpressCheckoutElementClickEvent
+  ) => {
+    if (!consentChecked) {
+      setError("Please agree to the Terms, Privacy Policy, and Telehealth Consent to continue.");
+      event.reject();
+      return;
+    }
+    event.resolve();
+  };
+
+  const handleExpressCheckoutConfirm = async (
+    event: StripeExpressCheckoutElementConfirmEvent
+  ) => {
+    if (!stripe || !elements) {
+      event.paymentFailed({ reason: "fail" });
+      return;
+    }
+
+    setIsProcessing(true);
+    setError(null);
+
+    const { error: submitError } = await elements.submit();
+    if (submitError) {
+      const message = submitError.message || "Payment failed";
+      setError(message);
+      event.paymentFailed({ reason: "fail", message });
+      setIsProcessing(false);
+      return;
+    }
+
+    const result = await completeCheckoutPayment();
+    if (result.error) {
+      setError(result.error);
+      event.paymentFailed({ reason: "fail", message: result.error });
     }
     setIsProcessing(false);
   };
 
+  const handleExpressCheckoutReady = (
+    event: StripeExpressCheckoutElementReadyEvent
+  ) => {
+    const methods = event.availablePaymentMethods;
+    setExpressCheckoutAvailable(Boolean(methods?.applePay || methods?.googlePay));
+  };
+
+  const consentCheckbox = (
+    <PrePaymentConsentCheckbox
+      checked={consentChecked}
+      onCheckedChange={setConsentChecked}
+      disabled={isProcessing}
+    />
+  );
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {showExpressCheckout && (
+        <div className="space-y-3">
+          {expressCheckoutAvailable && consentCheckbox}
+          <ExpressCheckoutElement
+            options={stripeExpressCheckoutOptions(walletOs)}
+            onReady={handleExpressCheckoutReady}
+            onClick={handleExpressCheckoutClick}
+            onConfirm={handleExpressCheckoutConfirm}
+            onCancel={() => setIsProcessing(false)}
+          />
+          {expressCheckoutAvailable && (
+            <div className="relative py-1 text-center">
+              <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-400">
+                Or pay with card
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       <PaymentElement
         options={{
           layout: "tabs",
-          wallets: STRIPE_CHECKOUT_WALLETS,
+          wallets: stripePaymentElementWallets({
+            hideWallets: hidePaymentElementWallets,
+          }),
           fields: {
             billingDetails: {
               email: "never",
@@ -276,11 +386,7 @@ function PaymentForm({
         }}
       />
 
-      <PrePaymentConsentCheckbox
-        checked={consentChecked}
-        onCheckedChange={setConsentChecked}
-        disabled={isProcessing}
-      />
+      {(!showExpressCheckout || !expressCheckoutAvailable) && consentCheckbox}
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
