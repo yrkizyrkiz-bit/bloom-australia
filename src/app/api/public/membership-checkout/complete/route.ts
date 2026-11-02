@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
     if (userForLink?.email) {
       const baseUrl = resolveAppBaseUrl({ clientOrigin, request });
       const postCheckoutPath = isLiverInsights
-        ? "/dashboard/organ-care"
+        ? "/dashboard/liver-test"
         : resolvePostCheckoutRedirect(
             intentProgram || paymentIntent.metadata?.intentProgram || null
           );

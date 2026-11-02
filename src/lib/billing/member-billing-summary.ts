@@ -20,6 +20,7 @@ import { resolveProgramMemberProgramKey } from "@/lib/membership/entitlement-ser
 import { isSanativeMembershipProduct } from "@/lib/membership/weight-access";
 import {
   evaluateSubscriptionAccess,
+  extractPaymentIntentId,
   resolveInvoiceForBilling,
   resolveLatestPaidTill,
   type BillableScopeKey,
@@ -31,6 +32,8 @@ import {
   canDiscoverBillingFromProgramIntake,
   PAID_MEMBER_JOURNEY_STATUSES,
 } from "@/lib/funnel/member-enrollment-phase";
+import { LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG } from "@/lib/membership/checkout-product-select";
+import { LIVER_BIOMARKER_INSIGHTS_ENTITLEMENT_KEY } from "@/lib/membership/liver-biomarker-insights-access";
 
 export { programSlugFromProgramKey } from "./program-slugs";
 
@@ -126,6 +129,9 @@ const SCOPE_SLUG: Record<BillableScopeKey, string> = {
 };
 
 const SCOPE_BILLING_PRIORITY: BillableScopeKey[] = ["BIOLOGICAL_CLOCK", "ORGAN_CARE"];
+
+const LIVER_BIOMARKER_INSIGHTS_PROGRAM = "LIVER_BIOMARKER_INSIGHTS";
+const LIVER_BIOMARKER_INSIGHTS_ACCESS_LABEL = "2 months Liver portal access";
 
 type InvoiceRow = BillingInvoiceRow;
 
@@ -372,6 +378,146 @@ function pickMemberSubForScope(
         (b.activatedAt?.getTime() ?? b.createdAt.getTime()) -
         (a.activatedAt?.getTime() ?? a.createdAt.getTime())
     )[0];
+}
+
+function isLiverBiomarkerInsightsProduct(product: { slug: string; program: string }) {
+  return (
+    product.slug === LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG ||
+    product.program === LIVER_BIOMARKER_INSIGHTS_PROGRAM
+  );
+}
+
+function pickLiverBiomarkerInsightsSub(memberSubs: BillingBuildContext["memberSubs"]) {
+  return memberSubs
+    .filter((sub) => isLiverBiomarkerInsightsProduct(sub.product))
+    .sort(
+      (a, b) =>
+        (b.activatedAt?.getTime() ?? b.createdAt.getTime()) -
+        (a.activatedAt?.getTime() ?? a.createdAt.getTime())
+    )[0];
+}
+
+function invoiceMatchesLiverBiomarkerInsights(description: string | null | undefined): boolean {
+  const text = (description || "").toLowerCase();
+  if (!text) return false;
+  return (
+    text.includes("liver biomarker insights") ||
+    (text.includes("liver") && text.includes("portal access"))
+  );
+}
+
+function resolveLiverBiomarkerInsightsInvoice(
+  invoices: InvoiceRow[],
+  entitlement?: { notes: string | null } | null
+): InvoiceRow | undefined {
+  const paymentIntentId = extractPaymentIntentId(entitlement?.notes);
+  if (paymentIntentId) {
+    const byPaymentIntent = invoices.find((inv) => inv.stripeId === paymentIntentId);
+    if (byPaymentIntent) return byPaymentIntent;
+  }
+  return invoices.find((inv) => invoiceMatchesLiverBiomarkerInsights(inv.description));
+}
+
+function buildLiverBiomarkerInsightsBillingSummary(
+  ctx: BillingBuildContext,
+  memberSub: BillingBuildContext["memberSubs"][number]
+): MemberBillingSummary {
+  const entitlement = ctx.scopeEntitlements.find(
+    (e) => e.key === LIVER_BIOMARKER_INSIGHTS_ENTITLEMENT_KEY && e.status !== "INACTIVE"
+  );
+  const invoice = resolveLiverBiomarkerInsightsInvoice(ctx.user.invoices, entitlement);
+  const storedAmount =
+    memberSub.billingPrice?.amountCents != null
+      ? memberSub.billingPrice.amountCents / 100
+      : invoice?.amount ?? null;
+  const billingInterval: BillingInterval =
+    memberSub.billingPrice?.billingInterval ?? "ONE_TIME";
+  const billingLabel =
+    memberSub.billingPrice?.label || LIVER_BIOMARKER_INSIGHTS_ACCESS_LABEL;
+  const isPaid =
+    !!invoice ||
+    memberSub.status === "ACTIVE" ||
+    entitlement?.status === "ACTIVE";
+  const paidAt =
+    invoice?.paidAt?.toISOString() ??
+    memberSub.activatedAt?.toISOString() ??
+    null;
+  const paidTill = memberSub.currentPeriodEnd?.toISOString() ?? null;
+
+  let recurringStatus: MemberBillingSummary["recurring"]["status"] = "inactive";
+  let recurringLabel = "Not started";
+  if (memberSub.status === "ACTIVE") {
+    recurringStatus = "active";
+    recurringLabel = `Active (${billingLabel})`;
+  } else if (memberSub.status === "PAST_DUE") {
+    recurringStatus = "past_due";
+    recurringLabel = "Payment past due";
+  } else if (memberSub.status === "CANCELLED") {
+    recurringStatus = "cancelled";
+    recurringLabel = "Cancelled";
+  } else if (isPaid) {
+    recurringStatus = "active";
+    recurringLabel = `Active (${billingLabel})`;
+  }
+
+  const programLabel = memberSub.product.name || "Liver Biomarker Insights";
+  const subscriptionAccess = evaluateSubscriptionAccess({
+    paidTill: memberSub.currentPeriodEnd,
+    recurringStatus,
+    memberSubStatus: memberSub.status,
+    firstMonthPaid: isPaid,
+    programLabel,
+  });
+
+  return {
+    program: LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG,
+    programLabel,
+    billingModel: "program_first_month",
+    selectedPlan: null,
+    planLabel: programLabel,
+    firstMonth: {
+      status: isPaid ? "paid" : "pending",
+      amountAud: storedAmount,
+      paidAt,
+    },
+    recurring: {
+      status: recurringStatus,
+      label: recurringLabel,
+      amountAud: storedAmount,
+      billingInterval,
+      billingLabel,
+      nextBillingDate: null,
+      paidTill,
+    },
+    subscription: {
+      id: memberSub.id,
+      status: memberSub.status,
+      stripeSubscriptionId: memberSub.stripeSubscriptionId,
+      stripeCustomerId: memberSub.stripeCustomerId,
+      productSlug: memberSub.product.slug,
+      productName: memberSub.product.name,
+      billingPriceId: memberSub.billingPriceId,
+      currentPeriodStart: memberSub.currentPeriodStart?.toISOString() ?? null,
+      currentPeriodEnd: memberSub.currentPeriodEnd?.toISOString() ?? null,
+      activatedAt: memberSub.activatedAt?.toISOString() ?? null,
+    },
+    availableCadences: [],
+    history: (memberSub.history || []).map((h) => ({
+      id: h.id,
+      changeType: h.changeType,
+      fromLabel: h.fromBillingPrice
+        ? `${h.fromBillingPrice.product.name}: ${h.fromBillingPrice.label || billingIntervalLabel(h.fromBillingPrice.billingInterval)}`
+        : null,
+      toLabel: h.toBillingPrice
+        ? `${h.toBillingPrice.product.name}: ${h.toBillingPrice.label || billingIntervalLabel(h.toBillingPrice.billingInterval)}`
+        : programLabel,
+      effectiveAt: h.effectiveAt.toISOString(),
+      changedBy: h.changedBy,
+    })),
+    journeyStatus: ctx.user.journeyStatus,
+    journeyLabel: ctx.stageDescription || ctx.user.journeyStatus,
+    subscriptionAccess,
+  };
 }
 
 async function buildProgramBillingSummary(
@@ -1154,7 +1300,14 @@ export async function getMemberBillingOverview(
     legacyMembership: user.membershipSubscription,
   });
 
-  if (programKeys.length === 0 && scopeKeys.length === 0 && !includeMembership) {
+  const liverSub = pickLiverBiomarkerInsightsSub(memberSubs);
+
+  if (
+    programKeys.length === 0 &&
+    scopeKeys.length === 0 &&
+    !includeMembership &&
+    !liverSub
+  ) {
     return {
       programs: [],
       journeyStatus: user.journeyStatus,
@@ -1192,11 +1345,16 @@ export async function getMemberBillingOverview(
     Promise.all(scopeKeys.map((scopeKey) => buildScopeBillingSummary(ctx, scopeKey))),
   ]);
 
+  const liverProgram = liverSub
+    ? buildLiverBiomarkerInsightsBillingSummary(ctx, liverSub)
+    : null;
+
   return {
     programs: [
       ...(membershipProgram ? [membershipProgram] : []),
       ...clinicalPrograms,
       ...scopePrograms,
+      ...(liverProgram ? [liverProgram] : []),
     ],
     journeyStatus: user.journeyStatus,
     journeyLabel,

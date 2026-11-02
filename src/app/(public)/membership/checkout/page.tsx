@@ -57,6 +57,12 @@ import {
   membershipCheckoutDisplayFallback,
 } from "@/lib/membership/checkout-product-select";
 import {
+  checkoutPrefillSelectsEmailTab,
+  defaultCheckoutVerifyMethod,
+  isLiverSignupCheckout,
+  isPhoneVerifyViewport,
+} from "@/lib/membership/checkout-verify-method";
+import {
   getMetaAttribution,
   rememberMetaCheckoutButton,
   rememberMetaFunnelSource,
@@ -488,12 +494,24 @@ function MembershipCheckoutPageContent() {
     product: checkoutProduct,
     button: checkoutButton,
   });
+  const liverSignupCheckout = isLiverSignupCheckout({
+    source: funnelSource,
+    product: checkoutProduct,
+    button: checkoutButton,
+  });
   const checkoutDisplay = membershipCheckoutDisplayFallback({
     product: checkoutProduct,
     button: checkoutButton,
   });
   const [step, setStep] = useState<Step>("verify");
-  const [verifyMethod, setVerifyMethod] = useState<"email" | "phone">("email");
+  const [verifyMethod, setVerifyMethod] = useState<"email" | "phone">(() =>
+    defaultCheckoutVerifyMethod({
+      source: funnelSource,
+      product: checkoutProduct,
+      button: checkoutButton,
+      isPhoneViewport: false,
+    })
+  );
   const [contact, setContact] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
@@ -563,12 +581,10 @@ function MembershipCheckoutPageContent() {
     return () => window.clearTimeout(timer);
   }, [resendIn]);
 
-  // Phone viewports default to SMS. Desktop keeps email. Prefill below can still switch to email.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.matchMedia("(max-width: 767px)").matches) {
-      setVerifyMethod("phone");
-    }
+  // Phone viewports default to SMS. Liver signup already starts on SMS (see useState).
+  useLayoutEffect(() => {
+    if (!isPhoneVerifyViewport()) return;
+    setVerifyMethod("phone");
   }, []);
 
   // Tag this checkout session with its hand-off source so every Meta event carries it.
@@ -590,8 +606,19 @@ function MembershipCheckoutPageContent() {
       const matchesSource = !funnelSource || prefill.source === funnelSource;
       if (!matchesSource || !prefill.email) return;
 
-      setVerifyMethod("email");
-      setContact(prefill.email);
+      const selectEmailTab = checkoutPrefillSelectsEmailTab({
+        source: funnelSource,
+        product: checkoutProduct,
+        button: checkoutButton,
+        isPhoneViewport: isPhoneVerifyViewport(),
+      });
+      if (selectEmailTab) {
+        setVerifyMethod("email");
+        setContact(prefill.email);
+      } else {
+        setVerifyMethod("phone");
+        if (prefill.phone) setContact(prefill.phone);
+      }
       setEmail(prefill.email);
       if (prefill.firstName) setFirstName(prefill.firstName);
       if (prefill.lastName) setLastName(prefill.lastName);
@@ -601,7 +628,7 @@ function MembershipCheckoutPageContent() {
     } catch {
       // ignore malformed prefill
     }
-  }, [funnelSource]);
+  }, [funnelSource, checkoutProduct, checkoutButton]);
 
   useLayoutEffect(() => {
     if (step !== "booking") return;
@@ -911,28 +938,11 @@ function MembershipCheckoutPageContent() {
         </p>
       </div>
 
-      {/* Method toggle */}
+      {/* Method toggle. Liver signup leads with Mobile so SMS is the default tab. */}
       <div className="flex gap-2">
         <button
-          onClick={() => {
-            setVerifyMethod("email");
-            setCodeSent(false);
-            setCode("");
-            setError(null);
-            setDevBypass(false);
-            setResendIn(0);
-          }}
-          className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
-            transition-all ${
-            verifyMethod === "email"
-              ? "border-gray-900 bg-gray-50"
-              : "border-gray-200 hover:border-gray-300"
-          }`}
-        >
-          <Mail className="w-4 h-4" />
-          <span className="font-medium">Email</span>
-        </button>
-        <button
+          type="button"
+          aria-pressed={verifyMethod === "phone"}
           onClick={() => {
             setVerifyMethod("phone");
             setCodeSent(false);
@@ -942,7 +952,7 @@ function MembershipCheckoutPageContent() {
             setResendIn(0);
           }}
           className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
-            transition-all ${
+            transition-all ${liverSignupCheckout ? "order-1" : "order-2"} ${
             verifyMethod === "phone"
               ? "border-gray-900 bg-gray-50"
               : "border-gray-200 hover:border-gray-300"
@@ -950,6 +960,27 @@ function MembershipCheckoutPageContent() {
         >
           <Phone className="w-4 h-4" />
           <span className="font-medium">Mobile</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={verifyMethod === "email"}
+          onClick={() => {
+            setVerifyMethod("email");
+            setCodeSent(false);
+            setCode("");
+            setError(null);
+            setDevBypass(false);
+            setResendIn(0);
+          }}
+          className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2
+            transition-all ${liverSignupCheckout ? "order-2" : "order-1"} ${
+            verifyMethod === "email"
+              ? "border-gray-900 bg-gray-50"
+              : "border-gray-200 hover:border-gray-300"
+          }`}
+        >
+          <Mail className="w-4 h-4" />
+          <span className="font-medium">Email</span>
         </button>
       </div>
 

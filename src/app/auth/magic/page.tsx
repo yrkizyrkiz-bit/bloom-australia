@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
+import { LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG } from "@/lib/membership/checkout-product-select";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
 // Program routes by subscription tier
@@ -13,6 +14,7 @@ const PROGRAM_ROUTES: Record<string, string> = {
   mens_health_sexual: "/dashboard/mens-health/sexual-health",
   hair_loss:         "/dashboard/mens-health/hair-loss?onboarding=hair-biomarkers",
   fatty_liver:       "/dashboard/weight-management?onboarding=post-checkout",
+  [LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG]: "/dashboard/liver-test",
 };
 
 function resolveRedirectPath(

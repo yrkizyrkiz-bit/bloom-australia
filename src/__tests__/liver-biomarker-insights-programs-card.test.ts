@@ -123,3 +123,25 @@ describe("Programs hub liver card", () => {
     expect(activation).toContain('key: "ORGAN_CARE"');
   });
 });
+
+describe("Liver Biomarker Insights first-login redirect", () => {
+  it("sends $79 checkout complete magic-link to /dashboard/liver-test, not organ-care", () => {
+    const complete = readSource("app/api/public/membership-checkout/complete/route.ts");
+    const liverRedirect = complete.match(
+      /const postCheckoutPath = isLiverInsights\s*\n\s*\? "([^"]+)"/
+    );
+    expect(liverRedirect?.[1]).toBe("/dashboard/liver-test");
+    expect(complete).not.toMatch(
+      /const postCheckoutPath = isLiverInsights\s*\n\s*\? "\/dashboard\/organ-care"/
+    );
+  });
+
+  it("maps liver_biomarker_insights login/magic tier to /dashboard/liver-test", () => {
+    const magic = readSource("app/auth/magic/page.tsx");
+    expect(magic).toContain("LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG");
+    expect(magic).toContain('"/dashboard/liver-test"');
+    expect(magic).not.toMatch(
+      /LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG\]:\s*"\/dashboard\/organ-care"/
+    );
+  });
+});
