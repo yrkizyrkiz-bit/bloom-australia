@@ -1637,10 +1637,14 @@ function MembershipCheckoutPageContent() {
       </div>
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Welcome to Sanative!
+          {liverInsightsCheckout ? "Welcome to Liver Biomarker Insights" : "Welcome to Sanative!"}
         </h2>
         <p className="text-gray-500">
-          Your membership is active. We&apos;ve emailed you a secure sign-in link.
+          {liverInsightsCheckout ? (
+            <>We&apos;ve emailed you a secure sign-in link to finish setup.</>
+          ) : (
+            <>Your membership is active. We&apos;ve emailed you a secure sign-in link.</>
+          )}
         </p>
       </div>
 
@@ -1665,8 +1669,14 @@ function MembershipCheckoutPageContent() {
             </p>
           </div>
           <p className="text-sm text-amber-800">
-            Your membership is active. Book your doctor consultation from your
-            dashboard when you&apos;re ready, we&apos;ll email you a reminder.
+            {liverInsightsCheckout ? (
+              <>Book your doctor consultation from your dashboard when you&apos;re ready.</>
+            ) : (
+              <>
+                Your membership is active. Book your doctor consultation from your
+                dashboard when you&apos;re ready, we&apos;ll email you a reminder.
+              </>
+            )}
           </p>
         </div>
       )}

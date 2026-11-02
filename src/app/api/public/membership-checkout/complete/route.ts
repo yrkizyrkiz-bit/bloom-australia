@@ -8,6 +8,7 @@ import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consen
 import { MAGIC_LINK_BROWSER_TTL, signMagicLoginToken } from "@/lib/magic-link";
 import { resolveAppBaseUrl } from "@/lib/app-base-url";
 import { sendMembershipWelcomeEmail } from "@/lib/email";
+import { sendLiverBiomarkerInsightsWelcomeEmail } from "@/lib/funnel/liver-biomarker-insights-welcome";
 import { syncMemberSubscriptionFromStripe } from "@/lib/billing/sync-subscription";
 import { getStripeSubscriptionPeriod } from "@/lib/stripe/subscription-period";
 import {
@@ -250,7 +251,18 @@ export async function POST(request: NextRequest) {
         signMagicLoginToken(userForLink.id, userForLink.email, MAGIC_LINK_BROWSER_TTL)
       );
 
-      if (!result.alreadyProcessed && !isLiverInsights) {
+      if (isLiverInsights) {
+        // $79 liver only. Webhook may have already activated, so do not
+        // gate on alreadyProcessed — this is the only liver welcome send.
+        await sendLiverBiomarkerInsightsWelcomeEmail({
+          to: userForLink.email,
+          firstName: userForLink.firstName || firstName || "",
+          magicLink: linkFor(signMagicLoginToken(userForLink.id, userForLink.email)),
+          needsPassword: !userForLink.passwordHash,
+        }).catch((err) =>
+          console.error("[membership-checkout/complete] liver welcome email failed:", err)
+        );
+      } else if (!result.alreadyProcessed) {
         await sendMembershipWelcomeEmail({
           to: userForLink.email,
           firstName: userForLink.firstName || firstName || "",
