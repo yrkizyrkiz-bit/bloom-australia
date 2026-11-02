@@ -29,6 +29,7 @@ import type {
   MemberBillingOverview,
   MemberBillingSummary,
 } from "@/lib/billing/member-billing-summary";
+import { LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG } from "@/lib/membership/checkout-product-select";
 import { MEMBER_PROGRAMS_HOME } from "@/lib/portal/member-home";
 
 type InvoiceRow = {
@@ -90,6 +91,9 @@ function ProgramSubscriptionCard({
   compact?: boolean;
 }) {
   const isAnnual = billing.billingModel === "annual_subscription";
+  const isOneTimePurchase =
+    billing.program === LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG ||
+    billing.recurring.billingInterval === "ONE_TIME";
   const supportHref =
     PROGRAM_SUPPORT_ROUTES[billing.program] || "/dashboard/messages";
 
@@ -139,23 +143,25 @@ function ProgramSubscriptionCard({
           </div>
         </div>
 
-        <div className="rounded-lg border p-4 bg-muted/30">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {isAnnual ? "Annual subscription" : billing.firstMonth.status === "included" ? "First 30 days" : "First month"}
-          </p>
-          <div className="flex items-center justify-between mt-2">
-            <p className="font-medium">
-              {billing.firstMonth.status === "included"
-                ? "Included with membership"
-                : billing.firstMonth.amountAud != null
-                  ? formatAud(billing.firstMonth.amountAud)
-                  : "—"}
+        {!isOneTimePurchase && (
+          <div className="rounded-lg border p-4 bg-muted/30">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {isAnnual ? "Annual subscription" : billing.firstMonth.status === "included" ? "First 30 days" : "First month"}
             </p>
-            <Badge variant="outline">
-              {billing.firstMonth.status === "included" ? "included" : billing.firstMonth.status}
-            </Badge>
+            <div className="flex items-center justify-between mt-2">
+              <p className="font-medium">
+                {billing.firstMonth.status === "included"
+                  ? "Included with membership"
+                  : billing.firstMonth.amountAud != null
+                    ? formatAud(billing.firstMonth.amountAud)
+                    : "—"}
+              </p>
+              <Badge variant="outline">
+                {billing.firstMonth.status === "included" ? "included" : billing.firstMonth.status}
+              </Badge>
+            </div>
           </div>
-        </div>
+        )}
 
         {!compact && (
           <Link href={supportHref}>

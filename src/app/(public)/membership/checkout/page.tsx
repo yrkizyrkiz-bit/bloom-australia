@@ -1763,7 +1763,7 @@ function MembershipCheckoutPageContent() {
             </p>
           </div>
           <p className="text-sm text-green-700">
-            You&apos;ll receive a calendar invite with all the details shortly.
+            Your consultation time will be confirmed shortly.
           </p>
         </div>
       ) : (
