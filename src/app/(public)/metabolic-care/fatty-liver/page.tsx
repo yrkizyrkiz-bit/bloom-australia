@@ -254,8 +254,8 @@ export default function FattyLiverPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-[#f4f7f2] via-[#e6ebe3] to-[#cdd8c6]" />
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Main Title — desktop only, above both columns */}
-            <div className="hidden lg:block text-center mb-10">
+            {/* Main Title */}
+            <div className="text-center mb-10">
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-serif text-[#2c3628] leading-[1.05]">
                 It&apos;s All{" "}
                 <span className="text-[#5c7a52] italic">Connected</span>
@@ -264,8 +264,8 @@ export default function FattyLiverPage() {
 
             {/* Two Column Layout - Perfectly Aligned */}
             <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 items-stretch">
-              {/* Left - Liver Image Panel (third on mobile, first on desktop) */}
-              <div className="order-3 lg:order-1 bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col">
+              {/* Left - Liver Image Panel */}
+              <div className="bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col">
                 {/* Image Container */}
                 <div className="flex-1 flex items-center justify-center p-4 lg:p-6 bg-gradient-to-b from-[#f8faf7] to-[#eef2eb]">
                   <Image
@@ -290,10 +290,10 @@ export default function FattyLiverPage() {
                 </div>
               </div>
 
-              {/* Right - Assessment Calculator (first on mobile, second on desktop) */}
+              {/* Right - Assessment Calculator */}
               <div
                 id="liver-assessment"
-                className="order-1 lg:order-2 scroll-mt-24 bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col"
+                className="scroll-mt-24 bg-white rounded-3xl shadow-xl border border-[#e6ebe3] overflow-hidden min-h-[580px] flex flex-col"
               >
                 {/* Header */}
                 <div className="p-5 lg:p-6 border-b border-[#e6ebe3] bg-[#f4f7f2]">
@@ -308,14 +308,6 @@ export default function FattyLiverPage() {
                 <div className="flex-1 overflow-hidden">
                   <LiverHealthCalculator />
                 </div>
-              </div>
-
-              {/* Mobile title — under the assessment card only */}
-              <div className="order-2 lg:hidden text-center">
-                <h1 className="text-5xl sm:text-6xl font-serif text-[#2c3628] leading-[1.05]">
-                  It&apos;s All{" "}
-                  <span className="text-[#5c7a52] italic">Connected</span>
-                </h1>
               </div>
             </div>
 

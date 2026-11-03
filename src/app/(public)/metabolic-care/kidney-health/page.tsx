@@ -163,7 +163,7 @@ export default function KidneyHealthPage() {
         {/* Hero */}
         <section className="relative py-12 lg:py-16 bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="hidden lg:block text-center mb-10">
+            <div className="text-center mb-10">
               <span className="inline-block px-4 py-1.5 text-sm font-medium bg-teal-100 text-teal-700 rounded-full mb-4">Organ Care</span>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-gray-900">
                 The Kidney Health <span className="text-teal-600 italic">Program</span>
@@ -174,8 +174,8 @@ export default function KidneyHealthPage() {
             </div>
 
             <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 items-stretch">
-              {/* Kidney Image (third on mobile, first on desktop) */}
-              <div className="order-3 lg:order-1 bg-gradient-to-br from-[#f0f7f5] to-[#e8f4f1] rounded-3xl shadow-xl border border-teal-100/50 overflow-hidden min-h-[580px] flex flex-col">
+              {/* Kidney Image */}
+              <div className="bg-gradient-to-br from-[#f0f7f5] to-[#e8f4f1] rounded-3xl shadow-xl border border-teal-100/50 overflow-hidden min-h-[580px] flex flex-col">
                 <div className="flex-1 flex items-center justify-center p-6 lg:p-8">
                   <Image
                     src="/images/kidney-health.webp"
@@ -197,7 +197,7 @@ export default function KidneyHealthPage() {
               {/* Kidney Health Calculator */}
               <div
                 id="kidney-assessment"
-                className="order-1 lg:order-2 scroll-mt-24 bg-white rounded-3xl shadow-xl border border-teal-100 overflow-hidden min-h-[580px] flex flex-col"
+                className="scroll-mt-24 bg-white rounded-3xl shadow-xl border border-teal-100 overflow-hidden min-h-[580px] flex flex-col"
               >
                 {/* Header */}
                 <div className="p-5 lg:p-6 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-cyan-50">
@@ -212,16 +212,6 @@ export default function KidneyHealthPage() {
                 <div className="flex-1 overflow-hidden">
                   <KidneyHealthCalculator />
                 </div>
-              </div>
-
-              <div className="order-2 lg:hidden text-center">
-                <span className="inline-block px-4 py-1.5 text-sm font-medium bg-teal-100 text-teal-700 rounded-full mb-4">Organ Care</span>
-                <h1 className="text-4xl sm:text-5xl font-serif text-gray-900">
-                  The Kidney Health <span className="text-teal-600 italic">Program</span>
-                </h1>
-                <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-                  Your kidneys work hard every day. We help you understand how they&apos;re doing, and give your doctor numbers that can be useful before symptoms appear.
-                </p>
               </div>
             </div>
 

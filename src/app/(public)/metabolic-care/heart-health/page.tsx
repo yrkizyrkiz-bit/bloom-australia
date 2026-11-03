@@ -125,7 +125,7 @@ export default function HeartHealthPage() {
         {/* Hero */}
         <section className="relative py-12 lg:py-16 bg-gradient-to-br from-rose-50 via-red-50 to-orange-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="hidden lg:block text-center mb-10">
+            <div className="text-center mb-10">
               <span className="inline-block px-4 py-1.5 text-sm font-medium bg-rose-100 text-rose-700 rounded-full mb-4">Organ Care</span>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif text-gray-900">
                 The Heart Health <span className="text-rose-600 italic">Program</span>
@@ -136,8 +136,8 @@ export default function HeartHealthPage() {
             </div>
 
             <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 items-stretch">
-              {/* Heart Image (third on mobile, first on desktop) */}
-              <div className="order-3 lg:order-1 bg-[#f5f0e8] rounded-3xl shadow-xl border border-rose-100/50 overflow-hidden min-h-[580px] flex flex-col">
+              {/* Heart Image */}
+              <div className="bg-[#f5f0e8] rounded-3xl shadow-xl border border-rose-100/50 overflow-hidden min-h-[580px] flex flex-col">
                 <div className="flex-1 flex items-center justify-center p-6 lg:p-8">
                   <Image
                     src="/images/heart-anatomical.webp"
@@ -159,7 +159,7 @@ export default function HeartHealthPage() {
               {/* Heart Health Calculator */}
               <div
                 id="heart-assessment"
-                className="order-1 lg:order-2 scroll-mt-24 bg-white rounded-3xl shadow-xl border border-rose-100 overflow-hidden min-h-[580px] flex flex-col"
+                className="scroll-mt-24 bg-white rounded-3xl shadow-xl border border-rose-100 overflow-hidden min-h-[580px] flex flex-col"
               >
                 {/* Header */}
                 <div className="p-5 lg:p-6 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-orange-50">
@@ -174,16 +174,6 @@ export default function HeartHealthPage() {
                 <div className="flex-1 overflow-hidden">
                   <HeartHealthCalculator />
                 </div>
-              </div>
-
-              <div className="order-2 lg:hidden text-center">
-                <span className="inline-block px-4 py-1.5 text-sm font-medium bg-rose-100 text-rose-700 rounded-full mb-4">Organ Care</span>
-                <h1 className="text-4xl sm:text-5xl font-serif text-gray-900">
-                  The Heart Health <span className="text-rose-600 italic">Program</span>
-                </h1>
-                <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-                  Evidence-based care for dyslipidemia, high cholesterol, and elevated triglycerides, conditions strongly linked to overweight and obesity.
-                </p>
               </div>
             </div>
 
