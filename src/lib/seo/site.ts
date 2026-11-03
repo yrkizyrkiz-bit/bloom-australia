@@ -41,6 +41,11 @@ type PageMetaInput = {
   path: string;
   /** Default true for marketing pages; set false for checkout/private flows */
   index?: boolean;
+  /**
+   * Whether crawlers should follow links. Defaults to `index` so checkout
+   * stays nofollow. Legal pages pass `follow: true` for `noindex, follow`.
+   */
+  follow?: boolean;
   ogImage?: string;
   /**
    * Cap the text Google can quote from this page. Use on legal pages so AI
@@ -54,11 +59,13 @@ export function buildPageMetadata({
   description,
   path,
   index = true,
+  follow,
   ogImage = DEFAULT_OG_IMAGE,
   maxSnippet,
 }: PageMetaInput): Metadata {
   const url = path === "/" ? SITE_URL : `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const imageUrl = ogImage.startsWith("http") ? ogImage : `${SITE_URL}${ogImage}`;
+  const shouldFollow = follow ?? index;
 
   return {
     title,
@@ -91,17 +98,17 @@ export function buildPageMetadata({
     robots: index
       ? {
           index: true,
-          follow: true,
+          follow: shouldFollow,
           ...(maxSnippet != null
             ? {
                 googleBot: {
                   index: true,
-                  follow: true,
+                  follow: shouldFollow,
                   "max-snippet": maxSnippet,
                 },
               }
             : {}),
         }
-      : { index: false, follow: false },
+      : { index: false, follow: shouldFollow },
   };
 }

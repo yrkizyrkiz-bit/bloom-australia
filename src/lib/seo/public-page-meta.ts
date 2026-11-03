@@ -193,6 +193,8 @@ export const publicPageMeta = {
     title: "Terms & Conditions | Sanative",
     description: "Terms and conditions for using Sanative services and website.",
     path: "/terms",
+    index: false,
+    follow: true,
     maxSnippet: 50,
   }),
   privacy: buildPageMetadata({
@@ -200,6 +202,8 @@ export const publicPageMeta = {
     description:
       "How Sanative collects, uses, and protects your personal and health information.",
     path: "/privacy",
+    index: false,
+    follow: true,
     maxSnippet: 50,
   }),
   refundPolicy: buildPageMetadata({
@@ -207,6 +211,8 @@ export const publicPageMeta = {
     description:
       "Sanative membership and program refund, cancellation and payment terms.",
     path: "/refund-policy",
+    index: false,
+    follow: true,
     maxSnippet: 50,
   }),
   subscriptionTerms: buildPageMetadata({
@@ -214,12 +220,16 @@ export const publicPageMeta = {
     description:
       "Subscription billing and cancellation terms for Sanative programs.",
     path: "/subscription-terms",
+    index: false,
+    follow: true,
     maxSnippet: 50,
   }),
   telehealthConsent: buildPageMetadata({
     title: "Telehealth Consent | Sanative",
     description: "Consent information for Sanative telehealth consultations.",
     path: "/telehealth-consent",
+    index: false,
+    follow: true,
     maxSnippet: 50,
   }),
   medicalDisclaimer: buildPageMetadata({
@@ -227,6 +237,8 @@ export const publicPageMeta = {
     description:
       "Important medical disclaimer for Sanative health information and assessments.",
     path: "/medical-disclaimer",
+    index: false,
+    follow: true,
     maxSnippet: 50,
   }),
   // Transactional / private-ish — unique titles but noindex
