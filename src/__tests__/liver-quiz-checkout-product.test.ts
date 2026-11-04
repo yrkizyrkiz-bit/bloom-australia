@@ -18,6 +18,11 @@ import {
   LIVER_CTA_RECOMMENDATION,
   LIVER_RESULT_VIDEO_POSTER,
   LIVER_RESULT_VIDEO_SRC,
+  LIVER_RESULT_VIDEO_TITLE,
+  RESULTS_CTA_CLICK_EVENT,
+  RESULTS_VIDEO_PLAY_EVENT,
+  RESULTS_VIDEO_WATCHED_75_EVENT,
+  resultsVideoReached75,
 } from "@/lib/promo/liver-assessment-results";
 
 const ROOT = join(process.cwd(), "src");
@@ -129,6 +134,20 @@ describe("liver quiz $79 checkout product", () => {
     expect(readSource("components/promo/KidneyHealthCalculator.tsx")).not.toContain("resultVideoSrc");
     expect(LIVER_RESULT_VIDEO_SRC).toBe("/videos/liver-quiz-result.mp4");
     expect(LIVER_RESULT_VIDEO_POSTER).toBe("/videos/liver-quiz-result-poster.jpg");
+    expect(LIVER_RESULT_VIDEO_TITLE).toBe("Liver quiz result video");
+    expect(resultsUi).toContain("trackMetaCustomEvent");
+    expect(resultsUi).toContain("RESULTS_VIDEO_PLAY_EVENT");
+    expect(resultsUi).toContain("RESULTS_VIDEO_WATCHED_75_EVENT");
+    expect(resultsUi).toContain("RESULTS_CTA_CLICK_EVENT");
+    expect(resultsUi).toContain("resultsVideoReached75");
+    expect(resultsUi).toContain("playTracked");
+    expect(resultsUi).toContain("watched75Tracked");
+    expect(resultsUi).toContain("onTimeUpdate={handleTimeUpdate}");
+    expect(resultsUi).toContain("source={copy.checkoutSource}");
+    expect(resultsUi).toContain("risk={TIER_LABEL[tier]}");
+    expect(RESULTS_VIDEO_PLAY_EVENT).toBe("results_video_play");
+    expect(RESULTS_VIDEO_WATCHED_75_EVENT).toBe("results_video_watched_75");
+    expect(RESULTS_CTA_CLICK_EVENT).toBe("results_cta_click");
     expect(LIVER_ASSESSMENT_UI.checkoutButton).toBe(LIVER_QUIZ_RESULT_BUTTON);
     expect(LIVER_ASSESSMENT_UI.checkoutProduct).toBe(LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG);
     expect(
@@ -246,5 +265,17 @@ describe("liver quiz $79 checkout product", () => {
     expect(checkout).toContain("membershipPurchaseAnalytics");
     expect(checkout).toContain("purchaseAnalytics.content_name");
     expect(checkout).toContain("currency: \"AUD\"");
+  });
+});
+
+describe("liver quiz results video analytics", () => {
+  it("fires the 75% milestone once duration is known and progress crosses the threshold", () => {
+    expect(resultsVideoReached75(0, 40)).toBe(false);
+    expect(resultsVideoReached75(29.9, 40)).toBe(false);
+    expect(resultsVideoReached75(30, 40)).toBe(true);
+    expect(resultsVideoReached75(40, 40)).toBe(true);
+    expect(resultsVideoReached75(10, 0)).toBe(false);
+    expect(resultsVideoReached75(10, Number.NaN)).toBe(false);
+    expect(resultsVideoReached75(Number.NaN, 40)).toBe(false);
   });
 });

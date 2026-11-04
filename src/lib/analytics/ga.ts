@@ -122,6 +122,14 @@ export function mirrorMetaEventToGa(
         ]
       : undefined;
 
+  const source = typeof p.source === "string" ? p.source : undefined;
+  const risk = typeof p.risk === "string" ? p.risk : undefined;
+  const videoTitle = typeof p.video_title === "string" ? p.video_title : undefined;
+  const itemName =
+    typeof p.item_name === "string"
+      ? p.item_name
+      : videoTitle ?? (typeof p.content_name === "string" ? p.content_name : undefined);
+
   trackGaEvent(gaEvent, {
     value,
     currency,
@@ -135,5 +143,9 @@ export function mirrorMetaEventToGa(
     button: p.button as string | undefined,
     checkout_step: p.checkout_step as string | undefined,
     content_category: p.content_category as string | undefined,
+    source,
+    risk,
+    video_title: videoTitle,
+    item_name: itemName,
   });
 }

@@ -57,6 +57,12 @@ export type MetaEventParams = MetaAttributionParams & {
   contents?: { id: string; quantity: number }[];
   num_items?: number;
   status?: boolean | string;
+  /** Program / quiz source (e.g. fatty_liver) — forwarded to GA4. */
+  source?: string;
+  /** Display risk tier (High | Moderate | Low) — no PII. */
+  risk?: string;
+  video_title?: string;
+  item_name?: string;
 };
 
 declare global {

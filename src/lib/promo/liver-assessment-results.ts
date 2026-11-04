@@ -77,6 +77,17 @@ export const LIVER_ASSESSMENT_UI: OrganAssessmentUiCopy = {
 /** High/Moderate results only. Source is 9:16, encoded at 540×960. */
 export const LIVER_RESULT_VIDEO_SRC = "/videos/liver-quiz-result.mp4";
 export const LIVER_RESULT_VIDEO_POSTER = "/videos/liver-quiz-result-poster.jpg";
+export const LIVER_RESULT_VIDEO_TITLE = "Liver quiz result video";
+
+export const RESULTS_VIDEO_PLAY_EVENT = "results_video_play";
+export const RESULTS_VIDEO_WATCHED_75_EVENT = "results_video_watched_75";
+export const RESULTS_CTA_CLICK_EVENT = "results_cta_click";
+
+/** True once currentTime/duration reaches 75%. Ignores unknown/zero duration. */
+export function resultsVideoReached75(currentTime: number, duration: number): boolean {
+  if (!Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0) return false;
+  return currentTime / duration >= 0.75;
+}
 
 /** Same cut-offs as before. Elevated and high both show as High. */
 export function liverDisplayTier(score: number): LiverResultTier {

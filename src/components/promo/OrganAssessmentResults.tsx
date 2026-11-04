@@ -3,10 +3,17 @@
 import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
-import { membershipCheckoutPath, trackMetaEvent } from "@/lib/analytics/meta-pixel";
+import { membershipCheckoutPath, trackMetaCustomEvent, trackMetaEvent } from "@/lib/analytics/meta-pixel";
 import { GuestSupportChat } from "@/components/promo/contact/GuestSupportChat";
 import { LEGAL_LINKS } from "@/lib/legal/constants";
-import { LIVER_CTA_RECOMMENDATION } from "@/lib/promo/liver-assessment-results";
+import {
+  LIVER_CTA_RECOMMENDATION,
+  LIVER_RESULT_VIDEO_TITLE,
+  RESULTS_CTA_CLICK_EVENT,
+  RESULTS_VIDEO_PLAY_EVENT,
+  RESULTS_VIDEO_WATCHED_75_EVENT,
+  resultsVideoReached75,
+} from "@/lib/promo/liver-assessment-results";
 import type { OrganAssessmentUiCopy, OrganDriver, OrganResultTier } from "@/lib/promo/organ-assessment-results";
 
 const TIER_LABEL: Record<OrganResultTier, string> = {
@@ -25,13 +32,46 @@ function LiverResultVideo({
   src,
   poster,
   onEnded,
+  source,
+  risk,
 }: {
   src: string;
   poster?: string;
   onEnded: () => void;
+  source: string;
+  risk: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const playTracked = useRef(false);
+  const watched75Tracked = useRef(false);
   const [started, setStarted] = useState(false);
+
+  function videoEventParams() {
+    return {
+      source,
+      funnel_source: source,
+      risk,
+      video_title: LIVER_RESULT_VIDEO_TITLE,
+      item_name: LIVER_RESULT_VIDEO_TITLE,
+      content_name: LIVER_RESULT_VIDEO_TITLE,
+      content_category: source,
+    };
+  }
+
+  function handlePlay() {
+    setStarted(true);
+    if (playTracked.current) return;
+    playTracked.current = true;
+    trackMetaCustomEvent(RESULTS_VIDEO_PLAY_EVENT, videoEventParams());
+  }
+
+  function handleTimeUpdate() {
+    if (watched75Tracked.current) return;
+    const el = videoRef.current;
+    if (!el || !resultsVideoReached75(el.currentTime, el.duration)) return;
+    watched75Tracked.current = true;
+    trackMetaCustomEvent(RESULTS_VIDEO_WATCHED_75_EVENT, videoEventParams());
+  }
 
   function startPlayback() {
     setStarted(true);
@@ -50,7 +90,8 @@ function LiverResultVideo({
           preload="none"
           controls={started}
           controlsList="nodownload noplaybackrate"
-          onPlay={() => setStarted(true)}
+          onPlay={handlePlay}
+          onTimeUpdate={handleTimeUpdate}
           onEnded={onEnded}
         >
           Your browser does not support the video tag.
@@ -139,6 +180,8 @@ export function OrganAssessmentResults({
             src={resultVideoSrc}
             poster={resultVideoPoster}
             onEnded={() => setVideoFinished(true)}
+            source={copy.checkoutSource}
+            risk={TIER_LABEL[tier]}
           />
         ) : (
           <>
@@ -195,6 +238,18 @@ export function OrganAssessmentResults({
               copy.checkoutButton,
               copy.checkoutProduct
             )}
+            onClick={() => {
+              if (!isLiver) return;
+              trackMetaCustomEvent(RESULTS_CTA_CLICK_EVENT, {
+                source: copy.checkoutSource,
+                funnel_source: copy.checkoutSource,
+                risk: TIER_LABEL[tier],
+                item_name: copy.ctaLabel,
+                content_name: copy.ctaLabel,
+                content_category: copy.checkoutSource,
+                button: copy.checkoutButton,
+              });
+            }}
             className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-sm"
           >
             {copy.ctaLabel}
