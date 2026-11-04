@@ -16,6 +16,8 @@ import { KIDNEY_ASSESSMENT_UI } from "@/lib/promo/kidney-assessment-results";
 import {
   LIVER_ASSESSMENT_UI,
   LIVER_CTA_RECOMMENDATION,
+  LIVER_RESULT_VIDEO_POSTER,
+  LIVER_RESULT_VIDEO_SRC,
 } from "@/lib/promo/liver-assessment-results";
 
 const ROOT = join(process.cwd(), "src");
@@ -113,8 +115,20 @@ describe("liver quiz $79 checkout product", () => {
     const resultsUi = readSource("components/promo/OrganAssessmentResults.tsx");
     expect(resultsUi).toContain("LIVER_CTA_RECOMMENDATION[tier]");
     expect(resultsUi).toContain("isLiver");
+    expect(resultsUi).toContain("resultVideoSrc");
+    expect(resultsUi).toContain('preload="none"');
+    expect(resultsUi).toContain('tier === "high" || tier === "moderate"');
+    expect(resultsUi).toContain("videoFinished");
+    expect(resultsUi).toContain("onEnded={() => setVideoFinished(true)}");
+    expect(resultsUi).toContain("canShowResultVideo && !videoFinished");
+    const liverCalculator = readSource("components/promo/LiverHealthCalculator.tsx");
+    expect(liverCalculator).toContain("resultVideoSrc={LIVER_RESULT_VIDEO_SRC}");
     expect(HEART_ASSESSMENT_UI.organ).toBe("heart");
     expect(KIDNEY_ASSESSMENT_UI.organ).toBe("kidney");
+    expect(readSource("components/promo/HeartHealthCalculator.tsx")).not.toContain("resultVideoSrc");
+    expect(readSource("components/promo/KidneyHealthCalculator.tsx")).not.toContain("resultVideoSrc");
+    expect(LIVER_RESULT_VIDEO_SRC).toBe("/videos/liver-quiz-result.mp4");
+    expect(LIVER_RESULT_VIDEO_POSTER).toBe("/videos/liver-quiz-result-poster.jpg");
     expect(LIVER_ASSESSMENT_UI.checkoutButton).toBe(LIVER_QUIZ_RESULT_BUTTON);
     expect(LIVER_ASSESSMENT_UI.checkoutProduct).toBe(LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG);
     expect(

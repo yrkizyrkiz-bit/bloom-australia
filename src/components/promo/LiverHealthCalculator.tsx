@@ -6,6 +6,8 @@ import { trackMetaCustomEvent } from "@/lib/analytics/meta-pixel";
 import { OrganAssessmentResults } from "@/components/promo/OrganAssessmentResults";
 import {
   LIVER_ASSESSMENT_UI,
+  LIVER_RESULT_VIDEO_POSTER,
+  LIVER_RESULT_VIDEO_SRC,
   liverDisplayTier,
   liverDriversFromAnswers,
 } from "@/lib/promo/liver-assessment-results";
@@ -194,7 +196,15 @@ export function LiverHealthCalculator() {
   const drivers = liverDriversFromAnswers(answers, bmi);
 
   if (showResults) {
-    return <OrganAssessmentResults copy={LIVER_ASSESSMENT_UI} tier={tier} drivers={drivers} />;
+    return (
+      <OrganAssessmentResults
+        copy={LIVER_ASSESSMENT_UI}
+        tier={tier}
+        drivers={drivers}
+        resultVideoSrc={LIVER_RESULT_VIDEO_SRC}
+        resultVideoPoster={LIVER_RESULT_VIDEO_POSTER}
+      />
+    );
   }
 
   // BMI Input Screen (first question)

@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
 import { membershipCheckoutPath, trackMetaEvent } from "@/lib/analytics/meta-pixel";
 import { GuestSupportChat } from "@/components/promo/contact/GuestSupportChat";
 import { LEGAL_LINKS } from "@/lib/legal/constants";
@@ -21,14 +21,69 @@ const TIER_LABEL_CLASS: Record<OrganResultTier, string> = {
   low: "text-sage-600",
 };
 
+function LiverResultVideo({
+  src,
+  poster,
+  onEnded,
+}: {
+  src: string;
+  poster?: string;
+  onEnded: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [started, setStarted] = useState(false);
+
+  function startPlayback() {
+    setStarted(true);
+    void videoRef.current?.play();
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#e6ebe3] bg-[#f4f7f2] px-3 py-3">
+      <div className="relative mx-auto aspect-[9/16] w-full max-w-[240px] overflow-hidden rounded-xl bg-[#1f261c]">
+        <video
+          ref={videoRef}
+          src={src}
+          poster={poster}
+          className="h-full w-full object-cover"
+          playsInline
+          preload="none"
+          controls={started}
+          controlsList="nodownload noplaybackrate"
+          onPlay={() => setStarted(true)}
+          onEnded={onEnded}
+        >
+          Your browser does not support the video tag.
+        </video>
+        {!started ? (
+          <button
+            type="button"
+            onClick={startPlayback}
+            className="absolute inset-0 flex items-center justify-center bg-[#1f261c]/15"
+            aria-label="Play video about your liver result"
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-[#2c3628] shadow-lg">
+              <Play className="ml-0.5 h-6 w-6 fill-current" />
+            </span>
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function OrganAssessmentResults({
   copy,
   tier,
   drivers,
+  resultVideoSrc,
+  resultVideoPoster,
 }: {
   copy: OrganAssessmentUiCopy;
   tier: OrganResultTier;
   drivers: OrganDriver[];
+  resultVideoSrc?: string;
+  resultVideoPoster?: string;
 }) {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
@@ -36,7 +91,11 @@ export function OrganAssessmentResults({
   const [emailStatus, setEmailStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [videoFinished, setVideoFinished] = useState(false);
   const isLiver = copy.organ === "liver";
+  const canShowResultVideo =
+    Boolean(resultVideoSrc) && isLiver && (tier === "high" || tier === "moderate");
+  const showResultVideo = canShowResultVideo && !videoFinished;
 
   async function handleEmailResults(event: FormEvent) {
     event.preventDefault();
@@ -75,47 +134,57 @@ export function OrganAssessmentResults({
   return (
     <div className="h-full flex flex-col">
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        <p
-          className={`text-3xl font-bold leading-none tracking-tight ${TIER_LABEL_CLASS[tier]}${isLiver ? " font-serif" : ""}`}
-        >
-          {TIER_LABEL[tier]}
-        </p>
-        <h3 className="font-serif text-2xl leading-snug text-[#2c3628]">
-          {copy.headlines[tier]}
-        </h3>
+        {showResultVideo && resultVideoSrc ? (
+          <LiverResultVideo
+            src={resultVideoSrc}
+            poster={resultVideoPoster}
+            onEnded={() => setVideoFinished(true)}
+          />
+        ) : (
+          <>
+            <p
+              className={`text-3xl font-bold leading-none tracking-tight ${TIER_LABEL_CLASS[tier]}${isLiver ? " font-serif" : ""}`}
+            >
+              {TIER_LABEL[tier]}
+            </p>
+            <h3 className="font-serif text-2xl leading-snug text-[#2c3628]">
+              {copy.headlines[tier]}
+            </h3>
 
-        {drivers.length > 0 ? (
-          <div>
-            <h4 className="mb-2 text-sm font-medium text-[#2c3628]">What&apos;s driving your result</h4>
-            <ul className="space-y-2">
-              {drivers.map((driver) => (
-                <li key={driver.id} className="rounded-xl bg-[#f4f7f2] px-3 py-2.5">
-                  <p className="text-sm font-medium text-[#34412f]">{driver.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-[#5c7a52]">{driver.body}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+            {drivers.length > 0 ? (
+              <div>
+                <h4 className="mb-2 text-sm font-medium text-[#2c3628]">What&apos;s driving your result</h4>
+                <ul className="space-y-2">
+                  {drivers.map((driver) => (
+                    <li key={driver.id} className="rounded-xl bg-[#f4f7f2] px-3 py-2.5">
+                      <p className="text-sm font-medium text-[#34412f]">{driver.title}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-[#5c7a52]">{driver.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
-        {!isLiver ? (
-          <div>
-            <h4 className="mb-2 text-sm font-medium text-[#2c3628]">What a blood test would show</h4>
-            <div className="flex flex-wrap gap-1.5">
-              {copy.markers.map((marker) => (
-                <span
-                  key={marker}
-                  className="rounded-full border border-[#cdd8c6] bg-white px-2.5 py-1 text-xs text-[#34412f]"
-                >
-                  {marker}
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : null}
+            {!isLiver ? (
+              <div>
+                <h4 className="mb-2 text-sm font-medium text-[#2c3628]">What a blood test would show</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {copy.markers.map((marker) => (
+                    <span
+                      key={marker}
+                      className="rounded-full border border-[#cdd8c6] bg-white px-2.5 py-1 text-xs text-[#34412f]"
+                    >
+                      {marker}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
 
         <div>
-          {isLiver ? (
+          {isLiver && !showResultVideo ? (
             <p className="mb-3 text-sm leading-relaxed text-[#5c7a52]">
               {LIVER_CTA_RECOMMENDATION[tier]}
             </p>

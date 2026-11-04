@@ -74,6 +74,10 @@ export const LIVER_ASSESSMENT_UI: OrganAssessmentUiCopy = {
   leadContentName: "Liver assessment email results",
 };
 
+/** High/Moderate results only. Source is 9:16, encoded at 540×960. */
+export const LIVER_RESULT_VIDEO_SRC = "/videos/liver-quiz-result.mp4";
+export const LIVER_RESULT_VIDEO_POSTER = "/videos/liver-quiz-result-poster.jpg";
+
 /** Same cut-offs as before. Elevated and high both show as High. */
 export function liverDisplayTier(score: number): LiverResultTier {
   if (score <= 8) return "low";
