@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, VolumeX } from "lucide-react";
 import { membershipCheckoutPath, trackMetaCustomEvent, trackMetaEvent } from "@/lib/analytics/meta-pixel";
 import { GuestSupportChat } from "@/components/promo/contact/GuestSupportChat";
 import { LEGAL_LINKS } from "@/lib/legal/constants";
@@ -34,17 +34,22 @@ function LiverResultVideo({
   onEnded,
   source,
   risk,
+  preferUnmutedAutoplay = false,
 }: {
   src: string;
   poster?: string;
   onEnded: () => void;
   source: string;
   risk: string;
+  preferUnmutedAutoplay?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playTracked = useRef(false);
   const watched75Tracked = useRef(false);
+  const autoplayAttempted = useRef(false);
   const [started, setStarted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [needsUserPlay, setNeedsUserPlay] = useState(false);
 
   function videoEventParams() {
     return {
@@ -58,8 +63,15 @@ function LiverResultVideo({
     };
   }
 
+  function syncMutedFromVideo() {
+    const el = videoRef.current;
+    if (el) setIsMuted(el.muted || el.volume === 0);
+  }
+
   function handlePlay() {
     setStarted(true);
+    setNeedsUserPlay(false);
+    syncMutedFromVideo();
     if (playTracked.current) return;
     playTracked.current = true;
     trackMetaCustomEvent(RESULTS_VIDEO_PLAY_EVENT, videoEventParams());
@@ -74,9 +86,54 @@ function LiverResultVideo({
   }
 
   function startPlayback() {
-    setStarted(true);
-    void videoRef.current?.play();
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = false;
+    setIsMuted(false);
+    void video.play().catch(() => {
+      video.muted = true;
+      setIsMuted(true);
+      void video.play();
+    });
   }
+
+  function unmute() {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = false;
+    video.volume = 1;
+    setIsMuted(false);
+    if (video.paused) void video.play();
+  }
+
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    if (!video || autoplayAttempted.current) return;
+    autoplayAttempted.current = true;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
+
+    if (preferUnmutedAutoplay) {
+      video.muted = false;
+      const unmutedPlay = video.play();
+      if (unmutedPlay) {
+        void unmutedPlay.catch(() => {
+          video.muted = true;
+          setIsMuted(true);
+          return video.play().catch(() => {
+            setNeedsUserPlay(true);
+          });
+        });
+        return;
+      }
+    }
+
+    video.muted = true;
+    void video.play().catch(() => {
+      setNeedsUserPlay(true);
+    });
+  }, [preferUnmutedAutoplay]);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[#e6ebe3] bg-[#f4f7f2] px-3 py-3">
@@ -86,17 +143,20 @@ function LiverResultVideo({
           src={src}
           poster={poster}
           className="h-full w-full object-cover"
+          autoPlay
+          muted={isMuted}
           playsInline
-          preload="none"
+          preload="auto"
           controls={started}
           controlsList="nodownload noplaybackrate"
           onPlay={handlePlay}
           onTimeUpdate={handleTimeUpdate}
+          onVolumeChange={syncMutedFromVideo}
           onEnded={onEnded}
         >
           Your browser does not support the video tag.
         </video>
-        {!started ? (
+        {needsUserPlay && !started ? (
           <button
             type="button"
             onClick={startPlayback}
@@ -106,6 +166,17 @@ function LiverResultVideo({
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-[#2c3628] shadow-lg">
               <Play className="ml-0.5 h-6 w-6 fill-current" />
             </span>
+          </button>
+        ) : null}
+        {started && isMuted ? (
+          <button
+            type="button"
+            onClick={unmute}
+            className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white"
+            aria-label="Unmute video"
+          >
+            <VolumeX className="h-3.5 w-3.5" />
+            Unmute
           </button>
         ) : null}
       </div>
@@ -119,12 +190,14 @@ export function OrganAssessmentResults({
   drivers,
   resultVideoSrc,
   resultVideoPoster,
+  preferUnmutedAutoplay = false,
 }: {
   copy: OrganAssessmentUiCopy;
   tier: OrganResultTier;
   drivers: OrganDriver[];
   resultVideoSrc?: string;
   resultVideoPoster?: string;
+  preferUnmutedAutoplay?: boolean;
 }) {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
@@ -182,6 +255,7 @@ export function OrganAssessmentResults({
             onEnded={() => setVideoFinished(true)}
             source={copy.checkoutSource}
             risk={TIER_LABEL[tier]}
+            preferUnmutedAutoplay={preferUnmutedAutoplay}
           />
         ) : (
           <>

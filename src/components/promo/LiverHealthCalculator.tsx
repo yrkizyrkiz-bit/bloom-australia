@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { flushSync } from "react-dom";
 import { calculateBmi } from "@/lib/bmi";
 import { trackMetaCustomEvent } from "@/lib/analytics/meta-pixel";
 import { OrganAssessmentResults } from "@/components/promo/OrganAssessmentResults";
@@ -179,7 +180,10 @@ export function LiverHealthCalculator() {
         content_category: "fatty_liver",
         content_ids: ["fatty_liver_assessment"],
       });
-      setShowResults(true);
+      flushSync(() => {
+        setAnswers(newAnswers);
+        setShowResults(true);
+      });
     }
   };
 
@@ -203,6 +207,7 @@ export function LiverHealthCalculator() {
         drivers={drivers}
         resultVideoSrc={LIVER_RESULT_VIDEO_SRC}
         resultVideoPoster={LIVER_RESULT_VIDEO_POSTER}
+        preferUnmutedAutoplay
       />
     );
   }
