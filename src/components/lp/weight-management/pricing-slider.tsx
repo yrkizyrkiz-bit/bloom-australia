@@ -13,7 +13,7 @@ import "./pricing-slider.css";
  * Drag the slider (or click a plan) to see the monthly price, per-day price,
  * saving and total for each plan length.
  */
-export function PricingSlider({ defaultPlanIndex = 3 }: { defaultPlanIndex?: number }) {
+export function PricingSlider({ defaultPlanIndex = 0 }: { defaultPlanIndex?: number }) {
   const [idx, setIdx] = useState(defaultPlanIndex);
   const q = quote(PLANS[idx], BASE_MONTHLY_PRICE);
   const hasDiscount = q.plan.discountPct > 0;

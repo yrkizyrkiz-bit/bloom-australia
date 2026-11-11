@@ -49,6 +49,15 @@ describe("weight-management campaign landing", () => {
     expect(PRICING.assessmentFee).toBe(49);
   });
 
+  it("defaults the pricing slider to the monthly plan", () => {
+    const slider = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/pricing-slider.tsx"),
+      "utf8"
+    );
+    expect(slider).toContain("defaultPlanIndex = 0");
+    expect(slider).not.toContain("defaultPlanIndex = 3");
+  });
+
   it("values the complimentary 85+ biomarker health check at $365", () => {
     expect(PRICING.healthCheckValue).toBe(365);
     expect(PRICING.biomarkerCount).toBe(85);
