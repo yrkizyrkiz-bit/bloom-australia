@@ -334,7 +334,7 @@ export function FunnelMembershipPaymentScreen({
   intentProgram = "weight_management",
   source = "weight_management_assessment",
   returnPath = "/weight-management/assessment",
-  paymentNote = "Your first 30 days of doctor-led medical weight loss care are included. After that, continue for $360 every three months. Cancel anytime.",
+  paymentNote = "Sanative Membership includes your 85+ biomarker health check, doctor consult and portal access.",
   onContinueAfterPaid,
   onSuccess,
   onError,

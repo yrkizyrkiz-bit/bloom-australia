@@ -3,15 +3,23 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
+import { FUNNEL_PATH } from "@/lib/lp/weight-management";
 
+const DEFAULT_ANNOUNCEMENT =
+  "Preventative medicine + Precise care = Longevity built for Australians";
 const DEFAULT_ANNOUNCEMENT_PRICE = "Just $365 per year—$1 per day.";
 
 type HeaderProps = {
+  /** Replaces the default slogan in the top banner. */
+  announcement?: string;
   /** Replaces the default membership price in the top banner. Pass null to hide it. */
   announcementPrice?: string | null;
 };
 
-export function Header({ announcementPrice }: HeaderProps = {}) {
+export function Header({
+  announcement = DEFAULT_ANNOUNCEMENT,
+  announcementPrice,
+}: HeaderProps = {}) {
   const priceText =
     announcementPrice === undefined ? DEFAULT_ANNOUNCEMENT_PRICE : announcementPrice;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -79,7 +87,7 @@ export function Header({ announcementPrice }: HeaderProps = {}) {
       label: "Weight Management",
       href: "/weight-management",
       dropdown: [
-        { label: "Start Assessment", href: "/weight-management/assessment" },
+        { label: "Start Assessment", href: FUNNEL_PATH },
         { label: "Dietitian Support", href: "/weight-management/dietitian-support" },
       ],
     },
@@ -126,7 +134,7 @@ export function Header({ announcementPrice }: HeaderProps = {}) {
         <div className="relative flex items-center justify-center gap-2 flex-wrap">
           <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-[#a8bb9e] animate-pulse shrink-0" />
           <span className="font-serif text-[15px] sm:text-base tracking-wide italic">
-            Preventative medicine + Precise care = Longevity built for Australians
+            {announcement}
           </span>
           {priceText ? (
             <>

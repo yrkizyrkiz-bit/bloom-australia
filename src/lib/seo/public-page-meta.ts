@@ -67,6 +67,7 @@ export const publicPageMeta = {
     description:
       "Start your Sanative weight management assessment. Share your goals and history so a doctor can review your pathway.",
     path: "/weight-management/assessment",
+    index: false,
   }),
   dietitianSupport: buildPageMetadata({
     title: "Dietitian Support | Weight Management | Sanative",

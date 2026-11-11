@@ -7,12 +7,16 @@ export async function resolveConsentUserId(input: {
 }): Promise<string | undefined> {
   const email = input.email?.trim().toLowerCase();
   if (email) {
-    const userByEmail = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
-      select: { id: true },
-    });
-    if (userByEmail) {
-      return userByEmail.id;
+    try {
+      const userByEmail = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (userByEmail) {
+        return userByEmail.id;
+      }
+    } catch (error) {
+      console.warn("[consent] user lookup by email skipped", error);
     }
   }
 
@@ -21,10 +25,14 @@ export async function resolveConsentUserId(input: {
     return undefined;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: clientUserId },
-    select: { id: true },
-  });
-
-  return user?.id;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: clientUserId },
+      select: { id: true },
+    });
+    return user?.id;
+  } catch (error) {
+    console.warn("[consent] user lookup by id skipped", error);
+    return undefined;
+  }
 }

@@ -14,7 +14,7 @@ const OTHER_PROGRAMS: Record<string, string[]> = {
 
 describe("program funnel welcome email", () => {
   it.each([
-    ["weight_management", "Weight Management", "/dashboard/weight-management?onboarding=post-checkout", "medical weight loss"],
+    ["weight_management", "Weight Management", "/dashboard/weight-management?onboarding=post-checkout", "biomarker health check"],
     ["hair_loss", "Hair Loss", "/dashboard/mens-health/hair-loss?onboarding=post-checkout", "hair loss care"],
     ["mens_health_sexual", "Men's Health", "/dashboard/mens-health/sexual-health?onboarding=post-checkout", "men's health care"],
     ["womens_health_sexual", "Women's Wellness", "/dashboard/womens-health?onboarding=post-checkout", "women's wellness care"],

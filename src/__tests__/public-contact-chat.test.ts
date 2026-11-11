@@ -57,9 +57,11 @@ describe("public contact chat", () => {
       /medicines, pathology fees, and ongoing program care after the 30 days/
     );
     const weightPricing = publicGeorgeFallbackReply("is weight loss 365 or 120");
-    expect(weightPricing).toMatch(/\$360 every three months/);
-    expect(weightPricing).toMatch(/\$120/);
-    expect(weightPricing).toMatch(/always separate, not only after those 30 days/);
+    expect(weightPricing).toMatch(/\$49/);
+    expect(weightPricing).toMatch(/\$247\.50 to \$330/);
+    expect(weightPricing).toMatch(/not part of the membership first 30 days/);
+    expect(weightPricing).not.toMatch(/\$360 every three months/);
+    expect(weightPricing).not.toMatch(/\$120 a month/);
     expect(publicGeorgeFallbackReply("what does hair health cost")).toMatch(/\$90/);
     expect(publicGeorgeFallbackReply("is organ care extra")).toMatch(/included/);
     expect(publicGeorgeFallbackReply("hello")).not.toMatch(/mobile/);
@@ -80,6 +82,11 @@ describe("public contact chat", () => {
     expect(missing).toMatch(/have not given a mobile/i);
     expect(missing).toMatch(/always separate/i);
     expect(missing).toMatch(/Never say medicines or pathology are extra only after the 30 days/);
+    expect(missing).toMatch(/Weight Management is a separate program/);
+    expect(missing).toMatch(/\$49 clinical assessment/);
+    expect(missing).not.toMatch(
+      /first 30 days of one eligible care program \(Weight Management, Hair Health/
+    );
     expect(missing).not.toMatch(
       /Things like medicines, pathology fees, and ongoing program care after the 30 days are separate/
     );

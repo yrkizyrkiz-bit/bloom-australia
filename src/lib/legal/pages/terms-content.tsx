@@ -205,7 +205,7 @@ export function TermsContent() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="Pathology, pharmacy, and third-party services">
+      <LegalSection title="Pathology and third-party services">
         <LegalH3>Sanative Membership biomarkers and blood collection</LegalH3>
         <LegalP>
           Sanative Membership biomarker testing requires a blood test (and any other samples your
@@ -253,16 +253,198 @@ export function TermsContent() {
           collection centre or use another suitable pathology provider.
         </LegalP>
 
-        <LegalH3>Pharmacy and other third parties</LegalH3>
         <LegalP>
-          If a prescription is issued, you may fulfil it through a pharmacy partner or a pharmacy of
-          your choice, subject to availability and the pharmacy&apos;s clinical discretion. Sanative
-          is not a pharmacy. We do not guarantee availability, pricing, or suitability of any
-          medicine. You must follow directions for use and read all product information provided.
+          Your use of third-party pathology services may be subject to those providers&apos; own
+          terms and privacy policies.
+        </LegalP>
+      </LegalSection>
+
+      <LegalSection title="Prescription medicines and pharmacy services">
+        <LegalP>
+          Sanative Health (Sanative) operates a digital healthcare platform and is not a pharmacy.
+          Sanative does not directly dispense, compound or supply prescription-only or
+          pharmacist-only medicines.
         </LegalP>
         <LegalP>
-          Your use of third-party pathology, pharmacy, or delivery services may be subject to those
-          providers&apos; own terms and privacy policies.
+          Where clinically appropriate, an independent, appropriately registered Partner Practitioner
+          may issue a prescription following a medical consultation. All prescribing decisions are
+          made at the practitioner&apos;s independent clinical discretion and are subject to
+          applicable Australian laws and professional standards.
+        </LegalP>
+        <LegalP>
+          Prescriptions may be fulfilled by independent licensed pharmacies within Sanative&apos;s
+          pharmacy network (Network Pharmacies). Sanative selects its Network Pharmacies having
+          regard to relevant professional and service standards and may add, replace or remove
+          pharmacies from its network from time to time.
+        </LegalP>
+        <LegalP>Each Network Pharmacy is independently responsible for:</LegalP>
+        <LegalUl>
+          <li>
+            Verifying prescriptions and determining whether dispensing is appropriate.
+          </li>
+          <li>
+            Dispensing, preparing, packaging and labelling medicines in accordance with applicable
+            laws and professional standards.
+          </li>
+          <li>
+            Ensuring that any compounded medicines comply with applicable regulatory and
+            professional requirements.
+          </li>
+          <li>Providing appropriate pharmaceutical advice and counselling.</li>
+        </LegalUl>
+        <LegalP>
+          Sanative may facilitate the prescription and dispensing process through its Platforms but
+          does not control the independent clinical or professional decisions of Partner
+          Practitioners or Network Pharmacies.
+        </LegalP>
+        <LegalP>
+          Sanative is not responsible for the independent clinical decisions, dispensing errors or
+          professional acts or omissions of Network Pharmacies. Nothing in this section excludes any
+          responsibility or obligation that cannot lawfully be excluded.
+        </LegalP>
+
+        <LegalH3>Pharmacy choice and prescription availability</LegalH3>
+        <LegalP>
+          Patients may request to have their prescriptions dispensed by a pharmacy outside
+          Sanative&apos;s network.
+        </LegalP>
+        <LegalP>
+          Sanative will assist in providing the prescription to the patient or transferring it to
+          their nominated pharmacy upon request.
+        </LegalP>
+        <LegalP>
+          The number of prescription repeats, quantity prescribed and any changes to a prescription
+          remain entirely at the prescribing practitioner&apos;s clinical discretion and must comply
+          with applicable laws.
+        </LegalP>
+        <LegalP>
+          A Network Pharmacy may decline to dispense a prescription where required or permitted by
+          law, including where dispensing is considered clinically inappropriate, the prescription
+          cannot be validated or the prescribed medicine is unavailable.
+        </LegalP>
+        <LegalP>
+          Where a Network Pharmacy cannot fulfil a prescription, Sanative will take reasonable steps
+          to facilitate dispensing through an alternative Network Pharmacy, subject to applicable
+          legal and clinical requirements.
+        </LegalP>
+        <LegalP>
+          If the prescribed medicine cannot be obtained, treatment may be delayed or temporarily
+          paused. Sanative cannot guarantee the availability of any particular medicine.
+        </LegalP>
+
+        <LegalH3>Consent and information sharing</LegalH3>
+        <LegalP>
+          By using Sanative&apos;s prescription coordination services, you authorise Sanative, your
+          Partner Practitioner and relevant healthcare service providers to share information
+          reasonably necessary to arrange and coordinate the dispensing and delivery of your
+          prescribed medicines, in accordance with applicable privacy laws and Sanative&apos;s{" "}
+          <Link href={LEGAL_LINKS.privacy} className="underline text-[#5c7a52]">
+            Privacy Policy
+          </Link>
+          .
+        </LegalP>
+        <LegalP>
+          This may include sharing relevant prescription details, contact information and delivery
+          information with Network Pharmacies and authorised delivery providers.
+        </LegalP>
+        <LegalP>
+          You acknowledge that a Network Pharmacy may contact you or your Partner Practitioner
+          directly to verify prescription information, clarify clinical requirements or coordinate
+          dispensing.
+        </LegalP>
+
+        <LegalH3>Medicine delivery</LegalH3>
+        <LegalP>
+          Where delivery is available, Sanative may coordinate delivery of prescribed medicines from
+          a Network Pharmacy to your nominated Australian delivery address using an independent
+          delivery provider (Network Courier).
+        </LegalP>
+        <LegalP>
+          By requesting delivery, you authorise the sharing of information reasonably necessary to
+          arrange and complete your delivery, in accordance with Sanative&apos;s{" "}
+          <Link href={LEGAL_LINKS.privacy} className="underline text-[#5c7a52]">
+            Privacy Policy
+          </Link>
+          .
+        </LegalP>
+        <LegalP>
+          You are responsible for providing accurate delivery details and making suitable
+          arrangements to receive medicines, including meeting any applicable identity verification
+          or delivery requirements.
+        </LegalP>
+        <LegalP>
+          Delivery timeframes provided through Sanative&apos;s Platforms are estimates only and may
+          vary due to pharmacy processing times, medicine availability, prescription verification,
+          courier operations or circumstances outside Sanative&apos;s reasonable control.
+        </LegalP>
+        <LegalP>
+          Network Couriers are independent service providers responsible for carrying out their
+          delivery services. Sanative will take reasonable steps in coordinating delivery but does
+          not guarantee delivery within a particular estimated timeframe.
+        </LegalP>
+        <LegalP>
+          If your medicine arrives damaged, appears incorrect, has not been delivered as expected or
+          raises concerns regarding its condition, you should promptly contact Sanative using the
+          contact details{" "}
+          <a href={`mailto:${SANATIVE_LEGAL.supportEmail}`} className="underline text-[#5c7a52]">
+            {SANATIVE_LEGAL.supportEmail}
+          </a>{" "}
+          and, where appropriate, the dispensing pharmacy. You should not use medicine that appears
+          damaged, incorrectly labelled or otherwise unsafe until appropriate professional advice
+          has been obtained.
+        </LegalP>
+        <LegalP>
+          Nothing in this section limits any rights or remedies available under applicable
+          Australian law.
+        </LegalP>
+
+        <LegalH3>Medication inclusions, cancellation and refunds</LegalH3>
+        <LegalP>
+          Certain Sanative healthcare programs may include prescribed medication as part of the
+          program fee, where expressly specified in the applicable program description or
+          subscription terms.
+        </LegalP>
+        <LegalP>
+          Any medication included in a program is subject to a Partner Practitioner&apos;s
+          independent clinical assessment, prescription approval, pharmacy dispensing requirements
+          and medicine availability.
+        </LegalP>
+        <LegalP>
+          Enrolment in a Sanative program does not guarantee that medication will be prescribed,
+          that a particular medication will be supplied or that a specific treatment outcome will be
+          achieved.
+        </LegalP>
+        <LegalP>
+          Medication inclusions, quantities and any applicable conditions will be determined by the
+          relevant program offering and the prescribing practitioner&apos;s clinical judgement.
+        </LegalP>
+        <LegalP>
+          If medication is not clinically appropriate, unavailable or requires modification, the
+          Partner Practitioner may recommend an alternative treatment approach. Any resulting
+          changes to program fees, inclusions or entitlements will be addressed in accordance with
+          the applicable program terms and Australian Consumer Law.
+        </LegalP>
+        <LegalP>
+          Once a prescribed medicine has been dispensed by a Network Pharmacy, you will be charged
+          for the medication and you will not be able to obtain a refund on a dispensed medication.
+          Cancellation of a Sanative membership, healthcare program or subscription does not
+          automatically entitle the program member to a refund in respect of that medicine.
+        </LegalP>
+        <LegalP>
+          Nothing in these Terms &amp; Conditions excludes, restricts or modifies any statutory
+          rights or remedies that cannot lawfully be excluded.
+        </LegalP>
+
+        <LegalH3>Clinical independence and consumer rights</LegalH3>
+        <LegalP>
+          All dispensing and pharmaceutical decisions remain the responsibility of the
+          appropriately authorised healthcare professionals and pharmacies providing those
+          services.
+        </LegalP>
+        <LegalP>
+          Sanative&apos;s role is to facilitate access to healthcare services, coordinate
+          prescriptions where applicable, and support communication and delivery arrangements
+          through its digital Platforms.
         </LegalP>
       </LegalSection>
 
@@ -351,14 +533,17 @@ export function TermsContent() {
           <li>Personalised health action plan based on your assessment and results</li>
           <li>Organ Care dashboards in your portal where available for your membership</li>
           <li>
-            First 30 days of one eligible Sanative care program, subject to clinical suitability, as
-            described below
+            First 30 days of one eligible Sanative care program (Hair Health, Men&apos;s Health, or
+            Women&apos;s Health), subject to clinical suitability, as described below. Weight
+            Management is a separate program and is not included in this 30-day period
           </li>
         </LegalUl>
         <LegalH3>Included care program period</LegalH3>
         <LegalP>
           The Sanative Membership includes the first 30 days of one eligible Sanative care program,
-          subject to clinical suitability. You must nominate your chosen program before or during
+          subject to clinical suitability. Eligible programs are Hair Health, Men&apos;s Health and
+          Women&apos;s Health. Weight Management is a separate program and is not included in the
+          30-day membership period. You must nominate your chosen eligible program before or during
           your initial doctor consultation so that your doctor can undertake the relevant clinical
           assessment and review the medical history required for that program. The included 30-day
           period is not available for a program selected after the initial consultation. Ongoing

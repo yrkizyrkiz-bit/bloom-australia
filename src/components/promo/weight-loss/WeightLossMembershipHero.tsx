@@ -3,6 +3,39 @@
 import Link from "next/link";
 import Image from "next/image";
 import styles from "./WeightLossMembershipHero.module.css";
+import { FUNNEL_PATH, PRICING } from "@/lib/lp/weight-management";
+
+const programmePoints = [
+  { text: "New medical weight loss program" },
+  { text: "New non-invasive approach to weight loss" },
+  {
+    text: "Love it or Leave it, 30-day money-back",
+    footnote: true,
+  },
+  { text: "Speak to a doctor about your options" },
+];
+
+function CheckCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      aria-hidden
+    >
+      <circle cx="9" cy="9" r="7.65" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M5.6 9.2 7.7 11.3 12.4 6.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 /**
  * Sanative Weight Loss Membership hero, editorial bento composition.
@@ -31,12 +64,23 @@ export function WeightLossMembershipHero({
           </div>
 
           <div className={styles.summary}>
-            <p>
-              Get doctor-guided biomarker insights, personalised health goals
-              and your first 30 days of Weight Management Care included.
-            </p>
-            <Link href="/weight-management/assessment" className={styles.cta}>
-              Start your journey
+            <ul className={styles.points}>
+              {programmePoints.map((point) => (
+                <li
+                  key={point.text}
+                  className={styles.point}
+                  {...(point.footnote
+                    ? { "aria-describedby": "wm-guarantee-terms" }
+                    : {})}
+                >
+                  <CheckCircleIcon className={styles.pointIcon} />
+                  {point.text}
+                  {point.footnote ? <sup className={styles.pointStar}>*</sup> : null}
+                </li>
+              ))}
+            </ul>
+            <Link href={FUNNEL_PATH} className={styles.cta}>
+              Let&apos;s get you started ${PRICING.assessmentFee}
             </Link>
           </div>
         </div>

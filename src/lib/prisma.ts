@@ -2,7 +2,13 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  prismaSchemaChecked?: boolean;
 };
+
+function appendQueryParam(url: string, key: string, value: string): string {
+  if (new RegExp(`[?&]${key}=`).test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}${key}=${value}`;
+}
 
 /**
  * On Netlify/Lambda, prefer a single connection per isolate so cold starts
@@ -15,18 +21,22 @@ function resolveDatabaseUrl(): string | undefined {
 
   const onServerless =
     process.env.NETLIFY === "true" || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
-  if (!onServerless) return url;
-  if (/[?&]connection_limit=/.test(url)) return url;
+  if (onServerless) {
+    return appendQueryParam(url, "connection_limit", "1");
+  }
 
-  const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}connection_limit=1`;
+  if (process.env.NODE_ENV !== "production") {
+    return appendQueryParam(appendQueryParam(url, "connection_limit", "5"), "pool_timeout", "20");
+  }
+
+  return url;
 }
 
 function createPrismaClient() {
   const url = resolveDatabaseUrl();
   return new PrismaClient({
     ...(url ? { datasources: { db: { url } } } : {}),
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }
 
@@ -50,6 +60,7 @@ const REQUIRED_PRISMA_MODELS = [
   "pushSubscription",
   "emailSettings",
   "emailProcessConfig",
+  "toProcess",
 ] as const;
 
 function hasCurrentPrismaSchema(client: PrismaClient): boolean {
@@ -58,13 +69,20 @@ function hasCurrentPrismaSchema(client: PrismaClient): boolean {
 
 // Reuse one client across warm serverless invokes (and Next hot reload).
 let client = globalForPrisma.prisma ?? createPrismaClient();
-if (process.env.NODE_ENV !== "production" && !hasCurrentPrismaSchema(client)) {
-  void client.$disconnect().catch(() => {});
-  client = createPrismaClient();
+if (process.env.NODE_ENV !== "production" && !globalForPrisma.prismaSchemaChecked) {
+  globalForPrisma.prismaSchemaChecked = true;
   if (!hasCurrentPrismaSchema(client)) {
-    console.warn(
-      "[prisma] Client missing required models, run `bun run db:generate` and restart the dev server"
-    );
+    const next = createPrismaClient();
+    if (hasCurrentPrismaSchema(next)) {
+      const previous = client;
+      client = next;
+      void previous.$disconnect().catch(() => {});
+    } else {
+      void next.$disconnect().catch(() => {});
+      console.warn(
+        "[prisma] Client missing required models, run `bun run db:generate` and restart the dev server"
+      );
+    }
   }
 }
 

@@ -82,7 +82,7 @@ export function buildPublicGeorgePrompt(options?: {
   return `You are George, the friendly AI care companion for Sanative, an Australian doctor-led clinic. You are chatting with a website visitor who is not signed in — including people who opened chat from a liver assessment or other public page. You are not a clinician and not Dr Wayne Haywood.
 
 Keep replies SHORT: 2–4 sentences, Australian English, warm and direct. Do not use markdown or links.
-When they ask about price, membership, $365, $120, $360, or weight loss cost, answer the two-fee structure yourself. Do not bounce them to the team for this.
+When they ask about price, membership, $365, $120, $360, or weight loss cost, answer published pricing yourself. Do not bounce them to the team for this. Weight management is $49 then $247.50–$330 a month, not membership plus $360 a quarter.
 Never say medicines or pathology fees are extra only after the 30 days. Those are always separate. The 30 days is only included care-program time; ongoing program care after that is also separate.
 
 ${SANATIVE_PRICING_BRIEF}
@@ -130,7 +130,7 @@ export function publicGeorgeFallbackReply(
     return "Organ Care is included with Sanative membership — heart, liver and kidney insights sit in the app after your biomarker results. It is not a separate paid program.";
   }
   if (text.includes("120") || text.includes("360") || text.includes("weight")) {
-    return "Sanative membership is $365 a year and includes your health check plus the first 30 days of one eligible program, such as weight management. After that first month, Weight Management Care is a separate $360 every three months — $120 a month, billed quarterly — and only if you choose to continue. Medicines, pharmacy and pathology fees are always separate, not only after those 30 days.";
+    return "Weight management is a separate program, not part of the membership first 30 days. A clinical assessment with a Sanative doctor is $49. If the program is right for you, plans range from $247.50 to $330 per month depending on the treatment and plan selected. Members who join a weight loss program before 31 December 2026 also receive a complimentary 85+ biomarker health check, valued at $365.";
   }
   if (
     text.includes("price") ||
@@ -140,7 +140,7 @@ export function publicGeorgeFallbackReply(
     text.includes("included") ||
     text.includes("pathology")
   ) {
-    return "The Sanative membership is $365 a year — about $1 a day, billed annually. It includes your health check with 85+ biomarker insights, a doctor consult, personalised dashboards in the app, and the first 30 days of one eligible care program. Medicines and pathology/lab fees are always separate. After those 30 days, continuing a care program is also billed separately.";
+    return "The Sanative membership is $365 a year — about $1 a day, billed annually. It includes your health check with 85+ biomarker insights, a doctor consult, personalised dashboards in the app, and the first 30 days of one eligible care program: Hair Health, Men's Health, or Women's Health. Medicines and pathology/lab fees are always separate. After those 30 days, continuing a care program is also billed separately.";
   }
   if (text.includes("login") || text.includes("portal") || text.includes("already a member")) {
     return "If you already have a Sanative membership, log in at /login and chat from your portal — that is the most secure way to reach your care team. I can still take a note here if you prefer.";

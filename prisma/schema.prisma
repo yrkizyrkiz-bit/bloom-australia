@@ -2689,3 +2689,30 @@ model PopulationReferenceOverride {
   updatedAt DateTime @updatedAt
   updatedBy String?
 }
+
+/// Guest LP funnel submissions (no User/account). Staff process these later.
+model ToProcess {
+  id                    String    @id @default(cuid())
+  accessToken           String    @unique
+  status                String    @default("paid")
+  source                String    @default("lp_weight_management")
+  firstName             String
+  lastName              String
+  email                 String
+  phone                 String
+  appointmentSlotId     String?
+  appointmentStart      DateTime?
+  appointmentEnd        DateTime?
+  appointmentType       String?
+  stripePaymentIntentId String?   @unique
+  amountCents           Int
+  quizAnswers           Json?
+  utm                   Json?
+  emailsSentAt          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@map("to_process")
+}

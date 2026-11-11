@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Heart, Salad, Clock, Users } from "lucide-react";
+import { FUNNEL_PATH } from "@/lib/lp/weight-management";
 
 const supportFeatures = [
   { icon: Salad, label: "Personalised meal plans" },
@@ -69,7 +70,7 @@ export function DietitianHero() {
             {/* CTA */}
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
-                href="/weight-management/assessment"
+                href={FUNNEL_PATH}
                 className="group inline-flex items-center justify-center gap-3 btn-primary text-lg px-8 py-4"
               >
                 Get started

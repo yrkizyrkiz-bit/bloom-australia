@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ArrowRight, Scale, Ruler } from "lucide-react";
 import { calculateBmi } from "@/lib/bmi";
+import { FUNNEL_PATH } from "@/lib/lp/weight-management";
 
 const eligibilityCriteria = [
   "BMI exceeding range",
@@ -110,11 +111,11 @@ export function EligibilitySection() {
                 ))}
               </div>
               <Link
-                href="/weight-management/assessment"
-                className="group inline-flex items-center gap-3 bg-[#313630] text-white text-lg font-semibold px-8 py-4 rounded-full w-full justify-center lg:w-auto hover:bg-[#3f4740] transition-colors"
+                href={FUNNEL_PATH}
+                className="group inline-flex items-center gap-2 bg-[#313630] text-white text-sm font-semibold px-5 py-3.5 rounded-full w-full justify-center whitespace-nowrap hover:bg-[#3f4740] transition-colors"
               >
-                Check your eligibility
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Speak to a doctor about your eligibility
+                <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
 

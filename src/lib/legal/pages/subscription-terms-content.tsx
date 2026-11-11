@@ -93,7 +93,9 @@ export function SubscriptionTermsContent() {
         <LegalH3>Included 30-day care program period</LegalH3>
         <LegalP>
           The Sanative Membership includes the first 30 days of one eligible Sanative care program,
-          subject to clinical suitability. You must nominate your chosen program before or during
+          subject to clinical suitability. Eligible programs are Hair Health, Men&apos;s Health and
+          Women&apos;s Health. Weight Management is a separate program and is not included in the
+          30-day membership period. You must nominate your chosen eligible program before or during
           your initial doctor consultation so that your doctor can undertake the relevant clinical
           assessment and review the medical history required for that program. The included 30-day
           period is not available for a program selected after the initial consultation.
@@ -175,8 +177,10 @@ export function SubscriptionTermsContent() {
 
       <LegalSection title="Program changes">
         <LegalP>
-          You may request to change or add an eligible Sanative care program subject to clinical
-          suitability and availability. Any price differences will be explained before a change takes
+          You may request to change or add an eligible Sanative care program (Hair Health,
+          Men&apos;s Health or Women&apos;s Health) subject to clinical suitability and availability.
+          Weight Management is a separate program and is not covered by the included 30-day
+          membership period. Any price differences will be explained before a change takes
           effect. Changing programs may require a new clinical assessment.
         </LegalP>
       </LegalSection>

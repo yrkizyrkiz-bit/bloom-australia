@@ -16,7 +16,7 @@ const PUBLIC_PROGRAM_FUNNEL_SOURCES = [
 
 const INCLUDED_LINE: Record<ClinicalFunnelProgramId, string> = {
   weight_management:
-    "Your first 30 days of doctor-led medical weight loss care are included.",
+    "Your Sanative Membership includes your 85+ biomarker health check and doctor consult.",
   hair_loss: "Your first 30 days of doctor-led hair loss care are included.",
   mens_health: "Your first 30 days of doctor-led men's health care are included.",
   womens_health: "Your first 30 days of doctor-led women's wellness care are included.",

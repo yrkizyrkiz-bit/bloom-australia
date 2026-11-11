@@ -11,7 +11,7 @@ export const homeMembershipFaqs: { question: string; answer: string }[] = [
   {
     question: "Which programs include the first 30 days?",
     answer:
-      "Your membership includes your first 30 days of one eligible Sanative care program. Eligible programs are:\n\n• Weight Management\n\n• Hair Health\n\n• Men’s Health\n\n• Women’s Health",
+      "Your membership includes your first 30 days of one eligible Sanative care program. Eligible programs are:\n\n• Hair Health\n\n• Men’s Health\n\n• Women’s Health",
   },
   {
     question: "When do I choose my program?",
@@ -36,7 +36,7 @@ export const homeMembershipFaqs: { question: string; answer: string }[] = [
   {
     question: "What are the ongoing program prices?",
     answer:
-      "After the included 30 days, ongoing care is billed every three months as follows:\n\n• Hair Health: $90\n\n• Men’s Health and Women’s Health: $240\n\n• Weight Management: $360\n\nUnless a different price is shown at checkout for your selected pathway. Medicines and pathology fees are not included.",
+      "After the included 30 days, ongoing care is billed every three months as follows:\n\n• Hair Health: $90\n\n• Men’s Health and Women’s Health: $240\n\nUnless a different price is shown at checkout for your selected pathway. Medicines and pathology fees are not included.",
   },
   {
     question: "Why is program billing every 3 months?",

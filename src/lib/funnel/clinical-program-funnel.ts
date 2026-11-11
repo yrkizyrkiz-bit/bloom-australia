@@ -146,13 +146,13 @@ export function getClinicalProgramFunnelConfig(
     qualificationImage: "/images/membership/WM_quiz.webp",
     qualificationImageAlt: "Doctor-led weight management with Sanative",
     paymentNote:
-      "Your first 30 days of doctor-led medical weight loss care are included. After that, continue for $360 every three months. Cancel anytime.",
+      "Sanative Membership includes your 85+ biomarker health check, doctor consult and portal access.",
     nextSteps: [
       NEXT_STEPS[0],
       {
         title: "Secure payment",
         detail:
-          "Pay for your Sanative membership, which includes your 85+ biomarker health check and first 30 days of the weight loss program.",
+          "Pay for your Sanative membership, which includes your 85+ biomarker health check.",
       },
       {
         title: "Book your doctor consultation",

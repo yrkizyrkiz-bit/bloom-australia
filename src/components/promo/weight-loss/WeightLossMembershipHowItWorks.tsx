@@ -3,51 +3,28 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import marqueeStyles from "@/components/promo/sections/MembershipPricingCard.module.css";
-
-/**
- * Weight-loss membership offer, presentation mirrors MembershipPricingSection
- * (split offer card). Numbering, copy style and sans fonts stay weight-page native.
- */
-const STEPS = [
-  {
-    number: "1",
-    title: "Join Sanative",
-    body: "Become a member and start with a comprehensive health check, giving you holistic insight into your health for $1/day.",
-  },
-  {
-    number: "2",
-    title: "Meet your doctor",
-    body: "Your doctor reviews your health, discusses your weight goals and issues the appropriate pathology request for your blood tests.",
-  },
-  {
-    number: "3",
-    title: "Get your Biomarker insights",
-    body: "In the app, you’ll find your biomarker results, an analysis of each health category and weight management related markers.",
-  },
-  {
-    number: "4",
-    title: "Start your personalised program",
-    body: "Your doctor develops a weight management plan around your results, medical history and goals to help you focus on what matters most.",
-  },
-  {
-    number: "5",
-    title: "Continue your care",
-    body: "Your first 30 days of doctor-led medical weight loss care are included. After that, continue for $360 every three months.",
-  },
-];
+import { FUNNEL_PATH, HOW_IT_WORKS_STEPS, PRICING } from "@/lib/lp/weight-management";
 
 const MARQUEE = [
   {
+    src: "/images/membership/mens-marquee/in-app-white.webp",
+    alt: "Sanative app on two phones showing meals, weight tracking and care team",
+    variant: "phone" as const,
+  },
+  {
     src: "/images/membership/mens-marquee/biomarker-vial.webp",
     alt: "Sanative biomarker blood test vial with metabolic markers",
+    variant: "wide" as const,
   },
   {
     src: "/images/membership/mens-marquee/organ-dashboard.webp",
     alt: "Sanative organ and metabolic health dashboard",
+    variant: "wide" as const,
   },
   {
     src: "/images/membership/mens-marquee/app-insights.webp",
     alt: "Sanative app showing health score and biomarker insights",
+    variant: "wide" as const,
   },
 ] as const;
 
@@ -62,7 +39,11 @@ function ImageMarquee() {
             key={`${item.src}-${index}`}
             src={item.src}
             alt=""
-            className="h-32 w-48 sm:h-40 sm:w-64 lg:h-44 lg:w-72 shrink-0 rounded-xl object-cover"
+            className={
+              item.variant === "phone"
+                ? "h-40 w-40 sm:h-48 sm:w-48 lg:h-52 lg:w-56 shrink-0 rounded-xl object-cover object-[42%_70%] bg-white"
+                : "h-40 w-48 sm:h-48 sm:w-64 lg:h-52 lg:w-72 shrink-0 rounded-xl object-cover"
+            }
             draggable={false}
           />
         ))}
@@ -94,17 +75,9 @@ export function WeightLossMembershipHowItWorks() {
             {/* Offer, left */}
             <div className="flex min-w-0 max-w-full flex-col justify-between gap-6 overflow-hidden rounded-3xl border border-black/10 bg-white p-6 sm:p-7 lg:p-8 shadow-xl lg:rounded-none lg:border-0 lg:border-r lg:border-black/10 lg:shadow-none">
               <div>
-                <p className="font-serif text-xl sm:text-2xl lg:text-3xl text-[#2c3628] leading-tight">
-                  All Sanative Programs{" "}
-                  <span className="text-[#5c7a52] italic">start with</span>
-                </p>
-                <h3 className="mt-2 font-sans text-2xl sm:text-[2rem] font-semibold text-black leading-tight tracking-tight">
-                  Sanative Membership
+                <h3 className="font-sans text-2xl sm:text-[2rem] font-semibold text-black leading-tight tracking-tight">
+                  A new non-invasive approach to weight loss treatment
                 </h3>
-                <p className="mt-1.5 text-sm sm:text-base text-black/55">
-                  Comprehensive biomarker insights + first 30 days of Weight
-                  Management Care
-                </p>
               </div>
 
               <div className="flex-1 flex items-center min-h-0 min-w-0 w-full max-w-full">
@@ -112,31 +85,23 @@ export function WeightLossMembershipHowItWorks() {
               </div>
 
               <div>
-                <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+                <div className="flex flex-col gap-4">
                   <div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="font-sans text-5xl sm:text-6xl font-semibold tracking-tight text-black tabular-nums leading-none">
-                        $1
-                      </span>
-                      <span className="text-base sm:text-lg font-medium text-black">
-                        a day
-                      </span>
+                    <div className="font-sans text-5xl sm:text-6xl font-semibold tracking-tight text-black tabular-nums leading-none">
+                      ${PRICING.assessmentFee}
                     </div>
-                    <p className="mt-1.5 text-sm font-medium text-black/50">
-                      $365/year
-                    </p>
-                    <p className="mt-1.5 font-medium text-black">
-                      <span className="block text-base">Join with confidence</span>
-                      <span className="block text-sm">
-                        100% refundable if you change your mind
-                      </span>
+                    <p className="mt-1.5 max-w-md text-sm leading-snug text-black/70">
+                      Join with confidence, speak to a doctor about your options.
+                      Your ${PRICING.assessmentFee} consultation fee is redeemable off
+                      your first month, or it&apos;s fully refundable if you don&apos;t
+                      qualify for the program.
                     </p>
                   </div>
                   <Link
-                    href="/weight-management/assessment"
-                    className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-[#4f6038] px-5 py-2.5 text-sm sm:text-base font-semibold text-white transition-colors hover:bg-[#3c4a27] shrink-0"
+                    href={FUNNEL_PATH}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#4f6038] px-5 py-3 text-sm sm:text-base font-semibold text-white transition-colors hover:bg-[#3c4a27]"
                   >
-                    Join Sanative
+                    Let&apos;s book a time with a doctor and get you started
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>
@@ -146,9 +111,9 @@ export function WeightLossMembershipHowItWorks() {
             {/* How it works, right */}
             <div className="flex min-w-0 max-w-full flex-col justify-center overflow-hidden rounded-3xl border border-black/10 bg-white p-6 sm:p-7 lg:p-8 shadow-xl lg:rounded-none lg:border-0 lg:shadow-none">
               <ol className="space-y-0">
-                {STEPS.map((step) => (
+                {HOW_IT_WORKS_STEPS.map((step, i) => (
                   <li
-                    key={step.number}
+                    key={step.title}
                     className="flex gap-3 sm:gap-4 py-2.5 first:pt-0 last:pb-0"
                   >
                     <div
@@ -156,7 +121,7 @@ export function WeightLossMembershipHowItWorks() {
                       style={{ backgroundColor: "#b1cc7d" }}
                       aria-hidden
                     >
-                      {step.number}
+                      {i + 1}
                     </div>
                     <div className="min-w-0 pt-0.5">
                       <h3 className="font-sans text-lg sm:text-xl font-semibold text-black leading-tight">
@@ -172,14 +137,6 @@ export function WeightLossMembershipHowItWorks() {
             </div>
           </div>
         </div>
-
-        <p className="mt-6 text-xs leading-relaxed max-w-3xl mx-auto text-center text-black/45">
-          Sanative Membership supports access to multiple care programs. One
-          included 30-day care period applies if you nominate that eligible
-          program before or during your initial doctor consultation. It is not
-          available for a program selected after that consultation.
-          *Before initial consult.
-        </p>
       </div>
     </section>
   );

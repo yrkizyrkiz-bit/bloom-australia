@@ -1,0 +1,258 @@
+/* Labs-style sticky sliders, Hers-style image crop. Scoped to the LP. */
+
+.wm-lp .wm-included {
+  --sticky-top: 56px;
+  position: relative;
+  overflow: visible;
+  padding: clamp(72px, 9vw, 120px) clamp(14px, 4vw, 32px) clamp(40px, 6vw, 72px);
+  background: var(--lp-cream);
+}
+
+.wm-lp .wm-included__header {
+  width: min(100%, 1180px);
+  margin: 0 auto clamp(40px, 6vw, 72px);
+  text-align: center;
+}
+
+.wm-lp .wm-included__header p {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.8vw, 1.75rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lp-sage-deep);
+}
+
+.wm-lp .wm-included__header h2 {
+  margin: 0.75rem auto 0;
+  max-width: 18ch;
+  font-size: clamp(2rem, 4.2vw, 3.25rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--lp-fg);
+}
+
+.wm-lp .wm-included__stack {
+  width: min(100%, 1240px);
+  margin: 0 auto;
+}
+
+.wm-lp .wm-included__stack::after {
+  content: "";
+  display: block;
+  height: 14vh;
+  pointer-events: none;
+}
+
+.wm-lp .wm-included-card {
+  position: sticky;
+  top: var(--sticky-top);
+  z-index: calc(10 + var(--card-index));
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr);
+  min-height: min(640px, 72vh);
+  margin-bottom: 12vh;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow:
+    0 2px 8px rgb(20 52 42 / 5%),
+    0 30px 70px rgb(20 52 42 / 12%);
+}
+
+.wm-lp .wm-included-card:last-child {
+  margin-bottom: 0;
+}
+
+.wm-lp .wm-included-card__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: clamp(28px, 4vw, 64px);
+  min-width: 0;
+}
+
+.wm-lp .wm-included-card__number {
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: rgb(23 60 50 / 28%);
+}
+
+.wm-lp .wm-included-card__copy h3 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.6vw, 2.15rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--lp-fg);
+}
+
+.wm-lp .wm-included-card__copy p {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--lp-muted);
+}
+
+.wm-lp .wm-included-card__visual {
+  position: relative;
+  min-width: 0;
+  min-height: 100%;
+  overflow: hidden;
+  background: #dce8dc;
+}
+
+.wm-lp .wm-included-card__visual--contain {
+  background: #142018;
+}
+
+.wm-lp .wm-included-card__img {
+  object-fit: cover;
+  object-position: center;
+}
+
+.wm-lp .wm-included-card__img--contain {
+  object-fit: contain;
+  object-position: center;
+  padding: clamp(14px, 2.2vw, 32px);
+}
+
+.wm-lp .wm-included-card__visual--wide {
+  background: #2a1810;
+}
+
+.wm-lp .wm-included-card__img--wide {
+  object-fit: cover;
+  object-position: 28% 42%;
+}
+
+/* Portrait doctor photo: desktop crop was cutting her hair. */
+.wm-lp .wm-included-card__img--doctor {
+  object-fit: cover;
+  object-position: center top;
+}
+
+.wm-lp .wm-included-card__visual--honeycomb {
+  background: #dce8dc;
+}
+
+.wm-lp .wm-included-honeycomb {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+
+.wm-lp .wm-included-honeycomb__inner {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(14px, 2.2vw, 28px) clamp(8px, 1.6vw, 20px) 0;
+}
+
+.wm-lp .wm-included-honeycomb__title {
+  margin: 0;
+  font-family: ui-serif, Georgia, serif;
+  font-size: clamp(1.2rem, 2.1vw, 1.85rem);
+  font-weight: 500;
+  line-height: 1.15;
+  color: #173c32;
+  text-align: center;
+}
+
+.wm-lp .wm-included-honeycomb__title em {
+  font-style: italic;
+  color: rgb(23 60 50 / 80%);
+}
+
+.wm-lp .wm-included-honeycomb__lede {
+  margin: 0.55rem 0 0.9rem;
+  max-width: 36ch;
+  font-size: clamp(0.72rem, 1.15vw, 0.88rem);
+  line-height: 1.4;
+  color: rgb(23 60 50 / 78%);
+  text-align: center;
+}
+
+.wm-lp .wm-included-honeycomb__grid {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.wm-lp .wm-included-honeycomb__grid > div > div:first-child {
+  margin-bottom: 0.7rem;
+}
+
+@media (max-width: 767px) {
+  .wm-lp .wm-included {
+    --sticky-top: 48px;
+    padding-inline: 16px;
+  }
+
+  .wm-lp .wm-included__header {
+    text-align: left;
+    margin-bottom: 2rem;
+  }
+
+  .wm-lp .wm-included__header h2 {
+    max-width: none;
+  }
+
+  .wm-lp .wm-included__stack::after {
+    height: 8vh;
+  }
+
+  .wm-lp .wm-included-card {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(22.5rem, 48vh);
+    min-height: auto;
+    margin-bottom: 8vh;
+    border-radius: 24px;
+  }
+
+  .wm-lp .wm-included-card__copy {
+    justify-content: flex-start;
+    padding: 24px 20px 20px;
+  }
+
+  .wm-lp .wm-included-card__copy p {
+    max-width: none;
+  }
+
+  .wm-lp .wm-included-card__visual {
+    min-height: 22.5rem;
+  }
+
+  .wm-lp .wm-included-card__img--doctor {
+    object-position: center;
+  }
+
+  .wm-lp .wm-included-card:has(.wm-included-card__visual--honeycomb) {
+    grid-template-rows: auto minmax(34rem, 68vh);
+  }
+
+  .wm-lp .wm-included-card__visual--honeycomb {
+    min-height: 34rem;
+  }
+
+  .wm-lp .wm-included-honeycomb__grid {
+    transform: scale(0.86);
+    transform-origin: top center;
+    width: 116%;
+    margin-left: -8%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wm-lp .wm-included-card {
+    position: relative;
+    top: auto;
+  }
+}

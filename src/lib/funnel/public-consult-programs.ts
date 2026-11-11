@@ -29,7 +29,7 @@ const PROGRAMS: Record<UnifiedCheckoutProgramSlug, PublicConsultProgram> = {
     label: "Weight Management",
     subscriptionTier: "weight_management",
     firstMonthAud: MEMBERSHIP_ENTRY_AUD,
-    invoiceDescription: "Sanative Membership (includes first 30 days of Weight Management Care)",
+    invoiceDescription: "Sanative Membership",
     isWeightManagement: true,
   },
   hair_loss: {

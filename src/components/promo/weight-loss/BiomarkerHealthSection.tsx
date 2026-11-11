@@ -1,8 +1,10 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
+import Link from "next/link";
 import {
   Activity,
+  ArrowRight,
   Heart,
   FlaskConical,
   Droplet,
@@ -12,6 +14,7 @@ import {
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
+import { FUNNEL_PATH } from "@/lib/lp/weight-management";
 import "./biomarker-health-marquee.css";
 
 type BiomarkerCard = {
@@ -285,6 +288,13 @@ export function BiomarkerHealthSection() {
             Doctor-reviewed biomarker monitoring for the metabolic markers
             that matter to your weight and long-term health.
           </p>
+          <Link
+            href={FUNNEL_PATH}
+            className="inline-flex w-full max-w-lg items-center justify-center gap-2 rounded-full bg-[#4f6038] px-5 py-3 text-sm sm:text-base font-semibold text-white transition-colors hover:bg-[#3c4a27]"
+          >
+            Don&apos;t delay it — explore your options with a doctor consult now
+            <ArrowRight className="w-4 h-4 shrink-0" />
+          </Link>
         </div>
 
         <section

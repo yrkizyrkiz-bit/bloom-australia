@@ -1,0 +1,21 @@
+.wm-lp .sanative-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 3px solid #3e5a34;
+  box-shadow: 0 2px 8px rgba(30, 45, 25, 0.25);
+  cursor: grab;
+}
+
+.wm-lp .sanative-range::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 3px solid #3e5a34;
+  box-shadow: 0 2px 8px rgba(30, 45, 25, 0.25);
+  cursor: grab;
+}

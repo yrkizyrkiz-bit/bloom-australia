@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
+import { FUNNEL_PATH } from "@/lib/lp/weight-management";
 
 const benefits = [
   "Personalised meal plans tailored to your goals",
@@ -65,7 +66,7 @@ export function DietitianCTA() {
         {/* CTA */}
         <div className="text-center">
           <Link
-            href="/weight-management/assessment"
+            href={FUNNEL_PATH}
             className="group inline-flex items-center gap-3 bg-white text-[#34412f] rounded-full px-10 py-5 text-lg font-medium hover:bg-[#f8f4ec] transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
           >
             Start your journey

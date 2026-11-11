@@ -14,27 +14,28 @@
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: clamp(40px, 5vw, 72px) clamp(40px, 4vw, 56px) 0;
+  padding: clamp(20px, 2.8vw, 36px) clamp(40px, 4vw, 56px) 0;
 }
 
 .intro {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 380px);
-  gap: clamp(28px, 4vw, 56px);
-  align-items: end;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 440px);
+  gap: clamp(24px, 3.2vw, 44px);
+  align-items: start;
 }
 
 .eyebrow {
   margin: 0 0 14px;
   font-size: clamp(0.95rem, 1.2vw, 1.125rem);
   font-weight: 500;
+  line-height: 1.35;
   color: rgba(255, 255, 255, 0.92);
 }
 
 .heading {
   margin: 0;
   max-width: 920px;
-  font-size: clamp(54px, 6vw, 110px);
+  font-size: clamp(46px, 5.1vw, 88px);
   font-weight: 600;
   line-height: 0.96;
   letter-spacing: -0.03em;
@@ -42,17 +43,40 @@
 }
 
 .summary {
-  max-width: 380px;
-  padding-bottom: 4px;
+  max-width: 440px;
 }
 
-.summary > p {
+.points {
   margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.point {
+  position: relative;
   font-size: clamp(1.05rem, 1.35vw, 1.25rem);
   font-weight: 500;
   line-height: 1.35;
   letter-spacing: -0.01em;
   color: rgba(255, 255, 255, 0.92);
+}
+
+.pointIcon {
+  position: absolute;
+  left: -1.55em;
+  top: 0.18em;
+  width: 1.05em;
+  height: 1.05em;
+  color: #ffffff;
+}
+
+.pointStar {
+  margin-left: 2px;
+  font-size: 0.7em;
+  line-height: 1;
 }
 
 .cta {
@@ -142,11 +166,15 @@
   }
 
   .heading {
-    font-size: clamp(48px, 7.5vw, 80px);
+    font-size: clamp(42px, 6.5vw, 68px);
   }
 
   .summary {
-    max-width: 460px;
+    max-width: 440px;
+  }
+
+  .points {
+    padding-left: 1.55em;
   }
 
   .bento {
@@ -182,7 +210,7 @@
   }
 
   .heading {
-    font-size: clamp(46px, 12vw, 64px);
+    font-size: clamp(40px, 10.5vw, 54px);
     line-height: 0.98;
   }
 

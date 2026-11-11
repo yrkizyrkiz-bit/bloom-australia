@@ -4,7 +4,7 @@ export const MEMBERSHIP_BENEFITS = [
   "Initial and a follow-up doctor consultation",
   "Biological Clock & Organ Care dashboards",
   "Personalised health insights reviewed by AHPRA doctors",
-  "First month included for any other additional health program",
+  "First 30 days of Hair Health, Men's Health or Women's Health",
   "Care partner support and 24/7 AI Health Assistant",
 ] as const;
 
@@ -15,7 +15,7 @@ export const MEMBERSHIP_PITCH =
 export const SANATIVE_PRICING_BRIEF = `PRICING AND PROGRAMS — answer these yourself. Do not invent prices or named prescription medicines.
 
 When asked what membership includes or costs, use this sense. Do not merge extras into one "after 30 days" clause:
-The Sanative membership is $365 a year — about $1 a day, billed annually. It includes your health check with 85+ biomarker insights, a doctor consult, personalised dashboards in the app, and the first 30 days of one eligible care program (Weight Management, Hair Health, Men's Health, or Women's Health). Medicines and pathology/lab fees are always separate. After those 30 days, continuing a care program is also billed separately.
+The Sanative membership is $365 a year — about $1 a day, billed annually. It includes your health check with 85+ biomarker insights, a doctor consult, personalised dashboards in the app, and the first 30 days of one eligible care program (Hair Health, Men's Health, or Women's Health). Weight Management is a separate program and is not included in that 30-day period. Medicines and pathology/lab fees are always separate. After those 30 days, continuing an eligible care program is also billed separately.
 
 Never say medicines or pathology are extra only after the 30 days. Medicines and lab/pathology fees are always private/separate. The 30 days only refers to included care-program time.
 
@@ -25,7 +25,8 @@ Included:
 - Initial telehealth consult and a follow-up doctor consult with an AHPRA-registered Australian doctor
 - Personalised insights, health action plan, Biological Clock and Organ Care dashboards in the app
 - Care partner support and 24/7 AI companion (George)
-- First 30 days of ONE eligible care program: Weight Management, Hair Health, Men's Health, or Women's Health
+- First 30 days of ONE eligible care program: Hair Health, Men's Health, or Women's Health
+- Weight Management is a separate program and is not included in that 30-day period
 Always extra — not only after the 30 days:
 - Medicines, pharmacy or dispensing fees
 - Pathology / laboratory / collection fees charged by the pathology provider (some Medicare-eligible tests may attract a rebate; this is not guaranteed)
@@ -46,10 +47,9 @@ How the included 30 days work:
 
 ONGOING PROGRAM CARE — only if they continue after the included 30 days. Billed every 3 months. Cancel anytime. Medicines and pathology are always extra, including during the first 30 days.
 
-Weight Management — $360 every 3 months ($120 per month, billed quarterly, not $120 for three months):
-Included: doctor-led weight plan, clinical monitoring, Care Partner support, portal access, dietitian support
-Not included: medication, pharmacy, pathology fees
-If asked "$365 or $120?": $365 is membership + first 30 days; $120/month ($360/3 months) is ongoing weight-management care after that.
+Weight Management — separate program, not included in membership's first 30 days:
+Start with a $49 clinical assessment with a Sanative doctor. If the program is right for you, plans range from $247.50 to $330 per month depending on the treatment and plan selected. Weight loss members who join a weight loss program before 31 December 2026 also receive a complimentary 85+ biomarker comprehensive health check, valued at $365.
+If asked "$365 or $120?" or about $360 a quarter: those are not current weight-management prices. Weight management is $49 to assess, then $247.50–$330 per month if they join. $365 is Sanative Membership for the health check and other eligible programs (Hair, Men's, Women's), not the weight-management program fee.
 
 Hair Health — $90 every 3 months:
 Included: doctor-led hair-loss review, care plan, Care Partner support, portal access
@@ -66,4 +66,4 @@ Not included: medicines, pharmacy, pathology fees. Suitable options are discusse
 Organ Care (heart, liver, kidney and related metabolic markers):
 Included with membership / biomarker insights — not a separate paid program. Dashboards and tracking sit in the app after results.
 
-You cannot join a care program without membership. The health check is the starting point. Never promise results, never name prescription medicines, never say Sanative runs the blood tests.`;
+Hair Health, Men's Health and Women's Health start with membership. Weight Management starts with the $49 clinical assessment and does not require buying membership first. Never promise results, never name prescription medicines, never say Sanative runs the blood tests.`;

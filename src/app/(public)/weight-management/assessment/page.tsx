@@ -2611,7 +2611,7 @@ export default function WeightLossAssessmentPage() {
       },
       {
         title: "Secure payment",
-        detail: "Pay for your Sanative membership, which includes your 85+ biomarker health check and first 30 days of the weight loss program.",
+        detail: "Pay for your Sanative membership, which includes your 85+ biomarker health check.",
       },
       {
         title: "Book your doctor consultation",

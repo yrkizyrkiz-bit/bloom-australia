@@ -29,15 +29,28 @@ describe("program landing CTAs go to the matching funnel", () => {
     expect(CLINICAL_FUNNEL_ASSESSMENT_PATHS.womens_health).toContain("category=menopause");
   });
 
-  it("sends weight-management hero and how-it-works CTAs to the weight loss funnel", () => {
+  it("sends weight-management page CTAs to the LP guest funnel and keeps the membership assessment intact", () => {
     const hero = readSource("components/promo/weight-loss/WeightLossMembershipHero.tsx");
     const howItWorks = readSource(
       "components/promo/weight-loss/WeightLossMembershipHowItWorks.tsx"
     );
-    expect(hero).toContain('href="/weight-management/assessment"');
+    const eligibility = readSource("components/promo/weight-loss/EligibilitySection.tsx");
+    const dietitianHero = readSource("components/promo/dietitian/DietitianHero.tsx");
+    const dietitianCta = readSource("components/promo/dietitian/DietitianCTA.tsx");
+    const assessment = readSource("app/(public)/weight-management/assessment/page.tsx");
+    expect(hero).toContain("FUNNEL_PATH");
+    expect(hero).not.toContain("/weight-management/assessment");
     expect(hero).not.toContain("/membership/checkout?intent=weight_management");
-    expect(howItWorks).toContain('href="/weight-management/assessment"');
+    expect(howItWorks).toContain("FUNNEL_PATH");
+    expect(howItWorks).not.toContain("/weight-management/assessment");
     expect(howItWorks).not.toContain("/membership/checkout?intent=weight_management");
+    expect(eligibility).toContain("FUNNEL_PATH");
+    expect(eligibility).not.toContain("/weight-management/assessment");
+    expect(dietitianHero).toContain("FUNNEL_PATH");
+    expect(dietitianHero).not.toContain("/weight-management/assessment");
+    expect(dietitianCta).toContain("FUNNEL_PATH");
+    expect(dietitianCta).not.toContain("/weight-management/assessment");
+    expect(assessment.length).toBeGreaterThan(1000);
   });
 
   it("sends men's health membership CTA to the men's health funnel", () => {

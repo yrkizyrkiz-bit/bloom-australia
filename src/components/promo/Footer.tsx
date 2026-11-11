@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Instagram, Facebook, Linkedin, Mail } from "lucide-react";
 import { GetTheAppCard } from "@/components/promo/GetTheAppCard";
 
-export function Footer() {
+export function Footer({ footnote }: { footnote?: ReactNode } = {}) {
   const footerLinks = {
     popular: [
       { label: "Biomarker Labs", href: "/labs" },
@@ -132,6 +133,7 @@ export function Footer() {
             </div>
 
             <div className="mt-12 border-t border-[#4a6243] pt-8">
+              {footnote ? <div className="mb-3 text-sm text-[#a8bb9e]">{footnote}</div> : null}
               <p className="text-sm text-[#a8bb9e]">
                 2026 Sanative. All rights reserved.
               </p>

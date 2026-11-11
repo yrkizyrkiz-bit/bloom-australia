@@ -1,58 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Check, ArrowLeft, Signal, Wifi, Battery } from "lucide-react";
+import Link from "next/link";
+import { Check, ArrowLeft, ArrowRight, Signal, Wifi, Battery } from "lucide-react";
+import { FAQ_ITEMS, FUNNEL_PATH } from "@/lib/lp/weight-management";
 
-interface QA {
-  question: string;
-  answer: string;
-}
-
-const questionsAndAnswers: QA[] = [
-  {
-    question: "How does the assessment work?",
-    answer: "Your Sanative doctor reviews your health history, symptoms, and goals. Where clinically appropriate, blood tests help identify factors that may be affecting your weight, such as thyroid function, metabolic markers, or hormonal balance.",
-  },
-  {
-    question: "Is Sanative private and discreet?",
-    answer: "Yes. Your health information is protected under Australian privacy laws and never shared without your consent. Program logistics are handled confidentially.",
-  },
-  {
-    question: "How is this different to diets?",
-    answer: "Our doctors assess underlying factors that may be contributing to weight management challenges. Your care plan is guided by your health profile and biomarkers, not BMI alone.",
-  },
-  {
-    question: "What medical treatments are available for weight loss?",
-    answer: "Treatment depends on your individual needs and clinical suitability. Australian regulations prevent us from going into further detail outside a consultation with a registered professional. Your practitioner will cover all options and answer questions during your appointment.",
-  },
-  {
-    question: "What is a Care Partner and how do they help?",
-    answer: "Your Care Partner is a real person (not a chatbot) who supports you throughout your journey. They check in weekly, answer questions between doctor consultations, help you stay accountable, and celebrate your progress. Think of them as your personal health ally who genuinely cares about your success.",
-  },
-  {
-    question: "How much does the program cost?",
-    answer: "Sanative Membership is $365/year ($1 a day) and includes your comprehensive biomarker insights plus your first 30 days of Weight Management Care. After that, continue Weight Management Care for $360 every three months. Medication cost is not included.",
-  },
-  {
-    question: "Who is eligible for the program?",
-    answer: "Generally, you need a BMI of 30+ or BMI 27+ with weight-related health conditions such as type 2 diabetes, high blood pressure, or PCOS. Women experiencing hormonal or metabolic weight gain may also be eligible. Our doctors assess your full health picture including biomarkers during consultation.",
-  },
-  {
-    question: "What results can I expect?",
-    answer: "Results vary significantly based on individual biology, adherence, and starting point. Your doctor will discuss realistic expectations during your consultation and use biomarker results to help personalise your plan.",
-  },
-  {
-    question: "What about treatment options?",
-    answer: "Treatment options are discussed privately with your doctor if clinically appropriate. Your monthly program fee covers clinical assessment, monitoring, and portal access, not medicine bundles.",
-  },
-  {
-    question: "Can I cancel my subscription?",
-    answer: "Yes, you can cancel anytime with no penalties or cancellation fees. Simply contact our support team or cancel through the app. Your subscription ends at the end of your current billing period. We believe in earning your trust every month.",
-  },
-];
+const questionsAndAnswers = FAQ_ITEMS;
 
 export function ObjectionHandlingSection() {
-  const [selectedIndex, setSelectedIndex] = useState(3);
+  const [selectedIndex, setSelectedIndex] = useState(1);
   const [displayedAnswer, setDisplayedAnswer] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const phoneRef = useRef<HTMLDivElement>(null);
@@ -120,6 +76,13 @@ export function ObjectionHandlingSection() {
                 </button>
               ))}
             </div>
+            <Link
+              href={FUNNEL_PATH}
+              className="mt-6 inline-flex w-full max-w-lg items-center justify-center gap-2 rounded-full bg-[#4f6038] px-5 py-3 text-sm sm:text-base font-semibold text-white transition-colors hover:bg-[#3c4a27]"
+            >
+              Let&apos;s book a time with a doctor and get you started
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </Link>
           </div>
 
           <div ref={phoneRef} className="flex justify-center lg:justify-end scroll-mt-24">

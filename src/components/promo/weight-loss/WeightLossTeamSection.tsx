@@ -1,5 +1,7 @@
 "use client";
 
+import { ShieldCheck } from "lucide-react";
+
 interface TeamMember {
   name: string;
   title: string;
@@ -67,10 +69,13 @@ export function WeightLossTeamSection() {
           <h2 className="text-4xl sm:text-5xl font-serif text-[#313630] mt-2">
             Precise care. Trusted Australian doctors
           </h2>
-          <p className="mt-4 text-lg text-[rgba(0,0,0,0.5)] max-w-2xl mx-auto">
-            Meet our team of AHPRA-registered doctors with decades of combined
-            experience across key specialties.
-          </p>
+          <div className="mx-auto mt-6 flex max-w-lg items-start gap-2 rounded-2xl border border-[#d3e0db] bg-[#f5faf6] p-4 text-left text-sm leading-snug text-[rgba(0,0,0,0.55)] shadow-sm">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#7b8967]" />
+            <p>
+              Led by experienced doctors who have supported thousands of
+              Australians with weight management.
+            </p>
+          </div>
         </div>
 
         {/* Team Grid - Same as homepage */}
