@@ -32,21 +32,24 @@ import { getStripe } from "@/lib/stripe";
 
 export async function POST(req: NextRequest) {
   try {
-    const ipLimited = await enforceIpRateLimit(
-      req,
-      "lp-wm-complete:ip",
-      RATE_LIMITS.checkoutIp
-    );
-    if (!ipLimited.allowed) {
-      return rateLimitExceededResponse(ipLimited.retryAfterSec);
-    }
-
     const stripe = getStripe();
     if (!stripe) {
       return NextResponse.json({ error: "Payments are not configured" }, { status: 500 });
     }
 
     const body = await req.json().catch(() => ({}));
+    const accessToken = String(body.accessToken || "").trim();
+    if (accessToken.length < 32) {
+      const ipLimited = await enforceIpRateLimit(
+        req,
+        "lp-wm-complete:ip",
+        RATE_LIMITS.checkoutIp
+      );
+      if (!ipLimited.allowed) {
+        return rateLimitExceededResponse(ipLimited.retryAfterSec);
+      }
+    }
+
     const paymentIntentId = String(body.paymentIntentId || "").trim();
     if (!paymentIntentId.startsWith("pi_")) {
       return NextResponse.json({ error: "Payment is required" }, { status: 400 });
@@ -74,7 +77,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Payment does not match this assessment" }, { status: 400 });
     }
 
-    const accessToken = String(body.accessToken || "").trim();
     const existing =
       (accessToken.length >= 32 ? await findToProcessByAccessToken(accessToken) : null) ??
       (await findToProcessByPaymentIntent(paymentIntentId)) ??

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   buildAssessmentUrl,
@@ -27,6 +29,22 @@ import {
 } from "@/lib/lp/weight-management-funnel";
 
 describe("weight-management campaign landing", () => {
+  it("uses a compressed male care photo on What's included slide 05", () => {
+    const images = readFileSync(
+      join(process.cwd(), "src/lib/lp/weight-management.ts"),
+      "utf8"
+    );
+    const included = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/whats-included.tsx"),
+      "utf8"
+    );
+    expect(images).not.toContain("doctorScreensMale");
+    expect(images).toContain("/images/lp/weight-management/ongoing-care-male.webp");
+    expect(included).toContain("lpImages.ongoingCareMale");
+    expect(included).toContain('slide.number === "05" && isMale');
+    expect(included).not.toContain('slide.number === "04" && isMale');
+  });
+
   it("charges $49 for the clinical assessment with a Sanative doctor", () => {
     expect(PRICING.assessmentFee).toBe(49);
   });
@@ -174,5 +192,47 @@ describe("weight-management campaign landing", () => {
     expect(welcome.text).toContain("Your Sanative Care Team");
     expect(staff.text).toContain("to_process");
     expect(LP_WM_STAFF_INBOX).toBe("info@sanative.com.au");
+  });
+
+  it("mounts Apple Pay only on the visible payment step and keeps card validation off the wallet path", () => {
+    const funnel = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/funnel/funnel-client.tsx"),
+      "utf8"
+    );
+    const payment = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/funnel/payment-form.tsx"),
+      "utf8"
+    );
+    expect(funnel).toContain('step === "payment"');
+    expect(funnel).not.toContain("left-[-120vw]");
+    expect(funnel).toContain("stripeCheckoutElementsPaymentMethodOrder");
+    expect(payment).toContain("stripePaymentElementOptions");
+    expect(payment).toContain("completeCheckoutPayment(true)");
+    expect(payment).toContain("ExpressCheckoutElement");
+    expect(payment).toContain("showCardElement");
+    expect(payment).toContain("walletBlocked");
+    expect(payment).not.toContain('layout: "tabs"');
+  });
+
+  it("does not rate-limit PaymentIntent reuse or fire an intent on every keystroke", () => {
+    const intent = readFileSync(
+      join(process.cwd(), "src/app/api/lp/weight-management/intent/route.ts"),
+      "utf8"
+    );
+    const lead = readFileSync(
+      join(process.cwd(), "src/app/api/lp/weight-management/lead/route.ts"),
+      "utf8"
+    );
+    const funnel = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/funnel/funnel-client.tsx"),
+      "utf8"
+    );
+    expect(intent).toContain("hasExistingIntent");
+    expect(intent).toContain("RATE_LIMITS.lpWmIntentIp");
+    expect(lead).toContain("hasExistingLead");
+    expect(funnel).toContain("ensurePaymentIntent");
+    expect(funnel).not.toContain("[email, firstName, hydrated, lastName, paid, phone, slot, step]");
+    expect(funnel).toContain("clientSecret: clientSecret ?? undefined");
+    expect(funnel).toContain("draft.clientSecret");
   });
 });

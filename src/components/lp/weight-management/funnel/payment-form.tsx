@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ExpressCheckoutElement,
   PaymentElement,
@@ -22,7 +22,7 @@ import {
   detectCheckoutWalletOs,
   isMobileWalletCheckout,
   stripeExpressCheckoutOptions,
-  stripePaymentElementWallets,
+  stripePaymentElementOptions,
 } from "@/lib/checkout/stripe-payment-methods";
 import {
   ensurePrePaymentConsentRecorded,
@@ -58,17 +58,26 @@ export function LpWmPaymentForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [walletEnvReady, setWalletEnvReady] = useState(false);
   const [isMobileCheckout, setIsMobileCheckout] = useState(false);
+  const [expressReady, setExpressReady] = useState(false);
   const [expressCheckoutAvailable, setExpressCheckoutAvailable] = useState(false);
   const detailsReady = paymentGate.ok;
 
   useEffect(() => {
     const update = () => setIsMobileCheckout(isMobileWalletCheckout());
     update();
+    setWalletEnvReady(true);
     const media = window.matchMedia(CHECKOUT_WALLET_PHONE_MEDIA_QUERY);
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileCheckout) return;
+    const timer = window.setTimeout(() => setExpressReady(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [isMobileCheckout]);
 
   useEffect(() => {
     if (paymentGate.ok) setError(null);
@@ -77,12 +86,41 @@ export function LpWmPaymentForm({
   const walletOs = detectCheckoutWalletOs(
     typeof navigator !== "undefined" ? navigator.userAgent : ""
   );
-  const showExpressCheckout = isMobileCheckout;
-  const hidePaymentElementWallets = showExpressCheckout && expressCheckoutAvailable;
+  const showExpressCheckout = walletEnvReady && isMobileCheckout;
+  const hidePaymentElementWallets =
+    showExpressCheckout && (!expressReady || expressCheckoutAvailable);
+  const showCardElement = !showExpressCheckout || expressReady;
+  const walletBlocked = !consentChecked || !paymentGate.ok;
+  const expressCheckoutOptions = useMemo(
+    () => stripeExpressCheckoutOptions(walletOs),
+    [walletOs]
+  );
+  const paymentElementOptions = useMemo(
+    () =>
+      stripePaymentElementOptions({
+        hideWallets: hidePaymentElementWallets,
+        os: walletOs,
+      }),
+    [hidePaymentElementWallets, walletOs]
+  );
 
   const showPaymentGap = (target: "time" | "details") => {
     if (onGateFail) onGateFail(target);
     else scrollToPaymentGap(target);
+  };
+
+  const promptWalletPrereq = () => {
+    if (!paymentGate.ok) {
+      setError(paymentGate.error);
+      showPaymentGap(paymentGate.target);
+      return;
+    }
+    setError("Please agree to the Terms, Privacy Policy, and Telehealth Consent to continue.");
+    document.getElementById("pre-payment-consent")?.focus();
+    document
+      .getElementById("pre-payment-consent")
+      ?.closest("label")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const rejectUntilReady = () => {
@@ -92,7 +130,7 @@ export function LpWmPaymentForm({
     return true;
   };
 
-  const completeCheckoutPayment = async () => {
+  const completeCheckoutPayment = async (fromWallet = false) => {
     if (!paymentGate.ok) {
       showPaymentGap(paymentGate.target);
       return { error: paymentGate.error };
@@ -111,7 +149,14 @@ export function LpWmPaymentForm({
       return { error: consentResult.error };
     }
 
-    const { error: submitError, paymentIntent } = await stripe.confirmPayment({
+    if (!fromWallet) {
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        return { error: submitError.message || "Payment failed" };
+      }
+    }
+
+    const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}${FUNNEL_PATH}${window.location.search}`,
@@ -123,8 +168,8 @@ export function LpWmPaymentForm({
       redirect: "if_required",
     });
 
-    if (submitError) {
-      return { error: submitError.message || "Payment failed" };
+    if (confirmError) {
+      return { error: confirmError.message || "Payment failed" };
     }
 
     if (paymentIntent?.status === "succeeded") {
@@ -148,7 +193,7 @@ export function LpWmPaymentForm({
 
     setIsProcessing(true);
     setError(null);
-    const result = await completeCheckoutPayment();
+    const result = await completeCheckoutPayment(false);
     if (result.error) setError(result.error);
     setIsProcessing(false);
   };
@@ -156,17 +201,12 @@ export function LpWmPaymentForm({
   const handleExpressCheckoutClick = (
     event: StripeExpressCheckoutElementClickEvent
   ) => {
-    if (!paymentGate.ok) {
-      setError(paymentGate.error);
-      showPaymentGap(paymentGate.target);
+    if (walletBlocked) {
+      promptWalletPrereq();
       event.reject();
       return;
     }
-    if (!consentChecked) {
-      setError("Please agree to the Terms, Privacy Policy, and Telehealth Consent to continue.");
-      event.reject();
-      return;
-    }
+    setError(null);
     event.resolve();
   };
 
@@ -187,16 +227,7 @@ export function LpWmPaymentForm({
     setIsProcessing(true);
     setError(null);
 
-    const { error: submitError } = await elements.submit();
-    if (submitError) {
-      const message = submitError.message || "Payment failed";
-      setError(message);
-      event.paymentFailed({ reason: "fail", message });
-      setIsProcessing(false);
-      return;
-    }
-
-    const result = await completeCheckoutPayment();
+    const result = await completeCheckoutPayment(true);
     if (result.error) {
       setError(result.error);
       event.paymentFailed({ reason: "fail", message: result.error });
@@ -209,6 +240,7 @@ export function LpWmPaymentForm({
   ) => {
     const methods = event.availablePaymentMethods;
     setExpressCheckoutAvailable(Boolean(methods?.applePay || methods?.googlePay));
+    setExpressReady(true);
   };
 
   const consentCheckbox = (
@@ -219,18 +251,40 @@ export function LpWmPaymentForm({
     />
   );
 
+  if (!walletEnvReady) {
+    return (
+      <p className="flex items-center gap-2 text-sm text-gray-500">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Preparing payment…
+      </p>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {consentCheckbox}
+
       {showExpressCheckout && (
-        <div className="space-y-3">
-          {expressCheckoutAvailable && consentCheckbox}
-          <ExpressCheckoutElement
-            options={stripeExpressCheckoutOptions(walletOs)}
-            onReady={handleExpressCheckoutReady}
-            onClick={handleExpressCheckoutClick}
-            onConfirm={handleExpressCheckoutConfirm}
-            onCancel={() => setIsProcessing(false)}
-          />
+        <div className={expressReady && !expressCheckoutAvailable ? "hidden" : "space-y-3"}>
+          <div className="relative">
+            <div className={walletBlocked ? "pointer-events-none" : undefined}>
+              <ExpressCheckoutElement
+                options={expressCheckoutOptions}
+                onReady={handleExpressCheckoutReady}
+                onClick={handleExpressCheckoutClick}
+                onConfirm={handleExpressCheckoutConfirm}
+                onCancel={() => setIsProcessing(false)}
+              />
+            </div>
+            {walletBlocked && (
+              <button
+                type="button"
+                className="absolute inset-0 z-10 rounded-md"
+                aria-label="Agree to the terms before paying with Apple Pay or Google Pay"
+                onClick={promptWalletPrereq}
+              />
+            )}
+          </div>
           {expressCheckoutAvailable && (
             <div className="relative py-1 text-center">
               <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-400">
@@ -241,22 +295,12 @@ export function LpWmPaymentForm({
         </div>
       )}
 
-      <PaymentElement
-        options={{
-          layout: "tabs",
-          wallets: stripePaymentElementWallets({
-            hideWallets: hidePaymentElementWallets,
-          }),
-          fields: {
-            billingDetails: {
-              email: "never",
-              name: "never",
-            },
-          },
-        }}
-      />
-
-      {(!showExpressCheckout || !expressCheckoutAvailable) && consentCheckbox}
+      {showCardElement && (
+        <PaymentElement
+          key={hidePaymentElementWallets ? "card" : "wallets"}
+          options={paymentElementOptions}
+        />
+      )}
 
       {!paymentGate.ok && (
         <p className="text-sm text-neutral-500">{paymentGate.error}</p>

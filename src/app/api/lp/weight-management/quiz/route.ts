@@ -9,6 +9,12 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
+    const body = await req.json().catch(() => ({}));
+    const accessToken = String(body.accessToken || "").trim();
+    if (accessToken.length < 32) {
+      return NextResponse.json({ error: "Session expired. Please start again." }, { status: 401 });
+    }
+
     const ipLimited = await enforceIpRateLimit(
       req,
       "lp-wm-quiz:ip",
@@ -16,12 +22,6 @@ export async function POST(req: NextRequest) {
     );
     if (!ipLimited.allowed) {
       return rateLimitExceededResponse(ipLimited.retryAfterSec);
-    }
-
-    const body = await req.json().catch(() => ({}));
-    const accessToken = String(body.accessToken || "").trim();
-    if (accessToken.length < 32) {
-      return NextResponse.json({ error: "Session expired. Please start again." }, { status: 401 });
     }
 
     const answersIn = body.answers && typeof body.answers === "object" ? body.answers : {};

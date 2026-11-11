@@ -9,7 +9,10 @@ import {
   STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES,
   STRIPE_CHECKOUT_WALLETS,
   STRIPE_CHECKOUT_WALLETS_CARD_ONLY,
+  stripeCheckoutElementsPaymentMethodOrder,
   stripeExpressCheckoutOptions,
+  stripePaymentElementOptions,
+  stripePaymentElementOrder,
   stripePaymentElementWallets,
 } from "@/lib/checkout/stripe-payment-methods";
 import { PHONE_VERIFY_MEDIA_QUERY } from "@/lib/membership/checkout-verify-method";
@@ -73,7 +76,21 @@ describe("membership checkout mobile wallets", () => {
         coarsePointer: true,
         maxTouchPoints: 5,
       })
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("puts Apple Pay first in the Payment Element on iOS", () => {
+    expect(stripePaymentElementOrder("ios", false)[0]).toBe("apple_pay");
+    expect(stripePaymentElementOrder("android", false)[0]).toBe("google_pay");
+    expect(stripePaymentElementOrder("ios", true)).toEqual(["card"]);
+    expect(stripePaymentElementOptions({ hideWallets: true, os: "ios" }).wallets).toEqual(
+      STRIPE_CHECKOUT_WALLETS_CARD_ONLY
+    );
+    expect(stripePaymentElementOptions({ hideWallets: false, os: "ios" }).layout.type).toBe(
+      "accordion"
+    );
+    expect(stripeCheckoutElementsPaymentMethodOrder("ios")[0]).toBe("apple_pay");
+    expect(stripeCheckoutElementsPaymentMethodOrder("android")[0]).toBe("google_pay");
   });
 
   it("keeps card available and only hides wallets when Express Checkout is showing", () => {
@@ -102,6 +119,9 @@ describe("membership checkout mobile wallets", () => {
     expect(page).toContain("isMobileWalletCheckout");
     expect(page).toContain("confirmPayment");
     expect(page).toContain("PaymentElement");
+    expect(page).toContain("showCardElement");
+    expect(page).toContain("walletBlocked");
+    expect(page).toContain("stripeCheckoutElementsPaymentMethodOrder");
     expect(page).not.toContain("apple_pay");
     expect(page).not.toContain("payment_method_types");
 

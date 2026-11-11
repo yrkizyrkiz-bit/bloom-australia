@@ -24,21 +24,28 @@ const REUSABLE_PI_STATUSES = new Set([
 
 export async function POST(req: NextRequest) {
   try {
-    const ipLimited = await enforceIpRateLimit(
-      req,
-      "lp-wm-intent:ip",
-      RATE_LIMITS.checkoutIp
-    );
-    if (!ipLimited.allowed) {
-      return rateLimitExceededResponse(ipLimited.retryAfterSec);
-    }
-
     const stripe = getStripe();
     if (!stripe) {
       return NextResponse.json({ error: "Payments are not configured" }, { status: 500 });
     }
 
     const body = await req.json().catch(() => ({}));
+    const existingId = String(body.paymentIntentId || "").trim();
+    const hasExistingIntent = existingId.startsWith("pi_");
+
+    // Reusing a PaymentIntent is not a new charge. Counting those hits
+    // blocked real checkouts after the form pre-warmed payment.
+    if (!hasExistingIntent) {
+      const ipLimited = await enforceIpRateLimit(
+        req,
+        "lp-wm-intent:ip",
+        RATE_LIMITS.lpWmIntentIp
+      );
+      if (!ipLimited.allowed) {
+        return rateLimitExceededResponse(ipLimited.retryAfterSec);
+      }
+    }
+
     const hasSlot = Boolean(String(body.slotId || "").trim());
     const slot = hasSlot ? validateLpWmSlot(body) : null;
     if (hasSlot && slot && !slot.ok) {
@@ -49,7 +56,6 @@ export async function POST(req: NextRequest) {
     const contact = readLpWmContact(body);
     const metadata = stripeMetadataFromFunnel({ ...contact, ...slotValue });
     const contactValid = validateLpWmContact(contact);
-    const existingId = String(body.paymentIntentId || "").trim();
 
     if (existingId.startsWith("pi_")) {
       const existing = await stripe.paymentIntents.retrieve(existingId);

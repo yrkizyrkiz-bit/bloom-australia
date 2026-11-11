@@ -25,6 +25,13 @@ export const RATE_LIMITS = {
   checkEmailIp: { limit: 30, windowSec: 60 * 60 },
   /** Checkout / payment intent creation per IP */
   checkoutIp: { limit: 20, windowSec: 60 * 60 },
+  /**
+   * LP ads funnel intent creates per IP. Updates of an existing PaymentIntent
+   * are not counted. Must be high enough for retries without blocking checkout.
+   */
+  lpWmIntentIp: { limit: 60, windowSec: 60 * 60 },
+  /** LP ads funnel new-lead creates per IP. Existing access-token updates skip this. */
+  lpWmLeadIp: { limit: 40, windowSec: 60 * 60 },
   /** Free-text Ask questions to Claude per member (cost control) */
   reportAskUser: { limit: 30, windowSec: 60 * 60 },
   /** Australian address autocomplete per IP */

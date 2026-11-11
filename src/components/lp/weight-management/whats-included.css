@@ -136,6 +136,12 @@
   object-position: center top;
 }
 
+/* Square ongoing-care photo: keep both men, the phone, and the Sanative pack in frame. */
+.wm-lp .wm-included-card__img--care-male {
+  object-fit: cover;
+  object-position: 42% 46%;
+}
+
 .wm-lp .wm-included-card__visual--honeycomb {
   background: #dce8dc;
 }
@@ -232,6 +238,10 @@
 
   .wm-lp .wm-included-card__img--doctor {
     object-position: center;
+  }
+
+  .wm-lp .wm-included-card__img--care-male {
+    object-position: 50% 38%;
   }
 
   .wm-lp .wm-included-card:has(.wm-included-card__visual--honeycomb) {

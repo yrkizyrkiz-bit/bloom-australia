@@ -65,8 +65,11 @@ export function isMobileWalletCheckout(env?: MobileWalletEnv): boolean {
     env?.maxTouchPoints ??
     (typeof navigator !== "undefined" ? navigator.maxTouchPoints || 0 : 0);
 
+  // iPhone landscape and iPad are wider than the phone breakpoint but still
+  // need Express Checkout; a narrow desktop window is excluded by OS check.
+  if (os === "ios" || os === "android") return true;
   if (!maxWidthMatches) return false;
-  return os === "ios" || os === "android" || coarsePointer || maxTouchPoints > 0;
+  return coarsePointer || maxTouchPoints > 0;
 }
 
 /** Stripe shows the OS-appropriate button; order still prefers that wallet first. */
@@ -103,4 +106,43 @@ export function stripePaymentElementWallets(opts: {
   return opts.hideWallets
     ? STRIPE_CHECKOUT_WALLETS_CARD_ONLY
     : STRIPE_CHECKOUT_WALLETS;
+}
+
+export function stripePaymentElementOrder(
+  os: CheckoutWalletOs,
+  hideWallets: boolean
+): string[] {
+  if (hideWallets) return ["card"];
+  if (os === "android") return ["google_pay", "apple_pay", "card"];
+  return ["apple_pay", "google_pay", "card"];
+}
+
+/** Accordion, wallets first. Boolean `radios` is rejected by Stripe Dahlia. */
+export function stripePaymentElementOptions(opts: {
+  hideWallets: boolean;
+  os: CheckoutWalletOs;
+}) {
+  return {
+    layout: {
+      type: "accordion" as const,
+      defaultCollapsed: false,
+      radios: "never" as const,
+      spacedAccordionItems: true,
+    },
+    wallets: stripePaymentElementWallets(opts),
+    paymentMethodOrder: stripePaymentElementOrder(opts.os, opts.hideWallets),
+    fields: {
+      billingDetails: {
+        email: "never" as const,
+        name: "never" as const,
+      },
+    },
+  };
+}
+
+/** Elements-level order so Apple Pay is selected before card on Safari. */
+export function stripeCheckoutElementsPaymentMethodOrder(
+  os: CheckoutWalletOs
+): string[] {
+  return stripePaymentElementOrder(os, false);
 }

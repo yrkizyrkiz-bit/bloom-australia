@@ -251,7 +251,9 @@ export function LpWmSlotPicker({ selected, onSelect, initialSlots = [] }: Props)
                 <button
                   key={day.key}
                   type="button"
-                  onClick={() => setActiveIndex(index)}
+                  onClick={() =>
+                    setActiveIndex(day.bookedOut ? firstOpenIndex(days) : index)
+                  }
                   aria-label={
                     day.bookedOut
                       ? `${day.weekday} ${day.dayNum}, booked out`

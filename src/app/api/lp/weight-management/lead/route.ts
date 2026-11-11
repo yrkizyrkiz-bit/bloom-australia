@@ -16,16 +16,21 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
-    const ipLimited = await enforceIpRateLimit(
-      req,
-      "lp-wm-lead:ip",
-      RATE_LIMITS.checkoutIp
-    );
-    if (!ipLimited.allowed) {
-      return rateLimitExceededResponse(ipLimited.retryAfterSec);
+    const body = await req.json().catch(() => ({}));
+    const accessToken = String(body.accessToken || "").trim();
+    const hasExistingLead = accessToken.length >= 32;
+
+    if (!hasExistingLead) {
+      const ipLimited = await enforceIpRateLimit(
+        req,
+        "lp-wm-lead:ip",
+        RATE_LIMITS.lpWmLeadIp
+      );
+      if (!ipLimited.allowed) {
+        return rateLimitExceededResponse(ipLimited.retryAfterSec);
+      }
     }
 
-    const body = await req.json().catch(() => ({}));
     const contact = validateLpWmContact(body);
     if (!contact.ok) {
       return NextResponse.json({ error: contact.error }, { status: 400 });
@@ -36,7 +41,6 @@ export async function POST(req: NextRequest) {
     }
 
     const paymentIntentId = String(body.paymentIntentId || "").trim();
-    const accessToken = String(body.accessToken || "").trim();
 
     const row = await upsertToProcessLead({
       accessToken: accessToken.length >= 32 ? accessToken : null,

@@ -50,6 +50,29 @@ const slides = [
   },
 ];
 
+function slideImage(slide: (typeof slides)[number], isMale: boolean) {
+  if (slide.number === "05" && isMale) {
+    return {
+      src: lpImages.ongoingCareMale,
+      alt: "Members reviewing their Sanative care and treatment pack together",
+      className: "wm-included-card__img wm-included-card__img--care-male",
+    };
+  }
+  if (!("image" in slide)) return null;
+  return {
+    src: slide.image,
+    alt: slide.alt,
+    className:
+      slide.fit === "contain"
+        ? "wm-included-card__img wm-included-card__img--contain"
+        : slide.fit === "wide"
+          ? "wm-included-card__img wm-included-card__img--wide"
+          : slide.fit === "doctor"
+            ? "wm-included-card__img wm-included-card__img--doctor"
+            : "wm-included-card__img",
+  };
+}
+
 export function WhatsIncluded() {
   const { gender } = useLpGender();
   const isMale = gender === "men";
@@ -62,64 +85,47 @@ export function WhatsIncluded() {
       </header>
 
       <div className="wm-included__stack">
-        {slides.map((slide, index) => (
-          <article
-            className="wm-included-card"
-            key={slide.number}
-            style={{ "--card-index": index } as CSSProperties}
-          >
-            <div className="wm-included-card__copy">
-              <span className="wm-included-card__number">{slide.number}</span>
-              <h3>{slide.title}</h3>
-              <p>{slide.body}</p>
-            </div>
-
-            <div
-              className={`wm-included-card__visual${
-                "visual" in slide && slide.visual === "honeycomb"
-                  ? " wm-included-card__visual--honeycomb"
-                  : ""
-              }${
-                "fit" in slide && slide.fit === "contain"
-                  ? " wm-included-card__visual--contain"
-                  : ""
-              }${"fit" in slide && slide.fit === "wide" ? " wm-included-card__visual--wide" : ""}`}
+        {slides.map((slide, index) => {
+          const image = slideImage(slide, isMale);
+          return (
+            <article
+              className="wm-included-card"
+              key={slide.number}
+              style={{ "--card-index": index } as CSSProperties}
             >
-              {"visual" in slide && slide.visual === "honeycomb" ? (
-                <HoneycombVisual />
-              ) : "image" in slide ? (
-                <Image
-                  key={
-                    slide.number === "05" && isMale
-                      ? lpImages.ongoingCareMale
-                      : slide.image
-                  }
-                  src={
-                    slide.number === "05" && isMale
-                      ? lpImages.ongoingCareMale
-                      : slide.image
-                  }
-                  alt={
-                    slide.number === "05" && isMale
-                      ? "Members using the Sanative app together for ongoing care"
-                      : slide.alt
-                  }
-                  fill
-                  sizes="(min-width: 768px) 55vw, 100vw"
-                  className={
-                    slide.fit === "contain"
-                      ? "wm-included-card__img wm-included-card__img--contain"
-                      : slide.fit === "wide"
-                        ? "wm-included-card__img wm-included-card__img--wide"
-                        : slide.fit === "doctor"
-                          ? "wm-included-card__img wm-included-card__img--doctor"
-                          : "wm-included-card__img"
-                  }
-                />
-              ) : null}
-            </div>
-          </article>
-        ))}
+              <div className="wm-included-card__copy">
+                <span className="wm-included-card__number">{slide.number}</span>
+                <h3>{slide.title}</h3>
+                <p>{slide.body}</p>
+              </div>
+
+              <div
+                className={`wm-included-card__visual${
+                  "visual" in slide && slide.visual === "honeycomb"
+                    ? " wm-included-card__visual--honeycomb"
+                    : ""
+                }${
+                  "fit" in slide && slide.fit === "contain"
+                    ? " wm-included-card__visual--contain"
+                    : ""
+                }${"fit" in slide && slide.fit === "wide" ? " wm-included-card__visual--wide" : ""}`}
+              >
+                {"visual" in slide && slide.visual === "honeycomb" ? (
+                  <HoneycombVisual />
+                ) : image ? (
+                  <Image
+                    key={image.src}
+                    src={image.src}
+                    alt={image.alt}
+                    fill
+                    sizes="(min-width: 768px) 55vw, 100vw"
+                    className={image.className}
+                  />
+                ) : null}
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

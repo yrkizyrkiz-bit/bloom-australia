@@ -10,6 +10,10 @@ import {
   trackMetaEvent,
   trackMetaPurchaseOnce,
 } from "@/lib/analytics/meta-pixel";
+import {
+  detectCheckoutWalletOs,
+  stripeCheckoutElementsPaymentMethodOrder,
+} from "@/lib/checkout/stripe-payment-methods";
 import { LP_FUNNEL_SOURCE, PRICING } from "@/lib/lp/weight-management";
 import {
   formatAppointmentSydney,
@@ -33,6 +37,7 @@ type Step = "details" | "payment" | "quiz" | "thanks";
 type Draft = LpWmContact & {
   slot: LpWmSlot | null;
   paymentIntentId?: string;
+  clientSecret?: string;
   accessToken?: string;
   paid?: boolean;
   screen?: "details" | "payment";
@@ -80,11 +85,12 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
   const [quizSaving, setQuizSaving] = useState(false);
   const [paid, setPaid] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const intentKeyRef = useRef("");
   const paidRef = useRef(false);
   const paymentIntentIdRef = useRef<string | null>(null);
-  const intentRequestRef = useRef(0);
+  const clientSecretRef = useRef<string | null>(null);
+  const intentInFlightRef = useRef<Promise<string | null> | null>(null);
   const trackedCheckoutRef = useRef(false);
+  const detailsRef = useRef({ firstName: "", lastName: "", email: "", phone: "", slot: null as LpWmSlot | null });
   const accessTokenRef = useRef<string | null>(null);
   const leadTokenRef = useRef<string | null>(null);
   const attachedPiRef = useRef("");
@@ -94,6 +100,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
     () => ({ firstName, lastName, email, phone }),
     [firstName, lastName, email, phone]
   );
+  detailsRef.current = { firstName, lastName, email, phone, slot };
   const contactValid = validateLpWmContact(contact);
   const paymentGate = lpWmPaymentGate({ slot, contact: contactValid });
   const canContinue = paymentGate.ok;
@@ -152,6 +159,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
           ...details,
           slot: booked,
           paymentIntentId: paymentIntentIdRef.current ?? undefined,
+          clientSecret: clientSecretRef.current ?? undefined,
           accessToken: data.accessToken,
           paid: paidRef.current,
           screen: "payment",
@@ -174,6 +182,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
           ...details,
           slot: booked,
           paymentIntentId: piId,
+          clientSecret: clientSecretRef.current ?? undefined,
           accessToken: leadTokenRef.current ?? undefined,
           paid: true,
           screen: "payment",
@@ -236,6 +245,10 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
       if (draft.paymentIntentId) {
         paymentIntentIdRef.current = draft.paymentIntentId;
         setPaymentIntentId(draft.paymentIntentId);
+      }
+      if (draft.clientSecret) {
+        clientSecretRef.current = draft.clientSecret;
+        setClientSecret(draft.clientSecret);
       }
       if (draft.accessToken) {
         leadTokenRef.current = draft.accessToken;
@@ -315,75 +328,84 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
       ...contact,
       slot,
       paymentIntentId: paymentIntentId ?? undefined,
+      clientSecret: clientSecret ?? undefined,
       accessToken: leadToken ?? undefined,
       paid: paid || paidRef.current,
       screen: step === "payment" ? "payment" : "details",
     };
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, [contact, hydrated, leadToken, paid, paymentIntentId, slot, step]);
+  }, [clientSecret, contact, hydrated, leadToken, paid, paymentIntentId, slot, step]);
+
+  const ensurePaymentIntent = useCallback(async (force = false) => {
+    if (paidRef.current) return clientSecretRef.current;
+    if (!force && clientSecretRef.current) return clientSecretRef.current;
+    if (intentInFlightRef.current) {
+      const existing = await intentInFlightRef.current;
+      if (!force && existing) return existing;
+    }
+
+    const run = (async () => {
+      const details = detailsRef.current;
+      const res = await fetch("/api/lp/weight-management/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: details.firstName,
+          lastName: details.lastName,
+          email: details.email,
+          phone: details.phone,
+          slotId: details.slot?.slotId,
+          startTime: details.slot?.startTime,
+          endTime: details.slot?.endTime,
+          paymentIntentId: paymentIntentIdRef.current,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to initialise payment");
+      if (data.clientSecret) {
+        clientSecretRef.current = data.clientSecret;
+        setClientSecret(data.clientSecret);
+      }
+      if (data.paymentIntentId) {
+        paymentIntentIdRef.current = data.paymentIntentId;
+        setPaymentIntentId(data.paymentIntentId);
+      }
+      if (!trackedCheckoutRef.current) {
+        trackedCheckoutRef.current = true;
+        trackMetaEvent("InitiateCheckout", {
+          content_name: "Weight management assessment",
+          content_ids: ["lp_wm_assessment"],
+          content_type: "product",
+          content_category: "weight_management",
+          currency: "AUD",
+          value: PRICING.assessmentFee,
+          num_items: 1,
+        });
+      }
+      return (data.clientSecret as string | undefined) ?? clientSecretRef.current;
+    })();
+
+    intentInFlightRef.current = run;
+    try {
+      return await run;
+    } finally {
+      if (intentInFlightRef.current === run) intentInFlightRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!hydrated || paidRef.current || paid) return;
     if (step !== "details" && step !== "payment") return;
-
-    const requestId = ++intentRequestRef.current;
-    const hasIntent = Boolean(intentKeyRef.current);
-    const timer = window.setTimeout(async () => {
-      if (!hasIntent) {
-        setIntentLoading(true);
-        setError(null);
-      }
-      try {
-        const res = await fetch("/api/lp/weight-management/intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName,
-            lastName,
-            email,
-            phone,
-            slotId: slot?.slotId,
-            startTime: slot?.startTime,
-            endTime: slot?.endTime,
-            paymentIntentId: paymentIntentIdRef.current,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (requestId !== intentRequestRef.current) return;
-        if (!res.ok) throw new Error(data.error || "Failed to initialise payment");
-        intentKeyRef.current = slot?.slotId || "ready";
-        if (data.clientSecret) {
-          setClientSecret((current) => current ?? data.clientSecret);
-        }
-        if (data.paymentIntentId) {
-          paymentIntentIdRef.current = data.paymentIntentId;
-          setPaymentIntentId(data.paymentIntentId);
-        }
-        if (!trackedCheckoutRef.current) {
-          trackedCheckoutRef.current = true;
-          trackMetaEvent("InitiateCheckout", {
-            content_name: "Weight management assessment",
-            content_ids: ["lp_wm_assessment"],
-            content_type: "product",
-            content_category: "weight_management",
-            currency: "AUD",
-            value: PRICING.assessmentFee,
-            num_items: 1,
-          });
-        }
-      } catch (err) {
-        if (requestId !== intentRequestRef.current) return;
-        if (!intentKeyRef.current) {
-          setClientSecret(null);
+    if (clientSecretRef.current) return;
+    setIntentLoading(true);
+    void ensurePaymentIntent()
+      .catch((err) => {
+        if (!clientSecretRef.current) {
           setError(err instanceof Error ? err.message : "Failed to initialise payment");
         }
-      } finally {
-        if (requestId === intentRequestRef.current) setIntentLoading(false);
-      }
-    }, hasIntent ? 350 : 0);
-
-    return () => window.clearTimeout(timer);
-  }, [email, firstName, hydrated, lastName, paid, phone, slot, step]);
+      })
+      .finally(() => setIntentLoading(false));
+  }, [ensurePaymentIntent, hydrated, paid, step]);
 
   useEffect(() => {
     if (!leadToken || !paymentIntentId || paid || paidRef.current) return;
@@ -405,6 +427,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
     setLeadSaving(true);
     setError(null);
     try {
+      await ensurePaymentIntent(true);
       await persistLead(contactValid.value, slot);
       setStep("payment");
       window.scrollTo({ top: 0, behavior: "auto" });
@@ -451,7 +474,28 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
   const inputClass =
     "w-full rounded-xl border border-black/15 px-4 py-3.5 text-base outline-none transition-colors focus:border-black";
 
-  const paymentMounted = Boolean(clientSecret) && !paid && (step === "details" || step === "payment");
+  const paymentMounted = Boolean(clientSecret) && !paid && step === "payment";
+  const stripeElementsOptions = useMemo(
+    () =>
+      clientSecret
+        ? {
+            clientSecret,
+            appearance: {
+              theme: "stripe" as const,
+              variables: {
+                colorPrimary: "#111111",
+                borderRadius: "12px",
+              },
+            },
+            paymentMethodOrder: stripeCheckoutElementsPaymentMethodOrder(
+              detectCheckoutWalletOs(
+                typeof navigator !== "undefined" ? navigator.userAgent : ""
+              )
+            ),
+          }
+        : null,
+    [clientSecret]
+  );
 
   return (
     <div>
@@ -591,46 +635,47 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
               Preparing payment…
             </p>
           )}
-          {error && paymentIntentId && slot && contactValid.ok && (
+          {error && (
             <div className="space-y-2">
               <p className="text-sm text-red-600">{error}</p>
-              <button
-                type="button"
-                onClick={() => persistComplete(paymentIntentId, contactValid.value, slot)}
-                className="rounded-full border border-black px-4 py-2 text-sm font-medium hover:bg-neutral-50"
-              >
-                Finish booking
-              </button>
+              {!clientSecret && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setIntentLoading(true);
+                    void ensurePaymentIntent(true)
+                      .catch((err) => {
+                        setError(
+                          err instanceof Error ? err.message : "Failed to initialise payment"
+                        );
+                      })
+                      .finally(() => setIntentLoading(false));
+                  }}
+                  className="rounded-full border border-black px-4 py-2 text-sm font-medium hover:bg-neutral-50"
+                >
+                  Try payment again
+                </button>
+              )}
+              {clientSecret && paymentIntentId && slot && contactValid.ok && paid && (
+                <button
+                  type="button"
+                  onClick={() => persistComplete(paymentIntentId, contactValid.value, slot)}
+                  className="rounded-full border border-black px-4 py-2 text-sm font-medium hover:bg-neutral-50"
+                >
+                  Finish booking
+                </button>
+              )}
             </div>
-          )}
-          {error && !(paymentIntentId && slot && contactValid.ok) && (
-            <p className="text-sm text-red-600">{error}</p>
           )}
         </div>
       )}
 
-      {paymentMounted && clientSecret && (
-        <div
-          className={
-            step === "payment"
-              ? "mt-4 space-y-4"
-              : "pointer-events-none fixed left-[-120vw] top-0 w-[min(100vw,36rem)] opacity-0"
-          }
-          aria-hidden={step !== "payment"}
-          inert={step !== "payment" ? true : undefined}
-        >
+      {paymentMounted && clientSecret && stripeElementsOptions && (
+        <div className="mt-4 space-y-4">
           <Elements
             stripe={stripePromise}
-            options={{
-              clientSecret,
-              appearance: {
-                theme: "stripe",
-                variables: {
-                  colorPrimary: "#111111",
-                  borderRadius: "12px",
-                },
-              },
-            }}
+            options={stripeElementsOptions}
           >
             <LpWmPaymentForm
               onSuccess={handlePaymentSuccess}
