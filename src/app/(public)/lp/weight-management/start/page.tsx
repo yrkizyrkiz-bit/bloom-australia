@@ -11,7 +11,7 @@ export const revalidate = 30;
 export const metadata = buildPageMetadata({
   title: `Book a $${PRICING.assessmentFee} weight management assessment | Sanative`,
   description:
-    "Book a phone consult with a Sanative doctor, pay $49, and tell us a little about your goals. No account is created at this step.",
+    "Answer a few questions, see your projected goal, pick a time, add your mobile and pay $49. No account is created at this step.",
   path: "/lp/weight-management/start",
   index: false,
 });

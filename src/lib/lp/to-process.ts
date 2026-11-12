@@ -68,17 +68,18 @@ export async function findOpenToProcessLeadByEmail(email: string) {
 type UpsertLeadInput = {
   accessToken?: string | null;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   email: string;
-  phone: string;
-  appointmentSlotId: string;
-  appointmentStart: Date;
-  appointmentEnd: Date;
+  phone?: string;
+  appointmentSlotId?: string | null;
+  appointmentStart?: Date | null;
+  appointmentEnd?: Date | null;
   appointmentType: string;
   stripePaymentIntentId?: string | null;
   amountCents: number;
   source: string;
   utm: unknown;
+  quizAnswers?: Record<string, string> | null;
 };
 
 async function resolveExistingLead(input: UpsertLeadInput) {
@@ -104,30 +105,32 @@ export async function upsertToProcessLead(input: UpsertLeadInput): Promise<ToPro
     await prisma.$executeRawUnsafe(
       `UPDATE "to_process"
        SET "firstName" = $1,
-           "lastName" = $2,
+           "lastName" = CASE WHEN NULLIF($2, '') IS NULL THEN "lastName" ELSE $2 END,
            email = $3,
-           phone = $4,
-           "appointmentSlotId" = $5,
-           "appointmentStart" = $6,
-           "appointmentEnd" = $7,
+           phone = CASE WHEN NULLIF($4, '') IS NULL THEN phone ELSE $4 END,
+           "appointmentSlotId" = COALESCE($5, "appointmentSlotId"),
+           "appointmentStart" = COALESCE($6, "appointmentStart"),
+           "appointmentEnd" = COALESCE($7, "appointmentEnd"),
            "appointmentType" = $8,
            "stripePaymentIntentId" = COALESCE(NULLIF($9, ''), "stripePaymentIntentId"),
            "amountCents" = $10,
            utm = $11::jsonb,
-           "updatedAt" = $12
-       WHERE id = $13
-         AND status = $14`,
+           "quizAnswers" = COALESCE($12::jsonb, "quizAnswers"),
+           "updatedAt" = $13
+       WHERE id = $14
+         AND status = $15`,
       input.firstName,
-      input.lastName,
+      input.lastName ?? "",
       input.email,
-      input.phone,
-      input.appointmentSlotId,
-      input.appointmentStart,
-      input.appointmentEnd,
+      input.phone ?? "",
+      input.appointmentSlotId ?? null,
+      input.appointmentStart ?? null,
+      input.appointmentEnd ?? null,
       input.appointmentType,
       pi.startsWith("pi_") ? pi : "",
       input.amountCents,
       asJson(input.utm),
+      input.quizAnswers ? asJson(input.quizAnswers) : null,
       now,
       existing.id,
       TO_PROCESS_STATUS.lead
@@ -135,10 +138,10 @@ export async function upsertToProcessLead(input: UpsertLeadInput): Promise<ToPro
     return {
       ...existing,
       firstName: input.firstName,
-      lastName: input.lastName,
+      lastName: input.lastName || existing.lastName,
       email: input.email,
-      phone: input.phone,
-      appointmentStart: input.appointmentStart,
+      phone: input.phone || existing.phone,
+      appointmentStart: input.appointmentStart ?? existing.appointmentStart,
       stripePaymentIntentId: pi.startsWith("pi_") ? pi : existing.stripePaymentIntentId,
     };
   }
@@ -152,18 +155,19 @@ export async function upsertToProcessLead(input: UpsertLeadInput): Promise<ToPro
 
 export async function createToProcess(input: {
   firstName: string;
-  lastName: string;
+  lastName?: string;
   email: string;
-  phone: string;
-  appointmentSlotId: string;
-  appointmentStart: Date;
-  appointmentEnd: Date;
+  phone?: string;
+  appointmentSlotId?: string | null;
+  appointmentStart?: Date | null;
+  appointmentEnd?: Date | null;
   appointmentType: string;
   stripePaymentIntentId?: string | null;
   amountCents: number;
   source: string;
   utm: unknown;
   status?: string;
+  quizAnswers?: Record<string, string> | null;
 }) {
   const id = randomUUID();
   const accessToken = randomBytes(32).toString("hex");
@@ -175,25 +179,26 @@ export async function createToProcess(input: {
       `INSERT INTO "to_process" (
         id, "accessToken", status, source, "firstName", "lastName", email, phone,
         "appointmentSlotId", "appointmentStart", "appointmentEnd", "appointmentType",
-        "stripePaymentIntentId", "amountCents", utm, "createdAt", "updatedAt"
+        "stripePaymentIntentId", "amountCents", utm, "quizAnswers", "createdAt", "updatedAt"
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, $18
       )`,
       id,
       accessToken,
       status,
       input.source,
       input.firstName,
-      input.lastName,
+      input.lastName ?? "",
       input.email,
-      input.phone,
-      input.appointmentSlotId,
-      input.appointmentStart,
-      input.appointmentEnd,
+      input.phone ?? "",
+      input.appointmentSlotId ?? null,
+      input.appointmentStart ?? null,
+      input.appointmentEnd ?? null,
       input.appointmentType,
       paymentIntentId,
       input.amountCents,
       asJson(input.utm),
+      input.quizAnswers ? asJson(input.quizAnswers) : null,
       now,
       now
     );
@@ -211,10 +216,10 @@ export async function createToProcess(input: {
     accessToken,
     status,
     firstName: input.firstName,
-    lastName: input.lastName,
+    lastName: input.lastName ?? "",
     email: input.email,
-    phone: input.phone,
-    appointmentStart: input.appointmentStart,
+    phone: input.phone ?? "",
+    appointmentStart: input.appointmentStart ?? null,
     emailsSentAt: null,
     stripePaymentIntentId: paymentIntentId,
   } satisfies ToProcessRow;
@@ -277,14 +282,18 @@ export async function markToProcessEmailsSent(id: string) {
   `;
 }
 
-export async function saveToProcessQuiz(id: string, answers: Record<string, string>) {
+export async function saveToProcessQuiz(
+  id: string,
+  answers: Record<string, string>,
+  status?: string
+) {
   const now = new Date();
   await prisma.$executeRawUnsafe(
     `UPDATE "to_process"
-     SET "quizAnswers" = $1::jsonb, status = $2, "updatedAt" = $3
+     SET "quizAnswers" = $1::jsonb, status = COALESCE($2, status), "updatedAt" = $3
      WHERE id = $4`,
     asJson(answers),
-    TO_PROCESS_STATUS.quizComplete,
+    status ?? null,
     now,
     id
   );

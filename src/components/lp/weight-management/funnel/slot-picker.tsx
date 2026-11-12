@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatTimeInTimezone, getHourInTimezone } from "@/lib/australia-timezone";
 import type { LpWmAvailabilitySlot } from "@/lib/lp/availability";
-import { isLpWmClosedWeekday, type LpWmSlot } from "@/lib/lp/weight-management-funnel";
+import {
+  isLpWmClosedWeekday,
+  isLpWmHiddenWeekday,
+  LP_WM_CALENDAR_HORIZON_DAYS,
+  type LpWmSlot,
+} from "@/lib/lp/weight-management-funnel";
 import {
   addSydneyDays,
   getSydneyDateKey,
@@ -13,12 +18,11 @@ import {
   SYDNEY_TZ,
 } from "@/lib/sydney-time";
 
-const WINDOW_DAYS = 7;
 const CLINIC_TZ = SYDNEY_TZ;
 const PERIODS = ["Morning", "Afternoon", "Evening"] as const;
 type Period = (typeof PERIODS)[number];
 
-const SLOTS_CACHE_KEY = "lp_wm_availability_slots";
+const SLOTS_CACHE_KEY = "lp_wm_availability_slots_v2";
 const SLOTS_CACHE_MS = 60_000;
 
 type DayCard = {
@@ -40,7 +44,7 @@ type Props = {
 };
 
 function isOpenSlot(slot: LpWmAvailabilitySlot): boolean {
-  if (isLpWmClosedWeekday(slot.startTime)) return false;
+  if (isLpWmHiddenWeekday(slot.startTime) || isLpWmClosedWeekday(slot.startTime)) return false;
   return slot.availabilityStatus !== "BOOKED" && slot.availableDoctors > 0;
 }
 
@@ -84,9 +88,10 @@ function buildWindowDays(slots: LpWmAvailabilitySlot[], loaded: boolean): DayCar
 
   const first = addSydneyDays(getSydneyYmd(new Date()), 1);
   const days: DayCard[] = [];
-  for (let i = 0; i < WINDOW_DAYS; i += 1) {
+  for (let i = 0; i < LP_WM_CALENDAR_HORIZON_DAYS; i += 1) {
     const ymd = addSydneyDays(first, i);
     const noon = sydneyLocalToUtc(ymd.year, ymd.month, ymd.day, 12, 0);
+    if (isLpWmHiddenWeekday(noon)) continue;
     const key = getSydneyDateKey(noon);
     const daySlots = byDay.get(key) ?? [];
     const closed = isLpWmClosedWeekday(noon);

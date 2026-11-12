@@ -1,6 +1,6 @@
 import { SANATIVE_LEGAL } from "@/lib/legal/constants";
 import { HOW_IT_WORKS_STEPS, PRICING } from "@/lib/lp/weight-management";
-import { formatAppointmentSydney } from "@/lib/lp/weight-management-funnel";
+import { formatAppointmentSydney, quizAnswerLabels } from "@/lib/lp/weight-management-funnel";
 
 export type LpWmEmailPayload = {
   firstName: string;
@@ -9,6 +9,7 @@ export type LpWmEmailPayload = {
   phone: string;
   appointmentStart: string;
   paymentIntentId: string;
+  quizAnswers?: Record<string, string>;
 };
 
 function escapeHtml(value: string): string {
@@ -132,6 +133,7 @@ export function lpWmStaffNotificationEmail(data: LpWmEmailPayload): {
 } {
   const when = formatAppointmentSydney(data.appointmentStart);
   const name = `${data.firstName} ${data.lastName}`.trim();
+  const quizRows = quizAnswerLabels(data.quizAnswers ?? {}).map((row) => [row.prompt, row.answer]);
   const rows = [
     ["Name", name],
     ["Email", data.email],
@@ -139,6 +141,7 @@ export function lpWmStaffNotificationEmail(data: LpWmEmailPayload): {
     ["Consult", when],
     ["Payment", data.paymentIntentId],
     ["Amount", `$${PRICING.assessmentFee} AUD`],
+    ...quizRows,
   ];
   const htmlRows = rows
     .map(

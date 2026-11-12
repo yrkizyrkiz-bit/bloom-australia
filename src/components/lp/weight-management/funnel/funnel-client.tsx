@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, ShieldCheck } from "lucide-react";
 import type { CheckoutPaymentSuccess } from "@/lib/checkout/payment-success";
 import {
   rememberMetaFunnelSource,
@@ -14,17 +15,23 @@ import {
   detectCheckoutWalletOs,
   stripeCheckoutElementsPaymentMethodOrder,
 } from "@/lib/checkout/stripe-payment-methods";
-import { LP_FUNNEL_SOURCE, PRICING } from "@/lib/lp/weight-management";
+import { LP_FUNNEL_SOURCE, LP_PATH, PRICING } from "@/lib/lp/weight-management";
+import { trackLpWmFunnelProgress } from "@/lib/lp/weight-management-analytics";
 import {
   formatAppointmentSydney,
   isLpWmClosedWeekday,
+  isLpWmHiddenWeekday,
+  LP_WM_FUNNEL_STAGE_LABELS,
   lpWmPaymentGate,
   validateLpWmContact,
+  validateLpWmQuizAnswers,
+  visibleLpWmQuizSteps,
   type LpWmContact,
   type LpWmSlot,
 } from "@/lib/lp/weight-management-funnel";
 import type { LpWmAvailabilitySlot } from "@/lib/lp/availability";
 import { LpWmPaymentForm } from "./payment-form";
+import { LpWmQualificationStep } from "./qualification-step";
 import { LpWmQuizStep } from "./quiz-step";
 import { LpWmSlotPicker } from "./slot-picker";
 
@@ -32,7 +39,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 const DRAFT_KEY = "lp_wm_funnel_draft";
 const TOKEN_KEY = "lp_wm_funnel_token";
 
-type Step = "details" | "payment" | "quiz" | "thanks";
+type Step = "quiz" | "qualify" | "details" | "payment" | "thanks";
 
 type Draft = LpWmContact & {
   slot: LpWmSlot | null;
@@ -40,8 +47,31 @@ type Draft = LpWmContact & {
   clientSecret?: string;
   accessToken?: string;
   paid?: boolean;
-  screen?: "details" | "payment";
+  quizAnswers?: Record<string, string>;
+  screen?: "quiz" | "qualify" | "details" | "payment";
 };
+
+function StageNav({ current }: { current: "quiz" | "book" | "pay" }) {
+  const currentIndex = LP_WM_FUNNEL_STAGE_LABELS.findIndex((stage) => stage.id === current);
+  return (
+    <ol className="mb-8 flex gap-2">
+      {LP_WM_FUNNEL_STAGE_LABELS.map((stage, index) => {
+        const active = index <= currentIndex;
+        return (
+          <li
+            key={stage.id}
+            className={`flex-1 text-center text-[11px] font-medium sm:text-xs ${
+              active ? "text-[#4f6038]" : "text-neutral-400"
+            }`}
+          >
+            <div className={`mb-2 h-1 rounded-full ${active ? "bg-[#4f6038]" : "bg-gray-200"}`} />
+            {stage.label}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 function readJson<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -70,7 +100,7 @@ type FunnelProps = {
 
 export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: FunnelProps) {
   const search = currentSearch(initialSearch);
-  const [step, setStep] = useState<Step>("details");
+  const [step, setStep] = useState<Step>("quiz");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -82,9 +112,9 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
   const [error, setError] = useState<string | null>(null);
   const [intentLoading, setIntentLoading] = useState(false);
   const [leadSaving, setLeadSaving] = useState(false);
-  const [quizSaving, setQuizSaving] = useState(false);
   const [paid, setPaid] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
   const paidRef = useRef(false);
   const paymentIntentIdRef = useRef<string | null>(null);
   const clientSecretRef = useRef<string | null>(null);
@@ -94,45 +124,27 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
   const accessTokenRef = useRef<string | null>(null);
   const leadTokenRef = useRef<string | null>(null);
   const attachedPiRef = useRef("");
-  const pendingQuizRef = useRef<Record<string, string> | null>(null);
+  const quizAnswersRef = useRef<Record<string, string>>({});
+  const [funnelEpoch, setFunnelEpoch] = useState(0);
 
   const contact = useMemo(
     () => ({ firstName, lastName, email, phone }),
     [firstName, lastName, email, phone]
   );
   detailsRef.current = { firstName, lastName, email, phone, slot };
+  quizAnswersRef.current = quizAnswers;
   const contactValid = validateLpWmContact(contact);
   const paymentGate = lpWmPaymentGate({ slot, contact: contactValid });
   const canContinue = paymentGate.ok;
+  const quizValid = validateLpWmQuizAnswers(quizAnswers);
 
   useEffect(() => {
     const params = new URLSearchParams(currentSearch(initialSearch));
     rememberMetaFunnelSource(params.get("source") || LP_FUNNEL_SOURCE);
   }, [initialSearch]);
 
-  const submitQuizAnswers = useCallback(async (token: string, answers: Record<string, string>) => {
-    setQuizSaving(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/lp/weight-management/quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: token, answers }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Could not save your answers");
-      pendingQuizRef.current = null;
-      sessionStorage.removeItem(TOKEN_KEY);
-      setStep("thanks");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save your answers");
-    } finally {
-      setQuizSaving(false);
-    }
-  }, []);
-
   const persistLead = useCallback(
-    async (details: LpWmContact, booked: LpWmSlot) => {
+    async (details: LpWmContact, booked: LpWmSlot | null, screen: Draft["screen"] = "quiz") => {
       const res = await fetch("/api/lp/weight-management/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,9 +152,14 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
           accessToken: leadTokenRef.current,
           paymentIntentId: paymentIntentIdRef.current,
           ...details,
-          slotId: booked.slotId,
-          startTime: booked.startTime,
-          endTime: booked.endTime,
+          ...(booked
+            ? {
+                slotId: booked.slotId,
+                startTime: booked.startTime,
+                endTime: booked.endTime,
+              }
+            : {}),
+          quizAnswers: quizAnswersRef.current,
           search: `?${search}`,
         }),
       });
@@ -162,7 +179,8 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
           clientSecret: clientSecretRef.current ?? undefined,
           accessToken: data.accessToken,
           paid: paidRef.current,
-          screen: "payment",
+          quizAnswers: quizAnswersRef.current,
+          screen,
         } satisfies Draft)
       );
       return data.accessToken as string;
@@ -185,6 +203,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
           clientSecret: clientSecretRef.current ?? undefined,
           accessToken: leadTokenRef.current ?? undefined,
           paid: true,
+          quizAnswers: quizAnswersRef.current,
           screen: "payment",
         } satisfies Draft)
       );
@@ -200,6 +219,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
             slotId: booked.slotId,
             startTime: booked.startTime,
             endTime: booked.endTime,
+            quizAnswers: quizAnswersRef.current,
             search: `?${search}`,
           }),
         });
@@ -208,40 +228,53 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
         accessTokenRef.current = data.accessToken;
         sessionStorage.setItem(TOKEN_KEY, data.accessToken);
         sessionStorage.removeItem(DRAFT_KEY);
-        if (data.status === "quiz_complete") {
-          setStep("thanks");
-          return;
-        }
-        setStep("quiz");
-        const pending = pendingQuizRef.current;
-        if (pending) await submitQuizAnswers(data.accessToken, pending);
+        trackLpWmFunnelProgress({ stage: "complete", questionCount: Object.keys(quizAnswersRef.current).length });
+        setStep("thanks");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not save your booking");
       }
     },
-    [search, submitQuizAnswers]
+    [search]
   );
 
-  useEffect(() => {
-    const token = sessionStorage.getItem(TOKEN_KEY);
-    if (token) {
-      accessTokenRef.current = token;
-      setStep("quiz");
-      setHydrated(true);
-      return;
-    }
+  const goBackToHomepage = useCallback(() => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(DRAFT_KEY);
+  }, []);
 
+  useEffect(() => {
     const draft = readJson<Draft>(DRAFT_KEY);
     const params = new URLSearchParams(currentSearch(initialSearch));
     const redirectedPi = params.get("payment_intent");
     const redirectStatus = params.get("redirect_status");
     const succeededRedirect = Boolean(redirectedPi && redirectStatus === "succeeded");
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    // A leftover booking token must not lock the funnel on a later visit.
+    // Only restore "you're booked" for a Stripe return or a paid draft in this tab.
+    if (token && !succeededRedirect && !draft?.paid) {
+      sessionStorage.removeItem(TOKEN_KEY);
+    } else if (token && succeededRedirect && !draft) {
+      accessTokenRef.current = token;
+      paidRef.current = true;
+      setPaid(true);
+      setStep("thanks");
+    }
     if (draft) {
       setFirstName(draft.firstName || "");
       setLastName(draft.lastName || "");
       setEmail(draft.email || "");
       setPhone(draft.phone || "");
-      if (draft.slot && !isLpWmClosedWeekday(draft.slot.startTime)) setSlot(draft.slot);
+      if (draft.quizAnswers) {
+        quizAnswersRef.current = draft.quizAnswers;
+        setQuizAnswers(draft.quizAnswers);
+      }
+      if (
+        draft.slot &&
+        !isLpWmClosedWeekday(draft.slot.startTime) &&
+        !isLpWmHiddenWeekday(draft.slot.startTime)
+      ) {
+        setSlot(draft.slot);
+      }
       if (draft.paymentIntentId) {
         paymentIntentIdRef.current = draft.paymentIntentId;
         setPaymentIntentId(draft.paymentIntentId);
@@ -257,9 +290,13 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
       if (draft.paid || succeededRedirect) {
         paidRef.current = true;
         setPaid(true);
-        setStep("quiz");
+        setStep("thanks");
       } else if (draft.accessToken && draft.screen === "payment" && draft.slot) {
         setStep("payment");
+      } else if (draft.screen === "details") {
+        setStep("details");
+      } else if (draft.screen === "qualify" || validateLpWmQuizAnswers(draft.quizAnswers ?? {}).ok) {
+        setStep("qualify");
       }
     }
 
@@ -290,6 +327,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
               slotId: draft.slot.slotId,
               startTime: draft.slot.startTime,
               endTime: draft.slot.endTime,
+              quizAnswers: draft.quizAnswers,
               search: `?${search}`,
             }),
           });
@@ -301,11 +339,8 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
             accessTokenRef.current = data.accessToken;
             sessionStorage.setItem(TOKEN_KEY, data.accessToken);
             sessionStorage.removeItem(DRAFT_KEY);
-            setStep(data.status === "quiz_complete" ? "thanks" : "quiz");
-            const pending = pendingQuizRef.current;
-            if (pending && data.status !== "quiz_complete") {
-              void submitQuizAnswers(data.accessToken, pending);
-            }
+            trackLpWmFunnelProgress({ stage: "complete" });
+            setStep("thanks");
             setHydrated(true);
             return;
           }
@@ -320,10 +355,10 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
     return () => {
       cancelled = true;
     };
-  }, [initialSearch, search, submitQuizAnswers]);
+  }, [initialSearch, search]);
 
   useEffect(() => {
-    if (!hydrated || (step !== "details" && step !== "payment")) return;
+    if (!hydrated || step === "thanks") return;
     const draft: Draft = {
       ...contact,
       slot,
@@ -331,10 +366,18 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
       clientSecret: clientSecret ?? undefined,
       accessToken: leadToken ?? undefined,
       paid: paid || paidRef.current,
-      screen: step === "payment" ? "payment" : "details",
+      quizAnswers,
+      screen:
+        step === "payment"
+          ? "payment"
+          : step === "details"
+            ? "details"
+            : step === "qualify"
+              ? "qualify"
+              : "quiz",
     };
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, [clientSecret, contact, hydrated, leadToken, paid, paymentIntentId, slot, step]);
+  }, [clientSecret, contact, hydrated, leadToken, paid, paymentIntentId, quizAnswers, slot, step]);
 
   const ensurePaymentIntent = useCallback(async (force = false) => {
     if (paidRef.current) return clientSecretRef.current;
@@ -412,12 +455,39 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
     if (attachedPiRef.current === paymentIntentId) return;
     if (!contactValid.ok || !slot) return;
     attachedPiRef.current = paymentIntentId;
-    void persistLead(contactValid.value, slot).catch(() => {
+    void persistLead(contactValid.value, slot, "payment").catch(() => {
       attachedPiRef.current = "";
     });
   }, [contactValid, leadToken, paid, paymentIntentId, persistLead, slot]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+    if (step === "qualify") {
+      trackLpWmFunnelProgress({
+        stage: "qualify",
+        questionCount: visibleLpWmQuizSteps(quizAnswers).length,
+      });
+    }
+    if (step === "details") {
+      trackLpWmFunnelProgress({
+        stage: "book",
+        questionCount: visibleLpWmQuizSteps(quizAnswers).length,
+      });
+    }
+    if (step === "payment") {
+      trackLpWmFunnelProgress({
+        stage: "pay",
+        questionCount: visibleLpWmQuizSteps(quizAnswers).length,
+      });
+    }
+  }, [hydrated, quizAnswers, step]);
+
   const handleContinueToPayment = async () => {
+    if (!quizValid.ok) {
+      setError(quizValid.error);
+      setStep("quiz");
+      return;
+    }
     if (!paymentGate.ok) {
       setError(paymentGate.error);
       scrollToGap(paymentGate.target);
@@ -428,7 +498,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
     setError(null);
     try {
       await ensurePaymentIntent(true);
-      await persistLead(contactValid.value, slot);
+      await persistLead(contactValid.value, slot, "payment");
       setStep("payment");
       window.scrollTo({ top: 0, behavior: "auto" });
     } catch (err) {
@@ -457,18 +527,52 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
       content_ids: ["lp_wm_assessment"],
       content_category: "weight_management",
     });
-    setStep("quiz");
+    setStep("thanks");
     void persistComplete(piId, contactValid.value, slot);
   };
 
-  const handleQuizDone = async (answers: Record<string, string>) => {
-    const token = accessTokenRef.current;
-    if (!token) {
-      pendingQuizRef.current = answers;
-      setQuizSaving(true);
-      return;
+  const applyQuizIdentity = (answers: Record<string, string>) => {
+    setQuizAnswers(answers);
+    quizAnswersRef.current = answers;
+    if (answers.firstName) setFirstName(answers.firstName);
+    if (answers.email) setEmail(answers.email);
+  };
+
+  const handleLeadCapture = async (answers: Record<string, string>) => {
+    applyQuizIdentity(answers);
+    try {
+      await persistLead(
+        {
+          firstName: answers.firstName || firstName,
+          lastName,
+          email: answers.email || email,
+          phone,
+        },
+        slot,
+        "quiz"
+      );
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save your details");
+      throw err;
     }
-    await submitQuizAnswers(token, answers);
+  };
+
+  const handleQuizDone = (answers: Record<string, string>) => {
+    applyQuizIdentity(answers);
+    setError(null);
+    void persistLead(
+      {
+        firstName: answers.firstName || firstName,
+        lastName,
+        email: answers.email || email,
+        phone,
+      },
+      slot,
+      "qualify"
+    ).catch(() => {});
+    setStep("qualify");
+    window.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const inputClass =
@@ -499,15 +603,56 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
 
   return (
     <div>
+      {step !== "thanks" && step !== "qualify" && (
+        <StageNav current={step === "payment" ? "pay" : step === "details" ? "book" : "quiz"} />
+      )}
+
+      {step === "quiz" && (
+        <LpWmQuizStep
+          key={funnelEpoch}
+          error={error}
+          initialAnswers={quizAnswers}
+          onAnswersChange={applyQuizIdentity}
+          onLeadCapture={handleLeadCapture}
+          onDone={handleQuizDone}
+        />
+      )}
+
+      {step === "qualify" && (
+        <LpWmQualificationStep
+          firstName={firstName}
+          gender={quizAnswers.gender}
+          onBack={() => {
+            setError(null);
+            setStep("quiz");
+          }}
+          onContinue={(claimedOffer) => {
+            applyQuizIdentity(
+              claimedOffer ? { ...quizAnswers, introOffer: "claimed" } : quizAnswers
+            );
+            setError(null);
+            setStep("details");
+            window.scrollTo({ top: 0, behavior: "auto" });
+          }}
+        />
+      )}
+
       {step === "details" && (
         <div className="space-y-10">
           <div>
-            <h1 className="font-serif text-[2.15rem] font-normal leading-[1.15] tracking-tight text-black sm:text-5xl">
-              Book your ${PRICING.assessmentFee} doctor assessment
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setStep("qualify");
+              }}
+              className="text-sm font-medium text-neutral-500 hover:text-black"
+            >
+              ← Back
+            </button>
+            <h1 className="mt-4 font-serif text-[2.15rem] font-normal leading-[1.15] tracking-tight text-black sm:text-5xl">
+              Pick a time
             </h1>
-            <p className="mt-4 max-w-md text-[17px] leading-relaxed text-neutral-500">
-              Book with confidence, your ${PRICING.assessmentFee} consultation fee is redeemable off your first month, or it&apos;s fully refundable if you don&apos;t qualify for the program.
-            </p>
           </div>
 
           <div id="lp-wm-calendar">
@@ -516,7 +661,12 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
 
           {slot && (
             <div id="lp-wm-details" className="space-y-4">
-              <h2 className="font-serif text-3xl font-normal tracking-tight text-black">Your information</h2>
+              <h2 className="font-serif text-3xl font-normal tracking-tight text-black">
+                Complete your profile
+              </h2>
+              <p className="text-[15px] leading-relaxed text-neutral-500">
+                Complete your details. Enter your surname and mobile number.
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-neutral-600">First name</label>
@@ -575,7 +725,7 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
                     Saving your details…
                   </>
                 ) : (
-                  "Continue to payment"
+                  "Proceed to payment"
                 )}
               </button>
               {!canContinue && (
@@ -602,12 +752,17 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
             >
               ← Back
             </button>
-            <h1 className="mt-4 font-serif text-[2.15rem] font-normal leading-[1.15] tracking-tight text-black sm:text-5xl">
+            <h1 className="mt-4 font-serif text-2xl font-normal leading-tight tracking-tight text-black sm:text-3xl">
               Payment
             </h1>
-            <p className="mt-3 max-w-md text-[17px] leading-relaxed text-neutral-500">
-              Your details are saved. Pay ${PRICING.assessmentFee} to confirm your consult.
-            </p>
+            <div className="mt-5 flex max-w-md items-start gap-1.5 rounded-2xl border border-black/10 bg-neutral-50 p-4 text-sm leading-snug text-neutral-600">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#5c7a52]" />
+              <p>
+                Join with confidence, your ${PRICING.assessmentFee} consult fee is redeemable
+                off your first month, or it&apos;s fully refundable if you don&apos;t qualify for
+                the program.
+              </p>
+            </div>
           </div>
 
           {slot && (
@@ -689,33 +844,6 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
         </div>
       )}
 
-      {step === "quiz" && (
-        <div className="space-y-6">
-          <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
-              <Check className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-sm font-medium text-green-800">Payment successful</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">A few questions for your doctor</h1>
-            <p className="mt-2 text-sm text-gray-500">
-              This helps your clinician prepare for your consult.
-            </p>
-          </div>
-          <LpWmQuizStep saving={quizSaving} error={error} onDone={handleQuizDone} />
-          {error && paymentIntentId && slot && contactValid.ok && (
-            <button
-              type="button"
-              onClick={() => persistComplete(paymentIntentId, contactValid.value, slot)}
-              className="rounded-full border border-black px-4 py-2 text-sm font-medium hover:bg-neutral-50"
-            >
-              Try saving again
-            </button>
-          )}
-        </div>
-      )}
-
       {step === "thanks" && (
         <div className="space-y-4 py-6 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500">
@@ -728,6 +856,13 @@ export function LpWmFunnelClient({ initialSlots = [], initialSearch = "" }: Funn
               : "We've received your assessment."}{" "}
             A welcome email is on its way, and a care partner will be in touch.
           </p>
+          <Link
+            href={LP_PATH}
+            onClick={goBackToHomepage}
+            className="text-sm font-medium text-neutral-500 underline-offset-2 hover:text-black hover:underline"
+          >
+            Back to homepage
+          </Link>
         </div>
       )}
     </div>

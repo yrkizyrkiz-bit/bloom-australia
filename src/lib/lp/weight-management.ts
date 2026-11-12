@@ -1,5 +1,7 @@
 export const ASSESSMENT_PATH = "/weight-management/assessment";
 
+export const LP_PATH = "/lp/weight-management";
+
 /** Isolated LP-only funnel. Does not create an account. */
 export const FUNNEL_PATH = "/lp/weight-management/start";
 
@@ -138,6 +140,8 @@ export const lpImages = {
   resultsApp: "/images/membership/results_app.webp",
   ongoingCare: "/images/lp/weight-management/ongoing-care.webp",
   ongoingCareMale: "/images/lp/weight-management/ongoing-care-male.webp",
+  welcomeFemale: "/images/lp/weight-management/welcome-female.webp",
+  welcomeMale: "/images/lp/weight-management/welcome-male.webp",
   phillipSeeley: "/images/lp/weight-management/sanative-team_phillip-seeley.webp",
   kathEdwards: "/images/lp/weight-management/sanative-team_kath-edwards.webp",
   miaDavies: "/images/lp/weight-management/sanative-team_mia.webp",

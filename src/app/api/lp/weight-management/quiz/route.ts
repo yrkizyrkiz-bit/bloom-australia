@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { LP_WM_QUIZ_STEPS } from "@/lib/lp/weight-management-funnel";
+import { validateLpWmQuizAnswers } from "@/lib/lp/weight-management-funnel";
 import { TO_PROCESS_STATUS, findToProcessByAccessToken, saveToProcessQuiz } from "@/lib/lp/to-process";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
 import {
@@ -24,26 +24,21 @@ export async function POST(req: NextRequest) {
       return rateLimitExceededResponse(ipLimited.retryAfterSec);
     }
 
-    const answersIn = body.answers && typeof body.answers === "object" ? body.answers : {};
-    const answers: Record<string, string> = {};
-    for (const step of LP_WM_QUIZ_STEPS) {
-      const value = String((answersIn as Record<string, unknown>)[step.id] ?? "").trim();
-      const valid = step.options.some((option) => option.id === value);
-      if (!valid) {
-        return NextResponse.json({ error: "Please answer every question." }, { status: 400 });
-      }
-      answers[step.id] = value;
+    const quiz = validateLpWmQuizAnswers(body.answers);
+    if (!quiz.ok) {
+      return NextResponse.json({ error: quiz.error }, { status: 400 });
     }
 
     const row = await findToProcessByAccessToken(accessToken);
     if (!row) {
       return NextResponse.json({ error: "Session expired. Please start again." }, { status: 404 });
     }
-    if (row.status === TO_PROCESS_STATUS.lead) {
-      return NextResponse.json({ error: "Please complete payment first." }, { status: 409 });
-    }
 
-    await saveToProcessQuiz(row.id, answers);
+    await saveToProcessQuiz(
+      row.id,
+      quiz.value,
+      row.status === TO_PROCESS_STATUS.lead ? undefined : TO_PROCESS_STATUS.quizComplete
+    );
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[lp/weight-management/quiz]", error);

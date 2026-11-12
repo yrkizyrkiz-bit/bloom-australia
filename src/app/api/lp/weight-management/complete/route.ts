@@ -11,6 +11,7 @@ import {
   LP_WM_PURCHASE_TYPE,
   collectLpWmUtm,
   validateLpWmContact,
+  validateLpWmQuizAnswers,
   validateLpWmSlot,
 } from "@/lib/lp/weight-management-funnel";
 import {
@@ -21,6 +22,7 @@ import {
   findToProcessByPaymentIntent,
   markToProcessEmailsSent,
   markToProcessPaid,
+  saveToProcessQuiz,
 } from "@/lib/lp/to-process";
 import { LP_FUNNEL_SOURCE } from "@/lib/lp/weight-management";
 import { RATE_LIMITS } from "@/lib/security/rate-limit-config";
@@ -93,6 +95,8 @@ export async function POST(req: NextRequest) {
       stripePaymentIntentId: paymentIntentId,
     };
 
+    const quiz = validateLpWmQuizAnswers(body.quizAnswers);
+
     const row =
       (existing ? await markToProcessPaid(existing.id, paidFields) : null) ??
       (await createToProcess({
@@ -101,8 +105,13 @@ export async function POST(req: NextRequest) {
         amountCents: LP_WM_ASSESSMENT_CENTS,
         source: LP_FUNNEL_SOURCE,
         utm: collectLpWmUtm(String(body.search || "")),
-        status: TO_PROCESS_STATUS.paid,
+        status: quiz.ok ? TO_PROCESS_STATUS.quizComplete : TO_PROCESS_STATUS.paid,
+        quizAnswers: quiz.ok ? quiz.value : null,
       }));
+
+    if (quiz.ok) {
+      await saveToProcessQuiz(row.id, quiz.value, TO_PROCESS_STATUS.quizComplete);
+    }
 
     if (!row.emailsSentAt) {
       const payload = {
@@ -112,6 +121,7 @@ export async function POST(req: NextRequest) {
         phone: row.phone,
         appointmentStart: (row.appointmentStart ?? new Date(slot.value.startTime)).toISOString(),
         paymentIntentId,
+        quizAnswers: quiz.ok ? quiz.value : undefined,
       };
       after(async () => {
         try {

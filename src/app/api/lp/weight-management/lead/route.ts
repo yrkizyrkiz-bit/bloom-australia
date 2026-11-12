@@ -3,7 +3,9 @@ import {
   LP_WM_APPOINTMENT_TYPE,
   LP_WM_ASSESSMENT_CENTS,
   collectLpWmUtm,
-  validateLpWmContact,
+  readLpWmQuizMap,
+  validateLpWmIdentity,
+  validateLpWmQuizAnswers,
   validateLpWmSlot,
 } from "@/lib/lp/weight-management-funnel";
 import { upsertToProcessLead } from "@/lib/lp/to-process";
@@ -31,31 +33,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const contact = validateLpWmContact(body);
-    if (!contact.ok) {
-      return NextResponse.json({ error: contact.error }, { status: 400 });
-    }
-    const slot = validateLpWmSlot(body);
-    if (!slot.ok) {
-      return NextResponse.json({ error: slot.error }, { status: 400 });
+    const identity = validateLpWmIdentity(body);
+    if (!identity.ok) {
+      return NextResponse.json({ error: identity.error }, { status: 400 });
     }
 
-    const paymentIntentId = String(body.paymentIntentId || "").trim();
+    const hasSlot = Boolean(String(body.slotId || "").trim());
+    const slot = hasSlot ? validateLpWmSlot(body) : null;
+    if (hasSlot && slot && !slot.ok) {
+      return NextResponse.json({ error: slot.error }, { status: 400 });
+    }
+    const slotValue = slot && slot.ok ? slot.value : null;
+
+    const quizComplete = validateLpWmQuizAnswers(body.quizAnswers);
+    const quizAnswers = quizComplete.ok ? quizComplete.value : readLpWmQuizMap(body.quizAnswers);
 
     const row = await upsertToProcessLead({
       accessToken: accessToken.length >= 32 ? accessToken : null,
-      firstName: contact.value.firstName,
-      lastName: contact.value.lastName,
-      email: contact.value.email,
-      phone: contact.value.phone,
-      appointmentSlotId: slot.value.slotId,
-      appointmentStart: new Date(slot.value.startTime),
-      appointmentEnd: new Date(slot.value.endTime),
+      firstName: identity.value.firstName,
+      lastName: identity.value.lastName,
+      email: identity.value.email,
+      phone: identity.value.phone,
+      appointmentSlotId: slotValue?.slotId ?? null,
+      appointmentStart: slotValue ? new Date(slotValue.startTime) : null,
+      appointmentEnd: slotValue ? new Date(slotValue.endTime) : null,
       appointmentType: LP_WM_APPOINTMENT_TYPE,
-      stripePaymentIntentId: paymentIntentId.startsWith("pi_") ? paymentIntentId : null,
+      stripePaymentIntentId: String(body.paymentIntentId || "").trim().startsWith("pi_")
+        ? String(body.paymentIntentId).trim()
+        : null,
       amountCents: LP_WM_ASSESSMENT_CENTS,
       source: LP_FUNNEL_SOURCE,
       utm: collectLpWmUtm(String(body.search || "")),
+      quizAnswers,
     });
 
     return NextResponse.json({

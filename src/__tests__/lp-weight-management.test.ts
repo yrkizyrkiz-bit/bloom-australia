@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  ASSESSMENT_PATH,
   buildAssessmentUrl,
   buildFunnelUrl,
   calculateBmi,
@@ -10,6 +11,7 @@ import {
   isHealthCheckOfferActive,
   isLikelyEligibleBmi,
   LP_FUNNEL_SOURCE,
+  LP_PATH,
   PRICING,
 } from "@/lib/lp/weight-management";
 import {
@@ -19,13 +21,23 @@ import {
 } from "@/lib/lp/weight-management-emails";
 import {
   LP_WM_ASSESSMENT_CENTS,
+  LP_WM_FUNNEL_STAGE_LABELS,
   LP_WM_QUIZ_STEPS,
   applyLpWmClosedWeekdayBookings,
   collectLpWmUtm,
   isLpWmClosedWeekday,
+  isLpWmHiddenWeekday,
+  LP_WM_CALENDAR_HORIZON_DAYS,
+  lpWmNeedsExtraReview,
   lpWmPaymentGate,
+  lpWmProjectedTargetKg,
+  quizAnswerLabels,
   validateLpWmContact,
+  validateLpWmIdentity,
+  validateLpWmQuizAnswers,
   validateLpWmSlot,
+  visibleLpWmQuizOptions,
+  visibleLpWmQuizSteps,
 } from "@/lib/lp/weight-management-funnel";
 
 describe("weight-management campaign landing", () => {
@@ -40,6 +52,8 @@ describe("weight-management campaign landing", () => {
     );
     expect(images).not.toContain("doctorScreensMale");
     expect(images).toContain("/images/lp/weight-management/ongoing-care-male.webp");
+    expect(images).toContain("/images/lp/weight-management/welcome-female.webp");
+    expect(images).toContain("/images/lp/weight-management/welcome-male.webp");
     expect(included).toContain("lpImages.ongoingCareMale");
     expect(included).toContain('slide.number === "05" && isMale');
     expect(included).not.toContain('slide.number === "04" && isMale');
@@ -92,6 +106,7 @@ describe("weight-management campaign landing", () => {
 
   it("sends LP CTAs into the isolated guest funnel and keeps the public assessment path unchanged", () => {
     const funnel = new URL(buildFunnelUrl("?gclid=abc&utm_source=google"), "https://sanative.com.au");
+    expect(LP_PATH).toBe("/lp/weight-management");
     expect(funnel.pathname).toBe(FUNNEL_PATH);
     expect(funnel.searchParams.get("gclid")).toBe("abc");
     expect(funnel.searchParams.get("source")).toBe(LP_FUNNEL_SOURCE);
@@ -100,6 +115,136 @@ describe("weight-management campaign landing", () => {
     expect(LP_WM_QUIZ_STEPS.some((step) => /how soon would you like to speak with a doctor/i.test(step.prompt))).toBe(
       false
     );
+    expect(ASSESSMENT_PATH).toBe("/weight-management/assessment");
+  });
+
+  it("uses a shortened copy of the original weight-loss quiz, then book, then $49", () => {
+    const ids = LP_WM_QUIZ_STEPS.map((step) => step.id);
+    expect(ids).toEqual([
+      "weightLossGoal",
+      "firstName",
+      "measurements",
+      "projection",
+      "gender",
+      "motivation",
+      "previousAttempt",
+      "previousTreatment",
+      "medicalConditions",
+      "pregnancyStatus",
+    ]);
+    expect(ids).not.toContain("digestiveConditions");
+    expect(ids).not.toContain("mentalHealthConditions");
+    expect(ids).not.toContain("currentMedications");
+    expect(visibleLpWmQuizSteps({ gender: "male" }).some((step) => step.id === "pregnancyStatus")).toBe(false);
+    expect(visibleLpWmQuizSteps({ gender: "female" }).some((step) => step.id === "pregnancyStatus")).toBe(true);
+
+    const medical = LP_WM_QUIZ_STEPS.find((step) => step.id === "medicalConditions");
+    expect(medical).toBeTruthy();
+    if (medical) {
+      expect(visibleLpWmQuizOptions(medical, { gender: "male" }).some((option) => option.id === "pcos")).toBe(
+        false
+      );
+      expect(visibleLpWmQuizOptions(medical, { gender: "female" }).some((option) => option.id === "pcos")).toBe(
+        true
+      );
+    }
+    expect(LP_WM_FUNNEL_STAGE_LABELS.map((stage) => stage.id)).toEqual(["quiz", "book", "pay"]);
+    expect(lpWmProjectedTargetKg(85, "10-25")).toBeLessThan(85);
+
+    const female = validateLpWmQuizAnswers({
+      weightLossGoal: "10-25",
+      firstName: "Ada",
+      weight: "85",
+      height: "170",
+      email: "ada@example.com",
+      projection: "viewed",
+      gender: "female",
+      motivation: "energy",
+      previousAttempt: "none",
+      previousTreatment: "none",
+      medicalConditions: "none",
+      pregnancyStatus: "no",
+    });
+    expect(female.ok).toBe(true);
+    if (female.ok) expect(female.value.bmi).toBe("29.4");
+    expect(validateLpWmQuizAnswers({ gender: "female", weightLossGoal: "10-25" }).ok).toBe(false);
+    expect(quizAnswerLabels(female.ok ? female.value : {}).some((row) => row.prompt === "BMI")).toBe(true);
+
+    const male = validateLpWmQuizAnswers({
+      weightLossGoal: "10-25",
+      firstName: "Tom",
+      weight: "95",
+      height: "180",
+      email: "tom@example.com",
+      projection: "viewed",
+      gender: "male",
+      motivation: "energy",
+      previousAttempt: "none",
+      previousTreatment: "none",
+      medicalConditions: "none",
+    });
+    expect(male.ok).toBe(true);
+    expect(lpWmNeedsExtraReview({ pregnancyStatus: "pregnant" })).toBe(true);
+    expect(lpWmNeedsExtraReview({ pregnancyStatus: "no" })).toBe(false);
+    expect(
+      validateLpWmQuizAnswers({
+        ...((male.ok ? male.value : {}) as Record<string, string>),
+        medicalConditions: "pcos",
+      }).ok
+    ).toBe(false);
+  });
+
+  it("runs the LP funnel quiz-first and tracks Google drop-off steps", () => {
+    const funnel = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/funnel/funnel-client.tsx"),
+      "utf8"
+    );
+    const quiz = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/funnel/quiz-step.tsx"),
+      "utf8"
+    );
+    const assessment = readFileSync(
+      join(process.cwd(), "src/app/(public)/weight-management/assessment/page.tsx"),
+      "utf8"
+    );
+    expect(funnel).toContain('useState<Step>("quiz")');
+    expect(funnel).toContain('setStep("qualify")');
+    expect(funnel).toContain('setStep("details")');
+    expect(funnel).toContain('step === "payment"');
+    expect(funnel).toContain("onLeadCapture");
+    expect(funnel).toContain("Complete your profile");
+    expect(funnel).toContain("Proceed to payment");
+    expect(funnel).toContain("Join with confidence");
+    expect(funnel).toContain("ShieldCheck");
+    expect(funnel).not.toContain("Your details are saved");
+    expect(funnel).toContain("Back to homepage");
+    expect(funnel).toContain("LP_PATH");
+    expect(funnel).not.toContain("Start a new assessment");
+    expect(funnel).toContain("A leftover booking token must not lock the funnel");
+    expect(funnel).toContain("Last name");
+    expect(funnel).not.toContain("Payment successful");
+    const qualify = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/funnel/qualification-step.tsx"),
+      "utf8"
+    );
+    expect(qualify).toContain("come to the right place");
+    expect(qualify).not.toContain("Additional review needed");
+    expect(qualify).toContain("lpImages.welcomeMale");
+    expect(qualify).toContain("lpImages.welcomeFemale");
+    expect(qualify).not.toContain("WM_quiz.webp");
+    expect(qualify).toContain("Love it or Leave it, 30-day money-back guarantee");
+    expect(qualify).toContain("Claim your intro offer");
+    expect(qualify).toContain("Continue");
+    expect(qualify).toContain("onContinue(claimed)");
+    expect(qualify).toContain("new and exciting medical weight options");
+    expect(funnel).toContain("quizAnswers: quizAnswersRef.current");
+    expect(funnel).toContain("trackLpWmFunnelProgress");
+    expect(quiz).toContain('stage: "quiz"');
+    expect(quiz).toContain("LpWmProjectionGraph");
+    expect(quiz).toContain("projection_email");
+    expect(quiz).toContain("Height (cm)");
+    expect(quiz).toContain("onUnlock");
+    expect(assessment).toContain("digestiveConditions");
   });
 
   it("blocks payment until a time and contact details are in", () => {
@@ -140,6 +285,19 @@ describe("weight-management campaign landing", () => {
 
   it("validates guest contact without requiring an address", () => {
     expect(
+      validateLpWmIdentity({
+        firstName: "Ada",
+        email: "ada@example.com",
+      }).ok
+    ).toBe(true);
+    expect(
+      validateLpWmContact({
+        firstName: "Ada",
+        email: "ada@example.com",
+        phone: "0412 345 678",
+      }).ok
+    ).toBe(false);
+    expect(
       validateLpWmContact({
         firstName: "Ada",
         lastName: "Lovelace",
@@ -147,6 +305,7 @@ describe("weight-management campaign landing", () => {
         phone: "0412 345 678",
       }).ok
     ).toBe(true);
+    expect(validateLpWmContact({ firstName: "Ada", email: "ada@example.com", phone: "" }).ok).toBe(false);
     expect(validateLpWmContact({ firstName: "Ada", lastName: "Lovelace", email: "nope", phone: "0412" }).ok).toBe(
       false
     );
@@ -158,6 +317,23 @@ describe("weight-management campaign landing", () => {
     expect(isLpWmClosedWeekday("2026-11-10T00:00:00+11:00")).toBe(true);
     expect(isLpWmClosedWeekday("2026-11-11T00:00:00+11:00")).toBe(true);
     expect(isLpWmClosedWeekday("2026-11-12T00:00:00+11:00")).toBe(false);
+    expect(isLpWmHiddenWeekday("2026-11-15T00:00:00+11:00")).toBe(true);
+    expect(isLpWmHiddenWeekday("2026-11-14T00:00:00+11:00")).toBe(false);
+    expect(LP_WM_CALENDAR_HORIZON_DAYS).toBe(14);
+    const picker = readFileSync(
+      join(process.cwd(), "src/components/lp/weight-management/funnel/slot-picker.tsx"),
+      "utf8"
+    );
+    expect(picker).toContain("isLpWmHiddenWeekday");
+    expect(picker).toContain("LP_WM_CALENDAR_HORIZON_DAYS");
+    expect(picker).not.toContain("WINDOW_DAYS");
+    expect(
+      validateLpWmSlot({
+        slotId: "slot_sun",
+        startTime: "2026-11-14T22:00:00.000Z",
+        endTime: "2026-11-14T22:30:00.000Z",
+      }).ok
+    ).toBe(false);
     const marked = applyLpWmClosedWeekdayBookings([
       {
         startTime: "2026-11-10T22:00:00.000Z",
