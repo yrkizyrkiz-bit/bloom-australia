@@ -27,7 +27,7 @@ export function FinalCta() {
         </span>
         <em className="font-serif font-medium italic text-sage-deep">all the way.</em>
       </h2>
-      <div className="relative overflow-hidden rounded-[2.5rem] text-forest-foreground shadow-soft">
+      <div className="relative overflow-hidden rounded-[2.5rem] text-forest-foreground shadow-soft md:aspect-video">
         <Image
           key={isMale ? lpImages.ctaHeroMale : lpImages.ctaHero}
           src={isMale ? lpImages.ctaHeroMale : lpImages.ctaHero}
@@ -43,7 +43,7 @@ export function FinalCta() {
         <div className="absolute inset-0 bg-fade" />
         <div className="absolute inset-0 bg-forest/40" />
 
-        <div className="relative flex min-h-[34rem] flex-col px-6 pb-6 pt-6 sm:min-h-0 sm:px-12 sm:py-16 lg:px-12 lg:py-24">
+        <div className="relative flex min-h-[34rem] flex-col px-6 pb-6 pt-6 sm:px-12 sm:py-16 md:absolute md:inset-0 md:min-h-0 lg:px-12 lg:py-24">
           <div className="mt-auto grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
             {pillars.map(({ icon: Icon, title, body }, index) => (
               <div
