@@ -33,7 +33,7 @@ export function ValueSection() {
             </ol>
 
             <CtaLink className="mt-8 w-full" location="pricing">
-              Let's get you started ${PRICING.assessmentFee}
+              Let's get you started
             </CtaLink>
             <div className="mt-5 flex items-start gap-1.5 rounded-2xl border border-border bg-muted p-4 text-sm leading-snug text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />

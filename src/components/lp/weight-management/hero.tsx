@@ -112,7 +112,7 @@ export function Hero() {
 
           <div className="mx-auto mt-8 w-fit lg:mx-0">
             <CtaLink variant="cta-light" location="hero">
-              Let's get you started ${PRICING.assessmentFee}
+              Let's get you started
             </CtaLink>
           </div>
 

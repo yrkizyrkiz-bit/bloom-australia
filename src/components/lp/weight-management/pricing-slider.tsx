@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { CtaLink } from "./cta-link";
 import { BASE_MONTHLY_PRICE, PLANS, formatAUD, quote } from "@/lib/pricing";
-import { PRICING } from "@/lib/lp/weight-management";
 
 import "./pricing-slider.css";
 
@@ -124,7 +123,7 @@ export function PricingSlider({ defaultPlanIndex = 0 }: { defaultPlanIndex?: num
           </div>
 
           <CtaLink className="w-full" location="pricing-slider">
-            Let&apos;s get you started ${PRICING.assessmentFee}
+            Let&apos;s get you started
           </CtaLink>
         </div>
       </div>
