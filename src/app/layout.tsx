@@ -3,7 +3,13 @@ import { Suspense } from "react";
 import { inter, playfair } from "@/lib/fonts";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
-import { SANATIVE_DEFINITION_SNIPPET, SANATIVE_DEFINITION_TEXT } from "@/lib/seo/site";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_HEIGHT,
+  DEFAULT_OG_IMAGE_WIDTH,
+  SANATIVE_DEFINITION_SNIPPET,
+  SANATIVE_DEFINITION_TEXT,
+} from "@/lib/seo/site";
 import "./globals.css";
 
 /** Match Netlify production viewport — do not add maximumScale/userScalable overrides. */
@@ -43,10 +49,10 @@ export const metadata: Metadata = {
     description: SANATIVE_DEFINITION_SNIPPET,
     images: [
       {
-        url: "/images/tablet-slider/sanative-hero-clean.webp",
-        width: 1200,
-        height: 630,
-        alt: "Sanative doctor-led biomarker care",
+        url: DEFAULT_OG_IMAGE,
+        width: DEFAULT_OG_IMAGE_WIDTH,
+        height: DEFAULT_OG_IMAGE_HEIGHT,
+        alt: "Sanative 85+ biomarker blood test",
       },
     ],
   },
@@ -54,7 +60,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Sanative | Doctor-Led Health Check Australia",
     description: SANATIVE_DEFINITION_SNIPPET,
-    images: ["/images/tablet-slider/sanative-hero-clean.webp"],
+    images: [DEFAULT_OG_IMAGE],
   },
   robots: {
     index: true,

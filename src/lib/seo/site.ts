@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 
 export const SITE_URL = "https://sanative.com.au";
 export const SITE_NAME = "Sanative";
-export const DEFAULT_OG_IMAGE = "/images/tablet-slider/sanative-hero-clean.webp";
+export const DEFAULT_OG_IMAGE = "/images/membership/sanative-biomarker-test-tube.webp";
+export const DEFAULT_OG_IMAGE_WIDTH = 1120;
+export const DEFAULT_OG_IMAGE_HEIGHT = 1400;
 
 /** Portal, auth, admin, and other logged-in / private surfaces. */
 export const NO_INDEX_ROBOTS: Metadata["robots"] = {
@@ -83,8 +85,8 @@ export function buildPageMetadata({
       images: [
         {
           url: imageUrl,
-          width: 1200,
-          height: 630,
+          width: DEFAULT_OG_IMAGE_WIDTH,
+          height: DEFAULT_OG_IMAGE_HEIGHT,
           alt: title,
         },
       ],
