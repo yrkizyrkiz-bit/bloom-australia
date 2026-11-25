@@ -104,7 +104,7 @@ export function renderProgramFunnelWelcomeEmail(params: {
     <p style="margin: 28px 0;">
       <a href="${escapeHtml(params.magicLink)}" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">${cta}</a>
     </p>
-    <p style="font-size: 13px; color: #5c7a52;">This secure link signs you in automatically${params.needsPassword ? " and lets you choose a password" : ""}. If the button doesn't work, copy this URL into your browser:<br/>${escapeHtml(params.magicLink)}</p>
+    <p style="font-size: 13px; color: #5c7a52;">This secure link signs you in automatically${params.needsPassword ? " and lets you choose a password" : ""}.</p>
     <p style="font-size: 12px; color: #9aa79a; margin-top: 32px;">Sanative · doctor-led preventative care</p>
   </div>`;
 

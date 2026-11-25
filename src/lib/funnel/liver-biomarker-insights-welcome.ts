@@ -67,7 +67,7 @@ export function renderLiverBiomarkerInsightsWelcomeEmail(params: {
     <p style="margin: 28px 0;">
       <a href="${safeMagicLink}" style="background: #34412f; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-weight: 600; display: inline-block;">${escapeHtml(cta)}</a>
     </p>
-    <p style="font-size: 13px; color: #5c7a52;">This secure link signs you in automatically${params.needsPassword ? " and lets you choose a password" : ""}. If the button doesn't work, copy this URL into your browser:<br/>${safeMagicLink}</p>
+    <p style="font-size: 13px; color: #5c7a52;">This secure link signs you in automatically${params.needsPassword ? " and lets you choose a password" : ""}.</p>
     <p><strong>What happens next?</strong></p>
     <ol style="padding-left: 20px; line-height: 1.7;">
       ${stepsHtml}
