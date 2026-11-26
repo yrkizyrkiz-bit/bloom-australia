@@ -35,6 +35,7 @@ import {
   verifyBiomarkersPanelBookingPayment,
 } from "@/lib/stripe/verify-biomarkers-panel-booking-payment";
 import { getStripe } from "@/lib/stripe";
+import { isGiftCardPaymentRef } from "@/lib/gift-cards";
 import { validatePrePaymentConsent } from "@/lib/legal/consent-record";
 import { syncEntitlementsFromSignals } from "@/lib/membership/entitlement-service";
 import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
@@ -636,7 +637,9 @@ export async function POST(req: NextRequest) {
       (Array.isArray(booking.riskFlags) && booking.riskFlags.includes("BIOMARKERS_PANEL"));
     let treatAsMembershipBooking = isOrganCareBooking;
 
-    if (!isBiomarkersBooking && !treatAsMembershipBooking) {
+    if (isGiftCardPaymentRef(paymentIntentId)) {
+      treatAsMembershipBooking = true;
+    } else if (!isBiomarkersBooking && !treatAsMembershipBooking) {
       const stripe = getStripe();
       if (stripe) {
         try {

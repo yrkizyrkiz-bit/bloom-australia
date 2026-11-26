@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
+import { verifyGiftCardMembershipPayment } from "@/lib/gift-cards";
 
 export type VerifyOrganCareBookingPaymentParams = {
   paymentIntentId: string;
@@ -26,6 +27,32 @@ function isMembershipPaymentMetadata(metadata: Stripe.Metadata | null | undefine
 export async function verifyOrganCareMembershipBookingPayment(
   params: VerifyOrganCareBookingPaymentParams
 ): Promise<VerifyOrganCareBookingPaymentResult> {
+  const giftPayment = await verifyGiftCardMembershipPayment({
+    paymentIntentId: params.paymentIntentId,
+    userId: params.userId,
+  });
+  if (giftPayment) {
+    if (!giftPayment.ok) {
+      return giftPayment;
+    }
+    const existingGiftBooking = await prisma.consultationBooking.findFirst({
+      where: {
+        paymentIntentId: params.paymentIntentId,
+        status: "BOOKING_CONFIRMED",
+        id: { not: params.bookingHoldId },
+      },
+      select: { id: true },
+    });
+    if (existingGiftBooking) {
+      return {
+        ok: false,
+        error: "This membership payment is already linked to a confirmed consultation",
+        status: 409,
+      };
+    }
+    return { ok: true, paymentIntent: giftPayment.paymentIntent };
+  }
+
   const stripe = getStripe();
   if (!stripe) {
     return { ok: false, error: "Payment verification is not configured", status: 503 };

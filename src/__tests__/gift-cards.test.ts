@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatGiftCardCode,
   generateGiftCardCode,
+  giftCardIdFromPaymentRef,
   giftCardPaymentRef,
   isGiftCardPaymentRef,
   normalizeGiftCardCode,
@@ -34,5 +35,7 @@ describe("gift card codes", () => {
     expect(giftCardPaymentRef("card123")).toBe("gift_card123");
     expect(isGiftCardPaymentRef("gift_card123")).toBe(true);
     expect(isGiftCardPaymentRef("pi_abc")).toBe(false);
+    expect(giftCardIdFromPaymentRef("gift_card123")).toBe("card123");
+    expect(giftCardIdFromPaymentRef("pi_abc")).toBeNull();
   });
 });

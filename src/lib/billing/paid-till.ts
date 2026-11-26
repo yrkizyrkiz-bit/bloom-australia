@@ -19,7 +19,7 @@ export type SubscriptionAccessStatus = {
 
 export function extractPaymentIntentId(notes: string | null | undefined): string | null {
   if (!notes) return null;
-  const match = notes.match(/\bPI\s+(pi_[a-zA-Z0-9]+)/i);
+  const match = notes.match(/\bPI\s+(pi_[a-zA-Z0-9]+|gift_[a-zA-Z0-9]+)/i);
   return match?.[1] ?? null;
 }
 

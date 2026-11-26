@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import type { DoctorPrescriptionCategory } from "@/lib/admin/doctor-consult-programs";
+import { isGiftCardPaymentRef } from "@/lib/gift-cards";
 import { normalizeProgramKey, type ProgramKey } from "@/lib/membership/keys";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
@@ -180,6 +181,14 @@ async function assertPortalProgramPaymentIntent(params: {
   | { ok: true; paymentIntent: Stripe.PaymentIntent; programKey: ProgramKey }
   | { ok: false; error: string; status: number }
 > {
+  if (isGiftCardPaymentRef(params.paymentIntentId)) {
+    return {
+      ok: false,
+      error: "Payment does not match the prescribed program",
+      status: 400,
+    };
+  }
+
   const stripe = getStripe();
   if (!stripe) {
     return { ok: false, error: "Payment verification is not configured", status: 503 };

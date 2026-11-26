@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 
 /** Crockford-style alphabet: no 0/O, 1/I/L so codes stay readable. Length 32. */
@@ -14,6 +15,90 @@ export function isGiftCardPaymentRef(paymentIntentId: string): boolean {
 
 export function giftCardPaymentRef(giftCardId: string): string {
   return `${GIFT_CARD_PAYMENT_REF_PREFIX}${giftCardId}`;
+}
+
+export function giftCardIdFromPaymentRef(paymentIntentId: string): string | null {
+  if (!isGiftCardPaymentRef(paymentIntentId)) return null;
+  const id = paymentIntentId.slice(GIFT_CARD_PAYMENT_REF_PREFIX.length).trim();
+  return id || null;
+}
+
+type GiftCardPaymentOk = { ok: true; paymentIntent: Stripe.PaymentIntent };
+type GiftCardPaymentErr = { ok: false; error: string; status: number };
+
+/**
+ * If this id is a gift-card payment ref, verify the paid invoice + redeemed card
+ * belong to the member and return a Stripe-shaped PI for booking/approval code.
+ * Returns null when the id is a normal Stripe PaymentIntent.
+ */
+export async function verifyGiftCardMembershipPayment(params: {
+  paymentIntentId: string;
+  userId: string;
+}): Promise<GiftCardPaymentOk | GiftCardPaymentErr | null> {
+  const giftCardId = giftCardIdFromPaymentRef(params.paymentIntentId);
+  if (!giftCardId) return null;
+
+  const [card, invoice, user, entitlement] = await Promise.all([
+    prisma.giftCard.findUnique({
+      where: { id: giftCardId },
+      select: { id: true, usedByUserId: true, usedAt: true },
+    }),
+    prisma.invoice.findUnique({
+      where: { stripeId: params.paymentIntentId },
+      select: { userId: true, status: true, amount: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { email: true },
+    }),
+    prisma.entitlement.findFirst({
+      where: {
+        userId: params.userId,
+        key: { in: ["MEMBERSHIP", "ORGAN_CARE"] },
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!user) {
+    return { ok: false, error: "User not found", status: 404 };
+  }
+  if (!card || !card.usedAt) {
+    return { ok: false, error: "Invalid payment intent", status: 400 };
+  }
+  if (!invoice || invoice.status !== "PAID") {
+    return { ok: false, error: "Gift card payment not completed", status: 402 };
+  }
+  if (invoice.userId !== params.userId) {
+    return { ok: false, error: "Payment does not belong to this member", status: 403 };
+  }
+  if (card.usedByUserId && card.usedByUserId !== params.userId) {
+    return { ok: false, error: "Payment does not belong to this member", status: 403 };
+  }
+  if (!entitlement) {
+    return { ok: false, error: "Active membership is required", status: 403 };
+  }
+
+  const amountCents = Math.max(0, Math.round((invoice.amount || 0) * 100));
+  return {
+    ok: true,
+    paymentIntent: {
+      id: params.paymentIntentId,
+      object: "payment_intent",
+      amount: amountCents,
+      currency: "aud",
+      status: "succeeded",
+      customer: null,
+      latest_charge: null,
+      metadata: {
+        purchaseType: "sanative_membership",
+        email: user.email,
+        userId: params.userId,
+        paymentMethod: "GIFT_CARD",
+      },
+    } as Stripe.PaymentIntent,
+  };
 }
 
 export function generateGiftCardCode(): string {

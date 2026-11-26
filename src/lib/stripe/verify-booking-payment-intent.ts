@@ -12,6 +12,7 @@ import {
   paymentMetadataMatchesSelectedPlan,
 } from "@/lib/stripe/plan-pricing";
 import { paymentBelongsToMember } from "@/lib/stripe/verify-portal-program-care-payment";
+import { verifyGiftCardMembershipPayment } from "@/lib/gift-cards";
 
 export type VerifyFirstMonthPaymentParams = {
   paymentIntentId: string;
@@ -97,6 +98,33 @@ export async function verifyFirstMonthPaymentForBooking(
 
   if (!user) {
     return { error: "User not found", status: 404 };
+  }
+
+  const giftPayment = await verifyGiftCardMembershipPayment({
+    paymentIntentId: params.paymentIntentId,
+    userId: params.userId,
+  });
+  if (giftPayment) {
+    if (!giftPayment.ok) {
+      return { error: giftPayment.error, status: giftPayment.status };
+    }
+    const existingConfirmedBooking = await prisma.consultationBooking.findFirst({
+      where: {
+        paymentIntentId: params.paymentIntentId,
+        status: "BOOKING_CONFIRMED",
+        id: { not: bookingId },
+      },
+      select: { id: true },
+    });
+    if (existingConfirmedBooking) {
+      return { error: "Payment intent has already been used", status: 409 };
+    }
+    return {
+      paymentIntent: giftPayment.paymentIntent,
+      expectedAmountCents: giftPayment.paymentIntent.amount,
+      normalizedPlan: null,
+      bookingId,
+    };
   }
 
   const stripe = getStripe();
