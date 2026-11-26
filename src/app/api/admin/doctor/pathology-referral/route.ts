@@ -432,6 +432,17 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      if (!medicareNumber) {
+        for (const quiz of portalQuizzes) {
+          const extracted = extractMedicareFromIntake(quiz.answers);
+          if (extracted.medicareNumber) {
+            medicareNumber = extracted.medicareNumber;
+            medicareIrn = extracted.medicareIrn;
+            break;
+          }
+        }
+      }
+
       return NextResponse.json({
         patient: {
           id: patient.id,

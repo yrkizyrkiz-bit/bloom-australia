@@ -5,6 +5,13 @@ import { activateSanativeMembership } from "@/lib/portal/sanative-membership";
 import { activateLiverBiomarkerInsights } from "@/lib/portal/liver-biomarker-insights";
 import { LIVER_BIOMARKER_INSIGHTS_PRODUCT_SLUG } from "@/lib/membership/checkout-product";
 import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
+import {
+  attachGiftCardUser,
+  claimGiftCard,
+  findGiftCardByCode,
+  giftCardPaymentRef,
+  releaseGiftCardClaim,
+} from "@/lib/gift-cards";
 import { MAGIC_LINK_BROWSER_TTL, signMagicLoginToken } from "@/lib/magic-link";
 import { resolveAppBaseUrl } from "@/lib/app-base-url";
 import { sendMembershipWelcomeEmail } from "@/lib/email";
@@ -90,7 +97,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const {
-      paymentIntentId,
+      paymentIntentId: bodyPaymentIntentId,
+      giftCode: bodyGiftCode,
       subscriptionId: bodySubscriptionId,
       consentRecordId,
       sessionToken,
@@ -109,8 +117,14 @@ export async function POST(request: NextRequest) {
       clientOrigin,
     } = body as Record<string, string | undefined>;
 
-    if (!paymentIntentId) {
-      return NextResponse.json({ error: "paymentIntentId required" }, { status: 400 });
+    const giftCode = typeof bodyGiftCode === "string" ? bodyGiftCode.trim() : "";
+    let paymentIntentId = typeof bodyPaymentIntentId === "string" ? bodyPaymentIntentId : "";
+
+    if (!paymentIntentId && !giftCode) {
+      return NextResponse.json(
+        { error: "paymentIntentId or gift code required" },
+        { status: 400 }
+      );
     }
     if (dateOfBirth && !quizDobToDate(dateOfBirth)) {
       return NextResponse.json(
@@ -161,6 +175,105 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const profileBase = {
+      email: resolvedEmail,
+      firstName,
+      lastName,
+      phone: phone || (tokenData.type === "phone" ? tokenData.contact : null),
+      dateOfBirth: parseAuDate(dateOfBirth),
+      addressLine1,
+      addressLine2,
+      suburb,
+      state,
+      postcode,
+      gender: gender === "MALE" || gender === "FEMALE" ? gender : null,
+    };
+
+    if (giftCode) {
+      const existingCard = await findGiftCardByCode(giftCode);
+      let claimedId: string | null = null;
+      let claimedThisRequest = false;
+
+      if (
+        existingCard?.usedByUserId &&
+        identity.userId &&
+        existingCard.usedByUserId === identity.userId
+      ) {
+        paymentIntentId = giftCardPaymentRef(existingCard.id);
+      } else if (existingCard?.usedAt && !existingCard.usedByUserId) {
+        claimedId = existingCard.id;
+        paymentIntentId = giftCardPaymentRef(existingCard.id);
+      } else {
+        const claimed = await claimGiftCard(giftCode);
+        if (!claimed) {
+          return NextResponse.json(
+            { error: "This gift card is invalid or has already been used." },
+            { status: 400 }
+          );
+        }
+        claimedId = claimed.id;
+        claimedThisRequest = true;
+        paymentIntentId = giftCardPaymentRef(claimed.id);
+      }
+
+      let result: Awaited<ReturnType<typeof activateSanativeMembership>>;
+      try {
+        result = await activateSanativeMembership({
+          ...profileBase,
+          paymentIntentId,
+          stripeSubscriptionId: null,
+          customerId: null,
+          intentProgram: intentProgram || null,
+        });
+        if (claimedId) {
+          await attachGiftCardUser(claimedId, result.userId);
+        }
+      } catch (error) {
+        if (claimedThisRequest && claimedId) {
+          await releaseGiftCardClaim(claimedId);
+        }
+        throw error;
+      }
+
+      const userForLink = await prisma.user.findUnique({
+        where: { id: result.userId },
+        select: { id: true, email: true, firstName: true, passwordHash: true },
+      });
+
+      let magicLink: string | null = null;
+      if (userForLink?.email) {
+        const baseUrl = resolveAppBaseUrl({ clientOrigin, request });
+        const postCheckoutPath = resolvePostCheckoutRedirect(intentProgram || null);
+        const linkFor = (token: string) =>
+          `${baseUrl}/auth/magic?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(postCheckoutPath)}`;
+        magicLink = linkFor(
+          signMagicLoginToken(userForLink.id, userForLink.email, MAGIC_LINK_BROWSER_TTL)
+        );
+
+        if (!result.alreadyProcessed) {
+          await sendMembershipWelcomeEmail({
+            to: userForLink.email,
+            firstName: userForLink.firstName || firstName || "",
+            magicLink: linkFor(signMagicLoginToken(userForLink.id, userForLink.email)),
+            needsPassword: !userForLink.passwordHash,
+          }).catch((err) =>
+            console.error("[membership-checkout/complete] welcome email failed:", err)
+          );
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        userId: result.userId,
+        email: result.email,
+        paymentIntentId,
+        subscriptionId: null,
+        subscriptionStatus: "ACTIVE",
+        magicLink,
+        needsPassword: Boolean(userForLink && !userForLink.passwordHash),
+      });
+    }
+
     const stripe = getStripeClient();
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     if (paymentIntent.status !== "succeeded") {
@@ -196,19 +309,9 @@ export async function POST(request: NextRequest) {
     }
 
     const sharedProfile = {
+      ...profileBase,
       paymentIntentId,
       customerId: (paymentIntent.customer as string) || null,
-      email: resolvedEmail,
-      firstName,
-      lastName,
-      phone: phone || (tokenData.type === "phone" ? tokenData.contact : null),
-      dateOfBirth: parseAuDate(dateOfBirth),
-      addressLine1,
-      addressLine2,
-      suburb,
-      state,
-      postcode,
-      gender: gender === "MALE" || gender === "FEMALE" ? gender : null,
     };
 
     const result = isLiverInsights
@@ -278,6 +381,7 @@ export async function POST(request: NextRequest) {
       success: true,
       userId: result.userId,
       email: result.email,
+      paymentIntentId,
       subscriptionId: stripeSubscriptionId,
       subscriptionStatus: "ACTIVE",
       magicLink,

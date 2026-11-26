@@ -10,6 +10,7 @@ import {
   stripCalculatedMarkerPhrases,
 } from "@/lib/pathology/blood-test-catalog";
 import { buildPathologyIndicationNotes as buildMedicareClinicalNotes } from "@/lib/pathology/pathology-clinical-notes";
+import { parseMedicareNumber } from "@/lib/medicare-number";
 
 export type PathologyPatientGender = "male" | "female";
 
@@ -336,18 +337,26 @@ export function extractMedicareFromIntake(intakeData: unknown): {
 
   const rawIrn = data.medicareIrn ?? data.medicareReference ?? data.medicareRef;
 
-  const medicareNumber =
+  const numberText =
     typeof rawNumber === "string" || typeof rawNumber === "number"
-      ? String(rawNumber).replace(/\s/g, "").trim()
-      : undefined;
-
-  const medicareIrn =
+      ? String(rawNumber)
+      : "";
+  const irnText =
     typeof rawIrn === "string" || typeof rawIrn === "number"
       ? String(rawIrn).replace(/\s/g, "").trim()
-      : undefined;
+      : "";
 
+  const parsed = parseMedicareNumber(numberText);
+  if (parsed) {
+    return {
+      medicareNumber: parsed.cardNumber,
+      medicareIrn: irnText || parsed.irn,
+    };
+  }
+
+  const medicareNumber = numberText.replace(/\s/g, "").trim();
   return {
     medicareNumber: medicareNumber || undefined,
-    medicareIrn: medicareIrn || undefined,
+    medicareIrn: irnText || undefined,
   };
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { savePortalQuizSubmission } from "@/lib/portal-quiz-submissions";
+import { persistMedicareFromQuizAnswers } from "@/lib/pathology/persist-medicare-from-quiz";
 import { hasProcessedPortalPayment } from "@/lib/portal/purchase-invoice";
 import {
   biomarkersQuizMissingAnswers,
@@ -74,6 +75,10 @@ export async function POST(request: NextRequest) {
           string,
           unknown
         >);
+
+    if (!skipped) {
+      await persistMedicareFromQuizAnswers(userId, answers);
+    }
 
     await savePortalQuizSubmission({
       userId,

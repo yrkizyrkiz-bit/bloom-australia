@@ -7,6 +7,7 @@ import {
   deriveBiomarkersQuizResult,
 } from "@/lib/programs/quizzes/biomarkers-intake-quiz";
 import { savePortalQuizSubmission } from "@/lib/portal-quiz-submissions";
+import { persistMedicareFromQuizAnswers } from "@/lib/pathology/persist-medicare-from-quiz";
 
 export async function POST(request: Request) {
   try {
@@ -34,6 +35,8 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    await persistMedicareFromQuizAnswers(userId, answers);
 
     const result = deriveBiomarkersQuizResult(answers, user?.gender);
 

@@ -10,6 +10,7 @@ import { savePortalQuizSubmission } from "@/lib/portal-quiz-submissions";
 import { prisma } from "@/lib/prisma";
 import { BIOMARKERS_PANEL_META } from "@/lib/programs/offers";
 import { requirePrePaymentConsent } from "@/lib/legal/require-pre-payment-consent";
+import { persistMedicareFromQuizAnswers } from "@/lib/pathology/persist-medicare-from-quiz";
 
 export async function POST(request: Request) {
   try {
@@ -52,6 +53,8 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    await persistMedicareFromQuizAnswers(userId, answers);
 
     const result = deriveBiomarkersQuizResult(answers, user?.gender);
     const activation = await confirmBiomarkersPanelPayment({ userId, paymentIntentId });

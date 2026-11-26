@@ -61,6 +61,7 @@ const REQUIRED_PRISMA_MODELS = [
   "emailSettings",
   "emailProcessConfig",
   "toProcess",
+  "giftCard",
 ] as const;
 
 function hasCurrentPrismaSchema(client: PrismaClient): boolean {

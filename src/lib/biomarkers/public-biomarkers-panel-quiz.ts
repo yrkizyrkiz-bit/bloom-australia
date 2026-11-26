@@ -36,6 +36,7 @@ const ESSENTIAL_QUESTION_IDS = new Set([
   "kidneyRisk",
   "liverRisk",
   "lastBloods",
+  "medicareNumber",
 ]);
 
 const ADVANCED_QUESTION_IDS = new Set([

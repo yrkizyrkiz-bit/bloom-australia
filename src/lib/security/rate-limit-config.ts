@@ -25,6 +25,8 @@ export const RATE_LIMITS = {
   checkEmailIp: { limit: 30, windowSec: 60 * 60 },
   /** Checkout / payment intent creation per IP */
   checkoutIp: { limit: 20, windowSec: 60 * 60 },
+  /** Gift card code checks per IP (does not consume the code) */
+  giftCardValidateIp: { limit: 20, windowSec: 15 * 60 },
   /**
    * LP ads funnel intent creates per IP. Updates of an existing PaymentIntent
    * are not counted. Must be high enough for retries without blocking checkout.

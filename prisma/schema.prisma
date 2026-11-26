@@ -117,6 +117,7 @@ model User {
   labReports                      LabReport[]
   mealLogs                        MealLog[]
   favoriteMeals                   FavoriteMeal[]
+  giftCards                       GiftCard[]
   membershipSubscription          MembershipSubscription?
   memberSubscriptions             MemberSubscription[]
   notifications                   Notification[]
@@ -2688,6 +2689,22 @@ model PopulationReferenceOverride {
   data      Json
   updatedAt DateTime @updatedAt
   updatedBy String?
+}
+
+/// Single-use membership gift cards. Codes are generated, never hardcoded.
+model GiftCard {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  codeNormalized String    @unique
+  batchId        String
+  usedAt         DateTime?
+  usedByUserId   String?
+  usedBy         User?     @relation(fields: [usedByUserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime  @default(now())
+
+  @@index([batchId])
+  @@index([usedAt])
+  @@map("gift_cards")
 }
 
 /// Guest LP funnel submissions (no User/account). Staff process these later.

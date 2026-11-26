@@ -14,6 +14,7 @@ export async function recordPortalPaymentInvoice(params: {
   paymentIntentId: string;
   amountAud: number;
   description: string;
+  paymentMethod?: string | null;
 }) {
   const existing = await prisma.invoice.findUnique({
     where: { stripeId: params.paymentIntentId },
@@ -29,6 +30,7 @@ export async function recordPortalPaymentInvoice(params: {
       status: "PAID",
       paidAt: new Date(),
       description: params.description,
+      paymentMethod: params.paymentMethod ?? undefined,
     },
   });
 }

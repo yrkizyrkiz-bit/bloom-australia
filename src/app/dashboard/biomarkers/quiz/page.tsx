@@ -40,6 +40,7 @@ import {
   type BiomarkersPanelTier,
 } from "@/lib/programs/offers";
 import { PortalPaymentForm } from "@/components/portal/PortalPaymentForm";
+import { MedicareNumberField } from "@/components/biomarkers/MedicareNumberField";
 
 const PROGRAMS_HUB = "/dashboard/programs";
 
@@ -77,6 +78,7 @@ export default function BiomarkersQuizPage() {
   } | null>(null);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [medicareError, setMedicareError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,7 +177,12 @@ export default function BiomarkersQuizPage() {
   };
 
   const continueFromQuestion = () => {
-    if (!question || !isBiomarkersQuestionAnswered(question, answers[question.id])) return;
+    if (!question) return;
+    if (!isBiomarkersQuestionAnswered(question, answers[question.id])) {
+      if (question.inputKind === "medicare") setMedicareError(true);
+      return;
+    }
+    setMedicareError(false);
     const nextStep = step + 1;
     setStep(nextStep);
     persist(nextStep, answers);
@@ -582,14 +589,34 @@ export default function BiomarkersQuizPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-[#7e9a72]">
               {question.sectionTitle}
             </p>
-            <p className="mt-1 text-sm text-[#5c7a52]">{question.sectionDescription}</p>
-            <h2 className="mt-4 font-serif text-xl text-[#2c3628] sm:text-2xl">{question.prompt}</h2>
-            {question.subtitle && (
-              <p className="mt-2 text-sm text-[#7e9a72]">{question.subtitle}</p>
+            {question.inputKind !== "medicare" && (
+              <p className="mt-1 text-sm text-[#5c7a52]">{question.sectionDescription}</p>
             )}
+            <h2 className="mt-4 font-serif text-xl text-[#2c3628] sm:text-2xl">
+              {question.inputKind === "medicare" ? question.sectionTitle : question.prompt}
+            </h2>
+            {question.inputKind === "medicare" ? (
+              <p className="mt-2 text-sm text-[#5c7a52]">{question.prompt}</p>
+            ) : question.subtitle ? (
+              <p className="mt-2 text-sm text-[#7e9a72]">{question.subtitle}</p>
+            ) : null}
             {question.allowMultiple && (
               <p className="mt-2 text-sm font-medium text-[#5c7a52]">Select all that apply</p>
             )}
+            {question.inputKind === "medicare" ? (
+              <div className="mt-5">
+                <MedicareNumberField
+                  value={answers[question.id] ?? ""}
+                  showError={medicareError}
+                  onChange={(value) => {
+                    setMedicareError(false);
+                    const nextAnswers = { ...answers, [question.id]: value };
+                    setAnswers(nextAnswers);
+                    persist(step, nextAnswers);
+                  }}
+                />
+              </div>
+            ) : (
             <div className="mt-5 space-y-3">
               {question.options.map((option) => {
                 const selected = question.allowMultiple
@@ -634,10 +661,14 @@ export default function BiomarkersQuizPage() {
                 );
               })}
             </div>
-            {question.allowMultiple ? (
+            )}
+            {question.allowMultiple || question.inputKind === "medicare" ? (
               <Button
                 onClick={continueFromQuestion}
-                disabled={!isBiomarkersQuestionAnswered(question, answers[question.id])}
+                disabled={
+                  question.inputKind !== "medicare" &&
+                  !isBiomarkersQuestionAnswered(question, answers[question.id])
+                }
                 className="mt-5 w-full bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50"
               >
                 Continue

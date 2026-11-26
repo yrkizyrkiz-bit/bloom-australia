@@ -7,6 +7,7 @@
  */
 
 import type { QuizOption, QuizStep } from "@/lib/programs/quizzes/sexual-health-quiz-shared";
+import { isValidMedicareNumber } from "@/lib/medicare-number";
 
 export type BiomarkersSectionId =
   | "intro"
@@ -16,7 +17,8 @@ export type BiomarkersSectionId =
   | "hormones"
   | "liver"
   | "kidney"
-  | "nutrients";
+  | "nutrients"
+  | "profile";
 
 export type BiomarkersQuizQuestion = QuizStep & {
   sectionId: BiomarkersSectionId;
@@ -24,6 +26,8 @@ export type BiomarkersQuizQuestion = QuizStep & {
   sectionDescription: string;
   /** When true, members may select more than one option (stored comma-separated). */
   allowMultiple?: boolean;
+  /** Free-text Medicare card field instead of multiple-choice options. */
+  inputKind?: "choice" | "medicare";
   /** Internal flags triggered by each option id */
   optionFlags: Record<string, string[]>;
 };
@@ -46,6 +50,9 @@ export function isBiomarkersQuestionAnswered(
   question: BiomarkersQuizQuestion,
   value: string | undefined
 ): boolean {
+  if (question.inputKind === "medicare") {
+    return isValidMedicareNumber(value);
+  }
   if (question.allowMultiple) {
     return parseBiomarkersAnswer(value).length > 0;
   }
@@ -129,6 +136,11 @@ const SECTION_META: Record<
     title: "Vitamins, iron & inflammation",
     description: "Diet, tiredness, immunity, and joint discomfort.",
     categoryName: "Nutrients & Inflammation",
+  },
+  profile: {
+    title: "Complete your profile",
+    description: "We need this to request any clinically indicated blood tests under Medicare.",
+    categoryName: "Profile",
   },
 };
 
@@ -313,25 +325,48 @@ function womensHormoneOptions(): QuizOption[] {
   ];
 }
 
+function primaryGoalQuestion(gender: BiomarkersQuizGender): BiomarkersQuizQuestion {
+  const isFemale = gender === "female";
+  const shared = [
+    { id: "fatigue", label: "Fatigue" },
+    { id: "weight-issues", label: "Weight issues" },
+    { id: "hair-loss", label: "Hair loss" },
+  ];
+  const sexSpecific = isFemale
+    ? [
+        { id: "menopause-symptoms", label: "Menopause symptoms" },
+        { id: "womens-health", label: "Women’s health" },
+      ]
+    : [{ id: "mens-health", label: "Men’s health" }];
+  const trailing = [
+    { id: "health-check-concerns", label: "Health check - some concerns" },
+    { id: "family-history-follow-up", label: "Family history follow-up" },
+    { id: "monitoring-known-condition", label: "Monitoring a known condition" },
+  ];
+  return q(
+    "intro",
+    "primaryGoal",
+    "What are your main concerns or goals?",
+    [...shared, ...sexSpecific, ...trailing],
+    {
+      fatigue: ["goal-fatigue"],
+      "weight-issues": ["goal-weight"],
+      "hair-loss": ["goal-hair"],
+      "menopause-symptoms": ["goal-menopause"],
+      "womens-health": ["goal-womens-health"],
+      "mens-health": ["goal-mens-health"],
+      "health-check-concerns": ["goal-health-check"],
+      "family-history-follow-up": ["goal-family-history"],
+      "monitoring-known-condition": ["goal-monitoring"],
+    },
+    "Select all that apply.",
+    true
+  );
+}
+
 function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestion[] {
   return [
-    q(
-      "intro",
-      "primaryGoal",
-      "What’s the main reason you want blood tests?",
-      [
-        { id: "biological-age", label: "Understand my biological age", description: "How fast your body is ageing on the inside" },
-        { id: "prevention", label: "General health check", description: "Stay on top of things before problems show up" },
-        { id: "symptoms", label: "I have symptoms I want explained", description: "Something feels off and you want answers" },
-        { id: "doctor-referred", label: "My doctor asked me to get tests", description: "Following up on your GP’s advice" },
-      ],
-      {
-        "biological-age": ["goal-ageing"],
-        prevention: ["goal-prevention"],
-        symptoms: ["goal-symptoms"],
-        "doctor-referred": ["goal-gp"],
-      }
-    ),
+    primaryGoalQuestion(gender),
     q(
       "heart",
       "heartRisk",
@@ -437,6 +472,17 @@ function buildCoreQuestions(gender: BiomarkersQuizGender): BiomarkersQuizQuestio
       },
       "A full panel is more than a quick finger-prick or single test."
     ),
+    {
+      id: "medicareNumber",
+      sectionId: "profile",
+      sectionTitle: SECTION_META.profile.title,
+      sectionDescription: SECTION_META.profile.description,
+      prompt: "We need this to request any clinically indicated blood tests under Medicare.",
+      subtitle: "Include the reference number shown on your card.",
+      options: [],
+      optionFlags: {},
+      inputKind: "medicare",
+    },
   ];
 }
 
@@ -630,12 +676,23 @@ function collectFlags(answers: Record<string, string>, questions: BiomarkersQuiz
 
 function goalLabel(goalId: string | undefined): string {
   const map: Record<string, string> = {
+    fatigue: "Fatigue",
+    "weight-issues": "Weight issues",
+    "hair-loss": "Hair loss",
+    "menopause-symptoms": "Menopause symptoms",
+    "womens-health": "Women’s health",
+    "mens-health": "Men’s health",
+    "health-check-concerns": "Health check - some concerns",
+    "family-history-follow-up": "Family history follow-up",
+    "monitoring-known-condition": "Monitoring a known condition",
     "biological-age": "Biological age assessment",
     prevention: "Preventive health screening",
     symptoms: "Symptom investigation",
     "doctor-referred": "GP-referred testing",
   };
-  return map[goalId ?? ""] ?? "General biomarker assessment";
+  const ids = parseBiomarkersAnswer(goalId);
+  if (!ids.length) return "General biomarker assessment";
+  return ids.map((id) => map[id] ?? id).join("; ");
 }
 
 export function deriveBiomarkersQuizResult(
@@ -727,6 +784,7 @@ export function deriveBiomarkersQuizResult(
     `Clinical sex for reference ranges: ${biomarkersQuizGenderLabel(effectiveGender)}`,
     `Primary goal: ${goalLabel(answers.primaryGoal)}`,
     `Last bloods: ${answers.lastBloods ?? "not specified"}`,
+    `Medicare number: ${isValidMedicareNumber(answers.medicareNumber) ? "on file" : "not provided"}`,
     "",
     "Clinical indications by category:",
     ...sections.flatMap((s) => [

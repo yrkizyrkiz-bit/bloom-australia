@@ -7,11 +7,13 @@ import {
 } from "@/lib/programs/quizzes/biomarkers-quiz-storage";
 
 describe("biomarkers intake quiz", () => {
-  it("has 9 questions across health categories", () => {
+  it("has 10 questions across health categories, ending with Medicare number", () => {
     const male = getBiomarkersQuizQuestions("male");
     const female = getBiomarkersQuizQuestions("female");
-    expect(male).toHaveLength(9);
-    expect(female).toHaveLength(9);
+    expect(male).toHaveLength(10);
+    expect(female).toHaveLength(10);
+    expect(male.at(-1)?.id).toBe("medicareNumber");
+    expect(male.at(-1)?.inputKind).toBe("medicare");
     expect(male.map((q) => q.sectionId)).toContain("heart");
     expect(male.map((q) => q.sectionId)).toContain("kidney");
   });
@@ -36,7 +38,7 @@ describe("biomarkers intake quiz", () => {
     expect(unknown).toHaveLength(1);
     expect(unknown[0]?.id).toBe("clinicalSex");
     const after = getBiomarkersQuizQuestions("other", { clinicalSex: "female" });
-    expect(after).toHaveLength(9);
+    expect(after).toHaveLength(10);
   });
 
   it("skips clinical sex when membership onboarding already collected it", () => {
@@ -87,14 +89,40 @@ describe("biomarkers intake quiz", () => {
   it("marks multi-select category questions as allowMultiple", () => {
     const questions = getBiomarkersQuizQuestions("male");
     expect(questions.find((q) => q.id === "heartRisk")?.allowMultiple).toBe(true);
-    expect(questions.find((q) => q.id === "primaryGoal")?.allowMultiple).toBe(false);
+    expect(questions.find((q) => q.id === "primaryGoal")?.allowMultiple).toBe(true);
     expect(questions.find((q) => q.id === "lastBloods")?.allowMultiple).toBe(false);
   });
 
-  it("includes biological age baseline when goal is ageing", () => {
+  it("asks primaryGoal as a gender-specific tick-all concerns list", () => {
+    const male = getBiomarkersQuizQuestions("male").find((q) => q.id === "primaryGoal");
+    const female = getBiomarkersQuizQuestions("female").find((q) => q.id === "primaryGoal");
+    expect(male?.prompt).toBe("What are your main concerns or goals?");
+    expect(male?.options.map((o) => o.id)).toEqual([
+      "fatigue",
+      "weight-issues",
+      "hair-loss",
+      "mens-health",
+      "health-check-concerns",
+      "family-history-follow-up",
+      "monitoring-known-condition",
+    ]);
+    expect(female?.options.map((o) => o.id)).toEqual([
+      "fatigue",
+      "weight-issues",
+      "hair-loss",
+      "menopause-symptoms",
+      "womens-health",
+      "health-check-concerns",
+      "family-history-follow-up",
+      "monitoring-known-condition",
+    ]);
+    expect(male?.options.some((o) => o.id === "menopause-symptoms")).toBe(false);
+    expect(male?.options.some((o) => o.id === "womens-health")).toBe(false);
+    expect(female?.options.some((o) => o.id === "mens-health")).toBe(false);
+
     const result = deriveBiomarkersQuizResult(
       {
-        primaryGoal: "biological-age",
+        primaryGoal: "fatigue,weight-issues",
         heartRisk: "none",
         metabolicRisk: "none",
         thyroidSymptoms: "none",
@@ -106,8 +134,7 @@ describe("biomarkers intake quiz", () => {
       },
       "female"
     );
-    expect(result.suggestedPanel).toBe("comprehensive");
-    expect(result.sections.length).toBeGreaterThan(0);
+    expect(result.primaryGoal).toBe("Fatigue; Weight issues");
   });
 });
 

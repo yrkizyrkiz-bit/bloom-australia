@@ -25,6 +25,7 @@ import {
   Phone,
   Loader2,
   Calendar,
+  Gift,
 } from "lucide-react";
 import Link from "next/link";
 import { MembershipConsultationBooking } from "@/components/membership/MembershipConsultationBooking";
@@ -55,6 +56,7 @@ import {
   parseBiomarkersAnswer,
   toggleBiomarkersMultiAnswer,
 } from "@/lib/programs/quizzes/biomarkers-intake-quiz";
+import { MedicareNumberField } from "@/components/biomarkers/MedicareNumberField";
 import { QuizDobTripleInput } from "@/components/funnel/QuizDobTripleInput";
 import { validateQuizDob } from "@/lib/funnel/quiz-dob";
 import { sameOriginMagicHref } from "@/lib/app-base-url";
@@ -196,6 +198,7 @@ function PaymentForm({
   userId,
   contentName = "Sanative Membership",
   contentIds = ["sanative_membership"],
+  allowGiftCard = true,
 }: {
   onSuccess: (result: CheckoutPaymentSuccess) => void;
   amountAud: number;
@@ -204,11 +207,17 @@ function PaymentForm({
   userId?: string;
   contentName?: string;
   contentIds?: string[];
+  allowGiftCard?: boolean;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [showGiftCard, setShowGiftCard] = useState(false);
+  const [giftCodeInput, setGiftCodeInput] = useState("");
+  const [appliedGiftCode, setAppliedGiftCode] = useState<string | null>(null);
+  const [giftError, setGiftError] = useState<string | null>(null);
+  const [giftChecking, setGiftChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walletEnvReady, setWalletEnvReady] = useState(false);
   const [isMobileCheckout, setIsMobileCheckout] = useState(false);
@@ -269,7 +278,55 @@ function PaymentForm({
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  const applyGiftCard = async () => {
+    setGiftChecking(true);
+    setGiftError(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/public/membership-checkout/gift-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: giftCodeInput }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAppliedGiftCode(null);
+        setGiftError(data.error || "Failed to check gift card");
+        return;
+      }
+      if (!data.valid || typeof data.code !== "string") {
+        setAppliedGiftCode(null);
+        setGiftError(data.error || "This gift card is invalid or has already been used.");
+        return;
+      }
+      setAppliedGiftCode(data.code);
+      setGiftCodeInput(data.code);
+    } catch {
+      setAppliedGiftCode(null);
+      setGiftError("Failed to check gift card");
+    } finally {
+      setGiftChecking(false);
+    }
+  };
+
   const completeCheckoutPayment = async (fromWallet = false) => {
+    if (appliedGiftCode) {
+      const consentResult = await ensurePrePaymentConsentRecorded({
+        consentChecked,
+        sourcePage: paymentSourcePage(),
+        email: customerEmail,
+        userId,
+      });
+      if (!consentResult.ok) {
+        return { error: consentResult.error };
+      }
+      onSuccess({
+        giftCode: appliedGiftCode,
+        consentRecordId: consentResult.consentRecordId,
+      });
+      return {};
+    }
+
     if (!stripe || !elements) {
       return { error: "Payment is not ready. Please try again." };
     }
@@ -328,7 +385,7 @@ function PaymentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    if (!appliedGiftCode && (!stripe || !elements)) return;
 
     setIsProcessing(true);
     setError(null);
@@ -397,7 +454,89 @@ function PaymentForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {consentCheckbox}
 
-      {showExpressCheckout && (
+      {allowGiftCard && (
+        <div className="space-y-2">
+          <label
+            htmlFor="membership-gift-card-toggle"
+            className="flex items-start gap-3 rounded-xl border border-gray-300 bg-gray-100 p-3 cursor-pointer select-none grayscale"
+          >
+            <input
+              id="membership-gift-card-toggle"
+              type="checkbox"
+              checked={showGiftCard}
+              disabled={isProcessing}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setShowGiftCard(next);
+                if (!next) {
+                  setAppliedGiftCode(null);
+                  setGiftError(null);
+                }
+              }}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-400 text-gray-600 focus:ring-gray-400/30"
+            />
+            <span className="flex items-center gap-2 text-xs text-gray-600 leading-relaxed">
+              <Gift className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+              I have a gift card/code
+            </span>
+          </label>
+
+          {showGiftCard && (
+            <div className="rounded-xl border border-gray-300 bg-gray-100 p-3 space-y-2">
+              <div className="grayscale space-y-2">
+                <label
+                  htmlFor="membership-gift-card-code"
+                  className="block text-xs font-medium text-gray-600"
+                >
+                  Gift card number
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="membership-gift-card-code"
+                    type="text"
+                    inputMode="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={giftCodeInput}
+                    disabled={isProcessing || giftChecking}
+                    onChange={(e) => {
+                      setGiftCodeInput(e.target.value.toUpperCase());
+                      setAppliedGiftCode(null);
+                      setGiftError(null);
+                    }}
+                    placeholder="SAN-XXXX-XXXX-XXXX"
+                    className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5
+                      text-sm tracking-wide text-gray-700 outline-none placeholder:text-gray-400
+                      focus:border-gray-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyGiftCard}
+                    disabled={isProcessing || giftChecking || !giftCodeInput.trim()}
+                    className="shrink-0 rounded-lg border border-gray-400 bg-gray-200 px-3 py-2.5
+                      text-sm font-medium text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                  >
+                    {giftChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+                  </button>
+                </div>
+              </div>
+              {appliedGiftCode ? (
+                <p className="text-xs text-gray-700">
+                  Gift card applied — no payment required.
+                </p>
+              ) : giftError ? (
+                <p className="text-xs text-red-600">{giftError}</p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Enter your gift card number. Each code can be used once.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!appliedGiftCode && showExpressCheckout && (
         <div className={expressReady && !expressCheckoutAvailable ? "hidden" : "space-y-3"}>
           <div className="relative">
             <div className={walletBlocked ? "pointer-events-none" : undefined}>
@@ -428,7 +567,7 @@ function PaymentForm({
         </div>
       )}
 
-      {showCardElement && (
+      {!appliedGiftCode && showCardElement && (
         <PaymentElement
           key={hidePaymentElementWallets ? "card" : "wallets"}
           options={paymentElementOptions}
@@ -442,7 +581,7 @@ function PaymentForm({
       )}
       <button
         type="submit"
-        disabled={!stripe || isProcessing || !consentChecked}
+        disabled={(!appliedGiftCode && !stripe) || isProcessing || !consentChecked}
         className="w-full py-4 bg-[#4f6038] hover:bg-[#3c4a27] disabled:opacity-50
           text-white font-semibold rounded-xl text-base transition-colors
           flex items-center justify-center gap-2"
@@ -452,6 +591,11 @@ function PaymentForm({
             <Loader2 className="w-5 h-5 animate-spin" />
             Processing...
           </>
+        ) : appliedGiftCode ? (
+          <>
+            <Gift className="w-4 h-4" />
+            Continue with gift card
+          </>
         ) : (
           <>
             <Lock className="w-4 h-4" />
@@ -459,7 +603,7 @@ function PaymentForm({
           </>
         )}
       </button>
-      <PaymentRefreshNotice />
+      {!appliedGiftCode && <PaymentRefreshNotice />}
     </form>
   );
 }
@@ -480,6 +624,7 @@ function IntakeQuizStep({
 }) {
   const [quizIndex, setQuizIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [medicareError, setMedicareError] = useState(false);
 
   const questions = useMemo(
     () => getBiomarkersQuizQuestions(profileGender, answers),
@@ -524,7 +669,11 @@ function IntakeQuizStep({
 
   const continueFromQuestion = () => {
     if (!question) return;
-    if (!isBiomarkersQuestionAnswered(question, answers[question.id])) return;
+    if (!isBiomarkersQuestionAnswered(question, answers[question.id])) {
+      if (question.inputKind === "medicare") setMedicareError(true);
+      return;
+    }
+    setMedicareError(false);
     advanceAfterAnswer(answers, question.id);
   };
 
@@ -547,12 +696,29 @@ function IntakeQuizStep({
         Question {quizIndex + 1} of {questions.length} · {question.sectionTitle}
       </p>
 
-      <h3 className="text-lg font-semibold text-gray-900">{question.prompt}</h3>
-      {question.subtitle && <p className="text-sm text-gray-500">{question.subtitle}</p>}
+      <h3 className="text-lg font-semibold text-gray-900">
+        {question.inputKind === "medicare" ? question.sectionTitle : question.prompt}
+      </h3>
+      {question.inputKind === "medicare" ? (
+        <p className="text-sm text-gray-500">{question.prompt}</p>
+      ) : question.subtitle ? (
+        <p className="text-sm text-gray-500">{question.subtitle}</p>
+      ) : null}
       {question.allowMultiple && (
         <p className="text-sm font-medium text-[#5c7a52]">Select all that apply</p>
       )}
 
+      {question.inputKind === "medicare" ? (
+        <MedicareNumberField
+          value={answers[question.id] ?? ""}
+          showError={medicareError}
+          disabled={saving}
+          onChange={(value) => {
+            setMedicareError(false);
+            setAnswers((prev) => ({ ...prev, [question.id]: value }));
+          }}
+        />
+      ) : (
       <div className="space-y-2.5">
         {question.options.map((option) => {
           const selected = question.allowMultiple
@@ -598,13 +764,18 @@ function IntakeQuizStep({
           );
         })}
       </div>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {question.allowMultiple && (
+      {(question.allowMultiple || question.inputKind === "medicare") && (
         <button
           onClick={continueFromQuestion}
-          disabled={!isBiomarkersQuestionAnswered(question, answers[question.id]) || saving}
+          disabled={
+            saving ||
+            (question.inputKind !== "medicare" &&
+              !isBiomarkersQuestionAnswered(question, answers[question.id]))
+          }
           className="w-full py-3.5 bg-gray-900 hover:bg-black disabled:opacity-50
             text-white font-semibold rounded-xl transition-colors flex items-center
             justify-center gap-2"
@@ -687,6 +858,7 @@ function MembershipCheckoutPageContent() {
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [consentRecordId, setConsentRecordId] = useState<string | null>(null);
+  const [giftCode, setGiftCode] = useState<string | null>(null);
   const [priceAud, setPriceAud] = useState(checkoutDisplay.amountAud);
   const [priceLabel, setPriceLabel] = useState(checkoutDisplay.priceLabel);
   const [productName, setProductName] = useState(checkoutDisplay.productName);
@@ -984,7 +1156,8 @@ function MembershipCheckoutPageContent() {
 
   const handlePaymentSuccess = async (result: CheckoutPaymentSuccess) => {
     setPaymentIntentId(result.paymentIntentId ?? null);
-    setConsentRecordId(result.consentRecordId);
+    setConsentRecordId(result.consentRecordId ?? null);
+    setGiftCode(result.giftCode ?? null);
     setStep("onboard");
   };
 
@@ -998,6 +1171,7 @@ function MembershipCheckoutPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paymentIntentId,
+          giftCode,
           subscriptionId,
           consentRecordId,
           sessionToken,
@@ -1021,6 +1195,9 @@ function MembershipCheckoutPageContent() {
       if (!res.ok) throw new Error(data.error);
 
       setUserId(data.userId);
+      if (typeof data.paymentIntentId === "string" && data.paymentIntentId) {
+        setPaymentIntentId(data.paymentIntentId);
+      }
       setMagicLink(data.magicLink ?? null);
       setNeedsPassword(Boolean(data.needsPassword));
       trackMetaEvent("CompleteRegistration", {
@@ -1028,7 +1205,7 @@ function MembershipCheckoutPageContent() {
         content_category: intentProgram || undefined,
         status: true,
         currency: "AUD",
-        value: priceAud,
+        value: giftCode ? 0 : priceAud,
       });
       trackMetaEvent("Schedule", {
         content_name: "Doctor consultation booking",
@@ -1544,6 +1721,7 @@ function MembershipCheckoutPageContent() {
             customerName={`${firstName} ${lastName}`.trim() || undefined}
             contentName={purchaseAnalytics.content_name}
             contentIds={purchaseAnalytics.content_ids}
+            allowGiftCard={!liverInsightsCheckout}
           />
         </Elements>
       )}
@@ -1557,7 +1735,9 @@ function MembershipCheckoutPageContent() {
         <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
           <Check className="w-4 h-4 text-white" />
         </div>
-        <span className="text-sm text-green-800 font-medium">Payment successful</span>
+        <span className="text-sm text-green-800 font-medium">
+          {giftCode ? "Gift card applied" : "Payment successful"}
+        </span>
       </div>
 
       <div>

@@ -15,6 +15,7 @@ import {
   hasProcessedPortalPayment,
   recordPortalPaymentInvoice,
 } from "@/lib/portal/purchase-invoice";
+import { isGiftCardPaymentRef } from "@/lib/gift-cards";
 import { getStripe } from "@/lib/stripe";
 import { ensureStripePriceForBillingPrice } from "@/lib/portal/stripe-subscription";
 import { findEstablishedPhoneOwner } from "@/lib/auth/assert-phone-available";
@@ -353,11 +354,15 @@ export async function activateSanativeMembership(
   }
 
   if (!alreadyProcessed) {
+    const isGift = isGiftCardPaymentRef(input.paymentIntentId);
     await recordPortalPaymentInvoice({
       userId: user.id,
       paymentIntentId: input.paymentIntentId,
-      amountAud: pricing.amountAud,
-      description: `${pricing.productName}: annual auto-renew (includes Essential biomarker panel)`,
+      amountAud: isGift ? 0 : pricing.amountAud,
+      description: isGift
+        ? `${pricing.productName}: gift card (single use)`
+        : `${pricing.productName}: annual auto-renew (includes Essential biomarker panel)`,
+      paymentMethod: isGift ? "GIFT_CARD" : undefined,
     }).catch((err) =>
       console.error("[sanative_membership] invoice record failed:", err)
     );

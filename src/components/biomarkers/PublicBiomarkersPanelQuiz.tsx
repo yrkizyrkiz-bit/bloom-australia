@@ -7,6 +7,7 @@ import {
   parseBiomarkersAnswer,
   toggleBiomarkersMultiAnswer,
 } from "@/lib/programs/quizzes/biomarkers-intake-quiz";
+import { MedicareNumberField } from "@/components/biomarkers/MedicareNumberField";
 import type { BiomarkerSubscriptionTier } from "@/lib/biomarkers/public-subscription-panels";
 import { getPublicBiomarkersPanelQuizQuestions } from "@/lib/biomarkers/public-biomarkers-panel-quiz";
 
@@ -25,6 +26,7 @@ export function PublicBiomarkersPanelQuiz({
 }: Props) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [medicareError, setMedicareError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +47,11 @@ export function PublicBiomarkersPanelQuiz({
   };
 
   const handleNext = () => {
-    if (!canContinue) return;
+    if (!canContinue) {
+      if (current?.inputKind === "medicare") setMedicareError(true);
+      return;
+    }
+    setMedicareError(false);
     if (isLast) {
       setSubmitting(true);
       Promise.resolve(onComplete(answers)).catch(() => {
@@ -94,11 +100,13 @@ export function PublicBiomarkersPanelQuiz({
 
         <div>
           <h2 className="font-serif text-xl sm:text-2xl text-[#2c3628] leading-snug">
-            {current.prompt}
+            {current.inputKind === "medicare" ? current.sectionTitle : current.prompt}
           </h2>
-          {current.subtitle && (
+          {current.inputKind === "medicare" ? (
+            <p className="mt-1.5 text-sm text-[#5c7a52]">{current.prompt}</p>
+          ) : current.subtitle ? (
             <p className="mt-1.5 text-sm text-[#5c7a52]">{current.subtitle}</p>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -106,7 +114,18 @@ export function PublicBiomarkersPanelQuiz({
         ref={optionsRef}
         className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-0.5 -mr-0.5"
       >
-        {current.options.map((option) => {
+        {current.inputKind === "medicare" ? (
+          <MedicareNumberField
+            value={answers[current.id] ?? ""}
+            showError={medicareError}
+            disabled={submitting}
+            onChange={(value) => {
+              setMedicareError(false);
+              setAnswer(current.id, value);
+            }}
+          />
+        ) : (
+        current.options.map((option) => {
           const isSelected = current.allowMultiple
             ? selectedMulti.includes(option.id)
             : answers[current.id] === option.id;
@@ -152,7 +171,8 @@ export function PublicBiomarkersPanelQuiz({
               </div>
             </button>
           );
-        })}
+        })
+        )}
       </div>
 
       <div className="mt-4 flex shrink-0 justify-between gap-3 border-t border-[#e6ebe3] bg-white pt-4">
@@ -168,7 +188,9 @@ export function PublicBiomarkersPanelQuiz({
         <button
           type="button"
           onClick={handleNext}
-          disabled={!canContinue || submitting}
+          disabled={
+            submitting || (current.inputKind !== "medicare" && !canContinue)
+          }
           className="btn-primary flex items-center gap-2 disabled:opacity-50"
         >
           {submitting ? (
